@@ -253,6 +253,32 @@ truth about how content flows from DB to user. Everything else is a thin shell.
 
 ---
 
+## Smoke Test Results — Wave A2
+
+Date: 2026-04-27
+Run with: `VERTEX_CREDENTIALS_PATH=C:/Users/DaddysHere/Documents/claw_api_service.json pytest tests/test_ai_runtime.py -v`
+
+| Test | Endpoint | HTTP | Latency (ms) | Result |
+|------|----------|------|-------------|--------|
+| test_ai_status_no_creds | GET /api/ai/status | 200 | 4 | PASSED (no creds needed) |
+| test_check_answer | POST /api/ai/check-answer | 200 | 6793 | PASSED |
+| test_boss_turn | POST /api/ai/boss-turn | 200 | 6071 | PASSED |
+| test_reflection | POST /api/ai/reflection | 200 | 8649 | PASSED |
+| test_tutor | POST /api/ai/tutor | 200 | 4271 | PASSED |
+| test_report_written | (artifact check) | — | — | PASSED |
+
+**6/6 passed. Backend: Vertex AI (gemini-2.5-flash / gemini-2.5-pro). No shape divergences detected.**
+
+Shape contracts verified against `server/template/runtime.js` FALLBACK objects and JSDoc:
+- `check-answer` → `{correct, score, feedback, matched_expected}` ✅
+- `boss-turn` → `{correct, damage_dealt, boss_response, hint, score}` ✅
+- `reflection` → `{feedback, next_steps, encouragement}` ✅
+- `tutor` → `{response, guidance_type}` ✅
+
+Per-call latency artifact: `tests/last_run_report.json`
+
+---
+
 ## Auth Model — Wave A5
 Decision pending. See `docs/AUTH_MODEL.md` for the proposal (option B—token-in-URL—recommended).
 Telegram helper: `scripts/test_telegram.sh` — supply `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` env vars to test.
