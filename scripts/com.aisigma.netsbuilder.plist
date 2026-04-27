@@ -18,10 +18,7 @@
 	<key>WorkingDirectory</key>
 	<string>/Users/aisigma/nets-builder</string>
 	<key>KeepAlive</key>
-	<dict>
-		<key>Crashed</key>
-		<true/>
-	</dict>
+	<true/>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>StandardOutPath</key>

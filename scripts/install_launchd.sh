@@ -40,12 +40,13 @@ cp "$PLIST_SRC" "$PLIST_DST"
 echo "[3/7] Installed: $PLIST_DST ✓"
 
 # 4. Unload old instance (if loaded)
-UID=$(id -u)
-launchctl bootout "gui/${UID}" "$PLIST_DST" 2>/dev/null || true
+# NOTE: don't name this UID — bash exports UID as readonly, the assignment fails under set -u.
+U_ID=$(id -u)
+launchctl bootout "gui/${U_ID}" "$PLIST_DST" 2>/dev/null || true
 echo "[4/7] Unloaded any existing instance ✓"
 
 # 5. Bootstrap (load) the plist
-launchctl bootstrap "gui/${UID}" "$PLIST_DST"
+launchctl bootstrap "gui/${U_ID}" "$PLIST_DST"
 echo "[5/7] Loaded with launchctl ✓"
 
 # 6. Wait and confirm it's running
