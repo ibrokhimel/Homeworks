@@ -106,7 +106,7 @@ In PRACTICE and BOSS phases, the server rigorously strips all grading fields —
 Defaults to Kimi (`moonshot-v1-32k` for chat, `moonshot-v1-128k` for boss planning) with automatic fallback to Vertex AI or Gemini API based on the `AI_BACKEND_PREFERENCE` environment variable.
 
 **Status:**
-Wave F0 + F1 shipped (backend, PR #6 + #7). F2 (frontend widget) in PR #8. F3 (boss personalization wiring) queued. Architecture details in [`docs/TUTOR.md`](docs/TUTOR.md).
+Wave F0 + F1 shipped (backend, PR #6 + #7). F2 (frontend widget) in PR #9. F3 (boss personalization wiring) queued. Architecture details in [`docs/TUTOR.md`](docs/TUTOR.md).
 
 ---
 
