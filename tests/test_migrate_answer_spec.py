@@ -10,9 +10,11 @@ Targets reviewer issues 1, 2, 4, 8, 9:
 
 from __future__ import annotations
 
+import gzip
 import json
 import sqlite3
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -156,3 +158,77 @@ def test_no_legacy_answers_skipped() -> None:
     mutated = m.migrate_content(content)
     assert mutated is False
     assert "answer_spec" not in content["boss_questions"][0]
+
+
+# ---------------------------------------------------------------------------
+# Backup sanity check tests (fix for #15)
+# ---------------------------------------------------------------------------
+
+
+def test_backup_sanity_no_backup_directory(tmp_path: Path) -> None:
+    """First-run case: backups/ doesn't exist. Sanity check passes (skip it)."""
+    db_path = tmp_path / "nets.db"
+    db_path.write_text("dummy db", encoding="utf-8")
+
+    # Create a temp dir and change to it so backups/ doesn't exist.
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    original_cwd = __import__("os").getcwd()
+    try:
+        __import__("os").chdir(str(work_dir))
+        result = m._backup_size_sanity(db_path)
+        assert result is True, "sanity check should pass when backups/ doesn't exist"
+    finally:
+        __import__("os").chdir(original_cwd)
+
+
+def test_backup_sanity_recent_backup_passes(tmp_path: Path) -> None:
+    """Fresh .gz file exists. Sanity check passes."""
+    db_path = tmp_path / "nets.db"
+    db_path.write_text("dummy db content", encoding="utf-8")
+
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    backups_dir = work_dir / "backups"
+    backups_dir.mkdir()
+
+    # Create a fresh .db.gz backup (non-empty, mtime = now).
+    backup_path = backups_dir / "nets.db.gz"
+    with gzip.open(str(backup_path), "wb") as f:
+        f.write(b"compressed backup content")
+
+    original_cwd = __import__("os").getcwd()
+    try:
+        __import__("os").chdir(str(work_dir))
+        result = m._backup_size_sanity(db_path)
+        assert result is True, "sanity check should pass for a fresh non-empty backup"
+    finally:
+        __import__("os").chdir(original_cwd)
+
+
+def test_backup_sanity_old_backup_fails(tmp_path: Path) -> None:
+    """Backup with mtime > 24h ago. Sanity check fails."""
+    db_path = tmp_path / "nets.db"
+    db_path.write_text("dummy db content", encoding="utf-8")
+
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    backups_dir = work_dir / "backups"
+    backups_dir.mkdir()
+
+    # Create a .db.gz backup with mtime from >24h ago.
+    backup_path = backups_dir / "nets.db.gz"
+    with gzip.open(str(backup_path), "wb") as f:
+        f.write(b"compressed backup content")
+
+    # Set mtime to 48 hours in the past.
+    old_time = time.time() - (48 * 3600)
+    __import__("os").utime(str(backup_path), (old_time, old_time))
+
+    original_cwd = __import__("os").getcwd()
+    try:
+        __import__("os").chdir(str(work_dir))
+        result = m._backup_size_sanity(db_path)
+        assert result is False, "sanity check should fail for a backup older than 24 hours"
+    finally:
+        __import__("os").chdir(original_cwd)

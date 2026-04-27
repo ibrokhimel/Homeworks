@@ -27,6 +27,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -235,27 +236,47 @@ def _backup_db(db_path: Path) -> bool:
 
 
 def _backup_size_sanity(db_path: Path) -> bool:
-    """Refuse to run if db differs by >10MB from latest backup. First-run safe."""
+    """Sanity check that a recent backup exists. First-run safe.
+
+    For .gz files, we skip byte-comparison entirely since gzip compresses 3-10x.
+    We only verify the backup is non-empty and less than 24 hours old.
+    This achieves the actual goal (sanity check that a recent backup exists)
+    without false positives from compression ratios.
+    """
     backups_dir = Path("backups")
     if not backups_dir.exists():
+        # First-run case: no backup directory yet, so skip the check.
         return True
     candidates = sorted(backups_dir.glob("*.db.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
     if not candidates:
+        # No backup files found; skip the check.
         return True
     latest = candidates[0]
     try:
-        db_size = db_path.stat().st_size
         backup_size = latest.stat().st_size
+        backup_mtime = latest.stat().st_mtime
     except OSError:
         return True
-    # Compressed backup is typically ~25-50% of raw size; a 10MB gap is conservative.
-    delta = abs(db_size - backup_size)
-    if delta > 10 * 1024 * 1024:
+
+    # Check if backup is empty.
+    if backup_size == 0:
         print(
-            f"  size sanity check: db={db_size} backup={backup_size} delta={delta} "
-            f"exceeds 10MB threshold (use --force to override)"
+            f"  backup sanity check: backup file {latest.name} is empty (0 bytes). "
+            f"Use --force to override."
         )
         return False
+
+    # Check if backup is older than 24 hours.
+    now = time.time()
+    age_seconds = now - backup_mtime
+    age_hours = age_seconds / 3600
+    if age_hours > 24:
+        print(
+            f"  backup sanity check: backup file {latest.name} is {age_hours:.1f} hours old "
+            f"(>24h). Use --force to override."
+        )
+        return False
+
     return True
 
 
