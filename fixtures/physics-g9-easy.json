@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "title": "Kinematika asoslari",
+    "subject_display": "Fizika",
+    "section": "1-§",
+    "cefr_level": "B1"
+  },
+  "quotes": [
+    "Tabiatning eng chuqur sirlari harakatda yashiringan.",
+    "Jismning qayerda ekanligini bilish uchun, uning qayerdan kelganini tushunish kerak."
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "PANEL 1 — ASOSIY TUSHUNCHALAR",
+      "pages": [
+        {
+          "blocks": [
+            { "type": "h2", "text": "Harakat nima?" },
+            { "type": "p", "text": "Mexanik harakat — vaqt o'tishi bilan jismning boshqa jismlarga nisbatan fazodagi vaziyatining o'zgarishidir." },
+            { "type": "quote", "text": "Sanoq sistemasi = Sanoq jismi + Koordinatalar sistemasi + Soat" },
+            { "type": "ul", "items": ["Trayektoriya — jism harakatlanayotgan chiziq.", "Yo'l — trayektoriyaning uzunligi (skalyar).", "Ko'chish — boshlang'ich va oxirgi nuqtalarni tutashtiruvchi vektor."] }
+          ]
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    { "term": "Mexanik harakat", "def": "Jismning fazodagi holati o'zgarishi.", "cluster": "QOIDA" },
+    { "term": "Trayektoriya", "def": "Jism qoldirgan iz (chiziq).", "cluster": "QOIDA" },
+    { "term": "Yo'l", "def": "Trayektoriya uzunligi (S).", "cluster": "METOD" },
+    { "term": "Ko'chish", "def": "Boshlang'ich va oxirgi nuqtani tutashtiruvchi kesma.", "cluster": "TAHLIL" }
+  ],
+  "memory_sprint": [
+    {
+      "type": "KO",
+      "prompt": "Qaysi biri vektor kattalik hisoblanadi?",
+      "subtitle": "",
+      "tags": "[Bloom: L1 | PISA: L1]",
+      "explain": "Ko'chishning yo'nalishi va uzunligi bor, shuning uchun u vektordir.",
+      "options": ["Yo'l", "Vaqt", "Ko'chish", "Massa"],
+      "correct": 2
+    },
+    {
+      "type": "TF",
+      "prompt": "Yo'l doimo ko'chish modulidan katta yoki unga teng bo'ladi.",
+      "subtitle": "",
+      "tags": "[Bloom: L2 | PISA: L1]",
+      "explain": "To'g'ri. Agar harakat to'g'ri chiziqli bo'lsa teng, egri chiziqli bo'lsa yo'l katta bo'ladi.",
+      "options": ["To'g'ri", "Noto'g'ri"],
+      "correct": 0
+    },
+    {
+      "type": "YNNG",
+      "prompt": "Aylanma harakatda to'liq aylanib kelganda ko'chish nolga tengmi?",
+      "subtitle": "",
+      "tags": "[Bloom: L2 | PISA: L2]",
+      "explain": "Ha, chunki boshlang'ich va oxirgi nuqta ustma-ust tushadi.",
+      "options": ["Ha", "Yo'q", "Ma'lum emas"],
+      "correct": 0
+    }
+  ],
+  "gb_adaptive_quiz": [
+    {
+      "q": "Avtomobil 3 km sharqqa va 4 km shimolga yurdi. Uning bosib o'tgan yo'lini (km) toping.",
+      "tags": "[Bloom: L2 | PISA: L1]",
+      "tier": "EASY",
+      "ans": ["7"],
+      "capture": false
+    },
+    {
+      "q": "Avtomobil 3 km sharqqa va 4 km shimolga yurdi. Uning ko'chish modulini (km) toping.",
+      "tags": "[Bloom: L3 | PISA: L2]",
+      "tier": "MEDIUM",
+      "ans": ["5"],
+      "capture": false
+    }
+  ],
+  "gb_why_chain": [],
+  "gb_memory_match": [
+    ["Vektor kattalik", "Ko'chish"],
+    ["Skalyar kattalik", "Yo'l"],
+    ["Asbob", "Soat"],
+    ["Sanoq sistemasi", "Sanoq jismi + Soat"]
+  ],
+  "real_life": null,
+  "boss_questions": [],
+  "reflection": {
+    "summary": "Bugun biz kinematikaning asosiy tushunchalari — yo'l, ko'chish va trayektoriya o'rtasidagi farqlarni o'rgandik.",
+    "question": "Agar siz uydan maktabga borib qaytsangiz, ko'chishingiz qancha bo'ladi va nega?",
+    "spaced_rep": "Ertaga skalyar va vektor kattaliklarga o'zingiz misol keltiring.",
+    "closing": "Harakatlanishdan to'xtamang! Fizika qoidalari bilan keyingi darsda uchrashamiz."
+  }
+}

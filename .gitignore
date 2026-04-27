@@ -1,0 +1,42 @@
+# Virtualenv
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Database (large + contains user data)
+nets.db
+nets.db-wal
+nets.db-shm
+*.sqlite
+*.sqlite3
+
+# Secrets
+.env
+claw_api_service.json
+*service_account*.json
+*.pem
+*.key
+
+# Logs
+*.log
+uvicorn.log
+nohup.out
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Build / cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+
+# Generated / runtime
+data/

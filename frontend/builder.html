@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NETS Builder · Homework Editor</title>
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body data-page="builder">
+  <main class="builder-shell">
+    <aside class="sidebar glass-card" aria-label="Homework phases">
+      <div class="sidebar-header">
+        <a class="btn btn-ghost" href="/index.html" aria-label="Back to dashboard">← Dashboard</a>
+        <div>
+          <p class="eyebrow">Builder</p>
+          <h1 id="sidebar-title">Loading...</h1>
+        </div>
+        <div class="pill-row" id="sidebar-meta">
+          <span class="status-pill" data-status="draft">
+            <span class="status-dot draft"></span>
+            Draft
+          </span>
+        </div>
+      </div>
+
+      <nav class="phase-list" id="phase-list" aria-label="Phase navigation"></nav>
+
+      <div class="sidebar-footer">
+        <p class="save-state" id="save-state">Idle</p>
+      </div>
+    </aside>
+
+    <section class="builder-main glass-card" aria-label="Homework builder workspace">
+      <header class="builder-topbar">
+        <div class="builder-title-block">
+          <p class="eyebrow" id="builder-subtitle">Homework</p>
+          <h2 id="builder-title">Loading homework...</h2>
+        </div>
+
+        <div class="builder-actions">
+          <div class="save-indicator" id="save-indicator" data-state="idle" role="status" aria-live="polite">
+            <span class="save-dot" aria-hidden="true"></span>
+            <span class="save-text">Loading...</span>
+          </div>
+          <button class="btn btn-ghost" id="refresh-homework-btn" type="button">Refresh</button>
+          <button class="btn btn-ghost" id="toggle-preview-btn" type="button" aria-pressed="true">Hide preview</button>
+          <button class="btn btn-ghost" id="load-template-btn" type="button">Load Template</button>
+          <button class="btn btn-ghost" id="test-tutor-btn" type="button" title="Smoke-test the 4 AI tutor endpoints">Test Tutor</button>
+          <a class="btn btn-primary" id="export-link" href="#" target="_blank" rel="noreferrer">Export HTML</a>
+        </div>
+      </header>
+
+      <div class="builder-content" id="builder-content">
+        <section class="editor-panel" aria-labelledby="active-phase-title">
+          <div class="editor-card">
+            <div class="editor-header">
+              <div>
+                <p class="eyebrow" id="active-phase-kicker">Phase</p>
+                <h3 id="active-phase-title">Loading...</h3>
+              </div>
+            </div>
+            <div id="editor-root">
+              <div class="loading-state">
+                <div class="spinner" aria-hidden="true"></div>
+                <p>Loading editor...</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="preview-panel" id="preview-panel" aria-label="Live preview">
+          <iframe class="preview-frame" id="preview-frame" title="Homework preview"></iframe>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <dialog class="modal" id="template-modal" aria-labelledby="template-modal-title">
+    <div class="modal-card glass-card">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">Fixture templates</p>
+          <h2 id="template-modal-title">Load Template</h2>
+        </div>
+        <button class="icon-btn" id="close-template-modal" type="button" aria-label="Close template modal">×</button>
+      </div>
+
+      <p class="muted-text">
+        Select a fixture JSON to populate this homework. It will auto-save after loading.
+      </p>
+
+      <div class="fixture-list" id="fixture-list" aria-label="Available fixture templates"></div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cancel-template" type="button">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Floating action button — follows the viewport so "Add X" is always reachable. -->
+  <button class="fab-add" id="fab-add" type="button" hidden aria-label="Add item">
+    <span class="fab-icon" aria-hidden="true">+</span>
+    <span class="fab-label">Add</span>
+  </button>
+
+  <script src="/js/api.js"></script>
+
+  <script src="/js/editors/_paste-util.js"></script>
+  <script src="/js/editors/_rich-field.js"></script>
+  <script src="/js/editors/preview.js"></script>
+  <script src="/js/editors/flashcards.js"></script>
+  <script src="/js/editors/memory-sprint.js"></script>
+
+  <script src="/js/editors/games/adaptive-quiz.js"></script>
+  <script src="/js/editors/games/sentence-fill.js"></script>
+  <script src="/js/editors/games/tile-match.js"></script>
+  <script src="/js/editors/game-breaks.js"></script>
+
+  <script src="/js/editors/reading.js"></script>
+  <script src="/js/editors/real-life.js"></script>
+  <script src="/js/editors/consolidation.js"></script>
+  <script src="/js/editors/boss.js"></script>
+  <script src="/js/editors/reflection.js"></script>
+
+  <script src="/js/builder.js"></script>
+</body>
+</html>

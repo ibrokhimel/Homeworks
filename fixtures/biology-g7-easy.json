@@ -1,0 +1,83 @@
+{
+  "meta": {
+    "title": "Hujayra tuzilishi",
+    "subject_display": "Biologiya",
+    "section": "3-§",
+    "cefr_level": "A2"
+  },
+  "quotes": [
+    "Hujayra — barcha tirik organizmlarning asosiy g'ishtchasidir.",
+    "Kichik narsalarda katta mo'jizalar yashiringan."
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "PANEL 1 — HUJAYRA ORGANOIDLARI",
+      "pages": [
+        {
+          "blocks": [
+            { "type": "h2", "text": "Hujayra qismlari" },
+            { "type": "p", "text": "O'simlik va hayvon hujayralari membranaga, sitoplazmaga va yadroga ega." },
+            { "type": "ul", "items": ["Yadro — irsiy ma'lumot saqlanadi.", "Mitoxondriya — hujayra 'energetik stansiyasi'.", "Xloroplast — faqat o'simliklarda, fotosintez uchun.", "Vakuola — hujayra shirasi bilan to'lgan qopchiq."] }
+          ]
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    { "term": "Yadro", "def": "Irsiy ma'lumot saqlanadigan joy.", "cluster": "QOIDA" },
+    { "term": "Mitoxondriya", "def": "Energiya ishlab chiqaruvchi organoid.", "cluster": "TAHLIL" },
+    { "term": "Xloroplast", "def": "O'simliklarda fotosintezni amalga oshiradi.", "cluster": "QOIDA" }
+  ],
+  "memory_sprint": [
+    {
+      "type": "KO",
+      "prompt": "Qaysi organoid faqat o'simlik hujayrasida uchraydi?",
+      "subtitle": "",
+      "tags": "[Bloom: L1 | PISA: L1]",
+      "explain": "Xloroplastlar o'simliklarda yorug'likdan energiya olish (fotosintez) uchun xizmat qiladi.",
+      "options": ["Yadro", "Mitoxondriya", "Xloroplast", "Sitoplazma"],
+      "correct": 2
+    },
+    {
+      "type": "TF",
+      "prompt": "Barcha tirik organizmlar hujayralardan tashkil topgan.",
+      "subtitle": "",
+      "tags": "[Bloom: L1 | PISA: L1]",
+      "explain": "To'g'ri. Viruslardan tashqari barcha organizmlar hujayraviy tuzilishga ega.",
+      "options": ["To'g'ri", "Noto'g'ri"],
+      "correct": 0
+    }
+  ],
+  "gb_adaptive_quiz": [
+    {
+      "q": "Hujayraning qaysi qismi uning energiya stansiyasi deyiladi?",
+      "tags": "[Bloom: L1 | PISA: L1]",
+      "tier": "EASY",
+      "ans": ["mitoxondriya", "mitoxondriyalar"],
+      "capture": false
+    },
+    {
+      "q": "O'simlik hujayrasiga yashil rang beruvchi plastida qanday nomlanadi?",
+      "tags": "[Bloom: L1 | PISA: L1]",
+      "tier": "MEDIUM",
+      "ans": ["xloroplast", "xloroplastlar"],
+      "capture": false
+    }
+  ],
+  "gb_why_chain": [],
+  "gb_memory_match": [
+    ["Energiya", "Mitoxondriya"],
+    ["Irsiyat", "Yadro"],
+    ["Fotosintez", "Xloroplast"],
+    ["Hujayra shirasi", "Vakuola"]
+  ],
+  "real_life": null,
+  "boss_questions": [],
+  "reflection": {
+    "summary": "Bugun siz hujayra va uning asosiy organoidlari bilan tanishdingiz. Har bir organoidning o'ziga xos vazifasi bor.",
+    "question": "Agar hujayrada mitoxondriya bo'lmasa, nima yuz berardi?",
+    "spaced_rep": "Hayvon va o'simlik hujayralari farqini sanab bering.",
+    "closing": "Tabiat mo'jizalarini kashf etishda davom eting!"
+  }
+}

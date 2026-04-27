@@ -1,0 +1,83 @@
+{
+  "meta": {
+    "title": "Amir Temur davlati",
+    "subject_display": "Tarix",
+    "section": "12-mavzu",
+    "cefr_level": "B1"
+  },
+  "quotes": [
+    "Kuch - adolatdadir.",
+    "O'z vatanini sevadigan har bir inson obodlik uchun kurashishi kerak."
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "PANEL 1 — ASOSIY QISMLAR",
+      "pages": [
+        {
+          "blocks": [
+            { "type": "h2", "text": "Amir Temur davlatiga asos solinishi" },
+            { "type": "p", "text": "1370-yilda Balxda bo'lib o'tgan qurultoyda Amir Temur Movarounnahrning yagona hukmdori deb e'lon qilindi." },
+            { "type": "ul", "items": ["Poytaxt: Samarqand.", "Dastlabki yillarda u Movarounnahrni birlashtirishga e'tibor qaratdi.", "Keyinchalik Xorazm va Dashti Qipchoqqa yurish qildi."] }
+          ]
+        }
+      ]
+    }
+  ],
+  "flashcards": [
+    { "term": "1370-yil", "def": "Amir Temur hokimiyat tepasiga kelgan yil.", "cluster": "QOIDA" },
+    { "term": "Samarqand", "def": "Amir Temur davlatining poytaxti.", "cluster": "QOIDA" },
+    { "term": "Qurultoy", "def": "Zodagonlar, harbiylar va beksizlar kengashi.", "cluster": "METOD" }
+  ],
+  "memory_sprint": [
+    {
+      "type": "KO",
+      "prompt": "Amir Temur davlatining poytaxti qaysi shahar bo'lgan?",
+      "subtitle": "",
+      "tags": "[Bloom: L1 | PISA: L1]",
+      "explain": "Amir Temur Movarounnahrni birlashtirgach, poytaxt sifatida Samarqandni tanlagan.",
+      "options": ["Buxoro", "Samarqand", "Shahrisabz", "Toshkent"],
+      "correct": 1
+    },
+    {
+      "type": "TF",
+      "prompt": "Amir Temur Movarounnahr hukmdori deb Buxoroda e'lon qilingan.",
+      "subtitle": "",
+      "tags": "[Bloom: L1 | PISA: L1]",
+      "explain": "Noto'g'ri. U 1370-yilda Balxda bo'lib o'tgan qurultoyda hukmdor etib saylangan.",
+      "options": ["To'g'ri", "Noto'g'ri"],
+      "correct": 1
+    }
+  ],
+  "gb_adaptive_quiz": [],
+  "gb_why_chain": [],
+  "gb_memory_match": [
+    ["1370", "Hokimiyatga kelish"],
+    ["Samarqand", "Poytaxt"],
+    ["Balx", "Qurultoy"],
+    ["Movarounnahr", "Asosiy hudud"]
+  ],
+  "real_life": null,
+  "boss_questions": [
+    {
+      "q": "Amir Temur qaysi yilda qaysi shaharda Movarounnahr hukmdori etib saylandi?",
+      "tags": "[Bloom: L2 | PISA: L2 | Damage: -10 HP]",
+      "ans": ["1370 yil Balxda", "1370 Balx"],
+      "hint": "Sanasi 1370. Shahar B bilan boshlanadi.",
+      "dmg": 10
+    },
+    {
+      "q": "Amir Temur davlat boshqaruvida asosan kimlarga tayangan?",
+      "tags": "[Bloom: L3 | PISA: L3 | Damage: -20 HP]",
+      "ans": ["harbiylar va ruhoniylarga", "beklar va din peshvolari"],
+      "hint": "Qo'shin boshliqlari hamda ulamolar muhim rol o'ynagan.",
+      "dmg": 20
+    }
+  ],
+  "reflection": {
+    "summary": "Bugun biz Movarounnahrda Amir Temur davlatining tashkil topishi va dastlabki yillar haqida ma'lumot oldik.",
+    "question": "Nima uchun Amir Temur davlat poytaxtini Samarqand etib belgiladi?",
+    "spaced_rep": "Qurultoyning davlat boshqaruvidagi ahamiyatini eslab qoling.",
+    "closing": "Tarix o'tmish emas, kelajak uchun ko'zgudir."
+  }
+}

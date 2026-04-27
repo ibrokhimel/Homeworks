@@ -1,0 +1,179 @@
+{
+  "_meta": {
+    "purpose": "Sanity-check scenarios for the 4 runtime tutor endpoints. Each entry's `request` body matches the corresponding Pydantic model in server/routes/ai.py exactly, so you can POST it as-is.",
+    "usage": "curl -X POST http://localhost:8000/api/ai/check-answer -H 'Content-Type: application/json' -d \"$(jq '.check_answer[0].request' tutor-tests.json)\""
+  },
+  "check_answer": [
+    {
+      "scenario": "prefix tolerance",
+      "request": {
+        "question": "Kvadrat tenglama x² − 5x + 6 = 0 ning kichik ildizini toping.",
+        "student_answer": "Javob: x = 2",
+        "expected_answers": ["2"],
+        "subject": "math-algebra",
+        "grade": 8,
+        "tier": "EASY",
+        "context": null
+      },
+      "expected_behavior": "Should recognize '2' is the core answer despite the 'Javob: x =' prefix. correct=true, score≈1.0, feedback in formal Uzbek."
+    },
+    {
+      "scenario": "numeric with unit",
+      "request": {
+        "question": "Harakat tezligi 12 m/s bo'lsa, 3 soniyada qancha yo'l bosadi?",
+        "student_answer": "36 m",
+        "expected_answers": ["36"],
+        "subject": "physics",
+        "grade": 9,
+        "tier": "MEDIUM",
+        "context": null
+      },
+      "expected_behavior": "Matches numeric value. Unit 'm' is consistent — correct=true."
+    },
+    {
+      "scenario": "natural language equivalent",
+      "request": {
+        "question": "x² − 9 = 0 tenglamaning musbat ildizi nechaga teng?",
+        "student_answer": "Ildizi uchga teng",
+        "expected_answers": ["3"],
+        "subject": "math-algebra",
+        "grade": 8,
+        "tier": "MEDIUM",
+        "context": null
+      },
+      "expected_behavior": "Natural-language answer encodes '3'. Semantic match — correct=true with feedback acknowledging the verbal form."
+    },
+    {
+      "scenario": "typo tolerance",
+      "request": {
+        "question": "Fotosintez jarayonida chiqadigan gaz nomi nima?",
+        "student_answer": "kislorad",
+        "expected_answers": ["kislorod"],
+        "subject": "biology",
+        "grade": 7,
+        "tier": "EASY",
+        "context": null
+      },
+      "expected_behavior": "Single-letter typo — correct=true, score≈0.9, feedback should gently note the correct spelling."
+    },
+    {
+      "scenario": "gibberish",
+      "request": {
+        "question": "Kvadrat tenglamaning diskriminanti qanday formulada topiladi?",
+        "student_answer": "asdfghj",
+        "expected_answers": ["b²−4ac", "b^2-4ac"],
+        "subject": "math-algebra",
+        "grade": 8,
+        "tier": "MEDIUM",
+        "context": null
+      },
+      "expected_behavior": "correct=false, score≈0, feedback should provide a hint toward the formula without revealing it."
+    }
+  ],
+  "boss_turn": [
+    {
+      "scenario": "correct 1st attempt",
+      "request": {
+        "boss_question": "Harakatlanuvchi jism tezligi 4 marta oshsa, uning kinetik energiyasi necha marta ortadi?",
+        "student_answer": "16 marta",
+        "expected_answers": ["16", "16 marta"],
+        "damage_value": 20,
+        "hp_remaining": 100,
+        "attempt_number": 1,
+        "subject": "physics",
+        "grade": 9
+      },
+      "expected_behavior": "correct=true, damage_dealt=20, boss_response acknowledges defeat dramatically, hint=null."
+    },
+    {
+      "scenario": "wrong 1st attempt",
+      "request": {
+        "boss_question": "Harakatlanuvchi jism tezligi 4 marta oshsa, uning kinetik energiyasi necha marta ortadi?",
+        "student_answer": "4 marta",
+        "expected_answers": ["16", "16 marta"],
+        "damage_value": 20,
+        "hp_remaining": 100,
+        "attempt_number": 1,
+        "subject": "physics",
+        "grade": 9
+      },
+      "expected_behavior": "correct=false, damage_dealt=0, boss_response taunts in character, hint=null (first miss gets no hint)."
+    },
+    {
+      "scenario": "wrong 2nd attempt — hint due",
+      "request": {
+        "boss_question": "Harakatlanuvchi jism tezligi 4 marta oshsa, uning kinetik energiyasi necha marta ortadi?",
+        "student_answer": "8 marta",
+        "expected_answers": ["16", "16 marta"],
+        "damage_value": 20,
+        "hp_remaining": 100,
+        "attempt_number": 2,
+        "subject": "physics",
+        "grade": 9
+      },
+      "expected_behavior": "correct=false, damage_dealt=0, boss_response taunts, hint=non-null string pointing to Ek = mv²/2 (squared velocity)."
+    }
+  ],
+  "reflection": [
+    {
+      "scenario": "thoughtful reflection",
+      "request": {
+        "homework_title": "Nyuton qonunlari",
+        "homework_summary": "Tabiy Fanlar · Fizika 9-sinf",
+        "student_reflection": "Men uchun eng qiyini Nyutonning 3-qonuni bo'ldi, chunki devor ham kuch bilan qaytarishi biroz g'alati tuyuldi.",
+        "performance": {
+          "correct": 8,
+          "total": 12,
+          "time_minutes": 42,
+          "weak_phase": "final_challenge"
+        },
+        "subject": "physics",
+        "grade": 9
+      },
+      "expected_behavior": "Feedback names a specific strength and one growth area tied to Newton's 3rd law. 2-3 next_steps, 1 encouragement sentence."
+    },
+    {
+      "scenario": "low-effort reflection",
+      "request": {
+        "homework_title": "Nyuton qonunlari",
+        "homework_summary": "Tabiy Fanlar · Fizika 9-sinf",
+        "student_reflection": "Zo'r",
+        "performance": {
+          "correct": 5,
+          "total": 12,
+          "time_minutes": 15,
+          "weak_phase": "memory_sprint"
+        },
+        "subject": "physics",
+        "grade": 9
+      },
+      "expected_behavior": "Accept brevity gracefully, gently prompt deeper reflection, still give concrete next_steps based on weak_phase."
+    }
+  ],
+  "tutor": [
+    {
+      "scenario": "stuck on concept",
+      "request": {
+        "phase": "game_breaks",
+        "question": "Diskriminant formulasidan foydalanib, x² − 4x + 3 = 0 tenglamani yeching.",
+        "student_input": "Men bu formulani tushunmadim, D nimaga kerak o'zi?",
+        "subject": "math-algebra",
+        "grade": 8,
+        "context": null
+      },
+      "expected_behavior": "guidance_type='explanation'. Response explains discriminant intuitively (how many real roots exist) without giving the final answer."
+    },
+    {
+      "scenario": "frustrated",
+      "request": {
+        "phase": "final_challenge",
+        "question": "Ikkita son yig'indisi 10, ko'paytmasi 21 ga teng. Sonlarni toping.",
+        "student_input": "Juda qiyin ekan, yecholmayapman :(",
+        "subject": "math-algebra",
+        "grade": 8,
+        "context": null
+      },
+      "expected_behavior": "guidance_type='encouragement'. Breaks problem into smaller steps, reassuring tone in formal Siz."
+    }
+  ]
+}
