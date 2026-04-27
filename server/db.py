@@ -152,6 +152,68 @@ async def list_homeworks(include_deleted: bool = False) -> list[dict]:
         await db.close()
 
 
+async def search_homeworks(
+    q: Optional[str] = None,
+    subject: Optional[str] = None,
+    grade: Optional[int] = None,
+    mode: Optional[str] = None,
+    include_deleted: bool = False,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict:
+    """Paginated + filtered homework list. Returns {items, total, limit, offset}."""
+    conditions = []
+    params: list = []
+
+    if not include_deleted:
+        conditions.append("deleted_at IS NULL")
+
+    if q:
+        like = f"%{q}%"
+        conditions.append(
+            "(title LIKE ? OR subject LIKE ? OR family LIKE ?)"
+        )
+        params.extend([like, like, like])
+
+    if subject:
+        conditions.append("subject = ?")
+        params.append(subject)
+
+    if grade is not None:
+        conditions.append("grade = ?")
+        params.append(grade)
+
+    if mode:
+        conditions.append("mode = ?")
+        params.append(mode)
+
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    cols = (
+        "id, title, subject, grade, mode, family, language, status, "
+        "created_at, updated_at, deleted_at"
+    )
+    count_sql = f"SELECT COUNT(*) FROM homeworks {where}"
+    list_sql = (
+        f"SELECT {cols} FROM homeworks {where} "
+        f"ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    )
+
+    db = await _connect()
+    try:
+        count_cursor = await db.execute(count_sql, params)
+        count_row = await count_cursor.fetchone()
+        total = count_row[0] if count_row else 0
+
+        list_cursor = await db.execute(list_sql, params + [limit, offset])
+        rows = await list_cursor.fetchall()
+        items = [dict(r) for r in rows]
+    finally:
+        await db.close()
+
+    return {"items": items, "total": total, "limit": limit, "offset": offset}
+
+
 async def list_trashed_homeworks() -> list[dict]:
     """Only soft-deleted rows — for the Trash view."""
     db = await connect()

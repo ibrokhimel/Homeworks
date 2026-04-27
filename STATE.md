@@ -293,3 +293,12 @@ Date: 2026-04-27
 - Removed export button from builder, getExportUrl() from api.js, Download button from dashboard.
 - Library + dashboard "Open preview" links now use /h/{id}.
 - homeworkSummary bug from A3 triage no longer reachable (export.py:50 deleted).
+
+---
+
+## Wave B3 — Dashboard pagination + search
+Date: 2026-04-27
+- GET /api/homeworks now supports q/subject/grade/mode/limit/offset.
+- Returns {items, total, limit, offset}. Bare list available with ?legacy=true (deprecated).
+- Dashboard paginates at 50 per page with debounced 300ms search and facet-driven dropdowns.
+- Tests: tests/test_homework_list.py covers default shape, q search, subject/grade filters, pagination offset.
