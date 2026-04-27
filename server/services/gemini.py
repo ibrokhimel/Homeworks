@@ -35,13 +35,19 @@ FAST_MODEL: str = "gemini-2.5-flash"
 PRO_MODEL: str = "gemini-2.5-pro"
 
 # ── Preference parsing ────────────────────────────────────────────────────────
-_DEFAULT_PREFERENCE = "kimi,vertex,gemini"
+_DEFAULT_PREFERENCE = "kimi,vertex,gemini_api"
+
+# Provider-name regex: lowercase letters with optional underscores. Permits
+# "gemini_api" / "kimi" / future "openai" without dropping valid names.
+import re as _re
+
+_PROVIDER_NAME_RE = _re.compile(r"^[a-z][a-z0-9_]*$")
 
 
 def _parse_preference(raw: str) -> list[str]:
     """Parse comma-separated provider names; fall back to default on garbage input."""
     try:
-        parts = [p.strip() for p in raw.split(",") if p.strip().isalpha()]
+        parts = [p.strip() for p in raw.split(",") if _PROVIDER_NAME_RE.match(p.strip())]
         if not parts:
             raise ValueError("empty after sanitisation")
         return parts
@@ -68,15 +74,17 @@ def __getattr__(name: str):  # noqa: N807
 
 
 # ── Model resolution ──────────────────────────────────────────────────────────
-def _resolve_model(model: str, provider_name: str) -> str:
-    """Map gemini-native model names to provider-specific equivalents."""
-    if provider_name == "kimi":
-        kimi = get_provider("kimi")
-        assert isinstance(kimi, KimiProvider)
+def _resolve_model(model: str, provider) -> str:
+    """Map gemini-native model names to provider-specific equivalents.
+
+    Takes the provider INSTANCE (already resolved by select_provider) instead
+    of re-fetching by name — avoids a redundant registry lookup per request.
+    """
+    if isinstance(provider, KimiProvider):
         if model == FAST_MODEL:
-            return kimi.fast_model
+            return provider.fast_model
         if model == PRO_MODEL:
-            return kimi.pro_model
+            return provider.pro_model
     return model
 
 
@@ -97,7 +105,7 @@ async def generate(
             "No AI backend available. Set KIMI_API_KEY, VERTEX_CREDENTIALS_PATH, "
             "or GEMINI_API_KEY in .env"
         )
-    resolved_model = _resolve_model(model, provider.name)
+    resolved_model = _resolve_model(model, provider)
     envelope = await provider.generate_json(
         full_prompt, resolved_model, json_mode=json_mode, temperature=temperature
     )

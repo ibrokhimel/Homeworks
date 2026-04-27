@@ -84,7 +84,29 @@ def test_malformed_preference_env(monkeypatch):
 
     pref = gemini._preference_list()
     # Should fall back to the default order without crashing
-    assert pref == ["kimi", "vertex", "gemini"]
+    assert pref == ["kimi", "vertex", "gemini_api"]
+
+
+def test_provider_name_with_underscore_parses(monkeypatch):
+    """gemini_api (and any future provider with underscores) must parse."""
+    monkeypatch.setenv("AI_BACKEND_PREFERENCE", "gemini_api,kimi")
+
+    from server.services import gemini
+
+    assert gemini._preference_list() == ["gemini_api", "kimi"]
+
+
+@pytest.mark.asyncio
+async def test_no_backend_raises(monkeypatch):
+    """generate() must raise RuntimeError when no provider is available."""
+    monkeypatch.delenv("KIMI_API_KEY", raising=False)
+    monkeypatch.delenv("VERTEX_CREDENTIALS_PATH", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    from server.services import gemini
+
+    with pytest.raises(RuntimeError, match="No AI backend available"):
+        await gemini.generate("hello")
 
 
 # ── 6. Envelope shape from KimiProvider ──────────────────────────────────────

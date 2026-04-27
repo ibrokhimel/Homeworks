@@ -22,7 +22,7 @@ class GeminiAPIProvider(AIProvider):
 
     @property
     def name(self) -> str:
-        return "gemini"
+        return "gemini_api"
 
     def is_available(self) -> bool:
         key = os.environ.get("GEMINI_API_KEY", "")
@@ -69,4 +69,4 @@ class GeminiAPIProvider(AIProvider):
 
 
 # Auto-register singleton
-register("gemini", GeminiAPIProvider())
+register("gemini_api", GeminiAPIProvider())
