@@ -199,7 +199,7 @@ async def search_homeworks(
         f"ORDER BY created_at DESC LIMIT ? OFFSET ?"
     )
 
-    db = await _connect()
+    db = await connect()
     try:
         count_cursor = await db.execute(count_sql, params)
         count_row = await count_cursor.fetchone()
