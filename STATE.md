@@ -282,3 +282,14 @@ Per-call latency artifact: `tests/last_run_report.json`
 ## Auth Model — Wave A5
 Decision pending. See `docs/AUTH_MODEL.md` for the proposal (option B—token-in-URL—recommended).
 Telegram helper: `scripts/test_telegram.sh` — supply `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` env vars to test.
+
+---
+
+## Wave B1+B2 — /h/{id} permanent URL + export removed
+Date: 2026-04-27
+- Added GET /h/{id} permanent URL with shared render_homework() helper.
+- Deleted server/routes/export.py. /preview moved into homework_page.py (URL preserved).
+- injector.inject() always injects AI bootstrap (runtime_context now required).
+- Removed export button from builder, getExportUrl() from api.js, Download button from dashboard.
+- Library + dashboard "Open preview" links now use /h/{id}.
+- homeworkSummary bug from A3 triage no longer reachable (export.py:50 deleted).

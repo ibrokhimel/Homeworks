@@ -85,9 +85,9 @@ When served as `file://`, `isAvailable()` returns false. Homework falls back to 
 
 ## How it gets injected
 
-The backend's `inject()` function (`server/services/injector.py`) appends two `<script>` tags before `</body>` when `runtime_context` is passed:
+The backend's `inject()` function (`server/services/injector.py`) appends two `<script>` tags before `</body>`:
 
 1. `<script>window.NETS_CTX = { apiBase, subject, grade, homeworkTitle, homeworkSummary };</script>`
 2. `<script src="/static/runtime/runtime.js"></script>`
 
-The `preview` route injects these; the `export` route does NOT (standalone files stay offline-safe).
+Both `/api/homeworks/{id}/preview` and `/h/{id}` always inject these via the shared `render_homework()` helper in `server/routes/homework_page.py`.

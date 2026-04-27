@@ -320,10 +320,6 @@
       return buildUrl(`/api/homeworks/${encodeId(id)}/preview`);
     },
 
-    getExportUrl(id) {
-      return buildUrl(`/api/homeworks/${encodeId(id)}/export`);
-    },
-
     createSession({ homework_id, student_name }) {
       return request("/api/sessions", {
         method: "POST",

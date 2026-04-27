@@ -13,9 +13,9 @@ Everything below assumes you're inside `/Users/aisigma/nets-builder/` on the Mac
 ## 1. What this project is
 
 A FastAPI + SQLite backend plus a vanilla-JS frontend that lets a teacher build a NETS-spec
-homework session in the browser, preview it live, and export a single self-contained HTML file
-that runs the full session offline. An optional AI tutor (Vertex AI / Google Gemini) hooks into
-the runtime to grade open answers, narrate the Final Boss, and write reflection feedback.
+homework session in the browser and preview it live. An optional AI tutor
+(Vertex AI / Google Gemini) hooks into the runtime to grade open answers,
+narrate the Final Boss, and write reflection feedback.
 
 There is no build step. Python serves the frontend statically. Saves are durable.
 
@@ -60,7 +60,7 @@ the system Python.
   │   │   ├── homework.py           # CRUD + duplicate + restore
   │   │   ├── meta.py               # subjects, fixtures, trash, versions
   │   │   ├── ai.py                 # 4 tutor endpoints
-  │   │   └── export.py             # /preview + /export
+  │   │   └── homework_page.py      # /h/{id} permanent URL + /preview iframe route
   │   ├── services/
   │   │   ├── gemini.py             # 3-tier backend (vertex → gemini_api → kimi)
   │   │   ├── tutor.py              # 4 tutor functions, JSON-schema enforced
@@ -107,7 +107,7 @@ Each homework has a `content_json` blob with these top-level keys:
 | `reflection` | object | reflection.js | `REFLECTION` |
 
 The DB stores the **builder-native** shape. The injector rewrites it into the **template-native**
-shape on every preview/export — never on save. This means changing the template's expected shape
+shape on every preview render — never on save. This means changing the template's expected shape
 is safe (just patch the adapter).
 
 Full shapes for each key are documented in `CONTRACTS.md` at the project root.
@@ -152,17 +152,11 @@ curl -s /api/homeworks/{id}/versions
 curl -s -X POST /api/homeworks/{id}/versions/{ver_id}/restore
 ```
 
-### Preview + export
+### Permanent share URL
 
-```bash
-# Live preview (includes AI runtime hooks)
-curl -s /api/homeworks/{id}/preview > preview.html
-
-# Standalone export (no AI runtime)
-curl -s /api/homeworks/{id}/export > {id}.html
-```
-
-Trashed homeworks return **409** on `/preview` and `/export`. Restore first.
+`GET /h/{id}` returns the rendered homework with the AI runtime baked in.
+The same body is also served from `/api/homeworks/{id}/preview` (used by the
+builder iframe; trashed homeworks return **409** on both URLs).
 
 ### AI tutor
 
@@ -236,7 +230,7 @@ The "happy path" for an agent that wants to programmatically generate a full hom
 5. `PUT /api/homeworks/{id}` with the assembled blob.
 6. `GET /api/homeworks/{id}/preview` and grep for the 10 const declarations to confirm
    nothing got dropped.
-7. Done — hand the user the builder URL `/builder.html?id={id}` or the export URL.
+7. Done — hand the user the builder URL `/builder.html?id={id}` or the share URL `/h/{id}`.
 
 A reference pipeline lives at `server/services/pipeline.py` (stub — flesh out with the
 prompt-chain runner). When wired, expose it as `POST /api/homeworks/{id}/generate` with
@@ -258,7 +252,7 @@ on this Mac:
 - **Lane discipline.** AI work touches `routes/ai.py + services/{gemini,tutor}.py + runtime.js +
   builder.html topbar`. Editor work touches `frontend/js/editors/*` + `injector.py` shape
   adapters + `perfect_homework.html` content blocks. Dashboard work touches `index.html +
-  dashboard.js + routes/{homework,meta,export}.py`. Stay in your lane unless coordinating.
+  dashboard.js + routes/{homework,meta,homework_page}.py`. Stay in your lane unless coordinating.
 - **md5 verify after upload.** If the bytes on disk don't match what you intended, restart
   the upload — never assume.
 
