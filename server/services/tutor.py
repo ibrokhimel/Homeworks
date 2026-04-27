@@ -32,6 +32,21 @@ def _normalize(text: str) -> str:
     return re.sub(r'\s+', '', str(text).lower())
 
 
+def _is_boss(question_id: str, phase: Optional[str]) -> bool:
+    """Return True when the current request is a boss-phase interaction.
+
+    Preference order:
+      1. Explicit ``phase == "boss"`` field — canonical, preferred.
+      2. ``question_id.startswith("boss")`` — legacy fallback kept for
+         backward-compatibility with callers that pre-date the ``phase`` field.
+         DEPRECATED: pass ``phase="boss"`` explicitly instead.
+    """
+    if phase is not None:
+        return phase == "boss"
+    # DEPRECATED fallback: infer from question_id prefix when phase is absent.
+    return question_id.startswith("boss")
+
+
 async def check_answer(
     question_id: str = "",
     question: str = "",
@@ -43,6 +58,7 @@ async def check_answer(
     grade: int = 8,
     tier: str = "MEDIUM",
     context: Optional[str] = None,
+    phase: Optional[str] = None,
 ) -> dict:
     """
     Evaluate a student's typed answer semantically.
@@ -139,8 +155,7 @@ async def check_answer(
     else:
         # Low confidence
         needs_review = True
-        is_boss = question_id.startswith("boss-") or ("phase" in payload and payload.get("phase") == "boss")
-        if is_boss:
+        if _is_boss(question_id, phase):
             res = {
                 "correct": True,
                 "score": 0.7,

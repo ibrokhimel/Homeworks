@@ -211,24 +211,24 @@ def test_check_answer_ai_fallback_low_confidence(mock_generate, client):
     assert data["needs_review"] is True
     
     # Check review queue
-    q_resp = client.get("/api/review-queue")
+    q_resp = client.get("/api/ai/review-queue")
     assert q_resp.status_code == 200
     queue = q_resp.json()
     assert len(queue) > 0
     item = [x for x in queue if x["question_id"] == "boss-1"][0]
-    
+
     # Resolve it
-    res_resp = client.post(f"/api/review-queue/{item['id']}/decide", json={"correct": False, "score": 0.0, "feedback": "Bad"})
+    res_resp = client.post(f"/api/ai/review-queue/{item['id']}/decide", json={"correct": False, "score": 0.0, "feedback": "Bad"})
     assert res_resp.status_code == 200
-    
-    q_resp2 = client.get("/api/review-queue")
+
+    q_resp2 = client.get("/api/ai/review-queue")
     assert len([x for x in q_resp2.json() if x["question_id"] == "boss-1"]) == 0
 
 
 def test_review_queue_decide_404(client):
     """Resolving a non-existent or already-resolved review item must return 404."""
     resp = client.post(
-        "/api/review-queue/999999/decide",
+        "/api/ai/review-queue/999999/decide",
         json={"correct": True, "score": 1.0, "feedback": "ok"},
     )
     assert resp.status_code == 404
@@ -267,11 +267,11 @@ def test_review_queue_decision_persists(mock_generate, client):
     assert queue_resp.status_code == 200
     assert queue_resp.json().get("needs_review") is True
 
-    queue = client.get("/api/review-queue").json()
+    queue = client.get("/api/ai/review-queue").json()
     item = next(x for x in queue if x["question_id"] == "boss-decide-persist")
 
     decision = {"correct": True, "score": 0.85, "feedback": "Acceptable answer; format off."}
-    res = client.post(f"/api/review-queue/{item['id']}/decide", json=decision)
+    res = client.post(f"/api/ai/review-queue/{item['id']}/decide", json=decision)
     assert res.status_code == 200
 
     # Read the row directly so we verify what's on disk, not what the API returns.
@@ -334,6 +334,206 @@ def test_cache_key_namespaced_by_spec(mock_generate, client):
     assert a.json()["correct"] is True
     assert b.json()["correct"] is False
     assert mock_generate.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# D3 coverage tests (cache-hit / queue-insert / boss-soft-fail / dedup)
+# ---------------------------------------------------------------------------
+
+
+@patch("server.services.gemini.generate_json")
+def test_cache_hit_skips_ai_call(mock_generate, client):
+    """Same (question_id, normalized_student_answer, answer_spec) submitted twice
+    via POST /api/ai/check-answer.  The mocked generate_json must be called
+    exactly once — the second request must hit the cache.
+    """
+    mock_generate.return_value = {
+        "correct": True,
+        "score": 1.0,
+        "feedback": "Cache test feedback.",
+        "matched_expected": "42",
+        "confidence": 0.95,
+    }
+    payload = {
+        "question_id": "cache-hit-q1",
+        "question": "What is 6x7?",
+        "student_answer": "42",
+        "answer_spec": {"type": "semantic", "expected": "42"},
+        "subject": "math",
+        "grade": 7,
+    }
+    resp1 = client.post("/api/ai/check-answer", json=payload)
+    assert resp1.status_code == 200
+    assert resp1.json()["source"] == "ai"
+
+    # Second request — must be a cache hit, no new AI call.
+    resp2 = client.post("/api/ai/check-answer", json=payload)
+    assert resp2.status_code == 200
+    assert mock_generate.call_count == 1, (
+        f"generate_json called {mock_generate.call_count} times; expected 1 (cache hit)"
+    )
+
+
+@patch("server.services.gemini.generate_json")
+def test_review_queue_insert_on_low_confidence(mock_generate, client):
+    """A boss-phase request that triggers an AI fallback with confidence < 0.90
+    must insert exactly one row into the review_queue table.
+    """
+    import asyncio
+    import aiosqlite
+    import os
+
+    mock_generate.return_value = {
+        "correct": True,
+        "score": 0.6,
+        "feedback": "Partially correct.",
+        "matched_expected": None,
+        "confidence": 0.5,
+    }
+    payload = {
+        "question_id": "boss-queue-insert-q1",
+        "question": "Explain Newton's third law.",
+        "student_answer": "Action reaction",
+        "answer_spec": {"type": "semantic"},
+        "subject": "physics",
+        "grade": 10,
+        "phase": "boss",
+    }
+    resp = client.post("/api/ai/check-answer", json=payload)
+    assert resp.status_code == 200
+    assert resp.json().get("needs_review") is True
+
+    db_path = os.environ.get("NETS_DB_PATH", "")
+    assert db_path, "NETS_DB_PATH must be set for this test"
+
+    async def count_rows():
+        async with aiosqlite.connect(db_path) as conn:
+            conn.row_factory = aiosqlite.Row
+            cur = await conn.execute(
+                "SELECT COUNT(*) AS cnt FROM review_queue WHERE question_id = ?",
+                ("boss-queue-insert-q1",),
+            )
+            row = await cur.fetchone()
+            return row["cnt"]
+
+    count = asyncio.run(count_rows())
+    assert count == 1, f"Expected 1 review_queue row, got {count}"
+
+
+@patch("server.services.gemini.generate_json")
+def test_boss_soft_fail_returns_correct_true(mock_generate, client):
+    """Boss-phase + deterministic 'unsure' + AI confidence 0.7:
+      - Response must be {correct: True, score: 0.7, source: 'ai_unsure', needs_review: True}
+
+    Same scenario with phase='memory_sprint' (non-boss) must return correct: False
+    (strict path, no soft-fail).
+    """
+    mock_generate.return_value = {
+        "correct": False,
+        "score": 0.0,
+        "feedback": "Unsure about this.",
+        "matched_expected": None,
+        "confidence": 0.7,
+    }
+
+    boss_payload = {
+        "question_id": "soft-fail-q1",
+        "question": "Describe osmosis.",
+        "student_answer": "Water moves across membrane",
+        "answer_spec": {"type": "semantic"},
+        "subject": "biology",
+        "grade": 9,
+        "phase": "boss",
+    }
+    resp = client.post("/api/ai/check-answer", json=boss_payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["correct"] is True, f"Boss phase should soft-fail to correct=True, got {data}"
+    assert data["score"] == 0.7
+    assert data["source"] == "ai_unsure"
+    assert data["needs_review"] is True
+
+    # Non-boss phase — strict path — must return correct: False.
+    mock_generate.return_value = {
+        "correct": False,
+        "score": 0.0,
+        "feedback": "Unsure about this.",
+        "matched_expected": None,
+        "confidence": 0.7,
+    }
+    strict_payload = {
+        "question_id": "soft-fail-q2",
+        "question": "Describe osmosis.",
+        "student_answer": "Water moves across membrane",
+        "answer_spec": {"type": "semantic"},
+        "subject": "biology",
+        "grade": 9,
+        "phase": "memory_sprint",
+    }
+    resp2 = client.post("/api/ai/check-answer", json=strict_payload)
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["correct"] is False, (
+        f"memory_sprint phase must NOT soft-fail; expected correct=False, got {data2}"
+    )
+
+
+@patch("server.services.gemini.generate_json")
+def test_review_queue_dedup(mock_generate, client):
+    """Submitting the same low-confidence answer twice must produce only one
+    row in review_queue (idempotent insert).
+    """
+    import asyncio
+    import aiosqlite
+    import os
+
+    mock_generate.return_value = {
+        "correct": False,
+        "score": 0.0,
+        "feedback": "Not sure.",
+        "matched_expected": None,
+        "confidence": 0.4,
+    }
+    payload = {
+        "question_id": "dedup-boss-q1",
+        "question": "Explain photosynthesis.",
+        "student_answer": "Plants use sunlight",
+        "answer_spec": {"type": "semantic"},
+        "subject": "biology",
+        "grade": 8,
+        "phase": "boss",
+    }
+    resp1 = client.post("/api/ai/check-answer", json=payload)
+    assert resp1.status_code == 200
+
+    # Reset mock so second call goes through AI again (cache miss because confidence < 0.90)
+    mock_generate.return_value = {
+        "correct": False,
+        "score": 0.0,
+        "feedback": "Still not sure.",
+        "matched_expected": None,
+        "confidence": 0.4,
+    }
+    resp2 = client.post("/api/ai/check-answer", json=payload)
+    assert resp2.status_code == 200
+
+    db_path = os.environ.get("NETS_DB_PATH", "")
+    assert db_path, "NETS_DB_PATH must be set for this test"
+
+    async def count_rows():
+        async with aiosqlite.connect(db_path) as conn:
+            conn.row_factory = aiosqlite.Row
+            cur = await conn.execute(
+                "SELECT COUNT(*) AS cnt FROM review_queue WHERE question_id = ?",
+                ("dedup-boss-q1",),
+            )
+            row = await cur.fetchone()
+            return row["cnt"]
+
+    count = asyncio.run(count_rows())
+    assert count == 1, (
+        f"Dedup failed: expected 1 review_queue row for dedup-boss-q1, got {count}"
+    )
 
 
 # ---------------------------------------------------------------------------

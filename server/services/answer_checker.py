@@ -2,20 +2,61 @@ import string
 import re
 from typing import Optional
 from rapidfuzz import fuzz
-from sympy import sympify
+
+# Fix #2: DoS guard for sympify/parse_expr on untrusted student input.
+# SymPy is well-known to hang on inputs like 2**2**2**2**2 (power tower DoS).
+MAX_SYMPIFY_INPUT_LEN = 200
+
+# Fix #8: Characters that identify Uzbek text beyond simple isascii().
+# Heuristic checks (in order):
+#   a) Any character in Cyrillic block U+0400–U+04FF
+#   b) Extended Uzbek-specific Cyrillic: ҳ ң ў қ ғ
+#   c) Unicode apostrophe variants used in Latin Uzbek: ʻ ʼ ' '
+#   d) Latin Uzbek digraph patterns: o' or g' (Latin letter + apostrophe variant)
+_UZBEK_APOSTROPHES = set("ʻʼ‘’")
+_UZBEK_CYRILLIC_EXTRA = set("ҳңўқғҲҢҮҚҒ")
+
 
 def is_uzbek(text: str) -> bool:
-    return not text.isascii()
+    """Return True if *text* contains markers of Uzbek script.
+
+    Checks (in order):
+      a) Any character in Cyrillic block U+0400–U+04FF (covers Russian too, but
+         Uzbek Cyrillic is a strict subset so false positives are acceptable).
+      b) Extended Uzbek-specific Cyrillic characters: ҳ ң ў қ ғ (and their
+         uppercase equivalents).
+      c) Unicode apostrophe variants used in Latin Uzbek: ʻ (U+02BB), ʼ (U+02BC),
+         ' (U+2018), ' (U+2019).
+      d) Latin Uzbek digraph patterns: o' or g' (any of the apostrophe variants
+         following the Latin letters o/g).
+    """
+    apostrophe_pattern = re.compile(r"[og][ʻʼ‘’']", re.IGNORECASE)
+    for ch in text:
+        cp = ord(ch)
+        # a) Cyrillic block
+        if 0x0400 <= cp <= 0x04FF:
+            return True
+        # b) Extended Uzbek Cyrillic (already covered by block above, kept explicit)
+        if ch in _UZBEK_CYRILLIC_EXTRA:
+            return True
+        # c) Unicode apostrophe variants
+        if ch in _UZBEK_APOSTROPHES:
+            return True
+    # d) Latin Uzbek o' / g' patterns
+    if apostrophe_pattern.search(text):
+        return True
+    return False
+
 
 def _make_tip(verdict: str, student_answer: str, canonical: str) -> Optional[str]:
     if verdict != 'correct':
         return None
-    
+
     stu_clean = re.sub(r'\s+', '', student_answer)
     can_clean = re.sub(r'\s+', '', canonical)
     if stu_clean == can_clean:
         return None
-        
+
     tip = "Javobingiz to'g'ri, lekin formatlashni yaxshilash mumkin: " if is_uzbek(canonical) else "Correct, but format could be improved: "
     tip += canonical
     if len(tip) > 80:
@@ -42,17 +83,25 @@ def _check_set_match(expected: list, student_answer: str, canonical: str) -> dic
     if not ans:
         return {"verdict": "unsure", "reason": "empty input"}
 
+    # Fix #2: Guard against SymPy DoS via long power-tower expressions.
+    if len(ans) > MAX_SYMPIFY_INPUT_LEN:
+        return {"verdict": "incorrect", "reason": "answer too long for symbolic parse"}
+
+    # Fix #3: Lazy import — sympy is only loaded when set_match is actually used,
+    # saving ~500 ms of cold-start import time for requests that never reach this path.
+    from sympy import sympify  # noqa: PLC0415
+
     ans = re.sub(r'√\s*(\d+)', r'sqrt(\1)', ans)
     ans = re.sub(r'\b(yoki|va)\b', ',', ans, flags=re.IGNORECASE)
     ans = ans.replace(';', ',')
-    
+
     parts = [p.strip() for p in ans.split(',') if p.strip()]
-    
+
     values = []
     for p in parts:
         if '=' in p:
             p = p.split('=')[-1].strip()
-            
+
         if '±' in p or '+/-' in p:
             p_base = p.replace('±', '').replace('+/-', '').strip()
             try:
@@ -101,10 +150,10 @@ def _clean_text_exact(text: str) -> str:
 def _check_text_exact(expected: str, student_answer: str, canonical: str) -> dict:
     if not student_answer.strip():
         return {"verdict": "unsure", "reason": "empty input"}
-        
+
     stu_clean = _clean_text_exact(student_answer)
     exp_clean = _clean_text_exact(expected)
-    
+
     if stu_clean == exp_clean:
         return {
             "verdict": "correct",
@@ -117,7 +166,7 @@ def _check_text_exact(expected: str, student_answer: str, canonical: str) -> dic
 def _check_text_fuzzy(expected: str, student_answer: str, canonical: str) -> dict:
     if not student_answer.strip():
         return {"verdict": "unsure", "reason": "empty input"}
-        
+
     ratio = fuzz.ratio(student_answer.casefold(), expected.casefold())
     if ratio >= 90:
         return {
@@ -156,4 +205,3 @@ def check(answer_spec: dict, student_answer: str) -> dict:
         return {"verdict": "unsure", "reason": "semantic grading requires AI"}
     else:
         return {"verdict": "incorrect", "reason": f"unknown type: {ans_type}"}
-

@@ -4,7 +4,7 @@ AI Runtime Tutor Endpoints.
 Called by the homework playback frontend during student sessions.
 All stateless. Request/response JSON, no SSE.
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path as PathParam
 from pydantic import BaseModel, Field
 from typing import Optional, Any
 
@@ -26,7 +26,7 @@ class CheckAnswerRequest(BaseModel):
     grade: int = 8
     tier: str = "MEDIUM"
     context: Optional[str] = None
-
+    phase: Optional[str] = None
 
 
 class BossTurnRequest(BaseModel):
@@ -62,6 +62,12 @@ class TutorRequest(BaseModel):
     context: Optional[str] = None
 
 
+class ReviewDecideRequest(BaseModel):
+    correct: bool
+    score: float
+    feedback: str
+
+
 # --- Helpers ---
 
 def _handle_exc(e: Exception):
@@ -90,21 +96,14 @@ async def ai_status() -> dict:
     return info
 
 
-# --- Endpoints ---
+# --- Review-queue endpoints (Fix #5: moved under /ai/ prefix for consistency) ---
 
-from fastapi import APIRouter, HTTPException, Path as PathParam
-
-class ReviewDecideRequest(BaseModel):
-    correct: bool
-    score: float
-    feedback: str
-
-@router.get("/review-queue")
+@router.get("/ai/review-queue")
 async def get_review_queue():
     from .. import db
     return await db.get_review_queue()
 
-@router.post("/review-queue/{id}/decide")
+@router.post("/ai/review-queue/{id}/decide")
 async def decide_review_queue(req: ReviewDecideRequest, id: int = PathParam(...)):
     from .. import db
     success = await db.resolve_review_item(id, req.model_dump())
@@ -112,12 +111,15 @@ async def decide_review_queue(req: ReviewDecideRequest, id: int = PathParam(...)
         raise HTTPException(404, detail="Review item not found or already resolved")
     return {"status": "ok"}
 
+
+# --- Endpoints ---
+
 @router.post("/ai/answer-spec/preview")
 async def preview_answer_spec(req: PreviewAnswerSpecRequest):
     spec = req.answer_spec
     ans_type = spec.get("type", "text_fuzzy")
     expected = spec.get("expected")
-    
+
     examples = []
     if ans_type == "numeric":
         try:
@@ -141,7 +143,7 @@ async def preview_answer_spec(req: PreviewAnswerSpecRequest):
     else:
         # text variants and semantic
         examples.append(str(spec.get("canonical_display", expected)))
-        
+
     return {"examples": examples}
 
 
@@ -159,6 +161,7 @@ async def check_answer(req: CheckAnswerRequest):
             grade=req.grade,
             tier=req.tier,
             context=req.context,
+            phase=req.phase,
         )
     except Exception as e:
         _handle_exc(e)

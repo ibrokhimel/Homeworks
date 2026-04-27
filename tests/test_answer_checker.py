@@ -1,5 +1,6 @@
+import time
 import pytest
-from server.services.answer_checker import check
+from server.services.answer_checker import check, is_uzbek
 
 def test_numeric():
     spec = {"type": "numeric", "expected": 9.81, "tolerance": 0.05, "canonical_display": "9.81"}
@@ -17,7 +18,8 @@ def test_numeric_format_tip():
     assert res["verdict"] == "correct"
     assert res.get("format_tip") is None  # spaces difference only, so None
 
-    spec_uz = {"type": "numeric", "expected": 10, "tolerance": 0.0, "canonical_display": "10 m/s²"}
+    # canonical_display uses Latin Uzbek apostrophe (o') so is_uzbek returns True
+    spec_uz = {"type": "numeric", "expected": 10, "tolerance": 0.0, "canonical_display": "10 m/s (o'lchov)"}
     res = check(spec_uz, "10")
     assert res["verdict"] == "correct"
     assert "Javobingiz to'g'ri" in res["format_tip"]
@@ -77,3 +79,48 @@ def test_semantic():
 def test_unknown_type():
     spec = {"type": "magic"}
     assert check(spec, "answer")["verdict"] == "incorrect"
+
+
+def test_sympify_dos_cap():
+    """Inputs longer than MAX_SYMPIFY_INPUT_LEN must be rejected quickly as
+    'incorrect' without invoking sympify (which would hang on power-tower DoS).
+    The whole check must finish well under 1 second.
+    """
+    # Build a 500-char power-tower expression: 2**2**2**... (repeating)
+    fragment = "2**"
+    long_input = (fragment * 200)[:500]  # 500 chars of "2**2**2**..."
+    spec = {"type": "set_match", "expected": [4], "canonical_display": "4"}
+
+    t0 = time.perf_counter()
+    result = check(spec, long_input)
+    elapsed = time.perf_counter() - t0
+
+    assert result["verdict"] == "incorrect", (
+        f"Expected 'incorrect' for oversized input, got {result['verdict']!r}"
+    )
+    assert elapsed < 1.0, (
+        f"DoS cap check took {elapsed:.3f}s — must be < 1s"
+    )
+
+
+def test_is_uzbek_heuristic():
+    """is_uzbek() must correctly classify common cases."""
+    # Plain ASCII — not Uzbek
+    assert is_uzbek("Hello world") is False
+    assert is_uzbek("plain ASCII") is False
+
+    # Latin Uzbek with o' digraph
+    assert is_uzbek("o'qituvchi") is True
+
+    # Cyrillic (covers Russian/Uzbek Cyrillic alike)
+    assert is_uzbek("Привет мир") is True
+
+    # Uzbek Cyrillic-specific chars
+    assert is_uzbek("ўзбек") is True   # ў is U+04AF
+    assert is_uzbek("қалб") is True    # қ is U+049B
+
+    # Unicode apostrophe variant (ʻ) without o'/g' pattern — still Uzbek
+    assert is_uzbek("soʻz") is True
+
+    # Latin Uzbek g' pattern
+    assert is_uzbek("g'oya") is True

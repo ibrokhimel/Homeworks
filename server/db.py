@@ -75,6 +75,9 @@ CREATE TABLE IF NOT EXISTS review_queue (
 
 CREATE INDEX IF NOT EXISTS idx_versions_hw_saved
     ON homework_versions(homework_id, saved_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_review_pending
+    ON review_queue(question_id, student_answer) WHERE status='pending';
 """
 
 
@@ -541,15 +544,43 @@ async def set_answer_cache(key: str, response: dict) -> None:
     finally:
         await db.close()
 
-async def add_to_review_queue(question_id: str, student_answer: str, answer_spec: dict, ai_response: dict) -> None:
+async def add_to_review_queue(
+    question_id: str,
+    student_answer: str,
+    answer_spec: dict,
+    ai_response: dict,
+) -> bool:
+    """Insert a pending review item.  Idempotent: if a row with the same
+    ``question_id`` + ``student_answer`` already has ``status='pending'``,
+    the insert is skipped and ``False`` is returned.  Returns ``True`` when a
+    new row was actually inserted.
+    """
     db = await connect()
     try:
+        # Dedup check: skip insert when an identical pending row already exists.
+        cursor = await db.execute(
+            "SELECT id FROM review_queue "
+            "WHERE question_id = ? AND student_answer = ? AND status = 'pending' "
+            "LIMIT 1",
+            (question_id, student_answer),
+        )
+        existing = await cursor.fetchone()
+        if existing:
+            return False
         await db.execute(
-            "INSERT INTO review_queue (question_id, student_answer, answer_spec_json, ai_response_json, status, created_at) "
+            "INSERT INTO review_queue "
+            "(question_id, student_answer, answer_spec_json, ai_response_json, status, created_at) "
             "VALUES (?, ?, ?, ?, 'pending', ?)",
-            (question_id, student_answer, json.dumps(answer_spec, ensure_ascii=False), json.dumps(ai_response, ensure_ascii=False), _now())
+            (
+                question_id,
+                student_answer,
+                json.dumps(answer_spec, ensure_ascii=False),
+                json.dumps(ai_response, ensure_ascii=False),
+                _now(),
+            ),
         )
         await db.commit()
+        return True
     finally:
         await db.close()
 
