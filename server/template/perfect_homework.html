@@ -1904,6 +1904,17 @@
         }
         .boss-feedback.correct { background: rgba(53,198,111,0.12); color: #17864a; }
         .boss-feedback.wrong { background: rgba(239,107,115,0.1); color: #c3535d; }
+        /* Wave F3 — personalized framing banner above each boss question */
+        .boss-framing {
+            margin: 0 0 12px;
+            padding: 10px 14px;
+            background: var(--surface-2, rgba(255,255,255,.05));
+            border-left: 3px solid var(--accent);
+            border-radius: 6px;
+            font-size: 14px;
+            font-style: italic;
+            opacity: 0.9;
+        }
         @keyframes hpShake {
             0%,100% { transform: translateX(0); }
             20% { transform: translateX(-5px); } 40% { transform: translateX(5px); }
@@ -2730,6 +2741,8 @@
                         </div>
                     </div>
                     <div class="boss-q-card" id="boss-q-card">
+                        <!-- Wave F3: personalized framing banner; hidden when empty -->
+                        <div class="boss-framing" id="boss-framing" style="display:none"></div>
                         <div class="boss-q-text" id="boss-q-text"></div>
                         <div class="boss-q-tags" id="boss-q-tags"></div>
                     </div>
@@ -5318,8 +5331,75 @@ Prezident ertaga hisobot kutmoqda.`,
 
         const bossState = {
             hp:100, maxHp:100, qIndex:0, combo:0,
-            hintsUsed:0, hintStep:0, correct:0, answered:false, done:false
+            hintsUsed:0, hintStep:0, correct:0, answered:false, done:false,
+            persona_traits: ['mentor'], // Wave F3: set by initBossPlan()
         };
+
+        // Wave F3 — load personalised boss plan (ordering + framing + persona).
+        // Runs once at boss-start, before the first question renders.
+        // Uses localStorage as a refresh-recovery cache so a mid-boss reload keeps
+        // the same ordering.  Falls back to default order + 'mentor' on any error.
+        async function initBossPlan() {
+            const hwId = (typeof state !== 'undefined' && state.hwId)
+                ? state.hwId
+                : (window.NETS_CTX && window.NETS_CTX.hwId) || '';
+            const cacheKey = 'nets_boss_plan_' + hwId;
+            let plan = null;
+
+            // 1. Try localStorage (refresh-recovery).
+            try {
+                const raw = localStorage.getItem(cacheKey);
+                if (raw) plan = JSON.parse(raw);
+            } catch (e) { plan = null; }
+
+            // 2. If no cache, fetch from backend.
+            if (!plan) {
+                try {
+                    plan = await window.NETS_AI.bossPlan({
+                        session_id: localStorage.getItem('nets_tutor_session'),
+                        hw_id: hwId,
+                    });
+                    localStorage.setItem(cacheKey, JSON.stringify(plan));
+                } catch (err) {
+                    console.warn('[F3] boss-plan fetch failed, using default order:', err);
+                    plan = {
+                        ordered: BOSS_QUESTIONS.map(q => ({
+                            question_id: q.id || q.question_id,
+                            framing_text: '',
+                        })),
+                        persona_traits: ['mentor'],
+                    };
+                }
+            }
+
+            // 3. Validate and apply ordering.
+            if (plan && Array.isArray(plan.ordered) && plan.ordered.length) {
+                const byId = new Map(BOSS_QUESTIONS.map(q => [q.id || q.question_id, q]));
+                const reordered = plan.ordered
+                    .map(o => {
+                        const q = byId.get(o.question_id);
+                        return q ? Object.assign({}, q, { _framing: o.framing_text || '' }) : null;
+                    })
+                    .filter(Boolean);
+
+                if (reordered.length === BOSS_QUESTIONS.length) {
+                    // Replace in-place so existing references stay valid.
+                    BOSS_QUESTIONS.length = 0;
+                    reordered.forEach(q => BOSS_QUESTIONS.push(q));
+                } else {
+                    console.warn('[F3] boss-plan ordering incomplete; falling back to default');
+                    // Keep existing order, just add empty _framing.
+                    BOSS_QUESTIONS.forEach(q => { if (!('_framing' in q)) q._framing = ''; });
+                }
+            } else {
+                BOSS_QUESTIONS.forEach(q => { if (!('_framing' in q)) q._framing = ''; });
+            }
+
+            // 4. Store persona_traits on bossState.
+            bossState.persona_traits = (
+                Array.isArray(plan && plan.persona_traits) && plan.persona_traits.length
+            ) ? plan.persona_traits : ['mentor'];
+        }
 
         function startFinalBoss() {
             setStage(7);
@@ -5328,6 +5408,7 @@ Prezident ertaga hisobot kutmoqda.`,
             if (sb) sb.classList.add('active');
 
             Object.assign(bossState, {hp:100,maxHp:100,qIndex:0,combo:0,hintsUsed:0,hintStep:0,correct:0,answered:false,done:false});
+            // persona_traits intentionally NOT reset here — initBossPlan sets it once.
 
             btn.classList.remove('pulse','state-pill');
             btn.classList.add('state-line');
@@ -5342,12 +5423,28 @@ Prezident ertaga hisobot kutmoqda.`,
             if (victory) victory.style.display   = 'none';
             if (defeat)  defeat.style.display    = 'none';
 
+            // Wave F3 — kick off boss-plan personalisation alongside the intro.
+            // Cap the wait at 3 s so a slow Kimi response can't stall the boss
+            // forever; on timeout we fall back to default order with empty
+            // framing (initBossPlan's own try/catch already does this).
+            const planPromise = initBossPlan().catch(e => {
+                console.warn('[F3] initBossPlan error:', e);
+            });
+            const planReady = Promise.race([
+                planPromise,
+                new Promise(r => setTimeout(r, 3000))
+            ]);
+
             setTimeout(() => {
                 if (intro) { intro.style.transition = 'opacity 500ms ease'; intro.style.opacity = '0'; }
-                setTimeout(() => {
+                setTimeout(async () => {
                     if (intro) { intro.style.cssText = 'display:none;'; }
                     if (battle) battle.style.display = '';
                     bossUpdateHP(100, false);
+                    // Wait for the plan (or 3 s cap) before rendering Q0 so the
+                    // first question always reflects the personalised order +
+                    // framing rather than racing the intro animation.
+                    await planReady;
                     bossRenderQuestion(0);
                     btn.classList.remove('state-line');
                     btn.classList.add('state-pill','pulse');
@@ -5371,6 +5468,18 @@ Prezident ertaga hisobot kutmoqda.`,
         function bossRenderQuestion(idx) {
             const q = BOSS_QUESTIONS[idx];
             const el = (id) => document.getElementById(id);
+            // Wave F3 — personalized framing banner (purely additive; stems untouched).
+            const framingEl = el('boss-framing');
+            if (framingEl) {
+                const framing = q._framing || '';
+                if (framing) {
+                    framingEl.textContent = framing;
+                    framingEl.style.display = '';
+                } else {
+                    framingEl.textContent = '';
+                    framingEl.style.display = 'none';
+                }
+            }
             // innerHTML — boss question may contain inline images/SVGs/bold/italic.
             if (el('boss-q-text'))    el('boss-q-text').innerHTML      = q.prompt || '';
             if (el('boss-q-tags'))    el('boss-q-tags').textContent    = '[Bloom: ' + q.bloom + ' | PISA: ' + q.pisa + ']';
@@ -5457,6 +5566,8 @@ Prezident ertaga hisobot kutmoqda.`,
                             damageValue: q.damage || 10,
                             hpRemaining: bossState.hp,
                             attemptNumber: 1,
+                            // Wave F3 — forward persona_traits so boss-tutor adapts tone.
+                            persona_traits: bossState.persona_traits,
                         },
                     }}));
                 } catch (e) {

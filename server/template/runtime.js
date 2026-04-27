@@ -95,7 +95,7 @@
      * @returns {Promise<{correct, damage_dealt, boss_response, hint, score}>}
      */
     async function bossTurn(opts) {
-        return _post('/boss-turn', {
+        const body = {
             boss_question: opts.bossQuestion,
             student_answer: opts.studentAnswer,
             expected_answers: opts.expectedAnswers || [],
@@ -104,7 +104,12 @@
             attempt_number: opts.attemptNumber || 1,
             subject: ctx.subject || 'math-algebra',
             grade: ctx.grade || 8,
-        });
+        };
+        // Wave F3: forward persona_traits when present (from boss_plan response).
+        if (opts.persona_traits && opts.persona_traits.length) {
+            body.persona_traits = opts.persona_traits;
+        }
+        return _post('/boss-turn', body);
     }
 
     /**

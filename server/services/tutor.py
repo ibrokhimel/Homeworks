@@ -207,6 +207,7 @@ async def boss_turn(
     attempt_number: int,
     subject: str,
     grade: int,
+    persona_traits: Optional[list[str]] = None,
 ) -> dict:
     """
     Boss combat turn. Evaluates answer, assigns damage, generates in-character boss response.
@@ -217,6 +218,9 @@ async def boss_turn(
         "hint": Optional[str] (if wrong and attempt_number >= 2, provide a hint),
         "score": float
     }
+
+    Wave F3: optional `persona_traits` (e.g. ["challenger", "mentor"]) adapts the boss
+    tone. When None or empty, behavior is identical to prior versions (backward-compat).
     """
     prompt = _load_runtime_prompt("boss-tutor")
     payload = {
@@ -229,6 +233,16 @@ async def boss_turn(
         "subject": subject,
         "grade": grade,
     }
+    # Wave F3 — inject persona traits so the prompt can adapt tone.
+    # Only include when non-empty to keep the payload identical for callers that
+    # don't supply persona_traits (backward-compat guard).
+    effective_traits = [
+        t for t in (persona_traits or [])
+        if isinstance(t, str) and t in ALLOWED_PERSONA_TRAITS
+    ]
+    if effective_traits:
+        payload["persona_traits"] = effective_traits
+
     schema = {
         "correct": "bool",
         "damage_dealt": "int (0 or damage_value)",

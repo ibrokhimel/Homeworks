@@ -425,3 +425,48 @@ remains deferred until the grading lane merges.
 - 66/66 passing (was 63 after F1; 3 new tests added).
 - Manual smoke checklist (run after deploy on Mac mini): see Wave F plan
   `flickering-rolling-robin.md` § "F2 (widget) — manual smoke".
+
+## Wave F3 — Boss Personalization (2026-04-28)
+
+Wires the F1 `boss_plan` endpoint into the live boss screen. Ordering + framing are
+personalized per-student based on prior chat history; deterministic grading is untouched.
+
+**Modified (net ~245 LOC):**
+- `server/services/tutor.py` — `boss_turn()` gains optional `persona_traits: list[str]`
+  kwarg; effective traits are injected into the LLM payload so `boss-tutor.md` can adapt
+  tone. Backward-compat: when `None` or `[]`, payload is byte-identical to pre-F3.
+- `server/routes/ai.py` — `BossTurnRequest` gains `persona_traits: Optional[list[str]] = None`;
+  route handler passes it to `tutor.boss_turn()`.
+- `server/prompts/runtime/boss-tutor.md` — appended "Persona Adaptation (Wave F3)" section
+  instructing the model to shift tone for challenger / mentor / analyst traits.
+- `server/template/runtime.js` — `bossTurn()` forwards `opts.persona_traits` into the
+  POST body when present.
+- `server/template/perfect_homework.html` —
+  - Added `.boss-framing` CSS rule (inline style block, 11 lines).
+  - Added `persona_traits: ['mentor']` field to `bossState`.
+  - Added `initBossPlan()` async function (~60 lines): fetches `/api/ai/tutor/boss-plan`,
+    caches result in `localStorage["nets_boss_plan_{hwId}"]`, applies ordering in-place on
+    `BOSS_QUESTIONS[]`, attaches `_framing` to each question object, stores `persona_traits`
+    on `bossState`. Falls back to default order + mentor on any error.
+  - `startFinalBoss()` calls `initBossPlan()` fire-and-forget before the 2.4 s intro
+    animation so the plan is ready before the first question renders.
+  - `bossRenderQuestion()` renders `<div class="boss-framing">` above the question stem
+    when `q._framing` is non-empty; hides the div otherwise.
+  - `bossHandleAction()` includes `persona_traits: bossState.persona_traits` in the
+    `nets:submit` boss payload.
+  - Boss battle DOM: added `<div id="boss-framing">` inside `.boss-q-card`.
+- `tests/test_ai_runtime.py` — 2 new mocked tests:
+  - `test_boss_turn_accepts_persona_traits`: sends `persona_traits:["challenger"]`, asserts
+    200 + "challenger" appears in the LLM-bound prompt.
+  - `test_boss_turn_backward_compat_no_traits`: sends no `persona_traits`, asserts 200 +
+    unchanged response shape + "persona_traits" absent from prompt.
+
+**Safety invariants:**
+- `answer_spec` and question stems are never modified — only `_framing` (a new JS property)
+  and array order change.
+- `bossMatch()` / grading logic is byte-identical to pre-F3.
+- All consumers that omit `persona_traits` continue to work unchanged.
+
+**Verification:**
+- `python -m pytest tests/test_ai_runtime.py tests/test_homework_page.py tests/test_tutor_chat.py -v` — all passing.
+- Full suite: `python -m pytest tests/ --ignore=tests/test_ai_runtime.py -q` — 66/66 (no regressions).

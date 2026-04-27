@@ -775,6 +775,88 @@ def test_tutor(client):
 
 
 # ---------------------------------------------------------------------------
+# Wave F3 — boss-turn persona_traits integration tests (mocked LLM)
+# ---------------------------------------------------------------------------
+
+
+@patch("server.services.gemini.generate_json")
+def test_boss_turn_accepts_persona_traits(mock_generate, client):
+    """POST /api/ai/boss-turn with persona_traits must be accepted (no 422) and the
+    captured prompt must contain the trait string so the boss-tutor prompt adapts tone.
+    """
+    mock_generate.return_value = {
+        "correct": True,
+        "damage_dealt": 20,
+        "boss_response": "Ajoyib zarba!",
+        "hint": None,
+        "score": 1.0,
+    }
+    payload = {
+        "boss_question": "Yeching: x² = 25",
+        "student_answer": "±5",
+        "expected_answers": ["±5", "x=±5"],
+        "damage_value": 20,
+        "hp_remaining": 80,
+        "attempt_number": 1,
+        "subject": "math-algebra",
+        "grade": 8,
+        "persona_traits": ["challenger"],
+    }
+    resp = client.post("/api/ai/boss-turn", json=payload)
+    assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+
+    # The mock was called — verify the prompt forwarded the trait.
+    mock_generate.assert_called_once()
+    call_args = mock_generate.call_args
+    # First positional arg is the assembled prompt string.
+    prompt_str = call_args[0][0] if call_args[0] else str(call_args)
+    assert "challenger" in prompt_str, (
+        f"Expected 'challenger' in prompt sent to LLM; got:\n{prompt_str[:500]}"
+    )
+
+
+@patch("server.services.gemini.generate_json")
+def test_boss_turn_backward_compat_no_traits(mock_generate, client):
+    """POST /api/ai/boss-turn WITHOUT persona_traits must still work (no 422, shape
+    unchanged).  This guards backward-compat for callers that pre-date F3.
+    """
+    mock_generate.return_value = {
+        "correct": False,
+        "damage_dealt": 0,
+        "boss_response": "Urinib ko'ring!",
+        "hint": None,
+        "score": 0.0,
+    }
+    payload = {
+        "boss_question": "Yeching: x² + 7x + 12 = 0",
+        "student_answer": "-3",
+        "expected_answers": ["-3va-4", "-4va-3"],
+        "damage_value": 20,
+        "hp_remaining": 100,
+        "attempt_number": 1,
+        "subject": "math-algebra",
+        "grade": 8,
+        # persona_traits deliberately omitted
+    }
+    resp = client.post("/api/ai/boss-turn", json=payload)
+    assert resp.status_code == 200, f"Backward-compat failed: {resp.status_code}: {resp.text}"
+    data = resp.json()
+    # Shape must be identical to pre-F3 shape.
+    required_keys = {"correct", "damage_dealt", "boss_response", "hint", "score"}
+    missing = required_keys - data.keys()
+    assert not missing, f"Response missing keys: {missing}"
+    mock_generate.assert_called_once()
+    # The JSON INPUT section must NOT contain a "persona_traits" key when none were supplied.
+    # We check the section after "---\n\nINPUT:" to avoid a false-positive from the system
+    # prompt text (which legitimately mentions "persona_traits" as documentation).
+    prompt_str = mock_generate.call_args[0][0] if mock_generate.call_args[0] else ""
+    input_section = prompt_str.split("INPUT:", 1)[-1] if "INPUT:" in prompt_str else prompt_str
+    assert "persona_traits" not in input_section, (
+        "Backward-compat breach: 'persona_traits' appeared in INPUT payload when none supplied"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Latency / report summary test (always runs last)
 # ---------------------------------------------------------------------------
 

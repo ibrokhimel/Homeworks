@@ -39,6 +39,8 @@ class BossTurnRequest(BaseModel):
     attempt_number: int = Field(default=1, ge=1)
     subject: str = "math-algebra"
     grade: int = 8
+    # Wave F3 — optional persona traits from boss_plan; absent = previous behavior.
+    persona_traits: Optional[list[str]] = None
 
 
 class ReflectionRequest(BaseModel):
@@ -218,6 +220,7 @@ async def boss_turn(req: BossTurnRequest):
             attempt_number=req.attempt_number,
             subject=req.subject,
             grade=req.grade,
+            persona_traits=req.persona_traits,  # Wave F3
         )
     except Exception as e:
         _handle_exc(e)
