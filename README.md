@@ -291,7 +291,67 @@ on this Mac:
 
 ---
 
-## 10. See also
+## 10. Backup & recovery
+
+### Daily snapshot
+
+Run `bash scripts/backup_db.sh` from the repo root to create an online backup (safe with the server running):
+
+```bash
+cd /Users/aisigma/nets-builder
+bash scripts/backup_db.sh              # uses ./nets.db and ./backups/
+bash scripts/backup_db.sh /path/to/nets.db /path/to/backups/  # custom paths
+```
+
+Each backup:
+- Uses SQLite `.backup` command (online, no server shutdown needed).
+- Gzips the snapshot (typically 30-40% of original size).
+- Stores with timestamp: `nets-YYYYMMDD-HHMMSS.db.gz`.
+- Automatically deletes backups older than 14 days.
+
+Recommended **crontab line** for daily 2 AM snapshot:
+
+```
+0 2 * * * cd /Users/aisigma/nets-builder && bash scripts/backup_db.sh >> /tmp/backup.log 2>&1
+```
+
+### Restore from a backup
+
+To restore from any snapshot:
+
+```bash
+bash scripts/restore_db.sh backups/nets-20260427-180000.db.gz
+bash scripts/restore_db.sh backups/nets-20260427-180000.db.gz ./nets-restored.db  # custom target
+```
+
+The script:
+- Decompresses `.gz` files to a temp location if needed.
+- Renames the existing database to `nets.db.pre-restore-{timestamp}` (never overwrites).
+- Copies the backup into place.
+- Verifies integrity with `PRAGMA integrity_check`.
+- Bails immediately if verification fails (safety copy remains on disk).
+
+### Where backups should live
+
+**Recommendation: AWS S3 + local disk**.
+
+Rationale:
+- 14 daily gzipped backups ≈ 5–10 GB (nets.db is ~2.3 GB uncompressed).
+- S3 Glacier Deep Archive costs ~$0.004/GB/month; daily syncs via `aws s3 sync` or a cron wrapper are negligible.
+- Keep local backups for fast recovery; offload to S3 for disaster recovery (disk failure, ransomware).
+
+Example cron wrapper (after daily backup completes):
+
+```bash
+0 3 * * * aws s3 sync /Users/aisigma/nets-builder/backups/ s3://your-backup-bucket/nets-backups/ \
+  --delete --storage-class DEEP_ARCHIVE >> /tmp/s3_sync.log 2>&1
+```
+
+Alternatively, use an external USB drive or Dropbox sync — the key is **off-machine storage**.
+
+---
+
+## 11. See also
 
 - `STATE.md` (next door) — what's working, what's broken, what to test next.
 - `CONTRACTS.md` — full content_json schema.
