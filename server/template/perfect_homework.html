@@ -2774,8 +2774,8 @@
                 let scrollable = false;
                 let node = e.target;
                 while (node && node !== document.body) {
-                    const oy = window.getComputedStyle(node).overflowY;
-                    if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight + 2) { scrollable = true; break; }
+                    const ox = window.getComputedStyle(node).overflowX;
+                    if ((ox === 'auto' || ox === 'scroll') && node.scrollWidth > node.clientWidth + 2) { scrollable = true; break; }
                     if ((node.tagName === 'CODE' || node.tagName === 'PRE') && node.scrollWidth > node.clientWidth) { scrollable = true; break; }
                     node = node.parentNode;
                 }

@@ -271,3 +271,9 @@ These behaviors are easy to break with a careless refactor. Keep them green.
 When in doubt: read the file, don't guess. The template is `server/template/perfect_homework.html`,
 the injector is `server/services/injector.py`, and they're the two files that hold the
 truth about how content flows from DB to user. Everything else is a thin shell.
+
+---
+
+## Auth Model — Wave A5
+Decision pending. See `docs/AUTH_MODEL.md` for the proposal (option B—token-in-URL—recommended).
+Telegram helper: `scripts/test_telegram.sh` — supply `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` env vars to test.
