@@ -44,6 +44,16 @@ curl -sf http://localhost:8000/api/subjects | head -c 200
 tail -50 /tmp/nets.log
 ```
 
+### 24/7 auto-restart (Mac mini recommended)
+
+For reliable 24/7 operation without manual restarts on SSH disconnect or reboot, install the launchd agent:
+
+```bash
+bash scripts/install_launchd.sh
+```
+
+See `scripts/install_launchd.README.md` for status, control, and troubleshooting.
+
 The venv at `.venv/` contains `fastapi`, `uvicorn`, `aiosqlite`, `google-genai`, `python-dotenv`.
 If a deploy script ever needs to install packages, use `./.venv/bin/pip install ...` — never
 the system Python.
