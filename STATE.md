@@ -240,7 +240,7 @@ These behaviors are easy to break with a careless refactor. Keep them green.
 | AI endpoint returns 422 | `server/routes/ai.py` Pydantic model |
 | AI returns garbage | `server/services/tutor.py` prompt or `services/gemini.py` JSON parsing |
 | Dashboard list empty | `server/routes/homework.py` list query |
-| Export contains AI hooks | `server/routes/export.py` — must call `inject(..., runtime_context=None)` |
+| Permanent URL serves stale content | `server/routes/homework_page.py` — `render_homework()` reads DB on each call; if stale, restart uvicorn or check the cache layer (none currently). |
 | Database file ballooning | `server/db.py` version retention; consider trimming old snapshots |
 
 ---
