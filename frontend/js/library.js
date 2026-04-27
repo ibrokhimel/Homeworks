@@ -64,7 +64,7 @@
   function renderCard(hw) {
     const card = document.createElement("a");
     card.className   = "lib-card";
-    card.href        = `/api/homeworks/${encodeURIComponent(hw.id)}/preview`;
+    card.href        = `/h/${encodeURIComponent(hw.id)}`;
     card.target      = "_blank";
     card.rel         = "noreferrer";
     card.setAttribute("aria-label", hw.title || hw.id);
