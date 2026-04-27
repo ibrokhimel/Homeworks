@@ -58,6 +58,37 @@ def _flush_report() -> None:
         json.dump(_report, f, indent=2, ensure_ascii=False)
 
 
+def _wipe_tables() -> None:
+    import asyncio
+    import os
+    import aiosqlite
+
+    db_path = os.environ.get("NETS_DB_PATH")
+    if not db_path:
+        return
+
+    async def _do() -> None:
+        async with aiosqlite.connect(db_path) as db:
+            await db.execute("DELETE FROM answer_cache")
+            await db.execute("DELETE FROM review_queue")
+            await db.execute("DELETE FROM responses")
+            await db.commit()
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(_do())
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
+
+
+@pytest.fixture(autouse=True)
+def clean_db():
+    _wipe_tables()
+    yield
+
+
 # ---------------------------------------------------------------------------
 # No-AI tests (run without any credentials)
 # ---------------------------------------------------------------------------
@@ -132,7 +163,7 @@ def test_check_answer_ai_fallback_high_confidence(mock_generate, client):
         "question_id": "test-2",
         "question": "2+3",
         "student_answer": "4",
-        "answer_spec": {"type": "text_exact", "expected": "5"}, 
+        "answer_spec": {"type": "semantic", "expected": "5"}, 
         "subject": "math",
         "grade": 8
     }

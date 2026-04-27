@@ -99,3 +99,38 @@ def test_library_facets_shape(client):
     assert "biology" in data["subjects"]
     assert 8 in data["grades"]
     assert "hard" in data["modes"]
+
+
+def test_library_chapter_extraction(client):
+    """Verify that chapter is extracted from content_json.meta.section."""
+    # 1. Create the homework (initial scaffold has empty section)
+    payload = {
+        "title": "Physics HW",
+        "subject": "physics",
+        "grade": 9,
+        "mode": "easy"
+    }
+    resp = client.post("/api/homeworks", json=payload)
+    assert resp.status_code == 200
+    hw_id = resp.json()["id"]
+
+    # 2. Update with a real section
+    update_payload = {
+        "content_json": {
+            "meta": {
+                "section": "Chapter 1: Kinematics"
+            }
+        }
+    }
+    resp = client.put(f"/api/homeworks/{hw_id}", json=update_payload)
+    assert resp.status_code == 200
+
+    # 3. Check the library list
+    resp = client.get("/api/library", params={"subject": "physics"})
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert data["total"] == 1
+    item = data["items"][0]
+    assert item["chapter"] == "Chapter 1: Kinematics"
+

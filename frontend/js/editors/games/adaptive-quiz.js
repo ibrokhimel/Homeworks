@@ -1,5 +1,5 @@
 // frontend/js/editors/games/adaptive-quiz.js
-// Adaptive Quiz editor тАФ card-styled like flashcards.
+// Adaptive Quiz editor — card-styled like flashcards.
 // Data: { q, tags, tier, ans[], answer_spec, capture, hint?, media? }
 
 (function () {
@@ -118,7 +118,7 @@
           <input type="number" step="any" class="js-spec-field" data-key="expected" value="${escapeHtml(spec.expected)}" />
         </label>
         <label class="field">
-          <span>Tolerance (┬▒)</span>
+          <span>Tolerance (±)</span>
           <input type="number" step="any" class="js-spec-field" data-key="tolerance" value="${escapeHtml(spec.tolerance || 0)}" />
         </label>
       `;
@@ -179,7 +179,7 @@
 
   function renderMediaPreview(media) {
     if (!media) {
-      return `<div class="fc-media-empty">No media attached тАФ click <strong>Image</strong> or <strong>SVG</strong> to add one.</div>`;
+      return `<div class="fc-media-empty">No media attached — click <strong>Image</strong> or <strong>SVG</strong> to add one.</div>`;
     }
     if (media.type === "image") {
       return `<img class="fc-media-preview-img" src="${escapeHtml(media.src)}" alt="${escapeHtml(media.alt || "")}" />`;
@@ -231,8 +231,8 @@
                           <div class="fc-media-head">
                             <span class="fc-face-label">Media (optional)</span>
                             <div class="fc-media-tools">
-                              <button class="btn btn-ghost js-card-img" type="button">тЬФ Image</button>
-                              <button class="btn btn-ghost js-card-svg" type="button">тЧЖ SVG</button>
+                              <button class="btn btn-ghost js-card-img" type="button">✓ Image</button>
+                              <button class="btn btn-ghost js-card-svg" type="button">◆ SVG</button>
                               ${item.media ? `<button class="btn btn-ghost js-card-clear-media" type="button">Clear</button>` : ""}
                             </div>
                           </div>
@@ -246,7 +246,7 @@
                           <div class="js-rich-host" data-key="q" data-index="${index}"></div>
                         </div>
 
-                        <div class="fc-divider"><span>тЖУ answer grading below тЖУ</span></div>
+                        <div class="fc-divider"><span>↓ answer grading below ↓</span></div>
 
                         <div class="fc-face">
                           ${renderAnswerSpecForm(item, index)}
@@ -271,7 +271,7 @@
                             <input class="js-field" data-key="tags" type="text" value="${escapeHtml(item.tags)}" placeholder="[Bloom: L1 | PISA: L1]" />
                           </div>
                           <div class="field full-span">
-                            <span>ЁЯжа Hint (optional)</span>
+                            <span>🧠 Hint (optional)</span>
                             <textarea class="js-field" data-key="hint" rows="2" placeholder="A gentle nudge...">${escapeHtml(item.hint)}</textarea>
                           </div>
                         </div>

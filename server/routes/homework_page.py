@@ -73,12 +73,19 @@ def render_homework(hw: dict) -> str:
     meta_override = content.get("meta") or {}
     if not meta_override.get("title"):
         meta_override["title"] = hw.get("title", "")
+    subject_display = content.get("meta", {}).get("subject_display") or hw.get("subject", "").capitalize()
+    grade = hw.get("grade")
+    chapter = content.get("meta", {}).get("section")
+    summary = f"{subject_display} · {grade}-sinf"
+    if chapter:
+        summary += f" · {chapter}"
+
     runtime_ctx = {
         "apiBase": "",  # same-origin
         "subject": hw.get("subject"),
-        "grade": hw.get("grade"),
+        "grade": grade,
         "homeworkTitle": hw.get("title"),
-        "homeworkSummary": content.get("meta", {}).get("subject_display", ""),
+        "homeworkSummary": summary,
     }
     return inject(content, meta_override, runtime_context=runtime_ctx)
 
