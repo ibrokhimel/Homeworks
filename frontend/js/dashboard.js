@@ -32,6 +32,7 @@
   };
 
   const POLL_INTERVAL_MS = 5000;
+  const PAGE_SIZE = 50;
 
   const state = {
     subjects: [],
@@ -45,9 +46,17 @@
       status: "all",
       mode: "all",
     },
+    // Pagination + server-side search state
+    offset: 0,
+    total: 0,
+    q: "",
+    subject: "",
+    grade: "",
+    mode: "",
     loading: false,
     lastError: null,
     pollTimer: null,
+    searchDebounceTimer: null,
     openMenuId: null,
   };
 
@@ -99,6 +108,7 @@
       closeVersionsModal: $("close-versions-modal"),
       closeVersionsBtn: $("close-versions-btn"),
       toastRegion: $("toast-region"),
+      paginationBar: $("pagination-bar"),
     });
   }
 
@@ -203,16 +213,54 @@
   }
 
   function renderStats() {
-    const total = state.homeworks.length;
+    const total = state.view === "library" ? state.total : state.homeworks.length;
     const ready = state.homeworks.filter((item) => item.status === "ready").length;
     const drafts = state.homeworks.filter((item) => item.status === "draft").length;
 
-    els.statTotal.textContent = total;
+    els.statTotal.textContent = state.view === "library" ? state.total : state.homeworks.length;
     els.statReady.textContent = ready;
     els.statDraft.textContent = drafts;
 
-    els.tabCountLibrary.textContent = total;
+    els.tabCountLibrary.textContent = state.total;
     els.tabCountTrash.textContent = state.trash.length;
+  }
+
+  function renderPaginationBar() {
+    if (!els.paginationBar) return;
+    const total = state.total;
+    const limit = PAGE_SIZE;
+    const offset = state.offset;
+
+    if (total <= limit) {
+      els.paginationBar.hidden = true;
+      return;
+    }
+
+    els.paginationBar.hidden = false;
+    const start = offset + 1;
+    const end = Math.min(offset + limit, total);
+    const hasPrev = offset > 0;
+    const hasNext = offset + limit < total;
+
+    els.paginationBar.innerHTML = `
+      <button class="btn btn-ghost js-page-prev" type="button" ${hasPrev ? "" : "disabled"}>← Previous</button>
+      <span class="pagination-label">Showing ${start}–${end} of ${total}</span>
+      <button class="btn btn-ghost js-page-next" type="button" ${hasNext ? "" : "disabled"}>Next →</button>
+    `;
+
+    els.paginationBar.querySelector(".js-page-prev")?.addEventListener("click", () => {
+      if (state.offset > 0) {
+        state.offset = Math.max(0, state.offset - PAGE_SIZE);
+        loadHomeworks();
+      }
+    });
+
+    els.paginationBar.querySelector(".js-page-next")?.addEventListener("click", () => {
+      if (state.offset + PAGE_SIZE < state.total) {
+        state.offset += PAGE_SIZE;
+        loadHomeworks();
+      }
+    });
   }
 
   function renderSubjectOptions() {
@@ -453,13 +501,23 @@
     state.lastError = null;
 
     try {
+      const searchParams = {};
+      if (state.q)       searchParams.q = state.q;
+      if (state.subject) searchParams.subject = state.subject;
+      if (state.grade)   searchParams.grade = Number(state.grade);
+      if (state.mode)    searchParams.mode = state.mode;
+      searchParams.limit  = PAGE_SIZE;
+      searchParams.offset = state.offset;
+
       const [listResult, trashResult] = await Promise.allSettled([
-        API.listHomeworks(),
+        API.getHomeworks(searchParams),
         API.listTrash(),
       ]);
 
       if (listResult.status === "fulfilled") {
-        state.homeworks = Array.isArray(listResult.value) ? listResult.value : [];
+        const payload = listResult.value || {};
+        state.homeworks = Array.isArray(payload.items) ? payload.items : [];
+        state.total = typeof payload.total === "number" ? payload.total : state.homeworks.length;
       } else {
         throw listResult.reason;
       }
@@ -473,12 +531,14 @@
     } catch (error) {
       state.lastError = error.message || "Unable to reach the API.";
       state.homeworks = [];
+      state.total = 0;
       state.trash = [];
       els.errorStateMessage.textContent = state.lastError;
       showToast("Could not load library", state.lastError, "error");
     } finally {
       setLoading(false);
       renderHomeworks();
+      renderPaginationBar();
       schedulePollIfNeeded();
     }
   }
@@ -740,13 +800,25 @@
     });
 
     els.searchInput.addEventListener("input", () => {
+      // Keep local filter in sync (used by getFilteredHomeworks for trash view)
       state.filters.search = els.searchInput.value;
-      renderHomeworks();
+      // Debounced server-side search — reset offset on new query
+      if (state.searchDebounceTimer) window.clearTimeout(state.searchDebounceTimer);
+      state.searchDebounceTimer = window.setTimeout(() => {
+        state.q = els.searchInput.value.trim();
+        state.offset = 0;
+        if (state.view === "library") loadHomeworks();
+        else renderHomeworks();
+      }, 300);
     });
 
     els.subjectFilter.addEventListener("change", () => {
       state.filters.subject = els.subjectFilter.value;
-      renderHomeworks();
+      // Map "all" to empty string for server-side filter
+      state.subject = els.subjectFilter.value === "all" ? "" : els.subjectFilter.value;
+      state.offset = 0;
+      if (state.view === "library") loadHomeworks();
+      else renderHomeworks();
     });
 
     els.statusFilter.addEventListener("change", () => {
@@ -756,7 +828,11 @@
 
     els.modeFilter.addEventListener("change", () => {
       state.filters.mode = els.modeFilter.value;
-      renderHomeworks();
+      // Map "all" to empty string for server-side filter
+      state.mode = els.modeFilter.value === "all" ? "" : els.modeFilter.value;
+      state.offset = 0;
+      if (state.view === "library") loadHomeworks();
+      else renderHomeworks();
     });
 
     els.homeworkGrid.addEventListener("click", (event) => {

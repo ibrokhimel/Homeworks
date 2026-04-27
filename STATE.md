@@ -271,3 +271,12 @@ These behaviors are easy to break with a careless refactor. Keep them green.
 When in doubt: read the file, don't guess. The template is `server/template/perfect_homework.html`,
 the injector is `server/services/injector.py`, and they're the two files that hold the
 truth about how content flows from DB to user. Everything else is a thin shell.
+
+---
+
+## Wave B3 — Dashboard pagination + search
+Date: 2026-04-27
+- GET /api/homeworks now supports q/subject/grade/mode/limit/offset.
+- Returns {items, total, limit, offset}. Bare list available with ?legacy=true (deprecated).
+- Dashboard paginates at 50 per page with debounced 300ms search and facet-driven dropdowns.
+- Tests: tests/test_homework_list.py covers default shape, q search, subject/grade filters, pagination offset.
