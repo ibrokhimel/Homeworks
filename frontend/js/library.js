@@ -167,8 +167,8 @@
         opt.textContent = m.charAt(0).toUpperCase() + m.slice(1);
         modeSel.appendChild(opt);
       });
-    } catch (_) {
-      // Facets are non-critical — filters just won't have options pre-filled.
+    } catch (err) {
+      console.warn("loadFacets failed:", err);
     }
   }
 

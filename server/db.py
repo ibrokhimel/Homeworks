@@ -84,24 +84,24 @@ def _today_stamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d")
 
 
-async def _apply_pragmas(db: aiosqlite.Connection) -> None:
+async def apply_pragmas(db: aiosqlite.Connection) -> None:
     for stmt in _DURABILITY_PRAGMAS:
         await db.execute(stmt)
 
 
-async def _connect() -> aiosqlite.Connection:
+async def connect() -> aiosqlite.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = await aiosqlite.connect(DB_PATH)
     db.row_factory = aiosqlite.Row
-    await _apply_pragmas(db)
+    await apply_pragmas(db)
     return db
 
 
 async def init_db() -> None:
-    db = await _connect()
+    db = await connect()
     try:
-        # Pragmas already applied via _connect; reassert for clarity on fresh DBs.
-        await _apply_pragmas(db)
+        # Pragmas already applied via connect; reassert for clarity on fresh DBs.
+        await apply_pragmas(db)
         await db.executescript(_SCHEMA)
         # Migrate existing DBs that predate the `deleted_at` column.
         try:
@@ -117,7 +117,7 @@ async def init_db() -> None:
 async def checkpoint() -> None:
     """Force a full WAL checkpoint. Call on graceful shutdown or periodically."""
     async with aiosqlite.connect(DB_PATH) as db:
-        await _apply_pragmas(db)
+        await apply_pragmas(db)
         await db.execute("PRAGMA wal_checkpoint(FULL)")
         await db.commit()
 
@@ -130,7 +130,7 @@ def _row_to_homework(row: aiosqlite.Row) -> dict:
 
 
 async def list_homeworks(include_deleted: bool = False) -> list[dict]:
-    db = await _connect()
+    db = await connect()
     try:
         if include_deleted:
             sql = (
@@ -154,7 +154,7 @@ async def list_homeworks(include_deleted: bool = False) -> list[dict]:
 
 async def list_trashed_homeworks() -> list[dict]:
     """Only soft-deleted rows — for the Trash view."""
-    db = await _connect()
+    db = await connect()
     try:
         cursor = await db.execute(
             "SELECT id, title, subject, grade, mode, family, language, status, "
@@ -169,7 +169,7 @@ async def list_trashed_homeworks() -> list[dict]:
 
 async def get_homework(id: str) -> Optional[dict]:
     """Returns the record even if soft-deleted — needed for restore + preview."""
-    db = await _connect()
+    db = await connect()
     try:
         cursor = await db.execute("SELECT * FROM homeworks WHERE id = ?", (id,))
         row = await cursor.fetchone()
@@ -199,7 +199,7 @@ async def create_homework(data: dict) -> dict:
     content = data.get("content_json") or {}
     content_str = json.dumps(content, ensure_ascii=False)
 
-    db = await _connect()
+    db = await connect()
     try:
         new_id = await _next_id(db)
         await db.execute(
@@ -294,7 +294,7 @@ async def update_homework(id: str, updates: dict) -> Optional[dict]:
     values.append(now_iso)
     values.append(id)
 
-    db = await _connect()
+    db = await connect()
     try:
         # Snapshot BEFORE the update when content is changing. This preserves the
         # prior state so even if the write is later corrupted we can roll back.
@@ -328,7 +328,7 @@ async def update_homework(id: str, updates: dict) -> Optional[dict]:
 
 async def delete_homework(id: str) -> bool:
     """Soft delete — sets deleted_at timestamp. Still returns True on success."""
-    db = await _connect()
+    db = await connect()
     try:
         cursor = await db.execute(
             "UPDATE homeworks SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL",
@@ -342,7 +342,7 @@ async def delete_homework(id: str) -> bool:
 
 async def hard_delete_homework(id: str) -> bool:
     """Permanent deletion. Only callable from an admin route."""
-    db = await _connect()
+    db = await connect()
     try:
         # Clean up version history first to avoid orphaned rows.
         await db.execute(
@@ -357,7 +357,7 @@ async def hard_delete_homework(id: str) -> bool:
 
 async def restore_homework(id: str) -> bool:
     """Un-soft-delete — clears deleted_at."""
-    db = await _connect()
+    db = await connect()
     try:
         cursor = await db.execute(
             "UPDATE homeworks SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL",
@@ -370,7 +370,7 @@ async def restore_homework(id: str) -> bool:
 
 
 async def list_versions(homework_id: str) -> list[dict]:
-    db = await _connect()
+    db = await connect()
     try:
         cursor = await db.execute(
             "SELECT id, homework_id, title, saved_at, length(content_json) AS size_bytes "
@@ -384,7 +384,7 @@ async def list_versions(homework_id: str) -> list[dict]:
 
 
 async def get_version(version_id: int) -> Optional[dict]:
-    db = await _connect()
+    db = await connect()
     try:
         cursor = await db.execute(
             "SELECT id, homework_id, content_json, title, saved_at "
@@ -417,7 +417,7 @@ async def restore_version(version_id: int) -> Optional[dict]:
 
 
 async def set_status(id: str, status: str) -> None:
-    db = await _connect()
+    db = await connect()
     try:
         await db.execute(
             "UPDATE homeworks SET status = ?, updated_at = ? WHERE id = ?",

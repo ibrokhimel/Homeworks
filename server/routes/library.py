@@ -6,21 +6,11 @@ GET /api/library/facets   — distinct subject/grade/mode values for dropdowns
 
 from typing import Optional
 
-import aiosqlite
 from fastapi import APIRouter, Query
 
-from server.config import DB_PATH
-from server.db import _apply_pragmas
+from server.db import connect
 
 router = APIRouter(prefix="/library", tags=["library"])
-
-
-async def _connect() -> aiosqlite.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    db = await aiosqlite.connect(DB_PATH)
-    db.row_factory = aiosqlite.Row
-    await _apply_pragmas(db)
-    return db
 
 
 @router.get("")
@@ -67,7 +57,7 @@ async def list_library(
         f"LIMIT ? OFFSET ?"
     )
 
-    db = await _connect()
+    db = await connect()
     try:
         cursor = await db.execute(count_sql, params)
         row = await cursor.fetchone()
@@ -85,7 +75,7 @@ async def list_library(
 @router.get("/facets")
 async def library_facets() -> dict:
     """Return distinct subject, grade, and mode values for filter dropdowns."""
-    db = await _connect()
+    db = await connect()
     try:
         cur = await db.execute(
             "SELECT DISTINCT subject FROM homeworks WHERE deleted_at IS NULL ORDER BY subject"
