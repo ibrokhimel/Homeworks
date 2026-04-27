@@ -63,7 +63,7 @@ fi
 
 # Clean up backups older than 14 days
 log "Cleaning up backups older than 14 days..."
-DELETED_COUNT=$(find "$BACKUP_DIR" -name "nets-*.db.gz" -mtime +14 -delete 2>&1 | wc -l)
+DELETED_COUNT=$(find "$BACKUP_DIR" -name "nets-*.db.gz" -mtime +14 -print -delete 2>/dev/null | wc -l | tr -d ' ')
 log "Deleted $DELETED_COUNT old backup files"
 
 log "Backup completed successfully"

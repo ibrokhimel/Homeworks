@@ -211,20 +211,19 @@ def _strip_text_tags_keep_media(s) -> str:
 def inject(
     content_json: dict,
     meta_override: dict | None = None,
-    runtime_context: dict = None,
+    *,
+    runtime_context: dict,
 ) -> str:
     """Inject content_json into the Perfect Homework HTML template.
 
     content_json: full schema per CONTRACTS §1
     meta_override: optional {title, subject_display, section, cefr_level} to force
                    specific values. If None, uses content_json['meta'].
-    runtime_context: required dict — AI tutor runtime hook context
+    runtime_context: required keyword-only dict — AI tutor runtime hook context
                      (window.NETS_CTX + runtime.js). Always injected before </body>.
 
     Returns: rendered HTML string.
     """
-    if runtime_context is None:
-        raise TypeError("inject() requires runtime_context (no longer optional)")
     html = _TEMPLATE
     meta = meta_override or content_json.get("meta") or {}
 

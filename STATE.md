@@ -38,7 +38,7 @@ Overall: **~94% functional**. The remaining 6% is mostly polish and the
 - Vertex AI active: project `unique-spirit-494018-h5`, location `us-central1`,
   models `gemini-2.5-flash` (fast) + `gemini-2.5-pro` (boss).
 - Endpoints return well-formed Uzbek JSON in <2s p50.
-- Trashed homeworks return 409 on `/preview` and `/export` (BUG-1, fixed).
+- Trashed homeworks return 409 on `/preview` and `/h/{id}` (BUG-1, fixed; export route removed in Wave B1+B2).
 - Auto-fallback: if Vertex fails → Gemini API → Kimi → stock responses. Sessions never stall.
 
 ### Builder UI
@@ -60,7 +60,7 @@ Overall: **~94% functional**. The remaining 6% is mostly polish and the
 - `beforeunload` keepalive fetch flushes the latest content_json on hard refresh.
 - "Test Tutor" button in builder topbar — pings all 4 AI endpoints + shows backend name.
 
-### Runtime template (preview + export)
+### Runtime template (preview + permanent share URL)
 - All 10 content keys inject correctly into JS constants.
 - Flashcard front images (structured media zone) render via `fc-front-media` slot.
 - Inline images/SVGs in front term render via `term_html` (formatting tags stripped, media
@@ -120,7 +120,7 @@ Overall: **~94% functional**. The remaining 6% is mostly polish and the
 
 - **[New — Medium] `pipeline.py` still imports from `db.py` and `services`** — `server/services/pipeline.py:26–28`. Despite the deprecation notice, the file still imports `get_homework`, `update_homework`, `set_status` from `db`, and `gemini` from services. If these imports fail (e.g., signature change), they will raise at module load only if something imports `pipeline` — currently nothing does. Safe but messy; should be cleaned up in the Wave A5 pass.
 
-- **[New — Medium] `homeworkSummary` in runtime context uses `subject_display`, not a real summary** — `server/routes/export.py:50`. The `NETS_CTX.homeworkSummary` field, which `runtime.js` passes to `/api/ai/reflection` as `homework_summary`, is set to `content.get("meta", {}).get("subject_display", "")` — i.e., the subject name string ("Algebra", etc.), not a session performance summary. The reflection AI prompt receives a subject label instead of meaningful session data, producing generic feedback. Real fix: compute a summary from session score data or leave it empty for the frontend to fill in.
+- **[BROKEN — Medium] `homeworkSummary` in runtime context uses `subject_display`, not a real summary** — moved into `server/routes/homework_page.py::render_homework()` after Wave B1+B2 deleted `export.py`. The `NETS_CTX.homeworkSummary` field, which `runtime.js` passes to `/api/ai/reflection` as `homework_summary`, is still set to `content.get("meta", {}).get("subject_display", "")` — i.e., the subject name string ("Algebra", etc.), not a session performance summary. Real fix: compute a summary from session score data or leave it empty.
 
 ---
 
@@ -178,16 +178,16 @@ curl -X POST /api/ai/tutor -H 'Content-Type: application/json' \
 3. Restore an old version, confirm content matches.
 4. Trash + restore — content_json byte-identical before/after.
 
-### Export (run after export.py or template changes)
+### Permanent URL render (run after homework_page.py or template changes)
 
 ```bash
-curl -s /api/homeworks/{id}/export > out.html
-grep -c 'NETS_CTX' out.html       # must be 0
-grep -c 'runtime.js' out.html     # must be 0
+curl -s /h/{id} > out.html
+grep -c 'NETS_CTX' out.html       # must be 1 (AI bootstrap is always injected)
+grep -c 'runtime.js' out.html     # must be 1
 grep -c 'const PANELS' out.html   # must be 1
 ```
 
-Open `out.html` in a browser — the full homework session must run offline.
+Open `out.html` in a browser — full homework plays with AI tutor live (assuming backend reachable).
 
 ---
 
@@ -195,7 +195,7 @@ Open `out.html` in a browser — the full homework session must run offline.
 
 | Bug | Severity | Fix |
 |----|----|----|
-| Trashed homework `/preview` returned 200 | BLOCKER | export.py + homework.py now return 409 with `{code:TRASHED}` |
+| Trashed homework `/preview` returned 200 | BLOCKER | homework_page.py + homework.py now return 409 with `{code:TRASHED}` |
 | Flashcard front showing raw HTML tags | HIGH | injector strips formatting tags but preserves inline `<img>`/`<svg>` (`_strip_text_tags_keep_media`); template uses `innerHTML` for term_html |
 | Flashcard front media not rendering | HIGH | added `fc-front-media` slot in template DOM, renderer writes structured media HTML there |
 | Flashcard back media too large | MEDIUM | CSS clamps to max-height 180px, max-width 100%, object-fit contain |
@@ -224,8 +224,8 @@ These behaviors are easy to break with a careless refactor. Keep them green.
   reshape happens on every preview. If you "simplify" it, the template breaks.
 - **Empty-state placeholders.** Every constant has a fallback so a brand-new draft
   doesn't crash the template. Don't remove them.
-- **Trashed-block on preview/export.** A user pasting an old `/preview` URL after deletion
-  must get 409, not a stale render.
+- **Trashed-block on preview / `/h/{id}`.** A user pasting an old `/preview` or `/h/{id}` URL
+  after the homework was trashed must get 409, not a stale render.
 
 ---
 

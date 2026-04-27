@@ -303,12 +303,14 @@ data: {"id": "HW-...", "status": "ready"}
 
 Frontend uses `EventSource` to consume. Each `phase` event with `status: "done"` triggers editor auto-populate.
 
-### Preview + Export
+### Preview + Permanent Share URL
 
 | Method | Path | Response | Content-Type |
 |--------|------|----------|--------------|
-| GET | `/api/homeworks/{id}/preview` | Injected HTML body | `text/html` |
-| GET | `/api/homeworks/{id}/export` | Injected HTML as download | `text/html; Content-Disposition: attachment; filename="HW-{id}.html"` |
+| GET | `/api/homeworks/{id}/preview` | Injected HTML body (builder live-preview) | `text/html` |
+| GET | `/h/{id}` | Injected HTML body (canonical permanent URL with AI runtime) | `text/html` |
+
+**Note:** the legacy `/api/homeworks/{id}/export` endpoint was removed in Wave B1+B2 (commit `0457360`). The platform now serves homeworks via the live `/h/{id}` URL — there is no offline standalone HTML output.
 
 ### Sessions (student playback — Wave 4)
 
@@ -421,7 +423,8 @@ nets-builder/
 │   │   ├── meta.py         # /api/subjects, /api/health
 │   │   ├── homework.py     # CRUD
 │   │   ├── ai.py           # /generate SSE
-│   │   └── export.py       # /preview, /export
+│   │   ├── homework_page.py # /h/{id} permanent URL + /api/homeworks/{id}/preview
+│   │   └── library.py      # /api/library, /api/library/facets
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── gemini.py
@@ -497,6 +500,7 @@ curl http://localhost:8000/api/homeworks/{id}/preview > out.html
 
 **Wave 4 verify:**
 ```bash
-curl http://localhost:8000/api/homeworks/{id}/export -o hw.html
-# Double-click hw.html → full homework plays correctly, all phases work
+# Permanent share URL (canonical) — opens with AI runtime active
+curl http://localhost:8000/h/{id} -o hw.html
+# Open in browser → full homework plays correctly, all phases work, AI hints respond.
 ```
