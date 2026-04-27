@@ -107,3 +107,56 @@ def test_preview_route_trashed_returns_json_409(client, created_hw):
     assert r.status_code == 409
     body = r.json()
     assert body["detail"]["code"] == "TRASHED"
+
+
+# ──────────────────────────────────────────────────────────────────
+# Wave F2 — persistent AI tutor widget
+# ──────────────────────────────────────────────────────────────────
+
+def test_tutor_widget_dom_present(client, created_hw):
+    """Rendered homework HTML must contain the persistent tutor widget DOM."""
+    r = client.get(f"/h/{created_hw['id']}")
+    assert r.status_code == 200
+    body = r.text
+    # Required IDs from the F2 spec.
+    for needle in (
+        'id="nets-ai-tutor"',
+        'id="nets-tutor-fab"',
+        'id="nets-tutor-panel"',
+        'id="nets-tutor-messages"',
+        'id="nets-tutor-input-form"',
+        'id="nets-tutor-phase-badge"',
+    ):
+        assert needle in body, f"missing tutor widget DOM: {needle}"
+    # Phase-change event must be dispatched somewhere in the template JS.
+    assert "nets:phase-change" in body
+
+
+def test_tutor_widget_inline_no_external_assets(client, created_hw):
+    """Tutor widget assets are inline — no NEW external <link rel='stylesheet' href='https?://…'>."""
+    r = client.get(f"/h/{created_hw['id']}")
+    assert r.status_code == 200
+    body = r.text.lower()
+    # No external stylesheet links allowed (relative same-origin links are also disallowed
+    # by the inline-only constraint, but we specifically guard against http/https hosts).
+    import re as _re
+    matches = _re.findall(r'<link[^>]+rel\s*=\s*["\']stylesheet["\'][^>]*>', body)
+    for tag in matches:
+        # Allow data: URLs only (none currently). External http/https hosts are forbidden.
+        assert 'href="http' not in tag and "href='http" not in tag, \
+            f"unexpected external stylesheet in tutor widget area: {tag}"
+
+
+def test_runtime_js_exposes_new_methods():
+    """server/template/runtime.js must expose tutorChat, tutorHistory, bossPlan."""
+    import os
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    runtime_path = os.path.join(here, "server", "template", "runtime.js")
+    with open(runtime_path, "r", encoding="utf-8") as f:
+        src = f.read()
+    # Method definitions (function declarations).
+    for name in ("tutorChat", "tutorHistory", "bossPlan"):
+        assert f"function {name}(" in src, f"runtime.js missing function {name}"
+        # Each must also be exposed on window.NETS_AI.
+        assert name in src.split("window.NETS_AI = {")[1].split("}")[0], \
+            f"{name} not exposed on window.NETS_AI"

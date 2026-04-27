@@ -86,6 +86,30 @@ The server runs on a Mac mini (`192.168.1.26`) with a launchd agent that respawn
 
 ---
 
+## 6.5 Live AI Tutor (Wave F)
+
+A persistent chat-bubble tutor that follows the student through the homework journey with phase-aware behavior.
+
+- **PREVIEW**: Open Q&A mode. The tutor explains concepts, provides examples, and decomposes complex ideas without depth restrictions.
+- **PRACTICE**: Scaffolding mode. The tutor provides guiding questions and decomposition of steps but never reveals the gradeable answer.
+- **BOSS**: Personalized challenge mode. The tutor adopts a chosen persona (`challenger`, `mentor`, or `analyst`), reorders questions to match the student's curve, and adds personalized framing while maintaining deterministic grading logic.
+
+**Answer-Leak Guarantee:**
+In PRACTICE and BOSS phases, the server rigorously strips all grading fields — including `answer_spec.expected`, `ans`, `accepted_answers`, and `correct` — from the question payload before it is injected into the LLM context. This safety boundary is verified by automated regex checks on all outgoing prompts.
+
+**Endpoints** (see [`docs/API.md`](docs/API.md)):
+- `POST /api/ai/tutor/chat` — Send a message to the active tutor.
+- `POST /api/ai/tutor/boss-plan` — Generate a personalized boss battle sequence.
+- `GET  /api/ai/tutor/history` — Retrieve the current session's chat log.
+
+**AI Backend:**
+Defaults to Kimi (`moonshot-v1-32k` for chat, `moonshot-v1-128k` for boss planning) with automatic fallback to Vertex AI or Gemini API based on the `AI_BACKEND_PREFERENCE` environment variable.
+
+**Status:**
+Wave F0 + F1 shipped (backend, PR #6 + #7). F2 (frontend widget) in PR #8. F3 (boss personalization wiring) queued. Architecture details in [`docs/TUTOR.md`](docs/TUTOR.md).
+
+---
+
 ## 7. What NOT to do
 
 - Don't `git push` from the Mac mini.

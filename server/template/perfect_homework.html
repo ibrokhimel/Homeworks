@@ -2159,6 +2159,252 @@
             margin-top: 18px;
             color: var(--accent);
         }
+
+        /* ── Wave F2: Persistent AI Tutor Widget ────────────────── */
+        #nets-ai-tutor {
+            position: fixed;
+            right: 16px;
+            bottom: calc(16px + var(--safe-bottom));
+            z-index: 9000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            user-select: none;
+        }
+        #nets-tutor-fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            font-size: 26px;
+            line-height: 1;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(0, 122, 255, 0.42), var(--shadow-mid, 0 8px 24px rgba(0,0,0,0.08));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 180ms ease, box-shadow 180ms ease;
+        }
+        #nets-tutor-fab:hover { transform: scale(1.05); }
+        #nets-tutor-fab:active { transform: scale(0.95); }
+        #nets-tutor-fab[hidden] { display: none !important; }
+
+        #nets-tutor-panel {
+            position: absolute;
+            right: 0;
+            bottom: 70px;
+            width: 360px;
+            max-width: calc(100vw - 24px);
+            height: 500px;
+            max-height: calc(100vh - 100px);
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: var(--glass-blur, blur(40px) saturate(180%));
+            -webkit-backdrop-filter: var(--glass-blur, blur(40px) saturate(180%));
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform-origin: bottom right;
+            animation: nets-tutor-pop-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+        }
+        @keyframes nets-tutor-pop-in {
+            from { transform: scale(0.85) translateY(10px); opacity: 0; }
+            to   { transform: scale(1)    translateY(0);    opacity: 1; }
+        }
+        #nets-tutor-panel[hidden] { display: none !important; }
+
+        #nets-tutor-panel header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            background: rgba(255,255,255,0.75);
+            flex-shrink: 0;
+        }
+        #nets-tutor-phase-badge {
+            font-size: 13px;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 999px;
+            color: #fff;
+            background: #34c759;          /* default green = preview */
+            transition: background 220ms ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 240px;
+        }
+        #nets-tutor-phase-badge[data-phase="preview"]  { background: #34c759; }
+        #nets-tutor-phase-badge[data-phase="practice"] { background: #ff9500; }
+        #nets-tutor-phase-badge[data-phase="boss"]     { background: #ff3b30; }
+        #nets-tutor-close {
+            background: transparent;
+            border: none;
+            font-size: 22px;
+            line-height: 1;
+            color: var(--text-muted, #86868b);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+        }
+        #nets-tutor-close:hover { background: rgba(0,0,0,0.06); color: var(--text, #1d1d1f); }
+
+        #nets-tutor-messages {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .nets-tutor-msg {
+            max-width: 85%;
+            padding: 9px 13px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.45;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            user-select: text;
+        }
+        .nets-tutor-msg.user {
+            align-self: flex-end;
+            background: var(--accent, #007AFF);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+        }
+        .nets-tutor-msg.assistant {
+            align-self: flex-start;
+            background: rgba(0,0,0,0.05);
+            color: var(--text, #1d1d1f);
+            border-bottom-left-radius: 4px;
+        }
+        .nets-tutor-msg.error {
+            align-self: flex-start;
+            background: rgba(255, 59, 48, 0.12);
+            color: #c0392b;
+            border-bottom-left-radius: 4px;
+        }
+        .nets-tutor-msg strong { font-weight: 700; }
+        .nets-tutor-msg em { font-style: italic; }
+        .nets-tutor-msg code {
+            font-family: ui-monospace, "SF Mono", Menlo, monospace;
+            font-size: 12.5px;
+            background: rgba(0,0,0,0.08);
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+        .nets-tutor-msg.user code { background: rgba(255,255,255,0.22); }
+        .nets-tutor-msg ul, .nets-tutor-msg ol {
+            margin: 4px 0 4px 18px;
+            padding: 0;
+        }
+        .nets-tutor-msg li { margin: 2px 0; }
+        .nets-tutor-msg p { margin: 0 0 6px 0; }
+        .nets-tutor-msg p:last-child { margin-bottom: 0; }
+
+        .nets-tutor-typing {
+            align-self: flex-start;
+            display: inline-flex;
+            gap: 4px;
+            padding: 10px 14px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+        }
+        .nets-tutor-typing span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-muted, #86868b);
+            animation: nets-tutor-blink 1.2s infinite ease-in-out;
+        }
+        .nets-tutor-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .nets-tutor-typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes nets-tutor-blink {
+            0%, 80%, 100% { opacity: 0.3; transform: scale(0.85); }
+            40%           { opacity: 1;   transform: scale(1); }
+        }
+
+        #nets-tutor-input-form {
+            display: flex;
+            gap: 8px;
+            padding: 10px 12px 12px 12px;
+            border-top: 1px solid rgba(0,0,0,0.06);
+            background: rgba(255,255,255,0.85);
+            flex-shrink: 0;
+            align-items: flex-end;
+        }
+        #nets-tutor-input {
+            flex: 1 1 auto;
+            border: 1px solid rgba(0,0,0,0.10);
+            border-radius: 12px;
+            padding: 8px 10px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            background: #fff;
+            color: var(--text, #1d1d1f);
+            outline: none;
+            line-height: 1.35;
+            max-height: 90px;
+            user-select: text;
+        }
+        #nets-tutor-input:focus {
+            border-color: var(--accent, #007AFF);
+            box-shadow: 0 0 0 3px var(--accent-glow, rgba(0,122,255,0.28));
+        }
+        #nets-tutor-input:disabled {
+            background: rgba(0,0,0,0.04);
+            color: var(--text-muted, #86868b);
+            cursor: not-allowed;
+        }
+        #nets-tutor-send {
+            background: var(--accent, #007AFF);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 8px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+            min-height: 36px;
+        }
+        #nets-tutor-send:hover { filter: brightness(1.05); }
+        #nets-tutor-send:disabled {
+            background: rgba(0,0,0,0.18);
+            cursor: not-allowed;
+        }
+
+        #nets-tutor-cap-warning {
+            padding: 10px 14px;
+            font-size: 12.5px;
+            color: #c0392b;
+            background: rgba(255, 59, 48, 0.08);
+            border-top: 1px solid rgba(255, 59, 48, 0.18);
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 600px) {
+            #nets-ai-tutor { right: 12px; bottom: calc(12px + var(--safe-bottom)); }
+            #nets-tutor-panel {
+                position: fixed;
+                right: 8px;
+                left: 8px;
+                bottom: calc(78px + var(--safe-bottom));
+                top: 16px;
+                width: auto;
+                max-width: none;
+                height: auto;
+                max-height: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -3055,6 +3301,21 @@
         function setStage(n) {
             state.stage = n;
             updatePhaseProgress();
+            // Wave F2: notify the persistent tutor widget so its phase badge updates.
+            // Stage→phase mapping:
+            //   0, 1, 2 (panel preview)        → preview
+            //   2.5–6.5 (any practice activity) → practice
+            //   7, 7.5  (boss + boss-done)      → boss
+            //   7.7+    (reflection / done)     → preview (open Q&A)
+            try {
+                let phaseName = 'preview';
+                if (n >= 7 && n < 7.7) phaseName = 'boss';
+                else if (n > 2 && n < 7) phaseName = 'practice';
+                else phaseName = 'preview';
+                document.dispatchEvent(new CustomEvent('nets:phase-change', {
+                    detail: { phase: phaseName, stage: n, questionId: null }
+                }));
+            } catch (e) { /* widget optional */ }
         }
 
         // ── PHASE PROGRESS BAR ──────────────────────────────────
@@ -5612,6 +5873,358 @@ Prezident ertaga hisobot kutmoqda.`,
             };
             btn.addEventListener('click', handler, true);
         }
+    </script>
+
+    <!-- ── Wave F2: Persistent AI Tutor Widget ───────────────────── -->
+    <div id="nets-ai-tutor" class="nets-tutor-collapsed">
+        <button id="nets-tutor-fab" type="button" aria-label="Open tutor chat">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+        </button>
+        <div id="nets-tutor-panel" hidden>
+            <header>
+                <span id="nets-tutor-phase-badge" data-phase="preview">Preview — ask me anything</span>
+                <button id="nets-tutor-close" type="button" aria-label="Close">×</button>
+            </header>
+            <div id="nets-tutor-messages" role="log" aria-live="polite"></div>
+            <form id="nets-tutor-input-form">
+                <textarea id="nets-tutor-input" rows="2" placeholder="Type your question…" maxlength="2000"></textarea>
+                <button type="submit" id="nets-tutor-send">Send</button>
+            </form>
+            <div id="nets-tutor-cap-warning" hidden>Session limit reached.</div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        // Wave F2 — persistent floating tutor widget. Listens for `nets:phase-change`,
+        // talks to /api/ai/tutor/{chat,history}. Pure vanilla JS, all assets inline.
+
+        const PHASE_LABELS = {
+            en: {
+                preview:  'Preview — ask me anything',
+                practice: "Practice — I'll guide you",
+                boss:     "Boss — let's go",
+                send:     'Send',
+                placeholder: 'Type your question…',
+                cap:      'Session limit reached.',
+                error:    'Something went wrong. Please try again.',
+                offline:  'Tutor is offline right now.',
+            },
+            uz: {
+                preview:  "Ko'rib chiqish — istalgan savolni bering",
+                practice: "Mashq — yo'l ko'rsataman",
+                boss:     "Boss — boshladik",
+                send:     'Yuborish',
+                placeholder: "Savolingizni yozing…",
+                cap:      "Sessiya chegarasiga yetildi.",
+                error:    "Xatolik yuz berdi. Qaytadan urinib ko'ring.",
+                offline:  "Tyutor hozir ishlamaydi.",
+            },
+            ru: {
+                preview:  'Превью — спрашивайте, что хотите',
+                practice: 'Практика — буду направлять',
+                boss:     'Босс — поехали',
+                send:     'Отправить',
+                placeholder: 'Введите вопрос…',
+                cap:      'Достигнут лимит сообщений.',
+                error:    'Что-то пошло не так. Попробуйте ещё раз.',
+                offline:  'Тьютор сейчас недоступен.',
+            },
+        };
+
+        function detectLang() {
+            const ctx = window.NETS_CTX || {};
+            const raw = (ctx.lang || document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
+            return PHASE_LABELS[raw] ? raw : 'en';
+        }
+
+        const lang = detectLang();
+        const L = PHASE_LABELS[lang];
+        const SESSION_CAP = 60;
+
+        // Generate UUID without crypto.randomUUID (older Safari).
+        function uuid() {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return window.crypto.randomUUID();
+            }
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        const ctx = window.NETS_CTX || {};
+        const state = {
+            sessionId: localStorage.getItem('nets_tutor_session') || uuid(),
+            hwId: ctx.hwId || (document.body.dataset && document.body.dataset.hwId) || '',
+            currentPhase: 'preview',
+            currentQuestionId: null,
+            messageCount: 0,
+            isOpen: false,
+            isSending: false,
+        };
+        try { localStorage.setItem('nets_tutor_session', state.sessionId); } catch (e) { /* private mode */ }
+
+        // ── DOM refs ────────────────────────────────────────────
+        const root      = document.getElementById('nets-ai-tutor');
+        const fab       = document.getElementById('nets-tutor-fab');
+        const panel     = document.getElementById('nets-tutor-panel');
+        const badge     = document.getElementById('nets-tutor-phase-badge');
+        const closeBtn  = document.getElementById('nets-tutor-close');
+        const messages  = document.getElementById('nets-tutor-messages');
+        const inputForm = document.getElementById('nets-tutor-input-form');
+        const input     = document.getElementById('nets-tutor-input');
+        const sendBtn   = document.getElementById('nets-tutor-send');
+        const capEl     = document.getElementById('nets-tutor-cap-warning');
+
+        if (!root) return;  // safety
+
+        // Apply localized labels.
+        input.placeholder = L.placeholder;
+        sendBtn.textContent = L.send;
+        capEl.textContent = L.cap;
+        updateBadge('preview');
+
+        // ── Markdown subset rendering — XSS-safe via textContent ───
+        // Supports: paragraphs (blank-line split), **bold**, *italic*,
+        // `code`, line breaks, and "- " or "1. " lists.
+        function renderMarkdownInto(parent, text) {
+            if (!text) return;
+            const blocks = String(text).split(/\n{2,}/);
+            for (const block of blocks) {
+                const trimmed = block.trim();
+                if (!trimmed) continue;
+                const lines = trimmed.split('\n');
+                const isUl = lines.every(l => /^\s*[-*]\s+/.test(l));
+                const isOl = lines.every(l => /^\s*\d+[.)]\s+/.test(l));
+                if (isUl || isOl) {
+                    const list = document.createElement(isUl ? 'ul' : 'ol');
+                    for (const line of lines) {
+                        const li = document.createElement('li');
+                        const stripped = line.replace(/^\s*(?:[-*]|\d+[.)])\s+/, '');
+                        appendInline(li, stripped);
+                        list.appendChild(li);
+                    }
+                    parent.appendChild(list);
+                } else {
+                    const p = document.createElement('p');
+                    const segments = trimmed.split('\n');
+                    segments.forEach((seg, idx) => {
+                        appendInline(p, seg);
+                        if (idx < segments.length - 1) p.appendChild(document.createElement('br'));
+                    });
+                    parent.appendChild(p);
+                }
+            }
+        }
+
+        // Inline markdown — bold, italic, code. Token-based to avoid regex pitfalls.
+        function appendInline(parent, text) {
+            // Split by `code` first (highest precedence), then bold/italic inside.
+            const parts = String(text).split(/(`[^`]+`)/g);
+            for (const part of parts) {
+                if (!part) continue;
+                if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+                    const code = document.createElement('code');
+                    code.textContent = part.slice(1, -1);
+                    parent.appendChild(code);
+                } else {
+                    appendBoldItalic(parent, part);
+                }
+            }
+        }
+
+        function appendBoldItalic(parent, text) {
+            // Tokenize **bold** and *italic*. Greedy on bold first.
+            const re = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+            let lastIndex = 0;
+            let m;
+            while ((m = re.exec(text)) !== null) {
+                if (m.index > lastIndex) {
+                    parent.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
+                }
+                const tok = m[0];
+                if (tok.startsWith('**') && tok.endsWith('**')) {
+                    const s = document.createElement('strong');
+                    s.textContent = tok.slice(2, -2);
+                    parent.appendChild(s);
+                } else if (tok.startsWith('*') && tok.endsWith('*')) {
+                    const e = document.createElement('em');
+                    e.textContent = tok.slice(1, -1);
+                    parent.appendChild(e);
+                }
+                lastIndex = re.lastIndex;
+            }
+            if (lastIndex < text.length) {
+                parent.appendChild(document.createTextNode(text.slice(lastIndex)));
+            }
+        }
+
+        // ── Message rendering ───────────────────────────────────
+        function appendMessage(role, content) {
+            const el = document.createElement('div');
+            el.className = 'nets-tutor-msg ' + (role === 'user' ? 'user' : (role === 'error' ? 'error' : 'assistant'));
+            renderMarkdownInto(el, content);
+            // If markdown produced nothing (empty after trim), fall back to raw text.
+            if (!el.firstChild) el.textContent = String(content || '');
+            messages.appendChild(el);
+            messages.scrollTop = messages.scrollHeight;
+            return el;
+        }
+
+        function appendTyping() {
+            const el = document.createElement('div');
+            el.className = 'nets-tutor-typing';
+            el.id = 'nets-tutor-typing-indicator';
+            for (let i = 0; i < 3; i++) el.appendChild(document.createElement('span'));
+            messages.appendChild(el);
+            messages.scrollTop = messages.scrollHeight;
+            return el;
+        }
+        function removeTyping() {
+            const el = document.getElementById('nets-tutor-typing-indicator');
+            if (el && el.parentNode) el.parentNode.removeChild(el);
+        }
+
+        // ── Phase badge ─────────────────────────────────────────
+        function updateBadge(phase) {
+            const p = (phase === 'practice' || phase === 'boss') ? phase : 'preview';
+            badge.dataset.phase = p;
+            badge.textContent = L[p];
+        }
+
+        // ── Cap handling ────────────────────────────────────────
+        function applyCap() {
+            if (state.messageCount >= SESSION_CAP) {
+                input.disabled = true;
+                sendBtn.disabled = true;
+                capEl.hidden = false;
+            } else {
+                input.disabled = false;
+                sendBtn.disabled = state.isSending;
+                capEl.hidden = true;
+            }
+        }
+
+        // ── Open / close panel ──────────────────────────────────
+        function openPanel() {
+            if (state.isOpen) return;
+            panel.hidden = false;
+            fab.hidden = true;
+            state.isOpen = true;
+            root.classList.remove('nets-tutor-collapsed');
+            setTimeout(() => { try { input.focus(); } catch (e) {} }, 50);
+        }
+        function closePanel() {
+            if (!state.isOpen) return;
+            panel.hidden = true;
+            fab.hidden = false;
+            state.isOpen = false;
+            root.classList.add('nets-tutor-collapsed');
+        }
+        fab.addEventListener('click', openPanel);
+        closeBtn.addEventListener('click', closePanel);
+
+        // ── Phase-change listener ───────────────────────────────
+        document.addEventListener('nets:phase-change', (ev) => {
+            const detail = (ev && ev.detail) || {};
+            const phase = detail.phase || 'preview';
+            state.currentPhase = (phase === 'practice' || phase === 'boss') ? phase : 'preview';
+            state.currentQuestionId = detail.questionId || null;
+            updateBadge(state.currentPhase);
+        });
+
+        // ── API ─────────────────────────────────────────────────
+        function apiAvailable() {
+            return !!(window.NETS_AI && typeof window.NETS_AI.tutorChat === 'function'
+                      && window.NETS_AI.isAvailable && window.NETS_AI.isAvailable()
+                      && state.hwId);
+        }
+
+        async function sendMessage(text) {
+            if (state.isSending || !text) return;
+            state.isSending = true;
+            sendBtn.disabled = true;
+            appendMessage('user', text);
+            state.messageCount += 1;
+            const typing = appendTyping();
+            try {
+                if (!apiAvailable()) {
+                    removeTyping();
+                    appendMessage('error', L.offline);
+                    return;
+                }
+                const res = await window.NETS_AI.tutorChat({
+                    session_id: state.sessionId,
+                    hw_id: state.hwId,
+                    phase: state.currentPhase,
+                    question_id: state.currentQuestionId || undefined,
+                    message: text,
+                });
+                removeTyping();
+                if (res && res._cap) {
+                    state.messageCount = SESSION_CAP;
+                    appendMessage('error', L.cap);
+                } else if (res && res._error) {
+                    appendMessage('error', res.message || L.error);
+                } else if (res && res.response) {
+                    appendMessage('assistant', res.response);
+                    state.messageCount += 1;
+                } else {
+                    appendMessage('error', L.error);
+                }
+            } catch (e) {
+                removeTyping();
+                appendMessage('error', L.error);
+            } finally {
+                state.isSending = false;
+                applyCap();
+            }
+        }
+
+        inputForm.addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            const text = (input.value || '').trim();
+            if (!text) return;
+            input.value = '';
+            sendMessage(text);
+        });
+
+        // Submit on Enter, newline on Shift+Enter.
+        input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter' && !ev.shiftKey) {
+                ev.preventDefault();
+                inputForm.requestSubmit ? inputForm.requestSubmit() : inputForm.dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        });
+
+        // ── History restore on load ─────────────────────────────
+        async function restoreHistory() {
+            if (!apiAvailable() || !window.NETS_AI.tutorHistory) return;
+            try {
+                const res = await window.NETS_AI.tutorHistory({
+                    session_id: state.sessionId,
+                    hw_id: state.hwId,
+                });
+                const turns = (res && res.turns) || [];
+                let count = 0;
+                for (const t of turns) {
+                    if (!t || !t.role || !t.content) continue;
+                    if (t.role === 'system') continue;
+                    appendMessage(t.role === 'user' ? 'user' : 'assistant', t.content);
+                    count += 1;
+                }
+                state.messageCount = count;
+                applyCap();
+            } catch (e) { /* swallow — history is best-effort */ }
+        }
+
+        // Kick off after a tick so runtime.js has registered.
+        setTimeout(restoreHistory, 0);
+    })();
     </script>
 </body>
 </html>

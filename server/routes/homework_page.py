@@ -86,6 +86,8 @@ def render_homework(hw: dict) -> str:
         "grade": grade,
         "homeworkTitle": hw.get("title"),
         "homeworkSummary": summary,
+        "hwId": hw.get("id"),
+        "lang": (meta_override.get("lang") or content.get("meta", {}).get("lang") or "uz"),
     }
     return inject(content, meta_override, runtime_context=runtime_ctx)
 

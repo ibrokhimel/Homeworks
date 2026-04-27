@@ -380,3 +380,48 @@ producer (those are owned by the grading-lane teammate).
 python scripts/migrate_tutor_conversations.py --db-path /path/to/nets.db
 ```
 Fresh installs already pick this up via `init_db()` on startup; the script is for environments whose DB pre-dates F1.
+
+## Wave F2 — Live AI Tutor Widget (2026-04-28)
+
+Frontend half of the persistent floating tutor — a chat-bubble widget that follows the
+student through every phase, listening to a new `nets:phase-change` event so its
+mode badge swaps automatically. Talks to the F1 endpoints (`/api/ai/tutor/chat|history`).
+Tutor-only lane — does not touch `checkAnswer()` payload (grading lane's territory).
+F3 (boss personalization) is the next phase; F4 (post-merge "Stuck? Ask tutor →" CTA)
+remains deferred until the grading lane merges.
+
+**Modified:**
+- `server/template/perfect_homework.html` — added inline CSS (~230 lines), tutor widget
+  DOM (~20 lines), and a self-contained ~280-line `<script>` module appended before
+  `</body>`. `setStage(n)` now dispatches `nets:phase-change` with stage→phase mapping
+  (0–2 → preview, 2.5–6.5 → practice, 7/7.5 → boss, 7.7+ → preview).
+- `server/template/runtime.js` — added `tutorChat`, `tutorHistory`, `bossPlan` methods
+  on `window.NETS_AI` plus a `_get` helper. 429 cap responses surface `_cap: true` so
+  the widget can lock input.
+- `server/template/RUNTIME_INTEGRATION.md` — appended "Live AI Tutor (Wave F2)" section
+  documenting the 3 new methods + the `nets:phase-change` event contract.
+- `server/routes/homework_page.py` — runtime context now includes `hwId` + `lang` so the
+  widget can scope chat to the homework + render labels in the right language.
+- `tests/test_homework_page.py` — 3 new tests: `test_tutor_widget_dom_present`,
+  `test_tutor_widget_inline_no_external_assets`, `test_runtime_js_exposes_new_methods`.
+
+**Behavior:**
+- Widget is a floating FAB bottom-right (56px, above safe-area inset). Click → expands
+  into 360×500 chat panel (slides up; goes near full-screen on <600px viewports).
+- Phase badge color-codes mode: green=preview, amber=practice, red=boss. Labels
+  localized for `en`/`uz`/`ru` (auto-detected from `NETS_CTX.lang` →
+  `document.documentElement.lang` → fallback `en`).
+- `session_id` is a UUID persisted in `localStorage["nets_tutor_session"]`. Chat history
+  is restored from `/api/ai/tutor/history` on widget mount.
+- Markdown subset rendering (paragraphs, **bold**, *italic*, `code`, line breaks, lists)
+  is XSS-safe — every node is built via `document.createElement` + `textContent`. No
+  `innerHTML = userInput` anywhere.
+- Per-session message cap of 60 mirrors the backend; on a 429 the widget locks input
+  and shows the "Session limit reached" notice.
+- Typing indicator (3-dot pulse) shown while a request is in flight.
+- All assets inline. Zero new external requests beyond the F1 endpoints.
+
+**Verification (`python -m pytest tests/ --ignore=tests/test_ai_runtime.py -q`):**
+- 66/66 passing (was 63 after F1; 3 new tests added).
+- Manual smoke checklist (run after deploy on Mac mini): see Wave F plan
+  `flickering-rolling-robin.md` § "F2 (widget) — manual smoke".
