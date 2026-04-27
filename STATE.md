@@ -86,62 +86,41 @@ Overall: **~94% functional**. The remaining 6% is mostly polish and the
 
 ---
 
-## What's broken or limited
+## Known Issues — Triaged 2026-04-27
 
-### High priority (degraded user experience)
+### High priority
 
-**[H1] Reading / Consolidation / Reflection runtime is display-only.**
-The new screens render passages and prompts, but the student can't actually answer reading
-checkpoints in-runtime — answer/feedback show as static text. To fix: extend the renderers
-in `perfect_homework.html` to wire input fields + an "Check" button + per-checkpoint
-feedback reveal. Estimated 2–3h.
+- **[BROKEN] Reading checkpoints are display-only** — `perfect_homework.html:4994–5015`. `renderReading()` renders each checkpoint as static `<div>` blocks (prompt + answer text); there is no `<input>` field, no "Check" button, and no feedback-reveal logic. Repro: open any homework preview with reading content, reach the Reading screen — checkpoints show answer text immediately with no interactivity.
 
-**[H2] No programmatic homework generator.**
-`server/services/pipeline.py` is a stub. The endpoint `POST /api/homeworks/{id}/generate`
-doesn't exist yet. To wire it: load the per-subject prompt chain from
-`../standards/framework/06-prompts/{subject}/`, run them sequentially through `tutor.py`'s
-JSON-enforced calls, assemble the result into content_json, PUT it. Stream progress via SSE.
-Estimated 4–6h.
+- **[STALE] No programmatic homework generator** — `server/services/pipeline.py:1–8`. The pipeline module was deprecated on 2026-04-24 and is explicitly marked "Do not import from it." The scope has changed: homework content is now authored via Builder UI only. The `POST /api/homeworks/{id}/generate` endpoint was never registered in `app.py` and the use case has been removed. No longer a gap — this was a deliberate design decision, not a bug.
 
-**[H3] AI tutor not yet bound to in-template events.**
-`runtime.js` exposes `window.NETS_AI.{checkAnswer, bossTurn, reflectionFeedback, tutor}`
-and listens for `nets:submit` CustomEvents — but the template's existing question handlers
-(boss submit, real-life submit, reading checkpoint) don't yet dispatch those events. The
-runtime is plumbed; the template just doesn't ring its doorbell yet. To fix: add ~5 lines
-inside each phase's submit handler to dispatch the event. Estimated 1–2h.
+- **[BROKEN] AI tutor not bound to in-template submit events** — `perfect_homework.html:4819–4860` (boss), `4470–4692` (real-life). `runtime.js` listens for `nets:submit` CustomEvents and exposes `window.NETS_AI`, but `bossHandleAction()` and `rlSubmitQuestion()` perform local string matching only and never dispatch `nets:submit`. Repro: serve a preview, answer a boss question — no `NETS_AI.bossTurn()` call fires (verify via DevTools Network tab: zero POST to `/api/ai/boss-turn`).
 
-### Medium priority (polish)
+### Medium priority
 
-**[M1] New screens (reading/consolidation/reflection) use inline styles.**
-Functional but visually inconsistent with the rest of the template. Should get dedicated
-CSS classes matching the existing screen aesthetic.
+- **[BROKEN] New screens (reading/consolidation/reflection) use inline styles** — `perfect_homework.html:2366–2396`. All three new screen `<div>` elements use `style="..."` attributes instead of CSS classes. The consolidation `check_answer` element is permanently visible as plain italicized text rather than a reveal-on-demand interaction — `cons-check-answer` has no toggle/button. Visually inconsistent with the rest of the template.
 
-**[M2] Skip-gesture (edge-swipe) not extended to the 3 new screens.**
-Current behavior: edge-swipe overlay stays inactive for reading/consolidation/reflection.
-Acceptable for preview — worth fixing for production.
+- **[BROKEN] Skip-gesture not extended to 3 new screens** — `perfect_homework.html:2770–2772`. The swipe handler guards `stage === 5` for non-edge drags. The reading, consolidation, and reflection screens are shown by callback functions (`showReadingScreen`, `showConsolidationScreen`, `showReflectionScreen`) that do not call `setStage()`, so `state.stage` stays at the previous stage value when those screens are active. Edge-swipe skip overlay fires on the wrong stage; skipping a reading screen mid-session is not possible.
 
-**[M3] Phase progress dots don't advance for the 3 new screens.**
-They share their parent stage's segment. Needs `setStage()` extension.
+- **[BROKEN] Phase progress dots don't advance for the 3 new screens** — `perfect_homework.html:2908`. `phaseMap` only maps stage values `0`–`7.5`. `showReadingScreen`, `showConsolidationScreen`, and `showReflectionScreen` never call `setStage()`, so the progress bar stays frozen at the previous stage dot while those screens are active.
 
-**[M4] Adaptive Quiz: if the author provides only one tier, the adapter clones the items
-into easy/medium/hard.** Scoring works; content repeats across tiers. Workaround: author
-distinct items per tier. Real fix: skip the runtime tier escalation when only one tier
-is authored.
+- **[BROKEN] Adaptive Quiz single-tier author: injector clones into all tiers** — `server/services/injector.py:339–348`. When an author provides items for only one tier, the injector copies the first item into the two missing tiers. The quiz then repeats identical questions across easy/medium/hard escalation. Repro: author a `gb_adaptive_quiz` with only `"tier": "easy"` items; preview the adaptive quiz game break — all three difficulty tiers show the same questions.
 
-### Low priority (cosmetic / known limitations)
+### Low priority
 
-**[L1] AI tutor field naming drift in some smoke-test docs.**
-The actual contract uses `boss_question` / `hp_remaining` / `damage_value` /
-`expected_answers` for `/boss-turn`, and `homework_summary` / `student_reflection` for
-`/reflection`. Some older briefs mention shorter names — those are wrong. `runtime.js`
-calls the right contract.
+- **[FIXED] AI tutor field naming drift** — `server/routes/ai.py:28–36` and `server/template/runtime.js:75–86`. The Pydantic model for `/boss-turn` uses `boss_question`, `hp_remaining`, `damage_value`, `expected_answers`; `runtime.js` sends the exact same field names. No mismatch in the running code. Stale smoke-test docs are the only remnant; safe to ignore until those docs are regenerated.
 
-**[L2] Side-peek prev/next flashcard terms use textContent (not innerHTML).**
-Inline images don't show in the side previews — only in the current card's front. By
-design, but flag if a teacher complains.
+- **[BROKEN] Side-peek flashcard terms use textContent** — `perfect_homework.html` (side-peek renderer). Inline images/SVGs don't appear in previous/next card side previews. Confirmed by design but now documented here since `term_html` is set and could power the peek if desired.
 
-**[L3] Dashboard subject filter not implemented.** Library shows all homeworks. Add a
-subject-family chip filter row when the library grows past ~20 cards.
+- **[FIXED] Dashboard subject filter not implemented** — `frontend/js/dashboard.js:69,218–241,296,747–750`. Subject filter is fully wired: `renderSubjectOptions()` populates a `<select>`, a `change` listener sets `state.filters.subject`, and `renderHomeworks()` filters by `homework.subject === state.filters.subject`. The original claim was inaccurate post-deployment.
+
+### New issues found during triage
+
+- **[New — High] `cons-check-answer` always visible; no interactive reveal** — `perfect_homework.html:2380–2383`. The consolidation screen shows `check_answer` as permanently visible italicized text. There is no "Show answer" button or input field. This is arguably worse than display-only — the answer is exposed before the student attempts the check question, defeating the formative purpose entirely.
+
+- **[New — Medium] `pipeline.py` still imports from `db.py` and `services`** — `server/services/pipeline.py:26–28`. Despite the deprecation notice, the file still imports `get_homework`, `update_homework`, `set_status` from `db`, and `gemini` from services. If these imports fail (e.g., signature change), they will raise at module load only if something imports `pipeline` — currently nothing does. Safe but messy; should be cleaned up in the Wave A5 pass.
+
+- **[New — Medium] `homeworkSummary` in runtime context uses `subject_display`, not a real summary** — `server/routes/export.py:50`. The `NETS_CTX.homeworkSummary` field, which `runtime.js` passes to `/api/ai/reflection` as `homework_summary`, is set to `content.get("meta", {}).get("subject_display", "")` — i.e., the subject name string ("Algebra", etc.), not a session performance summary. The reflection AI prompt receives a subject label instead of meaningful session data, producing generic feedback. Real fix: compute a summary from session score data or leave it empty for the frontend to fill in.
 
 ---
 
