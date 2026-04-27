@@ -1,5 +1,5 @@
 // frontend/js/dashboard.js
-// NETS Builder dashboard: library grid, filters, create flow, trash, versions, duplicate, export.
+// NETS Builder dashboard: library grid, filters, create flow, trash, versions, duplicate.
 
 (function () {
   "use strict";
@@ -312,8 +312,7 @@
     const status = homework.status || "draft";
     const mode = homework.mode || "easy";
     const isTrash = state.view === "trash";
-    const exportUrl = API.getExportUrl(homework.id);
-    const previewUrl = API.getPreviewUrl(homework.id);
+    const shareUrl = `/h/${encodeURIComponent(homework.id)}`;
     const updatedLabel = formatRelative(homework.updated_at || homework.created_at);
     const updatedAbs = formatAbsolute(homework.updated_at || homework.created_at);
     const deletedLabel = homework.deleted_at ? formatRelative(homework.deleted_at) : "";
@@ -329,11 +328,10 @@
     const liveActions = `
       <div class="card-actions">
         <button class="btn btn-primary js-open" type="button">Open</button>
-        <a class="btn btn-ghost" href="${escapeHtml(exportUrl)}" title="Download standalone HTML">Download</a>
         <div class="card-menu ${menuOpen}">
           <button class="icon-btn js-menu-toggle" type="button" title="More actions" aria-label="More actions" aria-expanded="${menuOpen ? "true" : "false"}">⋯</button>
           <div class="menu-dropdown" role="menu">
-            <a class="menu-item" href="${escapeHtml(previewUrl)}" target="_blank" rel="noreferrer" role="menuitem">Open preview</a>
+            <a class="menu-item" href="${escapeHtml(shareUrl)}" target="_blank" rel="noreferrer" role="menuitem">Open preview</a>
             <button class="menu-item js-duplicate" type="button" role="menuitem">Duplicate</button>
             <button class="menu-item js-versions" type="button" role="menuitem">Version history</button>
             <button class="menu-item danger js-delete" type="button" role="menuitem">Move to trash</button>

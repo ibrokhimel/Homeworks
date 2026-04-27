@@ -211,19 +211,20 @@ def _strip_text_tags_keep_media(s) -> str:
 def inject(
     content_json: dict,
     meta_override: dict | None = None,
-    runtime_context: dict | None = None,
+    runtime_context: dict = None,
 ) -> str:
     """Inject content_json into the Perfect Homework HTML template.
 
     content_json: full schema per CONTRACTS §1
     meta_override: optional {title, subject_display, section, cefr_level} to force
                    specific values. If None, uses content_json['meta'].
-    runtime_context: optional dict — if provided, inject the AI tutor runtime hook
-                     (window.NETS_CTX + runtime.js) before </body>. Used for live
-                     preview; omit for standalone export.
+    runtime_context: required dict — AI tutor runtime hook context
+                     (window.NETS_CTX + runtime.js). Always injected before </body>.
 
     Returns: rendered HTML string.
     """
+    if runtime_context is None:
+        raise TypeError("inject() requires runtime_context (no longer optional)")
     html = _TEMPLATE
     meta = meta_override or content_json.get("meta") or {}
 
@@ -668,15 +669,13 @@ def inject(
         if re.search(pattern, html, flags=re.DOTALL):
             html = re.sub(pattern, lambda _, r=replacement: r, html, count=1, flags=re.DOTALL)
 
-    # Optional runtime hook (only when served live, not exported standalone)
-    if runtime_context:
-        ctx_json = json.dumps(runtime_context, ensure_ascii=False)
-        runtime_snippet = (
-            f'<script>window.NETS_CTX = {ctx_json};</script>\n'
-            f'<script src="/static/runtime/runtime.js"></script>\n'
-        )
-        # Inject before closing </body>
-        html = html.replace('</body>', runtime_snippet + '</body>', 1)
+    # Always inject the AI tutor runtime hook before </body>.
+    ctx_json = json.dumps(runtime_context, ensure_ascii=False)
+    runtime_snippet = (
+        f'<script>window.NETS_CTX = {ctx_json};</script>\n'
+        f'<script src="/static/runtime/runtime.js"></script>\n'
+    )
+    html = html.replace('</body>', runtime_snippet + '</body>', 1)
 
     return html
 

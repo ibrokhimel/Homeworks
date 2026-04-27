@@ -271,3 +271,14 @@ These behaviors are easy to break with a careless refactor. Keep them green.
 When in doubt: read the file, don't guess. The template is `server/template/perfect_homework.html`,
 the injector is `server/services/injector.py`, and they're the two files that hold the
 truth about how content flows from DB to user. Everything else is a thin shell.
+
+---
+
+## Wave B1+B2 — /h/{id} permanent URL + export removed
+Date: 2026-04-27
+- Added GET /h/{id} permanent URL with shared render_homework() helper.
+- Deleted server/routes/export.py. /preview moved into homework_page.py (URL preserved).
+- injector.inject() always injects AI bootstrap (runtime_context now required).
+- Removed export button from builder, getExportUrl() from api.js, Download button from dashboard.
+- Library + dashboard "Open preview" links now use /h/{id}.
+- homeworkSummary bug from A3 triage no longer reachable (export.py:50 deleted).
