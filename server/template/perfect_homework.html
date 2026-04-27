@@ -2770,7 +2770,9 @@
                 const fromEdge = e.clientX <= EDGE_ZONE || e.clientX >= window.innerWidth - EDGE_ZONE;
                 // In game-break stage, only track edge drags (skip gesture) — let panels scroll freely
                 if (state.stage === 5 && !fromEdge) return;
-                // Detect vertically scrollable ancestor — if found, skip swipe handling
+                // Detect horizontally scrollable ancestor — if found, skip swipe handling
+                // (horizontal swipe only blocked by horizontally-scrolling content; vertical
+                // scroll containers don't conflict with horizontal page-swipe gestures).
                 let scrollable = false;
                 let node = e.target;
                 while (node && node !== document.body) {
