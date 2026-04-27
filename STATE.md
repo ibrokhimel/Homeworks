@@ -344,3 +344,39 @@ launchctl bootstrap gui/501 ~/Library/LaunchAgents/com.aisigma.netsbuilder.plist
 curl -sS http://127.0.0.1:8000/api/ai/status | jq
 # expected: active_provider == "kimi"
 ```
+
+---
+
+## Wave F1 — Live AI Tutor Backend (2026-04-28)
+
+Backend half of the persistent floating tutor widget. Tutor-only lane — does NOT
+touch `/api/ai/check-answer`, `answer_checker.py`, or the `tutor_attempts`
+producer (those are owned by the grading-lane teammate).
+
+**New files:**
+- `scripts/migrate_tutor_conversations.py` — idempotent CREATE TABLE + index for `tutor_conversations` (only).
+- `server/prompts/runtime/tutor-boss-plan.md` — system prompt for the boss reorder + framing planner.
+- `tests/test_tutor_chat.py` — 10 tests covering chat persistence, the answer-leak guard, boss-plan validation + fallback, history endpoint, cross-session isolation, the 60-message cap, prior-attempts injection, and the graceful missing-table fallback.
+
+**Modified:**
+- `server/db.py` — added `tutor_conversations` schema + helpers `add_tutor_turn`, `list_tutor_turns`, `count_session_messages`, `build_session_profile`, and the read-only `list_recent_attempts` (wraps `sqlite3.OperationalError` for the pre-merge case).
+- `server/services/tutor.py` — added `tutor_chat`, `boss_plan`, `_redact_question_for_tutor` (Bridge B answer-leak guard), `_validate_boss_plan` + `_default_boss_plan` (LLM-failure fallback), constants `SESSION_MESSAGE_CAP=60`, `ALLOWED_PERSONA_TRAITS`, `BOSS_FRAMING_MAX_CHARS=180`.
+- `server/routes/ai.py` — added `POST /api/ai/tutor/chat`, `POST /api/ai/tutor/boss-plan`, `GET /api/ai/tutor/history` plus their Pydantic models. `CheckAnswerRequest` and the `check-answer` route are untouched (grading lane's territory).
+- `server/prompts/runtime/tutor-assistant.md` — overwritten with the 3-phase rule extension (preview/practice/boss).
+- `docs/API.md` — documented the 3 new endpoints.
+- `CONTRACTS.md` — new section §11 documents the `tutor_conversations` schema (we own) and the read-only `tutor_attempts` contract (they own).
+
+**Behavior:**
+- Per-(session_id, hw_id) cap of 60 turns. 61st `/chat` returns 429 `TUTOR_SESSION_CAP`.
+- Practice/boss phases strip answer-bearing keys before the prompt enters the LLM context.
+- Boss-plan validates LLM output covers every input `question_id` exactly once with framing ≤180 chars and persona ⊂ {challenger, mentor, analyst}; on any failure (LLM error, schema mismatch, missing question) it returns the default `mentor` plan in input order.
+
+**Verification (`python -m pytest tests/test_tutor_chat.py -v`):**
+- 10/10 passing.
+- Full suite minus `test_ai_runtime.py`'s live-AI tests: 61/61 (was 51/51 after F0; 10 new tests).
+
+**Migration step (run once on each environment):**
+```bash
+python scripts/migrate_tutor_conversations.py --db-path /path/to/nets.db
+```
+Fresh installs already pick this up via `init_db()` on startup; the script is for environments whose DB pre-dates F1.

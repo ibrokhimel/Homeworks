@@ -1,4 +1,5 @@
 import json
+import sqlite3
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -78,6 +79,20 @@ CREATE INDEX IF NOT EXISTS idx_versions_hw_saved
 
 CREATE INDEX IF NOT EXISTS idx_review_pending
     ON review_queue(question_id, student_answer) WHERE status='pending';
+
+CREATE TABLE IF NOT EXISTS tutor_conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    hw_id TEXT NOT NULL,
+    phase TEXT NOT NULL,
+    question_id TEXT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tutor_session
+    ON tutor_conversations(session_id, hw_id, created_at);
 """
 
 
@@ -617,6 +632,133 @@ async def resolve_review_item(id: int, decision: dict) -> bool:
         )
         await db.commit()
         return cursor.rowcount > 0
+    finally:
+        await db.close()
+
+
+# ---------------------------------------------------------------------------
+# Wave F1 — tutor_conversations helpers
+# ---------------------------------------------------------------------------
+#
+# The `tutor_conversations` table is owned by the tutor lane. Each row is a
+# single chat turn (user|assistant|system) scoped to a (session_id, hw_id).
+# We never modify rows after insertion — chat history is append-only.
+
+
+async def add_tutor_turn(
+    session_id: str,
+    hw_id: str,
+    phase: str,
+    question_id: Optional[str],
+    role: str,
+    content: str,
+) -> int:
+    """Append a chat turn. Returns the new row id."""
+    db = await connect()
+    try:
+        cursor = await db.execute(
+            "INSERT INTO tutor_conversations "
+            "(session_id, hw_id, phase, question_id, role, content, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (session_id, hw_id, phase, question_id, role, content, _now()),
+        )
+        await db.commit()
+        return cursor.lastrowid or 0
+    finally:
+        await db.close()
+
+
+async def list_tutor_turns(
+    session_id: str,
+    hw_id: str,
+    limit: int = 50,
+) -> list[dict]:
+    """Chronological turns for a (session_id, hw_id), oldest first, capped at `limit`."""
+    db = await connect()
+    try:
+        cursor = await db.execute(
+            "SELECT id, session_id, hw_id, phase, question_id, role, content, created_at "
+            "FROM tutor_conversations "
+            "WHERE session_id = ? AND hw_id = ? "
+            "ORDER BY created_at ASC, id ASC LIMIT ?",
+            (session_id, hw_id, limit),
+        )
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        await db.close()
+
+
+async def count_session_messages(session_id: str, hw_id: str) -> int:
+    """Total tutor turns for one (session_id, hw_id). Used for the 60-message cap."""
+    db = await connect()
+    try:
+        cursor = await db.execute(
+            "SELECT COUNT(*) FROM tutor_conversations "
+            "WHERE session_id = ? AND hw_id = ?",
+            (session_id, hw_id),
+        )
+        row = await cursor.fetchone()
+        return int(row[0]) if row else 0
+    finally:
+        await db.close()
+
+
+async def build_session_profile(session_id: str, hw_id: str) -> str:
+    """Concatenate the last 20 user+assistant turns into a compact profile string.
+
+    No AI summarization in v1 — just a chronological dump (oldest first), each
+    line prefixed with the role, truncated to ~1500 chars to keep the boss-plan
+    prompt context tight.
+    """
+    db = await connect()
+    try:
+        cursor = await db.execute(
+            "SELECT role, content FROM tutor_conversations "
+            "WHERE session_id = ? AND hw_id = ? AND role IN ('user', 'assistant') "
+            "ORDER BY created_at DESC, id DESC LIMIT 20",
+            (session_id, hw_id),
+        )
+        rows = await cursor.fetchall()
+    finally:
+        await db.close()
+    # Reverse so output reads chronologically.
+    rows = list(reversed(rows))
+    lines = [f"{r['role']}: {r['content']}" for r in rows]
+    profile = "\n".join(lines)
+    if len(profile) > 1500:
+        profile = profile[-1500:]
+    return profile
+
+
+async def list_recent_attempts(
+    session_id: str,
+    hw_id: str,
+    question_id: str,
+    limit: int = 3,
+) -> list[dict]:
+    """Read up to `limit` most recent attempts on a question.
+
+    The `tutor_attempts` table is owned by the grading-lane teammate. We READ
+    only — never INSERT. If the table doesn't exist yet (pre-merge with grading
+    lane), return [] silently so the tutor still works.
+    """
+    db = await connect()
+    try:
+        try:
+            cursor = await db.execute(
+                "SELECT id, session_id, hw_id, question_id, phase, student_answer, "
+                "verdict, score, source, feedback, created_at "
+                "FROM tutor_attempts "
+                "WHERE session_id = ? AND hw_id = ? AND question_id = ? "
+                "ORDER BY created_at DESC, id DESC LIMIT ?",
+                (session_id, hw_id, question_id, limit),
+            )
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+        except (sqlite3.OperationalError, aiosqlite.OperationalError):
+            # Pre-merge fallback: grading lane hasn't created the table yet.
+            return []
     finally:
         await db.close()
 

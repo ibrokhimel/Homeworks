@@ -13,6 +13,7 @@ All responses JSON unless marked **HTML**. Errors: `{ "detail": { "error": "..."
 | Render | GET /h/{id} (HTML), GET /api/homeworks/{id}/preview (HTML) |
 | Library | GET /api/library, GET /api/library/facets |
 | AI tutor | POST /api/ai/check-answer, /api/ai/boss-turn, /api/ai/reflection, /api/ai/tutor |
+| AI live tutor (Wave F1) | POST /api/ai/tutor/chat, /api/ai/tutor/boss-plan, GET /api/ai/tutor/history |
 | AI meta | GET /api/ai/status |
 | Review queue | GET /api/ai/review-queue, POST /api/ai/review-queue/{id}/decide |
 | Answer-spec | POST /api/ai/answer-spec/preview |
@@ -269,6 +270,62 @@ All AI endpoints accept and return JSON. On failure: `500` with `{ "error": "...
 ```
 
 **200** `{ "response": "string", "guidance_type": "string" }`
+
+---
+
+### POST /api/ai/tutor/chat  *(Wave F1)*
+
+Live, persistent tutor chat. Each call appends one user turn and one assistant turn to `tutor_conversations` and returns the assistant's reply.
+
+```json
+{
+  "session_id": "client-uuid",
+  "hw_id": "HW-20260428-001",
+  "phase": "preview|practice|boss",
+  "question_id": "qb1",
+  "message": "string"
+}
+```
+- `question_id` is optional — required only when the chat is scoped to a specific question (practice/boss).
+- For `phase != "preview"`, the server strips `expected`, `ans`, `accepted_answers`, and `correct` from the question payload before it enters the LLM context.
+- Per-(session_id, hw_id) cap of **60 total turns**. The 61st request returns **429** `TUTOR_SESSION_CAP`.
+
+**200** `{ "response": "string", "message_id": int }`. **429** when the cap is reached. **500** `TUTOR_BACKEND_ERROR` on a transient AI-backend failure.
+
+---
+
+### POST /api/ai/tutor/boss-plan  *(Wave F1)*
+
+Builds a personalized boss-question plan from `boss_questions[]` in the homework's `content_json`. Reorders the pool and emits a short student-facing framing for each question (≤180 chars). Question stems and `answer_spec` are unchanged — deterministic grading still works byte-identically.
+
+```json
+{
+  "session_id": "client-uuid",
+  "hw_id": "HW-20260428-001"
+}
+```
+
+**200**
+```json
+{
+  "ordered": [{ "question_id": "qb1", "framing_text": "Warm-up first." }],
+  "persona_traits": ["challenger" | "mentor" | "analyst"]
+}
+```
+On any LLM failure or invalid response, the server returns a default fallback: input order, `persona_traits = ["mentor"]`, neutral framing.
+
+---
+
+### GET /api/ai/tutor/history  *(Wave F1)*
+
+| Param | Type | Required |
+|-------|------|----------|
+| `session_id` | str | yes |
+| `hw_id` | str | yes |
+
+Returns chronological turns (oldest first), capped at 50.
+
+**200** `{ "turns": [{ "id", "session_id", "hw_id", "phase", "question_id", "role", "content", "created_at" }] }`
 
 ---
 

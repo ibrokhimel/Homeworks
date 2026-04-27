@@ -523,3 +523,67 @@ curl http://localhost:8000/api/homeworks/{id}/preview > out.html
 curl http://localhost:8000/h/{id} -o hw.html
 # Open in browser → full homework plays correctly, all phases work, AI hints respond.
 ```
+
+---
+
+## 11. Tutor conversation tables (Wave F1)
+
+The live AI tutor widget persists chat turns and reads (read-only) from a shared
+attempts log produced by the grading lane.
+
+### `tutor_conversations` (owned by tutor lane — we read AND write)
+
+```sql
+CREATE TABLE IF NOT EXISTS tutor_conversations (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  TEXT NOT NULL,    -- client-generated UUID, in localStorage
+    hw_id       TEXT NOT NULL,    -- homeworks.id
+    phase       TEXT NOT NULL,    -- preview|practice|boss
+    question_id TEXT NULL,        -- null in preview, set in practice/boss when scoped
+    role        TEXT NOT NULL,    -- user|assistant|system
+    content     TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_tutor_session
+    ON tutor_conversations(session_id, hw_id, created_at);
+```
+
+- Append-only — rows are never updated after insertion.
+- Per-(session_id, hw_id) message cap of **60 turns** is enforced in
+  `server/services/tutor.py::tutor_chat`. The 61st request returns 429.
+- Migration: `python scripts/migrate_tutor_conversations.py [--db-path X] [--dry-run]`.
+  Idempotent. Also auto-applied via `init_db()` for fresh installs.
+
+### `tutor_attempts` (owned by grading lane — we ONLY read)
+
+This table is the contract between the tutor lane and the grading lane. The
+grading lane writes one row per `/api/ai/check-answer` invocation; the tutor
+lane reads it (read-only) to seed `tutor_chat` context. **The tutor lane never
+INSERTs, UPDATEs, or DELETEs from this table.**
+
+```sql
+CREATE TABLE tutor_attempts (
+    id              INTEGER PRIMARY KEY,
+    session_id      TEXT NOT NULL,    -- same UUID as tutor_conversations
+    hw_id           TEXT NOT NULL,
+    question_id     TEXT NOT NULL,
+    phase           TEXT NOT NULL,    -- practice|boss
+    student_answer  TEXT NOT NULL,
+    verdict         TEXT NOT NULL,    -- correct|incorrect|unsure
+    score           REAL,
+    source          TEXT NOT NULL,    -- deterministic|ai|cache
+    feedback        TEXT NULL,        -- 1-2 sentence AI grader explanation
+    created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX (session_id, hw_id, question_id, created_at);
+```
+
+**Pre-merge graceful fallback:** `db.list_recent_attempts(...)` wraps its SELECT
+in a `try/except sqlite3.OperationalError` so if the table doesn't exist yet,
+the tutor still works (just with chat-history-only context).
+
+**Answer-leak prevention (Bridge B).** When `phase != "preview"`, the tutor
+strips `expected`, `ans`, `accepted_answers`, and `correct` from any question
+payload at top level AND inside `answer_spec` before the prompt enters the LLM.
+See `server/services/tutor.py::_redact_question_for_tutor`.
