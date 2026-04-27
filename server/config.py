@@ -7,7 +7,7 @@ BASE_DIR: Path = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
-DB_PATH: Path = BASE_DIR / "nets.db"
+DB_PATH: Path = Path(os.getenv("NETS_DB_PATH", str(BASE_DIR / "nets.db")))
 TEMPLATE_PATH: Path = BASE_DIR / "server" / "template" / "perfect_homework.html"
 PROMPTS_DIR: Path = BASE_DIR / "server" / "prompts"
 FIXTURES_DIR: Path = BASE_DIR / "fixtures"

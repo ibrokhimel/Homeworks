@@ -4,7 +4,7 @@ set -euo pipefail
 # SQLite online backup script with gzip compression and 14-day retention
 # Usage: bash backup_db.sh [database_path] [backup_directory]
 
-DB="${1:-./ nets.db}"
+DB="${1:-./nets.db}"
 BACKUP_DIR="${2:-./backups/}"
 
 # Normalize paths

@@ -94,14 +94,9 @@ def sample_homework(client):
         "title": "Algebra smoke-test HW",
         "subject": "math-algebra",
         "grade": 8,
-        "mode": "standard",
-        "family": "math",
-        "language": "uz",
-        "status": "draft",
-        "content_json": {
-            "flashcards": [],
-            "boss": {"questions": []},
-        },
+        "mode": "hard",
+        "family": "aniq-fanlar",
+        "content_json": {"flashcards": [], "boss": {"questions": []}},
     }
     resp = client.post("/api/homeworks", json=payload)
     assert resp.status_code == 200, f"Failed to create sample homework: {resp.text}"
