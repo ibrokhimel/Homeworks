@@ -33,6 +33,9 @@ Thumbs.db
 .idea/
 *.swp
 
+# Claude Code local state (worktrees, agents, plans)
+.claude/
+
 # Build / cache
 .pytest_cache/
 .mypy_cache/
