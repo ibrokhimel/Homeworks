@@ -25,6 +25,7 @@ import os
 import time
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -89,6 +90,219 @@ def test_ai_status_no_creds(client):
     assert data["backend"] in valid_backends, (
         f"backend '{data['backend']}' not in {valid_backends}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Hybrid Routing tests (No real AI required, uses mocking)
+# ---------------------------------------------------------------------------
+
+@patch("server.services.gemini.generate_json")
+def test_check_answer_deterministic(mock_generate, client):
+    """
+    Deterministic path should not call AI and return immediately.
+    """
+    payload = {
+        "question_id": "test-1",
+        "question": "2+2",
+        "student_answer": "4",
+        "answer_spec": {"type": "numeric", "expected": 4.0},
+        "subject": "math",
+        "grade": 8
+    }
+    resp = client.post("/api/ai/check-answer", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["correct"] is True
+    assert data["source"] == "deterministic"
+    mock_generate.assert_not_called()
+
+@patch("server.services.gemini.generate_json")
+def test_check_answer_ai_fallback_high_confidence(mock_generate, client):
+    """
+    AI path high confidence -> source='ai', cached
+    """
+    mock_generate.return_value = {
+        "correct": False,
+        "score": 0.0,
+        "feedback": "No, it is 5.",
+        "matched_expected": None,
+        "confidence": 0.95
+    }
+    payload = {
+        "question_id": "test-2",
+        "question": "2+3",
+        "student_answer": "4",
+        "answer_spec": {"type": "text_exact", "expected": "5"}, 
+        "subject": "math",
+        "grade": 8
+    }
+    resp = client.post("/api/ai/check-answer", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["correct"] is False
+    assert data["source"] == "ai"
+    mock_generate.assert_called_once()
+    
+    # Second call should hit cache
+    mock_generate.reset_mock()
+    resp2 = client.post("/api/ai/check-answer", json=payload)
+    assert resp2.status_code == 200
+    assert resp2.json()["source"] == "ai"
+    mock_generate.assert_not_called()
+
+@patch("server.services.gemini.generate_json")
+def test_check_answer_ai_fallback_low_confidence(mock_generate, client):
+    """
+    AI path low confidence -> source='ai_unsure', correct based on phase, needs_review=True, queued
+    """
+    mock_generate.return_value = {
+        "correct": False,
+        "score": 0.0,
+        "feedback": "I am not sure.",
+        "matched_expected": None,
+        "confidence": 0.8
+    }
+    # Test boss phase
+    payload = {
+        "question_id": "boss-1",
+        "question": "Explain quantum mechanics",
+        "student_answer": "It is hard",
+        "answer_spec": {"type": "semantic"}, 
+        "subject": "physics",
+        "grade": 11
+    }
+    resp = client.post("/api/ai/check-answer", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["correct"] is True
+    assert data["score"] == 0.7
+    assert data["source"] == "ai_unsure"
+    assert data["needs_review"] is True
+    
+    # Check review queue
+    q_resp = client.get("/api/review-queue")
+    assert q_resp.status_code == 200
+    queue = q_resp.json()
+    assert len(queue) > 0
+    item = [x for x in queue if x["question_id"] == "boss-1"][0]
+    
+    # Resolve it
+    res_resp = client.post(f"/api/review-queue/{item['id']}/decide", json={"correct": False, "score": 0.0, "feedback": "Bad"})
+    assert res_resp.status_code == 200
+    
+    q_resp2 = client.get("/api/review-queue")
+    assert len([x for x in q_resp2.json() if x["question_id"] == "boss-1"]) == 0
+
+
+def test_review_queue_decide_404(client):
+    """Resolving a non-existent or already-resolved review item must return 404."""
+    resp = client.post(
+        "/api/review-queue/999999/decide",
+        json={"correct": True, "score": 1.0, "feedback": "ok"},
+    )
+    assert resp.status_code == 404
+
+
+@patch("server.services.gemini.generate_json")
+def test_review_queue_decision_persists(mock_generate, client):
+    """The teacher's decision must be stored on the row, not silently discarded.
+
+    Regression guard for the round-3 reviewer finding: resolve_review_item used
+    to only flip status='resolved'; {correct, score, feedback} were dropped.
+    """
+    import asyncio
+    import json
+    from server import db
+
+    mock_generate.return_value = {
+        "correct": False,
+        "score": 0.0,
+        "feedback": "I am not sure.",
+        "matched_expected": None,
+        "confidence": 0.7,
+    }
+    # Drive an answer into the review queue (boss phase, low-confidence AI).
+    queue_resp = client.post(
+        "/api/ai/check-answer",
+        json={
+            "question_id": "boss-decide-persist",
+            "question": "Why?",
+            "student_answer": "Dunno",
+            "answer_spec": {"type": "semantic"},
+            "subject": "physics",
+            "grade": 11,
+        },
+    )
+    assert queue_resp.status_code == 200
+    assert queue_resp.json().get("needs_review") is True
+
+    queue = client.get("/api/review-queue").json()
+    item = next(x for x in queue if x["question_id"] == "boss-decide-persist")
+
+    decision = {"correct": True, "score": 0.85, "feedback": "Acceptable answer; format off."}
+    res = client.post(f"/api/review-queue/{item['id']}/decide", json=decision)
+    assert res.status_code == 200
+
+    # Read the row directly so we verify what's on disk, not what the API returns.
+    async def fetch_row():
+        conn = await db.connect()
+        try:
+            cur = await conn.execute(
+                "SELECT status, decision_json, resolved_at FROM review_queue WHERE id = ?",
+                (item["id"],),
+            )
+            return await cur.fetchone()
+        finally:
+            await conn.close()
+
+    row = asyncio.run(fetch_row())
+    assert row["status"] == "resolved"
+    assert row["resolved_at"] is not None and row["resolved_at"] != ""
+    stored = json.loads(row["decision_json"])
+    assert stored == decision  # full payload survived round-trip
+
+
+@patch("server.services.gemini.generate_json")
+def test_check_answer_no_ai_fallback(mock_generate, client):
+    """allow_ai_fallback=False on an unsure deterministic verdict must short-circuit."""
+    payload = {
+        "question_id": "test-no-ai",
+        "question": "Free-form answer",
+        "student_answer": "something",
+        "answer_spec": {"type": "semantic"},
+        "allow_ai_fallback": False,
+        "subject": "history",
+        "grade": 8,
+    }
+    resp = client.post("/api/ai/check-answer", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["source"] == "deterministic"
+    assert data["correct"] is False
+    mock_generate.assert_not_called()
+
+
+@patch("server.services.gemini.generate_json")
+def test_cache_key_namespaced_by_spec(mock_generate, client):
+    """Same question_id + same student_answer but different answer_spec MUST NOT collide."""
+    mock_generate.side_effect = [
+        {"correct": True, "score": 1.0, "feedback": "ok-A", "matched_expected": "A", "confidence": 0.95},
+        {"correct": False, "score": 0.0, "feedback": "no-B", "matched_expected": None, "confidence": 0.95},
+    ]
+    base = {
+        "question_id": "shared-q1",
+        "question": "Capital?",
+        "student_answer": "Toshkent",
+        "subject": "history",
+        "grade": 8,
+    }
+    a = client.post("/api/ai/check-answer", json={**base, "answer_spec": {"type": "semantic", "expected": "A"}})
+    b = client.post("/api/ai/check-answer", json={**base, "answer_spec": {"type": "semantic", "expected": "B"}})
+    assert a.status_code == 200 and b.status_code == 200
+    # Both went through AI (no cache collision).
+    assert a.json()["correct"] is True
+    assert b.json()["correct"] is False
+    assert mock_generate.call_count == 2
 
 
 # ---------------------------------------------------------------------------
