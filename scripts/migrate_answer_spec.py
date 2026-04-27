@@ -135,6 +135,53 @@ def infer_spec(old_answers: list[str]) -> dict:
 _QUESTION_BUCKETS = ("boss_questions", "gb_adaptive_quiz", "memory_sprint")
 
 
+# ---------------------------------------------------------------------------
+# Wave E: memory_sprint option_index migration
+# ---------------------------------------------------------------------------
+
+
+def migrate_memory_sprint(item: dict) -> bool:
+    """Augment a single memory_sprint item with an ``answer_spec`` of type
+    ``option_index``.  The item must have ``correct`` (int, 0-based) and
+    ``options`` (list).
+
+    Returns True if the item was mutated, False if it was already migrated or
+    is missing the required fields (idempotent).
+    """
+    if not isinstance(item, dict):
+        return False
+
+    # Idempotent: skip if already has a valid answer_spec
+    if "answer_spec" in item and isinstance(item["answer_spec"], dict):
+        return False
+
+    correct = item.get("correct")
+    options = item.get("options")
+
+    if not isinstance(correct, int) or not isinstance(options, list) or not options:
+        # Not a tap-quiz item — nothing to infer.
+        return False
+
+    option_count = len(options)
+    # Guard against an out-of-range correct index in malformed fixtures.
+    if correct < 0 or correct >= option_count:
+        return False
+
+    canonical = options[correct] if options else None
+
+    spec: dict[str, Any] = {
+        "type": "option_index",
+        "expected": correct,
+        "option_count": option_count,
+        "allow_ai_fallback": False,
+    }
+    if canonical is not None:
+        spec["canonical_display"] = str(canonical)
+
+    item["answer_spec"] = spec
+    return True
+
+
 def _legacy_answers(question: dict) -> list[str]:
     raw = question.get("accepted_answers")
     if raw is None:
@@ -177,6 +224,13 @@ def migrate_content(content: dict) -> bool:
         if not isinstance(bucket, list):
             continue
         for q in bucket:
+            if key == "memory_sprint":
+                # Wave E: memory_sprint items use options[]+correct index, not ans[].
+                # Try the option_index migration first; fall through to legacy-ans
+                # migration for the rare items that have both.
+                if migrate_memory_sprint(q):
+                    mutated = True
+                    continue
             if migrate_question(q):
                 mutated = True
     return mutated

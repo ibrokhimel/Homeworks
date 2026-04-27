@@ -3707,7 +3707,8 @@
             msState.isAnimating = true;
 
             const item = MS_QUESTIONS[msState.index];
-            if (selectedIndex === item.correct) msState.score++;
+            const localCorrect = selectedIndex === item.correct;
+            if (localCorrect) msState.score++;
 
             const optBtns = document.querySelectorAll('.ms-option-btn');
             optBtns.forEach((b, i) => {
@@ -3715,6 +3716,53 @@
                 if (i === item.correct) b.classList.add('correct');
                 else b.classList.add('wrong');
             });
+
+            // Fire-and-forget telemetry / backend consistency check.
+            // Local match already drove the UI above; backend result is for
+            // logging/consistency only.  We do NOT block the animation on it.
+            (function() {
+                const questionId = 'ms-' + msState.index;
+                const ctx = window.NETS_CTX || {};
+                const answerSpec = item.answer_spec || {
+                    type: 'option_index',
+                    expected: item.correct,
+                    option_count: (item.options || []).length,
+                    allow_ai_fallback: false
+                };
+                document.dispatchEvent(new CustomEvent('nets:submit', {
+                    detail: {
+                        kind: 'memory-sprint',
+                        payload: {
+                            questionId: questionId,
+                            studentAnswer: String(selectedIndex),
+                            answerSpec: answerSpec,
+                            subject: ctx.subject || 'math-algebra',
+                            grade: ctx.grade || 8,
+                            phase: 'memory_sprint'
+                        }
+                    }
+                }));
+                // Listen once for the result to detect fixture drift.
+                function onResult(ev) {
+                    const d = ev.detail || {};
+                    if (d.kind !== 'memory-sprint') return;
+                    document.removeEventListener('nets:result', onResult);
+                    const result = d.result || {};
+                    if (result.source === 'deterministic') {
+                        const backendCorrect = result.correct === true;
+                        if (backendCorrect !== localCorrect) {
+                            console.warn(
+                                '[NETS] memory_sprint consistency mismatch at index',
+                                msState.index,
+                                '— local:', localCorrect,
+                                'backend:', backendCorrect,
+                                '. Check answer_spec in fixture.'
+                            );
+                        }
+                    }
+                }
+                document.addEventListener('nets:result', onResult);
+            })();
 
             setTimeout(() => msCollapseToLoader(), 900);
         }

@@ -94,7 +94,10 @@ async def check_answer(
         return res
 
     # Step 2: AI Fallback check
-    if not allow_ai_fallback:
+    # Defensive guard: memory_sprint is a tap-only quiz — never burn Vertex tokens on it.
+    # allow_ai_fallback=False on the spec is the primary gate; this is a belt-and-suspenders
+    # check for any caller that forgets to set it on the spec.
+    if not allow_ai_fallback or phase == "memory_sprint":
         # If unsure and no AI fallback, just mark incorrect to be safe
         return {
             "correct": False,

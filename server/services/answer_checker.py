@@ -179,6 +179,46 @@ def _check_text_fuzzy(expected: str, student_answer: str, canonical: str) -> dic
     else:
         return {"verdict": "incorrect", "reason": f"fuzzy match < 75 (ratio: {ratio})"}
 
+def _check_option_index(spec: dict, student_answer: str) -> dict:
+    """Check a tap-quiz answer by comparing the tapped option index to the expected index.
+
+    ``student_answer`` must be a stringified non-negative integer.  Inputs that
+    cannot be parsed, or that fall outside ``[0, option_count)``, are rejected
+    as incorrect so the student sees immediate deterministic feedback without any
+    AI round-trip.
+
+    Schema fields consumed:
+        expected     (int)  – 0-based index of the correct option.
+        option_count (int)  – total number of options; used to validate range.
+    """
+    expected = spec.get("expected")
+    option_count = spec.get("option_count")
+
+    # Parse student input
+    try:
+        idx = int(str(student_answer).strip())
+    except (ValueError, TypeError):
+        return {
+            "verdict": "incorrect",
+            "reason": f"student answer {student_answer!r} is not a valid integer index",
+        }
+
+    # Range-check (option_count is required; treat missing/non-int as unlimited)
+    if isinstance(option_count, int) and option_count > 0:
+        if idx < 0 or idx >= option_count:
+            return {
+                "verdict": "incorrect",
+                "reason": (
+                    f"index {idx} is out of range for option_count={option_count}"
+                ),
+            }
+
+    if idx == expected:
+        return {"verdict": "correct", "reason": "option index matches expected"}
+    else:
+        return {"verdict": "incorrect", "reason": f"selected index {idx} != expected {expected}"}
+
+
 def check(answer_spec: dict, student_answer: str) -> dict:
     if student_answer is None:
         student_answer = ""
@@ -203,5 +243,7 @@ def check(answer_spec: dict, student_answer: str) -> dict:
         return _check_text_fuzzy(expected, student_answer, canonical)
     elif ans_type == 'semantic':
         return {"verdict": "unsure", "reason": "semantic grading requires AI"}
+    elif ans_type == 'option_index':
+        return _check_option_index(answer_spec, student_answer)
     else:
         return {"verdict": "incorrect", "reason": f"unknown type: {ans_type}"}

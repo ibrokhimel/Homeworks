@@ -60,12 +60,17 @@ def test_text_fuzzy_when_long_word() -> None:
 
 
 def test_memory_sprint_key_works() -> None:
-    """Reviewer issue #1: bucket name must be `memory_sprint` (not ms_questions)."""
+    """Reviewer issue #1: bucket name must be `memory_sprint` (not ms_questions).
+
+    Wave E update: items with ``options[]+correct`` now receive an ``option_index``
+    spec (the Wave E migration path).  Items with only legacy ``ans[]`` still get
+    the legacy spec inference.
+    """
     content = {
         "memory_sprint": [
-            # MS items WITH legacy answers should migrate (rare but contract-supported).
+            # MS items WITH legacy answers (no options/correct) — rare, legacy path.
             {"prompt": "What is 2+2?", "ans": ["4"]},
-            # MS items without ans should be skipped (no answers to infer).
+            # MS items with options+correct — Wave E option_index path.
             {"prompt": "Pick A or B", "options": ["A", "B"], "correct": 0},
         ],
         "boss_questions": [],
@@ -73,9 +78,13 @@ def test_memory_sprint_key_works() -> None:
     }
     mutated = m.migrate_content(content)
     assert mutated is True
+    # Legacy-ans item → numeric spec via legacy infer path
     assert "answer_spec" in content["memory_sprint"][0]
     assert content["memory_sprint"][0]["answer_spec"]["type"] == "numeric"
-    assert "answer_spec" not in content["memory_sprint"][1]
+    # options+correct item → option_index spec via Wave E path
+    assert "answer_spec" in content["memory_sprint"][1]
+    assert content["memory_sprint"][1]["answer_spec"]["type"] == "option_index"
+    assert content["memory_sprint"][1]["answer_spec"]["expected"] == 0
 
 
 def test_idempotent() -> None:
@@ -232,3 +241,62 @@ def test_backup_sanity_old_backup_fails(tmp_path: Path) -> None:
         assert result is False, "sanity check should fail for a backup older than 24 hours"
     finally:
         __import__("os").chdir(original_cwd)
+
+
+# ---------------------------------------------------------------------------
+# Wave E: migrate_memory_sprint tests
+# ---------------------------------------------------------------------------
+
+
+def test_migrate_memory_sprint_basic() -> None:
+    """migrate_memory_sprint adds option_index answer_spec from correct + options."""
+    item = {
+        "type": "KO",
+        "prompt": "Kvadrat tenglamaning discriminantini toping",
+        "options": ["D = b²-4ac", "D = b+4ac", "D = 2b-ac", "D = b²+4ac"],
+        "correct": 0,
+    }
+    changed = m.migrate_memory_sprint(item)
+    assert changed is True
+    spec = item["answer_spec"]
+    assert spec["type"] == "option_index"
+    assert spec["expected"] == 0
+    assert spec["option_count"] == 4
+    assert spec["allow_ai_fallback"] is False
+    assert spec["canonical_display"] == "D = b²-4ac"
+
+
+def test_migrate_memory_sprint_idempotent() -> None:
+    """migrate_memory_sprint is idempotent — second call returns False."""
+    item = {
+        "type": "TF",
+        "prompt": "Fotosintez o'simliklarda sodir bo'ladi",
+        "options": ["To'g'ri", "Noto'g'ri"],
+        "correct": 0,
+    }
+    assert m.migrate_memory_sprint(item) is True
+    # Second call — already has answer_spec
+    assert m.migrate_memory_sprint(item) is False
+
+
+def test_migrate_memory_sprint_via_migrate_content() -> None:
+    """migrate_content routes memory_sprint items through migrate_memory_sprint."""
+    content = {
+        "boss_questions": [],
+        "gb_adaptive_quiz": [],
+        "memory_sprint": [
+            {
+                "type": "YNNG",
+                "prompt": "Insoniyat Mars sayyorasiga bordi",
+                "options": ["Ha", "Yo'q", "Ma'lum emas"],
+                "correct": 1,
+            }
+        ],
+    }
+    mutated = m.migrate_content(content)
+    assert mutated is True
+    spec = content["memory_sprint"][0]["answer_spec"]
+    assert spec["type"] == "option_index"
+    assert spec["expected"] == 1
+    assert spec["option_count"] == 3
+    assert spec["canonical_display"] == "Yo'q"

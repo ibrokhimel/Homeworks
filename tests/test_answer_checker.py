@@ -103,6 +103,43 @@ def test_sympify_dos_cap():
     )
 
 
+# ---------------------------------------------------------------------------
+# Wave E: option_index type tests
+# ---------------------------------------------------------------------------
+
+
+def test_option_index_correct():
+    """Student taps the correct option index → verdict correct."""
+    spec = {"type": "option_index", "expected": 2, "option_count": 4}
+    result = check(spec, "2")
+    assert result["verdict"] == "correct"
+    assert "reason" in result
+
+
+def test_option_index_wrong():
+    """Student taps a different valid index → verdict incorrect."""
+    spec = {"type": "option_index", "expected": 2, "option_count": 4}
+    result = check(spec, "1")
+    assert result["verdict"] == "incorrect"
+    assert "reason" in result
+
+
+def test_option_index_out_of_range():
+    """Index >= option_count is rejected as incorrect with a descriptive reason."""
+    spec = {"type": "option_index", "expected": 0, "option_count": 3}
+    result = check(spec, "5")
+    assert result["verdict"] == "incorrect"
+    assert "out of range" in result["reason"]
+
+
+def test_option_index_non_integer():
+    """Non-integer student answer is rejected as incorrect with a descriptive reason."""
+    spec = {"type": "option_index", "expected": 0, "option_count": 4}
+    result = check(spec, "foo")
+    assert result["verdict"] == "incorrect"
+    assert "not a valid integer" in result["reason"]
+
+
 def test_is_uzbek_heuristic():
     """is_uzbek() must correctly classify common cases."""
     # Plain ASCII — not Uzbek
