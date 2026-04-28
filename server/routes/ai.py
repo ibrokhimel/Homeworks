@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Any
 
 from ..services import tutor, gemini
-from ..services.slur_filter import callout_for as _slur_callout
+from ..services.slur_filter import callout_for as _slur_callout, detect_slurs
 from .. import db
 
 router = APIRouter(tags=["ai-tutor"])
@@ -262,23 +262,36 @@ async def tutor_help(req: TutorRequest):
 
 
 def _find_question_in_content(content: dict, question_id: str) -> Optional[dict]:
-    """Best-effort lookup for a question dict by id across the buckets we know.
+    """Best-effort lookup for a question dict by id, walking nested structures.
 
-    We touch only top-level lists of dicts inside `content_json` (boss_questions,
-    gb_adaptive_quiz, memory_sprint, etc). Nothing fancy — the tutor still works
-    if we don't find the question; question_text just stays empty.
+    Pre-fix this only scanned top-level *list* values of `content_json`, so
+    questions parked under nested objects (e.g. `reading.questions[]`,
+    `consolidation.problems[]`, `gb_why_chain.steps[]`) silently returned
+    None and the tutor lost its question_text context. The scan now recurses
+    into dicts and lists of arbitrary depth — first match wins.
     """
     if not isinstance(content, dict) or not question_id:
         return None
-    for value in content.values():
-        if isinstance(value, list):
-            for item in value:
-                if isinstance(item, dict) and (
-                    item.get("question_id") == question_id
-                    or item.get("id") == question_id
-                ):
-                    return item
-    return None
+
+    def _walk(node):
+        if isinstance(node, dict):
+            if (
+                node.get("question_id") == question_id
+                or node.get("id") == question_id
+            ):
+                return node
+            for v in node.values():
+                hit = _walk(v)
+                if hit is not None:
+                    return hit
+        elif isinstance(node, list):
+            for item in node:
+                hit = _walk(item)
+                if hit is not None:
+                    return hit
+        return None
+
+    return _walk(content)
 
 
 def _extract_boss_questions(content: dict) -> list[dict]:
@@ -294,6 +307,9 @@ def _extract_boss_questions(content: dict) -> list[dict]:
 @router.post("/ai/tutor/chat")
 async def tutor_chat(req: TutorChatRequest):
     """Live tutor chat — persists turns + invokes the LLM."""
+    # Reject malformed session IDs early so they never reach the DB layer.
+    tutor._validate_session_id(req.session_id)
+
     hw = await db.get_homework(req.hw_id)
     hw_meta: dict[str, Any] = {}
     if hw:
@@ -304,7 +320,10 @@ async def tutor_chat(req: TutorChatRequest):
             q = _find_question_in_content(content, req.question_id)
             if q is not None:
                 hw_meta["question"] = q
-    if req.screen_context:
+    # screen_context is allowed only in PREVIEW phase. In PRACTICE/BOSS the
+    # student can put rendered DOM (including the answer) into this field, so
+    # we drop it entirely outside preview rather than try to scrub.
+    if req.screen_context and req.phase == "preview":
         hw_meta["preview_context"] = req.screen_context[:2000]
     lang = hw.get("language", "uz") if hw else "uz"
     callout = _slur_callout(req.message, lang=lang)
@@ -317,8 +336,16 @@ async def tutor_chat(req: TutorChatRequest):
             message=req.message,
             hw_meta=hw_meta,
         )
-        if callout:
-            result["response"] = callout + " " + result["response"]
+        # Defense in depth: slur filter on the LLM output too. A prompt
+        # injection that tricked the model into emitting a slur would
+        # otherwise pass through to the student. Replace the body, not just
+        # prepend, so the slur itself is scrubbed.
+        response_text = result.get("response", "") or ""
+        if detect_slurs(response_text):
+            replacement = _slur_callout(response_text, lang=lang) or "Keling, savolingizga qaytaylik."
+            result["response"] = replacement
+        elif callout:
+            result["response"] = callout + " " + response_text
         return result
     except HTTPException:
         # tutor_chat raises HTTPException itself for the cap + LLM-error cases —
@@ -331,6 +358,7 @@ async def tutor_chat(req: TutorChatRequest):
 @router.post("/ai/tutor/boss-plan")
 async def tutor_boss_plan(req: BossPlanRequest):
     """Build a personalized boss-question plan for a session."""
+    tutor._validate_session_id(req.session_id)
     hw = await db.get_homework(req.hw_id)
     boss_questions: list[dict] = []
     if hw:
@@ -353,5 +381,6 @@ async def tutor_history(
     hw_id: str = Query(...),
 ):
     """Return the chronological chat history for a (session_id, hw_id), capped at 50."""
+    tutor._validate_session_id(session_id)
     turns = await db.list_tutor_turns(session_id=session_id, hw_id=hw_id, limit=50)
     return {"turns": turns}
