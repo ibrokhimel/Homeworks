@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, HTMLResponse
 from contextlib import asynccontextmanager
 import os
 import base64
+import subprocess
 
 from server.routes.meta import router as meta_router
 from server.routes.homework import router as hw_router
@@ -13,6 +14,21 @@ from server.routes.ai import router as ai_router
 from server.routes.library import router as library_router
 from server import db
 from server.config import BASE_DIR
+
+# Compute git short SHA for cache-busting static assets
+def _compute_version() -> str:
+    """Return git short SHA or fallback to 'dev' if unavailable."""
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        ).stdout.strip() or "dev"
+    except Exception:
+        return "dev"
+
+VERSION = _compute_version()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -53,6 +69,37 @@ app.include_router(hw_router, prefix="/api")
 app.include_router(homework_page_router)
 app.include_router(ai_router, prefix="/api")
 app.include_router(library_router, prefix="/api")
+
+_FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+
+# Route → filename map. Single source of truth for the dashboard chrome
+# pages. To add a new page, add a row here — the route + cache-bust
+# substitution come for free.
+_HTML_PAGES: dict[str, str] = {
+    "/":              "index.html",
+    "/index.html":    "index.html",
+    "/builder.html":  "builder.html",
+    "/library.html":  "library.html",
+}
+
+def _render_html_with_version(filename: str) -> str:
+    """Read frontend/{filename} and substitute __VERSION__ with git short SHA."""
+    html_path = os.path.join(_FRONTEND_DIR, filename)
+    with open(html_path, "r", encoding="utf-8") as f:
+        return f.read().replace("__VERSION__", VERSION)
+
+
+def _make_html_handler(filename: str):
+    """Closure factory — binds `filename` per route so each registered
+    handler reads its own page (avoids the late-binding-in-loop pitfall)."""
+    async def _handler():
+        return HTMLResponse(_render_html_with_version(filename))
+    _handler.__name__ = f"get_{filename.replace('.', '_')}"
+    return _handler
+
+
+for _route, _filename in _HTML_PAGES.items():
+    app.get(_route)(_make_html_handler(_filename))
 
 # Runtime static mount — serves /static/runtime/runtime.js from server/template/
 # MUST come before the `/` catch-all mount below (FastAPI evaluates mounts in order).
