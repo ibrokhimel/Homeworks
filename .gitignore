@@ -35,6 +35,10 @@ Thumbs.db
 .idea/
 *.swp
 
+# Obsidian vault (local layout, not for the repo)
+.obsidian/
+notes/
+
 # Claude Code local state (worktrees, agents, plans)
 .claude/
 
@@ -57,3 +61,5 @@ tests/fixtures/prod_replay/
 
 # Scratch / reference snippets
 ref_*.txt
+
+ai_models_comparison.md
