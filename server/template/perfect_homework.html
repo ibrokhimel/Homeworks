@@ -6067,10 +6067,22 @@ Prezident ertaga hisobot kutmoqda.`,
             });
         }
 
-        const ctx = window.NETS_CTX || {};
+        // NOTE: this inline script runs BEFORE the injector's
+        // <script>window.NETS_CTX={...}</script><script src="runtime.js"></script>
+        // tags (which the injector appends just before </body>). So we cannot
+        // read NETS_CTX or NETS_AI at IIFE-init — they aren't defined yet.
+        // Resolve hwId lazily on first read so it picks up NETS_CTX once the
+        // injector's scripts have executed.
+        function currentHwId() {
+            const c = window.NETS_CTX || {};
+            return c.hwId
+                || (document.body.dataset && document.body.dataset.hwId)
+                || '';
+        }
+
         const state = {
             sessionId: localStorage.getItem('nets_tutor_session') || uuid(),
-            hwId: ctx.hwId || (document.body.dataset && document.body.dataset.hwId) || '',
+            get hwId() { return currentHwId(); },
             currentPhase: 'preview',
             currentQuestionId: null,
             messageCount: 0,
