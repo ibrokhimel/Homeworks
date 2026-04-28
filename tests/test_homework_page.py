@@ -160,3 +160,31 @@ def test_runtime_js_exposes_new_methods():
         # Each must also be exposed on window.NETS_AI.
         assert name in src.split("window.NETS_AI = {")[1].split("}")[0], \
             f"{name} not exposed on window.NETS_AI"
+
+
+def test_tutor_widget_hwid_uses_lazy_getter(client, created_hw):
+    """Regression test: tutor widget state.hwId must use lazy getter, not eager init.
+
+    Wave F2 hotfix #12 made state.hwId a property getter that reads
+    window.NETS_CTX.hwId lazily. This prevents locking hwId to '' at IIFE-init time
+    when NETS_CTX is still undefined.
+
+    This test inspects the rendered HTML to ensure the getter pattern is in place
+    and the eager anti-pattern (hwId: ctx.hwId || ...) is not present.
+    """
+    r = client.get(f"/h/{created_hw['id']}")
+    assert r.status_code == 200
+    body = r.text
+
+    # Load-bearing assertion: the getter must be present in the tutor widget.
+    assert "get hwId() { return currentHwId(); }" in body, \
+        "tutor widget state.hwId must use lazy getter pattern"
+
+    # Defensive: ensure eager anti-pattern was not reintroduced.
+    # This pattern would lock hwId to '' at init time.
+    assert "hwId: ctx.hwId" not in body, \
+        "tutor widget must not use eager hwId initialization pattern"
+
+    # Helper function that the getter relies on must be defined.
+    assert "function currentHwId()" in body, \
+        "tutor widget must define currentHwId() helper function"
