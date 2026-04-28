@@ -5,7 +5,7 @@ from typing import Optional
 
 import aiosqlite
 
-from .config import DB_PATH
+from .config import get_db_path
 
 
 _SCHEMA = """
@@ -126,8 +126,9 @@ async def apply_pragmas(db: aiosqlite.Connection) -> None:
 
 
 async def connect() -> aiosqlite.Connection:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    db = await aiosqlite.connect(DB_PATH)
+    db_path = get_db_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    db = await aiosqlite.connect(db_path)
     db.row_factory = aiosqlite.Row
     await apply_pragmas(db)
     return db
@@ -162,7 +163,8 @@ async def init_db() -> None:
 
 async def checkpoint() -> None:
     """Force a full WAL checkpoint. Call on graceful shutdown or periodically."""
-    async with aiosqlite.connect(DB_PATH) as db:
+    db_path = get_db_path()
+    async with aiosqlite.connect(db_path) as db:
         await apply_pragmas(db)
         await db.execute("PRAGMA wal_checkpoint(FULL)")
         await db.commit()

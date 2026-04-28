@@ -7,7 +7,12 @@ BASE_DIR: Path = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
-DB_PATH: Path = Path(os.getenv("NETS_DB_PATH", str(BASE_DIR / "nets.db")))
+
+def get_db_path() -> Path:
+    """Lazily resolve DB_PATH from env on each call (not frozen at import)."""
+    return Path(os.getenv("NETS_DB_PATH", str(BASE_DIR / "nets.db")))
+
+
 TEMPLATE_PATH: Path = BASE_DIR / "server" / "template" / "perfect_homework.html"
 PROMPTS_DIR: Path = BASE_DIR / "server" / "prompts"
 FIXTURES_DIR: Path = BASE_DIR / "fixtures"
@@ -30,3 +35,10 @@ AI_BACKEND_PREFERENCE: str = os.getenv("AI_BACKEND_PREFERENCE", "kimi,vertex,gem
 
 PORT: int = int(os.getenv("PORT", "8000"))
 DEBUG: bool = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes", "on")
+
+
+def __getattr__(name: str):  # noqa: N807
+    """Module-level __getattr__ for backward compat: DB_PATH re-resolves on each access."""
+    if name == "DB_PATH":
+        return get_db_path()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
