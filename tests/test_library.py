@@ -83,7 +83,7 @@ def test_library_filter_by_subject(client):
 
 
 def test_library_facets_shape(client):
-    """Facets endpoint returns dict with subjects, grades, modes keys."""
+    """Facets endpoint returns dict with subjects, grades, modes, languages."""
     _post_homework(client, "Algebra X", "math-algebra", 8, "hard")
     _post_homework(client, "Biology Y", "biology",      9, "hard")
 
@@ -92,15 +92,20 @@ def test_library_facets_shape(client):
     data = resp.json()
 
     assert isinstance(data, dict)
-    assert set(data.keys()) == {"subjects", "grades", "modes"}
+    assert set(data.keys()) == {"subjects", "grades", "modes", "languages"}
     assert isinstance(data["subjects"], list)
     assert isinstance(data["grades"], list)
     assert isinstance(data["modes"], list)
+    assert isinstance(data["languages"], list)
     # Sanity: the values we just inserted should appear.
     assert "math-algebra" in data["subjects"]
     assert "biology" in data["subjects"]
     assert 8 in data["grades"]
     assert "hard" in data["modes"]
+    # Default language for fresh rows is "uz" (server/db.py:19) — the
+    # facet must surface it so the language-filter chip group has at
+    # least one option to light up.
+    assert "uz" in data["languages"]
 
 
 def test_library_chapter_extraction(client):

@@ -36,40 +36,31 @@
     </header>
 
     <main class="dashboard-layout">
-      <!-- Filters toolbar -->
-      <section class="toolbar glass-card lib-toolbar" aria-label="Library filters">
+      <!-- Top filter bar — language chips + search. Subject and grade
+           chips live INSIDE each section, not at the page level, since
+           those are the section's own dimensions. -->
+      <section class="toolbar glass-card lib-toolbar" data-i18n-aria-label="library.filters_aria" aria-label="Library filters">
+        <div class="lib-filter-row lib-lang-row" role="group" data-i18n-aria-label="library.content_lang_aria" aria-label="Content language">
+          <span class="lib-filter-label" data-i18n="library.content_lang_label">Til</span>
+          <div class="lib-chip-group" id="lib-lang-chips">
+            <button type="button" class="lib-chip is-active" data-lib-lang="" data-i18n="library.lang_all">Hammasi</button>
+            <button type="button" class="lib-chip" data-lib-lang="uz">UZ</button>
+            <button type="button" class="lib-chip" data-lib-lang="ru">RU</button>
+            <button type="button" class="lib-chip" data-lib-lang="en">EN</button>
+          </div>
+        </div>
+
         <label class="search-box lib-search">
           <span aria-hidden="true">⌕</span>
           <input id="lib-search" type="search" data-i18n-placeholder="library.search_placeholder" placeholder="Search by title or chapter…" autocomplete="off" />
         </label>
 
-        <div class="filter-row">
-          <label>
-            <span data-i18n="common.subject">Subject</span>
-            <select id="lib-subject">
-              <option value="" data-i18n="library.all_subjects">All subjects</option>
-            </select>
-          </label>
-
-          <label>
-            <span data-i18n="common.grade">Grade</span>
-            <select id="lib-grade">
-              <option value="" data-i18n="library.all_grades">All grades</option>
-            </select>
-          </label>
-
-          <label>
-            <span data-i18n="common.mode">Mode</span>
-            <select id="lib-mode">
-              <option value="" data-i18n="library.all_modes">All modes</option>
-            </select>
-          </label>
-
-          <button class="btn btn-ghost" id="lib-clear-btn" type="button" data-i18n="library.clear">Clear</button>
-        </div>
+        <button class="btn btn-ghost" id="lib-clear-btn" type="button" data-i18n="library.clear">Clear</button>
       </section>
 
-      <!-- Results section -->
+      <!-- Results — grouped by subject. Sections are rendered into
+           #lib-sections by library.js. Each section is a collapsible
+           <details> with a grade chip strip and a card grid inside. -->
       <section class="library-section" aria-labelledby="lib-heading">
         <div class="section-heading">
           <div>
@@ -92,22 +83,15 @@
           <button class="btn btn-primary" id="lib-retry-btn" type="button" data-i18n="common.retry">Retry</button>
         </div>
 
-        <!-- Empty state -->
+        <!-- Empty state — shown when zero homeworks across all sections. -->
         <div class="empty-state glass-card hidden" id="lib-empty">
           <div class="empty-orb" aria-hidden="true">📚</div>
           <h3 data-i18n="library.empty_h3">No homeworks found</h3>
           <p data-i18n="library.empty_text">Try adjusting your filters or search query.</p>
         </div>
 
-        <!-- Card grid -->
-        <div class="homework-grid lib-grid" id="lib-grid" aria-live="polite"></div>
-
-        <!-- Pagination -->
-        <div class="lib-pagination hidden" id="lib-pagination">
-          <button class="btn btn-ghost" id="lib-prev-btn" type="button" disabled data-i18n="library.previous">Previous</button>
-          <span id="lib-page-label" class="muted-text"></span>
-          <button class="btn btn-ghost" id="lib-next-btn" type="button" data-i18n="library.next">Next</button>
-        </div>
+        <!-- Subject sections live here — populated by library.js. -->
+        <div id="lib-sections" class="lib-sections" aria-live="polite"></div>
       </section>
     </main>
   </div>
