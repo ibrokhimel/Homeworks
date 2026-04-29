@@ -2225,6 +2225,254 @@ textarea:disabled {
 }
 
 /* ============================================================
+   Adaptive Quiz card — extends .flashcard-builder-card
+   Adds: card-head summary line, dedicated answer-grading section,
+   2-up meta row that wraps cleanly on mobile.
+   Light/dark colors derive from the shared --fc-* palette.
+   ============================================================ */
+.aq-card .fc-card-head {
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.aq-card .aq-card-summary {
+  flex: 1 1 100%;
+  order: 5;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.aq-grading {
+  margin: 18px 0 4px;
+  padding: 16px 16px 14px;
+  background: rgba(0, 122, 255, 0.05);
+  border: 1px solid rgba(0, 122, 255, 0.18);
+  border-radius: 14px;
+}
+[data-theme="dark"] .aq-grading {
+  background: rgba(0, 122, 255, 0.10);
+  border-color: rgba(0, 122, 255, 0.30);
+}
+.aq-grading-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.aq-grading-head .fc-face-label {
+  margin-bottom: 0;
+}
+.aq-grading-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  letter-spacing: 0.01em;
+}
+
+.aq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+.aq-rubric-grid {
+  margin-top: 10px;
+}
+.aq-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.aq-field-wide { grid-column: 1 / -1; }
+.aq-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.aq-field-hint {
+  font-weight: 400;
+  font-size: 10px;
+  font-style: italic;
+  margin-left: 6px;
+  color: var(--text-muted);
+}
+.aq-field input[type="text"],
+.aq-field input[type="number"],
+.aq-field select,
+.aq-field textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  color: var(--text);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.aq-field textarea {
+  resize: vertical;
+  min-height: 56px;
+  line-height: 1.45;
+  font-family: inherit;
+}
+.aq-field input:focus,
+.aq-field select:focus,
+.aq-field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow, rgba(0, 122, 255, 0.18));
+}
+
+.aq-toggle {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+[data-theme="dark"] .aq-toggle {
+  background: rgba(255, 255, 255, 0.04);
+}
+.aq-toggle input[type="checkbox"] {
+  margin: 4px 0 0;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+.aq-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.aq-toggle-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.aq-toggle-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.aq-rubric {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.02);
+}
+[data-theme="dark"] .aq-rubric {
+  background: rgba(255, 255, 255, 0.02);
+}
+.aq-rubric > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  list-style: none;
+  user-select: none;
+}
+.aq-rubric > summary::before {
+  content: "▸";
+  display: inline-block;
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 120ms ease;
+}
+.aq-rubric[open] > summary::before {
+  transform: rotate(90deg);
+}
+.aq-rubric > summary::-webkit-details-marker { display: none; }
+.aq-rubric-meta {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.aq-preview {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--border);
+}
+[data-theme="dark"] .aq-preview {
+  background: rgba(255, 255, 255, 0.04);
+}
+.aq-preview-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.aq-preview-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.45;
+}
+.aq-preview-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  background: rgba(0, 122, 255, 0.10);
+  color: var(--accent);
+  border: 1px solid rgba(0, 122, 255, 0.22);
+  border-radius: 6px;
+}
+.aq-preview-empty {
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.aq-card .fc-meta-row.aq-meta-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+}
+.aq-card .fc-meta-row .aq-meta-wide { grid-column: 1 / -1; }
+
+@media (max-width: 640px) {
+  .aq-card .fc-meta-row.aq-meta-row,
+  .aq-grid {
+    grid-template-columns: 1fr;
+  }
+  .aq-card .fc-card-head {
+    align-items: flex-start;
+  }
+  .aq-card .aq-card-summary {
+    white-space: normal;
+    text-overflow: clip;
+  }
+  .aq-grading { padding: 14px 12px; }
+}
+
+/* ============================================================
    Notebook Capture toggle (real-life sub-questions)
    ============================================================ */
 .capture-toggle-row {
@@ -2954,6 +3202,22 @@ body:has(.preview-panel:not([hidden])) .fab-add {
 [data-theme="dark"] .quote-chip-origin-global {
   background: rgba(0, 111, 224, 0.18);
   border-color: rgba(0, 111, 224, 0.32);
+}
+
+/* Wave V (visual polish 2026-04-29):
+   Gate-quote mode bar + preview card — the light-mode gradient mixed
+   60% white into the right side, which blasts through dark surfaces.
+   Replace with a same-shape gradient using surface tones. */
+[data-theme="dark"] .gate-quote-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+[data-theme="dark"] .quote-card-preview {
+  background: linear-gradient(135deg, rgba(0, 111, 224, 0.18), rgba(15, 23, 42, 0.55));
+  border-color: rgba(96, 165, 250, 0.28);
+}
+[data-theme="dark"] .gate-quote-body--pinned-empty {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(148, 163, 184, 0.24);
 }
 
 /* -------- Lang Switch -------- */
