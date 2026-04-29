@@ -2926,7 +2926,15 @@
         }
         #nets-tutor-fab:hover { transform: scale(1.05); }
         #nets-tutor-fab:active { transform: scale(0.95); }
-        #nets-tutor-fab[hidden] { display: none !important; }
+
+        /* FAB visibility is now class-driven from the wrapper so the
+           panel + FAB transitions share one source of truth. The
+           [hidden] attribute fallback is retained so the FAB stays
+           gone if JS ever fails to update the wrapper class. */
+        #nets-tutor-fab[hidden],
+        #nets-ai-tutor:not(.nets-tutor-collapsed) #nets-tutor-fab {
+            display: none !important;
+        }
 
         #nets-tutor-panel {
             position: absolute;
@@ -2944,14 +2952,51 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            /* Anchor transforms to the FAB corner so the panel grows
+               out of the button rather than the document corner. */
             transform-origin: bottom right;
-            animation: nets-tutor-pop-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
         }
-        @keyframes nets-tutor-pop-in {
-            from { transform: scale(0.85) translateY(10px); opacity: 0; }
-            to   { transform: scale(1)    translateY(0);    opacity: 1; }
+
+        /* ── Open / close transition ──────────────────────────────
+           Class-based open/close (vs the prior `[hidden]` attribute
+           toggle) so we get a real outbound animation, not just a
+           sudden disappear. The wrapper carries `.nets-tutor-collapsed`
+           when closed; the existing class stays the source of truth. */
+        .nets-tutor-collapsed #nets-tutor-panel {
+            opacity: 0;
+            transform: scale(0.85) translateY(10px);
+            pointer-events: none;
+            visibility: hidden;
+            transition:
+                opacity 180ms ease,
+                transform 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+                visibility 0s linear 200ms;
         }
-        #nets-tutor-panel[hidden] { display: none !important; }
+        #nets-ai-tutor:not(.nets-tutor-collapsed) #nets-tutor-panel {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            pointer-events: auto;
+            visibility: visible;
+            transition:
+                opacity 200ms ease,
+                transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2),
+                visibility 0s linear 0s;
+        }
+        /* `[hidden]` is still respected as a hard fallback when JS
+           hasn't booted yet (initial render) so the panel doesn't
+           flash before the wrapper class hooks up. */
+        #nets-tutor-panel[hidden] {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .nets-tutor-collapsed #nets-tutor-panel,
+            #nets-ai-tutor:not(.nets-tutor-collapsed) #nets-tutor-panel {
+                transition: visibility 0s linear 0s;
+                transform: none;
+            }
+        }
 
         #nets-tutor-panel header {
             display: flex;
@@ -2987,6 +3032,10 @@
             cursor: pointer;
             padding: 4px 8px;
             border-radius: 8px;
+            /* Pin to the right edge of the header — previously the
+               (now-removed) theme toggle carried `margin-left: auto`
+               so the close button rode along with it. */
+            margin-left: auto;
         }
         #nets-tutor-close:hover { background: rgba(0,0,0,0.06); color: var(--text, #1d1d1f); }
 
@@ -3247,27 +3296,6 @@
             line-height: 1;
             flex-shrink: 0;
             margin-right: 6px;
-        }
-
-        /* ── Wave J: Theme toggle button ────────────────────────── */
-        #nets-tutor-theme-toggle {
-            background: transparent;
-            border: none;
-            font-size: 18px;
-            line-height: 1;
-            cursor: pointer;
-            padding: 4px 6px;
-            border-radius: 8px;
-            color: var(--text-muted, #86868b);
-            margin-left: auto;
-            margin-right: 4px;
-            transition: background 120ms ease;
-        }
-        #nets-tutor-theme-toggle:hover {
-            background: rgba(0,0,0,0.06);
-        }
-        [data-theme="dark"] #nets-tutor-theme-toggle:hover {
-            background: rgba(255,255,255,0.08);
         }
 
         /* ── Wave J: FAB pulse animation ────────────────────────── */
@@ -8605,7 +8633,11 @@ Prezident ertaga hisobot kutmoqda.`,
             <header>
                 <span id="nets-tutor-avatar" aria-hidden="true">🎓</span>
                 <span id="nets-tutor-phase-badge" data-phase="preview">Preview — ask me anything</span>
-                <button id="nets-tutor-theme-toggle" type="button" aria-label="Toggle theme">🌙</button>
+                <!-- The page-level navbar theme toggle (frontend/js/theme.js)
+                     drives `data-theme` on the document and persists to
+                     localStorage; the storage-event listener below picks
+                     it up here. We deliberately do NOT ship a per-tutor
+                     theme toggle so there's a single source of truth. -->
                 <button id="nets-tutor-close" type="button" aria-label="Close">×</button>
             </header>
             <div id="nets-tutor-messages" role="log" aria-live="polite"></div>
@@ -8707,7 +8739,6 @@ Prezident ertaga hisobot kutmoqda.`,
         const badge       = document.getElementById('nets-tutor-phase-badge');
         const closeBtn    = document.getElementById('nets-tutor-close');
         const avatarEl    = document.getElementById('nets-tutor-avatar');
-        const themeToggle = document.getElementById('nets-tutor-theme-toggle');
         const messages  = document.getElementById('nets-tutor-messages');
         const inputForm = document.getElementById('nets-tutor-input-form');
         const input     = document.getElementById('nets-tutor-input');
@@ -8844,24 +8875,31 @@ Prezident ertaga hisobot kutmoqda.`,
         }
 
         // ── Open / close panel ──────────────────────────────────
+        // The wrapper's `nets-tutor-collapsed` class is the single
+        // source of truth — the CSS handles fade + scale transition
+        // in both directions. We DON'T toggle the `[hidden]` attribute
+        // on the panel at runtime any more (it would short-circuit
+        // the close transition); we drop it once on first open so it
+        // doesn't keep overriding the visibility cascade afterwards.
         function openPanel() {
             if (state.isOpen) return;
-            panel.hidden = false;
-            fab.hidden = true;
+            if (panel.hasAttribute('hidden')) panel.removeAttribute('hidden');
             fab.setAttribute('aria-expanded', 'true');
             state.isOpen = true;
             root.classList.remove('nets-tutor-collapsed');
-            setTimeout(() => { try { input.focus(); } catch (e) {} }, 50);
+            // Wait long enough for the transition to start before
+            // pulling focus, otherwise mobile Safari snaps the
+            // panel into view without animating.
+            setTimeout(() => { try { input.focus(); } catch (e) {} }, 80);
         }
         function closePanel() {
             if (!state.isOpen) return;
-            panel.hidden = true;
-            fab.hidden = false;
             fab.setAttribute('aria-expanded', 'false');
             state.isOpen = false;
             root.classList.add('nets-tutor-collapsed');
-            // Return focus to the FAB so keyboard users don't lose their place
-            // in the document. preventScroll avoids a jarring viewport shift.
+            // Return focus to the FAB so keyboard users don't lose
+            // their place in the document. preventScroll avoids a
+            // jarring viewport shift.
             try { fab.focus({ preventScroll: true }); } catch (e) { try { fab.focus(); } catch (_) {} }
         }
         fab.addEventListener('click', openPanel);
@@ -8875,7 +8913,12 @@ Prezident ertaga hisobot kutmoqda.`,
             }
         });
 
-        // ── Wave J: Theme toggle ─────────────────────────────────
+        // ── Wave J: Theme — read-only mirror of the navbar toggle ─
+        // The runtime player no longer ships its own light/dark
+        // toggle. The page-level navbar toggle (frontend/js/theme.js)
+        // writes `nets_theme` to localStorage; we apply the saved
+        // value at boot and resync via the `storage` event so a
+        // toggle in a sibling tab/document is reflected here too.
         const PERSONA_AVATARS = {
             challenger: '⚔️',
             mentor:     '🦉',
@@ -8885,33 +8928,19 @@ Prezident ertaga hisobot kutmoqda.`,
 
         function applyTheme(theme) {
             document.documentElement.setAttribute('data-theme', theme);
-            if (themeToggle) {
-                themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-                themeToggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-            }
         }
 
-        function setupThemeToggle() {
+        function applyStoredTheme() {
             const saved = (function () {
                 try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; }
             }());
             applyTheme(saved === 'dark' ? 'dark' : 'light');
-            if (themeToggle) {
-                themeToggle.addEventListener('click', function () {
-                    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-                    applyTheme(next);
-                    try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* private mode */ }
-                });
-            }
-            // Cross-document sync: when the parent navbar toggle (frontend/js/theme.js)
-            // writes nets_theme on a sibling tab or the parent frame, the storage
-            // event fires here and we resync the icon + attribute.
             window.addEventListener('storage', function (e) {
                 if (e.key !== THEME_KEY) return;
                 applyTheme(e.newValue === 'dark' ? 'dark' : 'light');
             });
         }
-        setupThemeToggle();
+        applyStoredTheme();
 
         // ── Wave J: Avatar update ────────────────────────────────
         function updateAvatar(phase) {
