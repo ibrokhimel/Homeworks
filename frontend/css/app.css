@@ -427,6 +427,8 @@ code {
     gap: 12px;
     cursor: pointer;
     transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+    overflow: hidden;  /* clip children so long titles can't escape card boundary */
+    min-width: 0;      /* allow flex children to shrink below intrinsic content width */
 }
 
 .homework-grid .glass-card:hover,
@@ -2305,6 +2307,8 @@ body:has(.preview-panel:not([hidden])) .fab-add {
 .homework-card {
   position: relative;
   border-top: 3px solid var(--family-color, var(--accent));
+  overflow: hidden;   /* clip children — prevents flex children escaping card boundary */
+  min-width: 0;       /* allow card to shrink below intrinsic content width in flex/grid */
 }
 .homework-card-top {
   display: flex;
@@ -2331,6 +2335,10 @@ body:has(.preview-panel:not([hidden])) .fab-add {
   font-weight: 600;
   line-height: 1.3;
   color: var(--text);
+}
+.homework-card .homework-title {
+  overflow-wrap: break-word; /* break long unbroken strings (no-space titles) at char boundary */
+  word-break: break-word;    /* older-browser fallback */
 }
 .homework-id {
   margin: 2px 0 0 0;
