@@ -145,20 +145,20 @@
         </div>
 
         <div class="editor-grid">
-          <label class="field full-span">
+          <div class="field full-span">
             <span>Prompt</span>
             <div class="js-rich-host" data-path="${key}.prompt"></div>
-          </label>
+          </div>
 
           <label class="field full-span">
             <span>Answer</span>
             <input class="js-q-field" data-key="ans" type="text" value="${escapeHtml(question.ans)}" placeholder="Correct answer" />
           </label>
 
-          <label class="field full-span">
+          <div class="field full-span">
             <span>Feedback</span>
             <div class="js-rich-host" data-path="${key}.fb"></div>
-          </label>
+          </div>
 
           ${renderCaptureToggle(question)}
         </div>
@@ -178,15 +178,15 @@
         </div>
 
         <div class="editor-grid">
-          <label class="field full-span">
+          <div class="field full-span">
             <span>Prompt</span>
             <div class="js-rich-host" data-path="${key}.prompt"></div>
-          </label>
+          </div>
 
-          <label class="field full-span">
+          <div class="field full-span">
             <span>Feedback</span>
             <div class="js-rich-host" data-path="${key}.fb"></div>
-          </label>
+          </div>
 
           ${renderCaptureToggle(question)}
         </div>
@@ -209,20 +209,20 @@
         </div>
 
         <div class="editor-grid">
-          <label class="field full-span">
+          <div class="field full-span">
             <span>Prompt</span>
             <div class="js-rich-host" data-path="${key}.prompt"></div>
-          </label>
+          </div>
 
           <label class="field">
             <span>Open</span>
             <input type="text" value="true" readonly />
           </label>
 
-          <label class="field full-span">
+          <div class="field full-span">
             <span>Feedback</span>
             <div class="js-rich-host" data-path="${key}.fb"></div>
-          </label>
+          </div>
 
           ${renderCaptureToggle(question)}
         </div>
@@ -291,10 +291,10 @@
               <input class="js-root-field" data-key="badge" type="text" value="${escapeHtml(state.badge)}" placeholder="VAZIFA · Scenario name" />
             </label>
 
-            <label class="field full-span">
+            <div class="field full-span">
               <span>Story</span>
               <div class="js-rich-host" data-path="story"></div>
-            </label>
+            </div>
 
             <label class="field">
               <span>End title</span>
