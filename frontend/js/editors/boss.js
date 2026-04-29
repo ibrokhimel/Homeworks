@@ -64,11 +64,8 @@
     return JSON.parse(JSON.stringify(value ?? []));
   }
 
-  function normalizeQuestion(question) {
-    const dmg = DAMAGE_VALUES.includes(Number(question?.dmg)) ? Number(question.dmg) : 10;
-    
-    // Structured answer_spec
-    const spec = question?.answer_spec || {
+  function defaultAnswerSpec() {
+    return {
       type: "text_fuzzy",
       expected: "",
       canonical_display: "",
@@ -79,7 +76,27 @@
         incorrect: "Notog'ri javob."
       }
     };
-    
+  }
+
+  function normalizeQuestion(question) {
+    const dmg = DAMAGE_VALUES.includes(Number(question?.dmg)) ? Number(question.dmg) : 10;
+
+    // Merge default spec/rubric with whatever the question provides.
+    // Replacing the whole default with question.answer_spec dropped rubric
+    // keys when fixtures supplied answer_spec without a rubric, and the
+    // editor crashed on spec.rubric.correct.
+    const defaults = defaultAnswerSpec();
+    const provided = question?.answer_spec || {};
+    const providedRubric = provided.rubric || {};
+    const spec = {
+      ...defaults,
+      ...provided,
+      rubric: {
+        ...defaults.rubric,
+        ...providedRubric
+      }
+    };
+
     // Backward compat: if old ans exists and spec is empty, try to migrate
     if (!spec.canonical_display && question?.ans && question.ans.length) {
       spec.canonical_display = question.ans[0];
