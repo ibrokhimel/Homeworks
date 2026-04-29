@@ -12,10 +12,14 @@
             --surface-border: rgba(255, 255, 255, 0.5);
             --text: #1d1d1f;
             --text-muted: #86868b;
-            --accent: #007AFF;
-            --accent-glow: rgba(0, 122, 255, 0.28);
-            --line: rgba(0, 122, 255, 0.5);
-            --dot: rgba(0, 122, 255, 0.18);
+            /* Accent darkened from #007AFF (~4.0:1 white-on-blue, fails
+               WCAG AA) to #0066CC (~5.6:1) to match the Builder's PR #57
+               palette. The legacy hex remains in cluster-dot fixtures
+               (FC_CLUSTER_DOT) which are decorative, not text-bearing. */
+            --accent: #0066CC;
+            --accent-glow: rgba(0, 102, 204, 0.28);
+            --line: rgba(0, 102, 204, 0.5);
+            --dot: rgba(0, 102, 204, 0.18);
             --shadow-low:  0 1px 4px rgba(0,0,0,0.04);
             --shadow-mid:  0 8px 24px rgba(0,0,0,0.08);
             --shadow-card: 0 20px 48px rgba(0,0,0,0.10);
@@ -1309,6 +1313,28 @@
             box-shadow: 0 0 16px rgba(239, 107, 115, 0.14);
         }
 
+        /* Hide buttons whose option index is beyond the current question's
+           option count (e.g., TF has 2 options, YNNG has 3). Without this,
+           the unused static buttons rendered the literal string
+           "undefined" and were still clickable as wrong answers. */
+        .ms-option-btn.is-hidden { display: none !important; }
+
+        /* Non-color correctness affordance — a glyph next to the colored
+           tint so red/green colorblind students can tell which option was
+           right. The pseudo-element is decorative; the accessible name
+           is updated in JS via aria-label. */
+        .ms-option-btn.correct::after,
+        .ms-option-btn.wrong::after {
+            content: '';
+            display: inline-block;
+            margin-left: 8px;
+            font-weight: 800;
+            font-size: 1.05em;
+            line-height: 1;
+        }
+        .ms-option-btn.correct::after { content: '\2713'; color: #117a3d; }
+        .ms-option-btn.wrong::after   { content: '\2717'; color: #b03a44; }
+
         .ms-option-btn.merging {
             width: 50vw;
             max-width: 300px;
@@ -2432,8 +2458,76 @@
             min-height: 36px; font-size: 14px; font-weight: 600;
             text-align: center; border-radius: 12px; padding: 8px 14px;
         }
-        .boss-feedback.correct { background: rgba(53,198,111,0.12); color: #17864a; }
-        .boss-feedback.wrong { background: rgba(239,107,115,0.1); color: #c3535d; }
+        .boss-feedback.correct { background: rgba(53,198,111,0.12); color: #117a3d; }
+        .boss-feedback.wrong { background: rgba(239,107,115,0.1); color: #b03a44; }
+
+        /* ── Non-color correctness affordances ──────────────────────
+           Color alone fails WCAG 1.4.1 for the ~8% of red-green
+           colorblind students. A leading ✓ / ✗ / ◐ glyph (with the
+           accompanying tint) keeps the visual story unambiguous. The
+           glyph is decorative — the screen-reader announcement comes
+           from aria-label / textContent updated by the game logic. */
+        .boss-feedback.correct::before,
+        .gb-aq-feedback.correct::before,
+        .gb-mb-feedback.correct::before {
+            content: '\2713';
+            display: inline-block;
+            margin-right: 8px;
+            font-weight: 800;
+        }
+        .boss-feedback.wrong::before,
+        .gb-aq-feedback.wrong::before,
+        .gb-mb-feedback.wrong::before {
+            content: '\2717';
+            display: inline-block;
+            margin-right: 8px;
+            font-weight: 800;
+        }
+        .gb-mb-feedback.partial::before {
+            content: '\25D0';
+            display: inline-block;
+            margin-right: 8px;
+            font-weight: 800;
+        }
+
+        /* Mystery Box label pills — picked-correct / picked-wrong used
+           to differ only by border/background hue. Append a glyph. */
+        .gb-mb-label.picked-correct::after,
+        .gb-mb-label.picked-truth::after {
+            content: ' \2713';
+            color: #117a3d;
+            font-weight: 800;
+            margin-left: 4px;
+        }
+        .gb-mb-label.picked-wrong::after {
+            content: ' \2717';
+            color: #b03a44;
+            font-weight: 800;
+            margin-left: 4px;
+        }
+
+        /* Tile Match / Memory Match / Puzzle Lock — game tiles whose
+           state is communicated via background tint + shake animation.
+           Pin a corner badge so a static screenshot still tells the
+           story. */
+        .gb-tm-tile.matched,
+        .gb-mm-card.matched,
+        .gb-pl-cell.locked {
+            position: relative;
+        }
+        .gb-tm-tile.matched::after,
+        .gb-mm-card.matched::after,
+        .gb-pl-cell.locked::after {
+            content: '\2713';
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            font-size: 14px;
+            font-weight: 800;
+            color: #117a3d;
+            line-height: 1;
+            pointer-events: none;
+        }
         /* Wave F3 — personalized framing banner above each boss question */
         .boss-framing {
             margin: 0 0 12px;
@@ -2918,7 +3012,7 @@
         }
         .nets-tutor-msg.user {
             align-self: flex-end;
-            background: var(--accent, #007AFF);
+            background: var(--accent, #0066CC);
             color: #fff;
             border-bottom-right-radius: 4px;
         }
@@ -3000,8 +3094,8 @@
             user-select: text;
         }
         #nets-tutor-input:focus {
-            border-color: var(--accent, #007AFF);
-            box-shadow: 0 0 0 3px var(--accent-glow, rgba(0,122,255,0.28));
+            border-color: var(--accent, #0066CC);
+            box-shadow: 0 0 0 3px var(--accent-glow, rgba(0,102,204,0.28));
         }
         #nets-tutor-input:disabled {
             background: rgba(0,0,0,0.04);
@@ -3009,7 +3103,7 @@
             cursor: not-allowed;
         }
         #nets-tutor-send {
-            background: var(--accent, #007AFF);
+            background: var(--accent, #0066CC);
             color: #fff;
             border: none;
             border-radius: 12px;
@@ -3059,10 +3153,12 @@
             --surface-border: rgba(148, 163, 184, 0.22);
             --text: #e5e7eb;
             --text-muted: #94a3b8;
-            --accent: #007AFF;
-            --accent-glow: rgba(0, 122, 255, 0.38);
-            --line: rgba(0, 122, 255, 0.6);
-            --dot: rgba(0, 122, 255, 0.22);
+            /* Dark-theme accent darkened from #0A84FF (~3.6:1 white-on-blue)
+               to #006FE0 (~4.85:1) for WCAG AA on btn-primary surfaces. */
+            --accent: #006FE0;
+            --accent-glow: rgba(0, 111, 224, 0.38);
+            --line: rgba(0, 111, 224, 0.6);
+            --dot: rgba(0, 111, 224, 0.22);
             --shadow-low:  0 1px 4px rgba(0,0,0,0.24);
             --shadow-mid:  0 8px 24px rgba(0,0,0,0.38);
             --shadow-card: 0 20px 48px rgba(0,0,0,0.48);
@@ -3188,7 +3284,7 @@
         #nets-tutor-cta {
             display: inline-flex; align-items: center; gap: 6px;
             margin-top: 10px; padding: 8px 14px;
-            background: #007aff; color: #fff;
+            background: var(--accent, #0066CC); color: #fff;
             border: none; border-radius: 20px;
             font-size: 13px; font-weight: 600; cursor: pointer;
             box-shadow: 0 2px 8px rgba(0,122,255,0.35);
@@ -3303,7 +3399,12 @@
     </div>
 
     <!-- Phase Progress Bar -->
-    <div id="phase-progress">
+    <div id="phase-progress"
+         role="progressbar"
+         aria-label="Homework phase progress"
+         aria-valuemin="0"
+         aria-valuemax="7"
+         aria-valuenow="0">
         <div class="phase-seg" id="ps-1"><div class="phase-seg-fill"></div></div>
         <div class="phase-seg" id="ps-2"><div class="phase-seg-fill"></div></div>
         <div class="phase-seg" id="ps-3"><div class="phase-seg-fill"></div></div>
@@ -3464,7 +3565,7 @@
                             <button class="gb-aq-capture-btn" id="gb-aq-capture-btn" type="button" onclick="gbAQCapture()" aria-label="Yechim rasmini yuklash"><span aria-hidden="true">📷</span></button>
                         </div>
                         <div class="gb-aq-capture-status" id="gb-aq-capture-status">Yechimingizni yuklang (📷)</div>
-                        <div class="gb-aq-feedback" id="gb-aq-feedback"></div>
+                        <div class="gb-aq-feedback" id="gb-aq-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
                     </div>
                     <!-- Sub-game 2: Why Chain -->
                     <div class="gb-game-panel enter-right" id="gb-panel-wc">
@@ -3520,13 +3621,13 @@
                             <div class="gb-mb-eyebrow">1-bosqich · Toifani aniqlang</div>
                             <div class="gb-mb-prompt" id="gb-mb-identify-prompt">Bu masala qaysi turga tegishli?</div>
                             <div class="gb-mb-labels" id="gb-mb-labels"></div>
-                            <div class="gb-mb-feedback" id="gb-mb-id-feedback"></div>
+                            <div class="gb-mb-feedback" id="gb-mb-id-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
                         </div>
                         <div class="gb-mb-stage" id="gb-mb-solve">
                             <div class="gb-mb-eyebrow">2-bosqich · Yeching</div>
                             <div class="gb-mb-prompt" id="gb-mb-solve-prompt"></div>
                             <input class="gb-mb-input" id="gb-mb-solve-input" type="text" inputmode="text" placeholder="Javob..." autocomplete="off" autocorrect="off" spellcheck="false" />
-                            <div class="gb-mb-feedback" id="gb-mb-solve-feedback"></div>
+                            <div class="gb-mb-feedback" id="gb-mb-solve-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
                         </div>
                         <div class="gb-mb-win-banner" id="gb-mb-win-banner">
                             <div class="gb-mb-win-text">Barcha qutilar ochildi!</div>
@@ -3650,7 +3751,7 @@
                             <div class="boss-hint-text" id="boss-hint-text"></div>
                         </div>
                     </div>
-                    <div class="boss-feedback" id="boss-feedback"></div>
+                    <div class="boss-feedback" id="boss-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
                 </div>
                 <div id="boss-victory" class="boss-victory" style="display:none;">
                     <div class="boss-v-title">⚔️ Boss mag'lub bo'ldi!</div>
@@ -4645,6 +4746,9 @@
             if (!bar) return;
             const active = phaseMap[state.stage] || 0;
             bar.classList.toggle('visible', active > 0);
+            // Reflect the active phase index in the progressbar landmark
+            // so AT users hear "phase 4 of 7" as the runtime advances.
+            bar.setAttribute('aria-valuenow', String(active));
             for (let i = 1; i <= 7; i++) {
                 const seg = document.getElementById('ps-' + i);
                 if (!seg) continue;
@@ -5325,12 +5429,60 @@
             isAnimating: false
         };
 
-        const msExpandedPositions = [
-            { left: '25%', top: '28%' },
-            { left: '75%', top: '28%' },
-            { left: '25%', top: '74%' },
-            { left: '75%', top: '74%' }
-        ];
+        // Layout positions for N visible option buttons inside the
+        // 88vw / 640px answer zone. Counts < 4 used to share the static
+        // 4-quad layout, leaving "undefined" buttons in the empty slots
+        // for True/False (2 options) and Yes/No/Not Given (3 options).
+        // For >4 options the static layout silently truncated. This
+        // function returns an N-length array of {left, top} pairs that
+        // packs the buttons into 1 or 2 rows depending on count.
+        function msPositionsFor(n) {
+            if (n <= 1) return [{ left: '50%', top: '50%' }];
+            if (n === 2) return [
+                { left: '25%', top: '50%' },
+                { left: '75%', top: '50%' }
+            ];
+            if (n === 3) return [
+                { left: '50%', top: '28%' },
+                { left: '25%', top: '74%' },
+                { left: '75%', top: '74%' }
+            ];
+            if (n === 4) return [
+                { left: '25%', top: '28%' },
+                { left: '75%', top: '28%' },
+                { left: '25%', top: '74%' },
+                { left: '75%', top: '74%' }
+            ];
+            const top = Math.ceil(n / 2);
+            const bot = n - top;
+            const out = [];
+            for (let i = 0; i < top; i++) {
+                out.push({ left: ((i + 0.5) * 100 / top).toFixed(2) + '%', top: '28%' });
+            }
+            for (let i = 0; i < bot; i++) {
+                out.push({ left: ((i + 0.5) * 100 / bot).toFixed(2) + '%', top: '74%' });
+            }
+            return out;
+        }
+
+        // Append additional `.ms-option-btn` elements to the answer zone
+        // until at least `count` buttons exist. Used when a question
+        // supplies more than the 4 static buttons. Click handlers are
+        // bound here because the global init() loop only saw the static
+        // four at page load.
+        function msEnsureOptionButtons(zone, count) {
+            if (!zone) return;
+            const existing = zone.querySelectorAll('.ms-option-btn');
+            for (let i = existing.length; i < count; i++) {
+                const b = document.createElement('button');
+                b.className = 'ms-option-btn tappable';
+                b.id = 'ms-opt-' + i;
+                b.type = 'button';
+                b.setAttribute('aria-label', 'Variant ' + (i + 1));
+                b.addEventListener('click', () => msHandleAnswer(i));
+                zone.appendChild(b);
+            }
+        }
 
         function startMemorySprintPhase() {
             setStage(4);
@@ -5390,25 +5542,43 @@
             if (subtitleEl) subtitleEl.textContent = item.subtitle;
             if (explainerEl) explainerEl.innerHTML = item.explain || '';
 
+            const opts = Array.isArray(item.options) ? item.options : [];
+            const zone = document.getElementById('ms-answer-zone');
+            // Grow the button pool first (needed for MC questions with
+            // 5+ options that previously got silently truncated).
+            msEnsureOptionButtons(zone, opts.length);
+            const positions = msPositionsFor(opts.length);
             const optBtns = document.querySelectorAll('.ms-option-btn');
             optBtns.forEach((b, i) => {
-                b.disabled = false;
-                b.classList.remove('correct', 'wrong', 'merging');
-                b.textContent = item.options[i];
-                // Keep accessible name synced with visible text — the static
-                // aria-label="Variant N" is a pre-JS fallback; once we have
-                // real option text, that is the more useful label.
-                b.setAttribute('aria-label', item.options[i] || ('Variant ' + (i + 1)));
-                b.style.left = '50%';
-                b.style.top = '50%';
-                b.style.transform = 'translate(-50%, -50%) scale(0.15)';
-                b.classList.remove('visible');
+                b.classList.remove('correct', 'wrong', 'merging', 'visible');
+                if (i < opts.length) {
+                    b.disabled = false;
+                    b.classList.remove('is-hidden');
+                    b.textContent = opts[i];
+                    // Keep accessible name synced with visible text — the
+                    // static aria-label="Variant N" is a pre-JS fallback;
+                    // once we have real option text, that is more useful.
+                    b.setAttribute('aria-label', opts[i] || ('Variant ' + (i + 1)));
+                    b.style.left = '50%';
+                    b.style.top = '50%';
+                    b.style.transform = 'translate(-50%, -50%) scale(0.15)';
+                } else {
+                    // Hide unused buttons completely so True/False (2) and
+                    // YNNG (3) questions don't render literal "undefined"
+                    // tappable buttons in the empty slots.
+                    b.classList.add('is-hidden');
+                    b.disabled = true;
+                    b.textContent = '';
+                    b.removeAttribute('aria-label');
+                }
             });
 
             const reveal = () => {
                 optBtns.forEach((b, i) => {
-                    b.style.left = msExpandedPositions[i].left;
-                    b.style.top = msExpandedPositions[i].top;
+                    if (i >= opts.length) return;
+                    const pos = positions[i] || { left: '50%', top: '50%' };
+                    b.style.left = pos.left;
+                    b.style.top = pos.top;
                     b.style.transform = 'translate(-50%, -50%) scale(1)';
                     b.classList.add('visible');
                 });
@@ -5438,9 +5608,11 @@
                 });
             }
 
+            const optsLen = Array.isArray(item.options) ? item.options.length : 0;
             const optBtns = document.querySelectorAll('.ms-option-btn');
             optBtns.forEach((b, i) => {
                 b.disabled = true;
+                if (i >= optsLen) return; // skip hidden TF/YNNG slots
                 if (i === item.correct) b.classList.add('correct');
                 else b.classList.add('wrong');
             });
@@ -5498,6 +5670,7 @@
         function msCollapseToLoader() {
             const optBtns = document.querySelectorAll('.ms-option-btn');
             optBtns.forEach(b => {
+                if (b.classList.contains('is-hidden')) return;
                 b.classList.add('merging');
                 b.style.left = '50%';
                 b.style.top = '50%';
@@ -6633,11 +6806,30 @@
             const fb = document.getElementById('gb-mb-id-feedback');
             if (fb) { fb.textContent = ''; fb.className = 'gb-mb-feedback'; }
             if (labelsHost) {
-                labelsHost.innerHTML = mb.labels.map(l =>
-                    '<button class="gb-mb-label" type="button" data-mb-label="' + String(l).replace(/"/g, '&quot;') + '">' + (l || '') + '</button>'
-                ).join('');
-                labelsHost.querySelectorAll('.gb-mb-label').forEach(el => {
-                    el.onclick = () => gbMBPickLabel(el.dataset.mbLabel || '');
+                // Build via DOM methods so author-provided strings can't
+                // smuggle markup into the chip. Also: when the label
+                // string is empty, provide an explicit "Variant N"
+                // accessible name so screen readers don't announce an
+                // empty button.
+                while (labelsHost.firstChild) labelsHost.removeChild(labelsHost.firstChild);
+                mb.labels.forEach((l, i) => {
+                    const raw = String(l == null ? '' : l);
+                    const fallback = 'Variant ' + (i + 1);
+                    const btn = document.createElement('button');
+                    btn.className = 'gb-mb-label';
+                    btn.type = 'button';
+                    btn.dataset.mbLabel = raw;
+                    btn.setAttribute('aria-label', raw || fallback);
+                    if (raw) {
+                        btn.textContent = raw;
+                    } else {
+                        const ph = document.createElement('span');
+                        ph.setAttribute('aria-hidden', 'true');
+                        ph.textContent = fallback;
+                        btn.appendChild(ph);
+                    }
+                    btn.addEventListener('click', () => gbMBPickLabel(btn.dataset.mbLabel || ''));
+                    labelsHost.appendChild(btn);
                 });
             }
             if (idStage) idStage.classList.add('show');
