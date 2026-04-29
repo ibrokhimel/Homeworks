@@ -165,12 +165,7 @@
     ).join("");
 
     return `
-      <section class="aq-grading">
-        <header class="aq-grading-head">
-          <span class="fc-face-label">Answer grading</span>
-          <span class="aq-grading-hint">how the runtime decides correct vs partial vs wrong</span>
-        </header>
-
+      <div class="aq-grading">
         <div class="aq-grid">
           <label class="aq-field aq-field-wide">
             <span class="aq-field-label">Canonical answer</span>
@@ -214,7 +209,7 @@
           <span class="aq-preview-label">Accepted examples</span>
           <div class="aq-preview-content js-preview-content">Loading preview…</div>
         </div>
-      </section>
+      </div>
     `;
   }
 
@@ -256,26 +251,50 @@
                           <button class="btn btn-ghost btn-small js-remove-item" type="button" aria-label="Remove question">Remove</button>
                         </div>
 
-                        <div class="fc-media-zone">
-                          <div class="fc-media-toolbar">
-                            <span class="fc-media-label">Media (optional)</span>
-                            <div class="fc-media-actions">
-                              <button type="button" class="btn btn-ghost btn-small js-aq-media-image">🖼 Image</button>
-                              <button type="button" class="btn btn-ghost btn-small js-aq-media-svg">◆ SVG</button>
-                              ${hasMedia ? '<button type="button" class="btn btn-ghost btn-small js-aq-media-clear">Clear</button>' : ""}
-                            </div>
+                        <!-- Question (writable rich-text) — placed first so authors can
+                             draft the prompt before deciding whether to add media. -->
+                        <section class="aq-section aq-section--question">
+                          <header class="aq-section-head">
+                            <span class="aq-section-eyebrow">1 · Question</span>
+                            <span class="aq-section-hint">What the learner sees first.</span>
+                          </header>
+                          <div class="fc-face">
+                            <div class="js-rich-host" data-key="q" data-index="${index}"></div>
                           </div>
-                          ${renderMediaPreview(item.media)}
-                        </div>
+                        </section>
 
-                        <div class="fc-face">
-                          <span class="fc-face-label">Question</span>
-                          <div class="js-rich-host" data-key="q" data-index="${index}"></div>
-                        </div>
+                        <section class="aq-section aq-section--media">
+                          <header class="aq-section-head">
+                            <span class="aq-section-eyebrow">2 · Media</span>
+                            <span class="aq-section-hint">Optional image or diagram anchored above the question at runtime.</span>
+                          </header>
+                          <div class="fc-media-zone">
+                            <div class="fc-media-toolbar">
+                              <span class="fc-media-label">Media (optional)</span>
+                              <div class="fc-media-actions">
+                                <button type="button" class="btn btn-ghost btn-small js-aq-media-image">🖼 Image</button>
+                                <button type="button" class="btn btn-ghost btn-small js-aq-media-svg">◆ SVG</button>
+                                ${hasMedia ? '<button type="button" class="btn btn-ghost btn-small js-aq-media-clear">Clear</button>' : ""}
+                              </div>
+                            </div>
+                            ${renderMediaPreview(item.media)}
+                          </div>
+                        </section>
 
-                        ${renderGradingBlock(item, index)}
+                        <section class="aq-section aq-section--answer">
+                          <header class="aq-section-head">
+                            <span class="aq-section-eyebrow">3 · Answer</span>
+                            <span class="aq-section-hint">How the runtime grades the learner's response.</span>
+                          </header>
+                          ${renderGradingBlock(item, index)}
+                        </section>
 
-                        <div class="fc-meta-row aq-meta-row">
+                        <section class="aq-section aq-section--settings">
+                          <header class="aq-section-head">
+                            <span class="aq-section-eyebrow">4 · Settings</span>
+                            <span class="aq-section-hint">Tier, capture, tags, and an optional hint.</span>
+                          </header>
+                          <div class="fc-meta-row aq-meta-row">
                           <div class="fc-meta-field">
                             <span class="fc-meta-label">Tier</span>
                             <select class="js-field" data-key="tier">
@@ -297,7 +316,8 @@
                             <span class="fc-meta-label">🧠 Hint (optional)</span>
                             <textarea class="js-field" data-key="hint" rows="2" placeholder="A gentle nudge if the learner is stuck…">${escapeHtml(item.hint)}</textarea>
                           </div>
-                        </div>
+                          </div>
+                        </section>
                       </section>
                     `;
                   })

@@ -95,8 +95,12 @@ def test_adaptive_quiz_builder_has_grouped_grading_ui():
     css = _read(APP_CSS)
 
     assert "function renderGradingBlock" in js
-    assert '<section class="aq-grading">' in js
-    assert "Answer grading" in js
+    # Wave V.2 (PR runtime-ux-polish 2026-04-30): the grading block
+    # moved from a standalone <section class="aq-grading"> to a
+    # <div class="aq-grading"> nested inside the outer
+    # <section class="aq-section aq-section--answer"> wrapper.
+    assert 'class="aq-grading"' in js
+    assert 'aq-section--answer' in js
     assert "Allow AI fallback" in js
     assert "Custom rubric copy" in js
     assert "Accepted examples" in js
@@ -109,6 +113,9 @@ def test_adaptive_quiz_builder_has_grouped_grading_ui():
     assert ".aq-toggle" in css
     assert ".aq-preview" in css
     assert ".aq-card .fc-meta-row.aq-meta-row" in css
+    # Numbered sections must each be styled.
+    assert ".aq-section" in css
+    assert ".aq-section-eyebrow" in css
 
 
 def test_adaptive_quiz_mobile_layout_stacks_at_640px():

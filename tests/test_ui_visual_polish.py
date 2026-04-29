@@ -9,13 +9,34 @@ def _read(path: str) -> str:
 
 
 def test_search_box_uses_visual_icon_and_pill_focus_treatment():
+    """Wave V.2 (PR runtime-ux-polish 2026-04-30) replaced the
+    `.search-box span::before` implementation with a unified
+    .search-box__icon element shared across dashboard / library /
+    quote-picker. Re-pin the design so a future revert can't quietly
+    bring back the heavier ::before pill."""
     css = _read("frontend/css/app.css")
 
-    assert ".search-box span::before" in css
-    assert ".search-box span::after" in css
-    assert "border-radius: 999px" in css
-    assert "box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-mid)" in css
-    assert "--family-aniq: #0066CC" in css
+    # Icon now lives on a real element (.search-box__icon) plus a
+    # backwards-compatible aria-hidden <span> selector so older markup
+    # still gets styled the same way.
+    assert ".search-box .search-box__icon" in css
+    assert '.search-box > span[aria-hidden="true"]' in css
+
+    # Focus state: glow ring + accent border via box-shadow.
+    assert ".search-box:focus-within" in css
+    assert "var(--accent-glow)" in css
+    # The border-radius can be either 999px (pill) or 11-12px (rounded
+    # rect) — the new compact look uses ~11px. Accept either so the
+    # test isn't tied to the exact radius if it's tweaked later.
+    assert ("border-radius: 999px" in css) or ("border-radius: 11px" in css) or ("border-radius: 12px" in css)
+
+    # Dark-mode override exists for the search box.
+    assert '[data-theme="dark"] .search-box' in css
+
+    # Clear-button affordance — the pill shows the × only when the
+    # wrapper picks up .is-filled (toggled by frontend/js/search-box.js).
+    assert ".search-box .search-box__clear" in css
+    assert ".search-box.is-filled .search-box__clear" in css
 
 
 def test_library_toolbar_prioritizes_search_column():

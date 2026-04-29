@@ -69,8 +69,9 @@
 
       <section class="toolbar glass-card" data-i18n-aria-label="dashboard.toolbar_aria" aria-label="Library filters">
         <label class="search-box">
-          <span aria-hidden="true">⌕</span>
+          <span class="search-box__icon" aria-hidden="true">⌕</span>
           <input id="search-input" type="search" data-i18n-placeholder="dashboard.search_placeholder" placeholder="Search by title, subject, ID…" autocomplete="off" />
+          <button type="button" class="search-box__clear" data-search-clear data-i18n-aria-label="common.clear" aria-label="Clear search" tabindex="-1">×</button>
         </label>
 
         <div class="filter-row">
@@ -220,6 +221,7 @@
   <script src="/js/i18n/strings.js?v=__VERSION__"></script>
   <script src="/js/i18n.js?v=__VERSION__"></script>
   <script src="/js/api.js?v=__VERSION__"></script>
+  <script src="/js/search-box.js?v=__VERSION__"></script>
   <script src="/js/dashboard.js?v=__VERSION__"></script>
 </body>
 </html>
