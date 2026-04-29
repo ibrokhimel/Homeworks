@@ -50,7 +50,6 @@ async def list_homeworks(
     mode: Optional[str] = Query(None),
     limit: int = Query(50),
     offset: int = Query(0),
-    legacy: bool = Query(False),
     include_deleted: bool = Query(False),
 ):
     # Clamp limit to 200 max — silently friendly.
@@ -64,9 +63,6 @@ async def list_homeworks(
         limit=limit,
         offset=offset,
     )
-    if legacy:
-        # TODO(post-frontend-cutover): remove legacy=true branch
-        return result["items"]
     return result
 
 @router.post("")
