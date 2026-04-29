@@ -308,18 +308,34 @@ def test_tutor_widget_hwid_uses_lazy_getter(client, created_hw):
 # Wave J — visual cosmetics
 # ──────────────────────────────────────────────────────────────────
 
-def test_theme_toggle_button_present(client, created_hw):
-    """Wave J F1: rendered HTML must contain the theme-toggle button inside the panel."""
+def test_tutor_no_local_theme_toggle(client, created_hw):
+    """Post-2026-04-29 cleanup: the tutor must NOT ship its own
+    light/dark toggle. The page-level navbar toggle
+    (frontend/js/theme.js) is the single source of truth — the
+    runtime player consumes the saved value via the `storage`
+    listener in `applyStoredTheme()`. A user-visible per-tutor
+    toggle splits the mental model and the audit flagged it.
+
+    This test inverts the prior `test_theme_toggle_button_present`
+    so a future "let's add a chat-side toggle" PR has to come back
+    and rewrite the rule rather than silently regress."""
     r = client.get(f"/h/{created_hw['id']}")
     assert r.status_code == 200
     body = r.text
-    assert 'id="nets-tutor-theme-toggle"' in body, \
-        "Wave J theme toggle button (id=nets-tutor-theme-toggle) missing from rendered HTML"
-    # Must be inside the panel header — ensure it appears after the panel div.
-    panel_pos = body.find('id="nets-tutor-panel"')
-    toggle_pos = body.find('id="nets-tutor-theme-toggle"')
-    assert panel_pos != -1 and toggle_pos != -1
-    assert toggle_pos > panel_pos, "theme toggle must appear inside the tutor panel"
+    assert 'id="nets-tutor-theme-toggle"' not in body, (
+        "tutor panel must not ship a per-chat theme toggle — the "
+        "navbar toggle drives `data-theme` for the whole player"
+    )
+    # The storage-sync hook that lets the navbar toggle reach the
+    # runtime player MUST still be in place.
+    assert "applyStoredTheme" in body, (
+        "tutor must keep the read-only theme mirror so a navbar "
+        "toggle in another tab/document still updates the runtime"
+    )
+    assert "addEventListener('storage'" in body or "addEventListener(\"storage\"" in body, (
+        "tutor must still listen for the cross-document `storage` "
+        "event — that's how the navbar toggle reaches the player"
+    )
 
 
 def test_tutor_avatar_present(client, created_hw):

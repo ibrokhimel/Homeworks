@@ -166,15 +166,23 @@ def test_escape_key_handler_registered():
 
 
 def test_chat_theme_toggle_listens_for_storage_events():
-    """The chat IIFE's setupThemeToggle must register a `storage` listener
-    on `nets_theme` so the chat icon resyncs when the navbar toggle (PR #37)
-    flips the theme in another tab or the parent document."""
+    """The chat IIFE must register a `storage` listener on
+    `nets_theme` so the runtime player resyncs when the navbar
+    toggle (PR #37) flips the theme in another tab or the parent
+    document.
+
+    The 2026-04-29 cleanup removed the chat-side toggle button and
+    renamed the setup function from `setupThemeToggle()` (which
+    wired BOTH the button click handler AND the storage listener)
+    to `applyStoredTheme()` (which only does the read-only mirror).
+    The behavioural invariant under test is unchanged: a storage
+    listener gated by THEME_KEY must exist."""
     html = _read_template()
-    setup_idx = html.index("function setupThemeToggle()")
-    setup_end = html.index("\n        }\n        setupThemeToggle();", setup_idx)
+    setup_idx = html.index("function applyStoredTheme()")
+    setup_end = html.index("applyStoredTheme();", setup_idx)
     body = html[setup_idx:setup_end]
     assert "addEventListener('storage'" in body or 'addEventListener("storage"' in body, (
-        "setupThemeToggle must listen for storage events to resync with the navbar"
+        "applyStoredTheme must listen for storage events to resync with the navbar"
     )
     assert "THEME_KEY" in body  # gate by key so unrelated storage writes don't apply
 
