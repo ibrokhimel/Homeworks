@@ -55,25 +55,25 @@
 
           <section class="editor-card">
             <div class="editor-grid">
-              <label class="field full-span">
+              <div class="field full-span">
                 <span>Summary</span>
                 <div class="js-rich-host" data-key="summary"></div>
-              </label>
+              </div>
 
-              <label class="field full-span">
+              <div class="field full-span">
                 <span>Reflection question</span>
                 <div class="js-rich-host" data-key="question"></div>
-              </label>
+              </div>
 
-              <label class="field full-span">
+              <div class="field full-span">
                 <span>Spaced repetition</span>
                 <div class="js-rich-host" data-key="spaced_rep"></div>
-              </label>
+              </div>
 
-              <label class="field full-span">
+              <div class="field full-span">
                 <span>Closing</span>
                 <div class="js-rich-host" data-key="closing"></div>
-              </label>
+              </div>
             </div>
           </section>
         </div>

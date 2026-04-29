@@ -98,6 +98,9 @@ The single source of truth for a homework's content. Stored as JSON in SQLite `h
   "gb_mystery_box": [
     { "category": "Algebra", "q": "Solve 3x+5=14", "a": "3" }
   ],
+  "gb_ttt": [
+    { "q": "What is 7 x 8?", "correct": "56", "distractors": ["54", "48", "63"] }
+  ],
   "real_life": {
     "badge": "VAZIFA · Scenario name",
     "story": "multi-line story text",
@@ -305,12 +308,12 @@ All responses JSON unless noted. All errors return `{ "error": "message", "code"
 {
   "meta": { "title": "...", "subject_display": "...", "section": "", "cefr_level": "" },
   "gate_quote": { "mode": "auto" }, "panels": [], "flashcards": [], "memory_sprint": [],
-  "gb_adaptive_quiz": [], "gb_why_chain": [], "gb_memory_match": [], "gb_puzzle_lock": [], "gb_mystery_box": [],
+  "gb_adaptive_quiz": [], "gb_why_chain": [], "gb_memory_match": [], "gb_puzzle_lock": [], "gb_mystery_box": [], "gb_ttt": [],
   "real_life": null, "boss_questions": [], "reflection": null
 }
 ```
 
-**Phase 3 games are all optional.** All five `gb_*` keys above are independently optional — the injector keeps empty arrays as `[]` and the runtime registry (`gbActiveGameOrder()` in `perfect_homework.html`) skips empty slots. If all five are empty, Stage 5 is skipped entirely and the student goes straight from Reading/Memory Sprint to Real-Life Challenge. **Never re-add placeholder fallbacks for game-break keys** — see `tests/test_optional_games.py` for the regression contract. This rule applies to every new Phase 3 game added in the future.
+**Phase 3 games are all optional.** All `gb_*` keys above are independently optional — the injector keeps empty arrays as `[]` and the runtime registry (`gbActiveGameOrder()` in `perfect_homework.html`) skips empty slots. If every game is empty, Stage 5 is skipped entirely and the student goes straight from Reading/Memory Sprint to Real-Life Challenge. **Never re-add placeholder fallbacks for game-break keys** — see `tests/test_optional_games.py` for the regression contract. This rule applies to every new Phase 3 game added in the future.
 
 ### AI Generation
 
@@ -369,6 +372,7 @@ Frontend uses `EventSource` to consume. Each `phase` event with `status: "done"`
 | `GB_MEMORY_MATCH` | `gb_memory_match` | array |
 | `GB_PUZZLE_LOCK` | `gb_puzzle_lock` | array |
 | `GB_MYSTERY_BOX` | `gb_mystery_box` | array (adapter stamps shared `labels` per item) |
+| `GB_TTT` | `gb_ttt` | array (flat MC items: `{q, correct, distractors[3]}` — runtime cycles items per cell tap) |
 | `RL_SCENARIO` | `real_life` | object |
 | `BOSS_QUESTIONS` | `boss_questions` | array |
 

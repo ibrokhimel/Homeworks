@@ -6,6 +6,7 @@
 // - /js/editors/games/tile-match.js
 // - /js/editors/games/puzzle-lock.js
 // - /js/editors/games/mystery-box.js
+// - /js/editors/games/ttt.js
 
 (function () {
   "use strict";
@@ -48,6 +49,13 @@
       icon: "📦",
       editor: "mysteryBox",
       description: "Interleaved category recognition. Each box has category + problem + answer. Student identifies category first, then solves.",
+    },
+    {
+      id: "ttt",
+      label: "Tic Tac Toe",
+      icon: "⭕",
+      editor: "ttt",
+      description: "Knowledge-gated 3×3 grid vs minimax AI. Each item is a MC question (q + correct + 3 distractors) consumed per cell tap. 3 games per session.",
     },
   ];
 
@@ -115,6 +123,20 @@
       : [];
   }
 
+  function normalizeTTT(items) {
+    return Array.isArray(items)
+      ? items.map((item) => {
+          const distractors = Array.isArray(item?.distractors) ? item.distractors.slice(0, 3) : [];
+          while (distractors.length < 3) distractors.push("");
+          return {
+            q: typeof item?.q === "string" ? item.q : "",
+            correct: typeof item?.correct === "string" ? item.correct : "",
+            distractors: distractors.map((d) => (typeof d === "string" ? d : "")),
+          };
+        })
+      : [];
+  }
+
   function normalize(data) {
     const safe = data && typeof data === "object" ? data : {};
 
@@ -126,6 +148,7 @@
       memory_match: normalizeTileMatch(safe.memory_match ?? safe.gb_memory_match),
       puzzle_lock: normalizePuzzleLock(safe.puzzle_lock ?? safe.gb_puzzle_lock),
       mystery_box: normalizeMysteryBox(safe.mystery_box ?? safe.gb_mystery_box),
+      ttt: normalizeTTT(safe.ttt ?? safe.gb_ttt),
     };
   }
 
@@ -144,6 +167,7 @@
     if (tabId === "memory_match") return state.memory_match;
     if (tabId === "puzzle_lock") return state.puzzle_lock;
     if (tabId === "mystery_box") return state.mystery_box;
+    if (tabId === "ttt") return state.ttt;
     return [];
   }
 
@@ -153,6 +177,7 @@
     if (tabId === "memory_match") state.memory_match = normalizeTileMatch(value);
     if (tabId === "puzzle_lock") state.puzzle_lock = normalizePuzzleLock(value);
     if (tabId === "mystery_box") state.mystery_box = normalizeMysteryBox(value);
+    if (tabId === "ttt") state.ttt = normalizeTTT(value);
   }
 
   function renderTabs(state, activeTab) {
@@ -194,7 +219,7 @@
               </div>
             </div>
             <p class="muted-text">
-              Split by production game: Adaptive Quiz, Sentence Fill, Tile Match, Puzzle Lock, and Mystery Box. Each game owns its own JS editor.
+              Split by production game: Adaptive Quiz, Sentence Fill, Tile Match, Puzzle Lock, Mystery Box, and Tic Tac Toe. Each game owns its own JS editor.
             </p>
           </section>
 

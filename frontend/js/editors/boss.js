@@ -238,10 +238,10 @@
                         </div>
 
                         <div class="editor-grid">
-                          <label class="field full-span">
+                          <div class="field full-span">
                             <span>Question</span>
                             <div class="js-rich-host" data-key="q" data-index="${index}"></div>
-                          </label>
+                          </div>
 
                           <label class="field">
                             <span>Damage</span>
@@ -255,10 +255,10 @@
                             <input class="js-field" data-key="tags" type="text" value="${escapeHtml(question.tags)}" />
                           </label>
 
-                          <label class="field full-span">
+                          <div class="field full-span">
                             <span>Hint</span>
                             <div class="js-rich-host" data-key="hint" data-index="${index}"></div>
-                          </label>
+                          </div>
                         </div>
 
                         <div class="editor-card nested-card">
