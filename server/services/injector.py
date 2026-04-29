@@ -42,6 +42,16 @@ def _esc(s) -> str:
     return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def _safe_js_json(value) -> str:
+    """Serialize JSON for inline <script> assignment contexts."""
+    return (
+        json.dumps(value, ensure_ascii=False)
+        .replace("</", "<\\/")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+
+
 def _strip_html(s) -> str:
     """Strip HTML tags + decode common entities. Used for plain-text fields like
     flashcard front terms, which the template renders via textContent."""
@@ -683,7 +693,7 @@ def inject(
                     "acceptable": ["ok"],
                     "hints":      ["Builder'dan savollarni qo'shing.", "Savollar shu yerda paydo bo'ladi.", "Kontent tayyorlanishi kutilmoqda."],
                 }]
-        replacement = f"const {const_name} = {json.dumps(data, ensure_ascii=False)};"
+        replacement = f"const {const_name} = {_safe_js_json(data)};"
         pattern = rf"const {const_name}\s*=\s*\[.*?\];"
         html = re.sub(pattern, lambda _, r=replacement: r, html, count=1, flags=re.DOTALL)
 
@@ -708,7 +718,7 @@ def inject(
         # Convert if the template shape isn't already present.
         if "questions" not in rl or "closure" not in rl:
             rl = _rl_adapt_to_template(rl)
-        rl_json = f"const RL_SCENARIO = {json.dumps(rl, ensure_ascii=False)};"
+        rl_json = f"const RL_SCENARIO = {_safe_js_json(rl)};"
         # Try primary pattern (with // BOSS marker)
         primary = re.search(r"const RL_SCENARIO\s*=\s*\{.*?\};\s*// BOSS", html, flags=re.DOTALL)
         if primary:
@@ -782,14 +792,14 @@ def inject(
         else:
             normalized = obj
 
-        replacement = f"const {const_name} = {json.dumps(normalized, ensure_ascii=False)};"
+        replacement = f"const {const_name} = {_safe_js_json(normalized)};"
         # Replace the existing object literal (matches: const NAME = { ... };).
         pattern = rf"const {const_name}\s*=\s*\{{.*?\}};"
         if re.search(pattern, html, flags=re.DOTALL):
             html = re.sub(pattern, lambda _, r=replacement: r, html, count=1, flags=re.DOTALL)
 
     # Always inject the AI tutor runtime hook before </body>.
-    ctx_json = json.dumps(runtime_context, ensure_ascii=False)
+    ctx_json = _safe_js_json(runtime_context)
     runtime_snippet = (
         f'<script>window.NETS_CTX = {ctx_json};</script>\n'
         f'<script src="/static/runtime/runtime.js"></script>\n'

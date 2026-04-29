@@ -30,6 +30,18 @@ def _compute_version() -> str:
 
 VERSION = _compute_version()
 
+
+def _cors_origins() -> list[str]:
+    raw = os.environ.get("NETS_CORS_ORIGINS", "")
+    if raw.strip():
+        return [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]
+    return [
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+        "http://192.168.1.26:8000",
+    ]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.init_db()
@@ -58,7 +70,7 @@ async def get_favicon():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
