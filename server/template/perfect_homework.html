@@ -2795,108 +2795,276 @@
             color: var(--accent);
         }
 
-        /* ── Results / AMR Scorecard ──────────────────────────────── */
-        .screen-results-card { padding: 24px 22px; }
+        /* ── Results / AMR Scorecard ──────────────────────────────────
+           Statistical at-a-glance layout. Single color rule across the
+           whole card, applied via .perf-good (≥75%), .perf-mid (50–74%),
+           .perf-bad (<50%). The band label still reads
+           Mastered/Proficient/Apprentice/Novice but its tint follows the
+           percentage so a student knows immediately whether the run
+           landed in the green/yellow/red zone.
+        */
+        .screen-results-card {
+            padding: 24px 22px;
+            --perf-good: #22c55e;  --perf-good-soft: rgba(34,197,94,0.18);  --perf-good-line: rgba(34,197,94,0.55);
+            --perf-mid:  #eab308;  --perf-mid-soft:  rgba(234,179,8,0.18);  --perf-mid-line:  rgba(234,179,8,0.55);
+            --perf-bad:  #ef4444;  --perf-bad-soft:  rgba(239,68,68,0.18);  --perf-bad-line:  rgba(239,68,68,0.55);
+
+            /* The scorecard packs more than a single viewport's worth of
+               content (donut + band + 6 phase bars + 2 AMR axes + note +
+               coaching tip + closing + footer button). Make the card itself
+               scrollable so everything stays inside the rounded white box
+               while the screen frame stays still. */
+            overflow-y: auto;
+            min-height: 0;
+            /* Soft inertial-feel scroll on touch + thin custom scrollbar
+               so the chrome doesn't fight the dark glass background. */
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.18) transparent;
+        }
+        .screen-results-card::-webkit-scrollbar { width: 8px; }
+        .screen-results-card::-webkit-scrollbar-track { background: transparent; }
+        .screen-results-card::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.18);
+            border-radius: 999px;
+        }
+        .screen-results-card::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.32);
+        }
         .screen-results-caption { letter-spacing: 1.5px; }
+
+        /* Hero — donut gauge with band pill underneath */
+        .screen-results-headline { margin: 14px 0 6px; }
+        .screen-results-hero {
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .results-gauge { position: relative; width: 180px; height: 180px; }
+        .results-gauge svg {
+            width: 100%; height: 100%;
+            transform: rotate(-90deg); transform-origin: center;
+        }
+        .results-gauge-track { stroke: rgba(255,255,255,0.08); }
+        .results-gauge-fill  { stroke-linecap: round; transition: stroke-dashoffset 900ms cubic-bezier(.2,.7,.2,1); }
+        .results-gauge-center {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            pointer-events: none;
+        }
+        .results-gauge-pct  { font-size: 38px; font-weight: 800; line-height: 1; }
+        .results-gauge-frac { font-size: 11px; color: var(--text-dim); margin-top: 6px; letter-spacing: 0.3px; }
+
         .screen-results-band {
             display: inline-block;
-            margin: 8px 0 12px;
-            padding: 6px 14px;
+            margin-top: 14px;
+            padding: 6px 16px;
             border-radius: 999px;
             font-weight: 700;
-            font-size: 13px;
-            letter-spacing: 0.5px;
+            font-size: 12px;
+            letter-spacing: 0.6px;
             text-transform: uppercase;
         }
-        .screen-results-band.band-mastered   { background: rgba(34,197,94,0.18);  color: #86efac; border: 1px solid rgba(34,197,94,0.45); }
-        .screen-results-band.band-proficient { background: rgba(59,130,246,0.18); color: #93c5fd; border: 1px solid rgba(59,130,246,0.45); }
-        .screen-results-band.band-apprentice { background: rgba(234,179,8,0.18);  color: #fde68a; border: 1px solid rgba(234,179,8,0.45); }
-        .screen-results-band.band-novice     { background: rgba(239,68,68,0.18);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.45); }
-        .screen-results-headline {
-            font-size: 20px;
+        .screen-results-band.perf-good { background: var(--perf-good-soft); color: var(--perf-good); border: 1px solid var(--perf-good-line); }
+        .screen-results-band.perf-mid  { background: var(--perf-mid-soft);  color: var(--perf-mid);  border: 1px solid var(--perf-mid-line);  }
+        .screen-results-band.perf-bad  { background: var(--perf-bad-soft);  color: var(--perf-bad);  border: 1px solid var(--perf-bad-line);  }
+
+        /* Section headers reused between Phase list and AMR axes */
+        .results-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-dim);
+            margin: 22px 0 10px;
             font-weight: 700;
-            margin-bottom: 18px;
-            color: var(--text);
         }
-        .screen-results-phases {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-bottom: 18px;
-        }
+
+        /* Per-phase progress bars */
+        .screen-results-phases { margin-bottom: 4px; }
+        .results-phase-list { display: flex; flex-direction: column; gap: 8px; }
         .results-phase-row {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 130px 1fr 64px;
             align-items: center;
-            padding: 10px 14px;
-            background: rgba(99,184,255,0.07);
-            border: 1px solid rgba(99,184,255,0.2);
+            gap: 12px;
+            padding: 9px 12px;
+            background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.06);
             border-radius: 10px;
             font-size: 13px;
         }
-        .results-phase-row .results-phase-name { color: var(--text-dim); }
-        .results-phase-row .results-phase-score { font-weight: 700; color: var(--accent); }
-        .screen-results-amr {
-            margin-bottom: 18px;
-            padding: 14px 16px;
-            background: rgba(168,85,247,0.07);
-            border: 1px solid rgba(168,85,247,0.25);
-            border-radius: 12px;
+        .results-phase-name { color: var(--text); font-weight: 600; }
+        .results-phase-name small {
+            display: block; color: var(--text-dim);
+            font-size: 10px; font-weight: 500; margin-top: 2px;
+            letter-spacing: 0.2px;
         }
-        .results-amr-title {
-            font-size: 14px;
-            font-weight: 700;
-            color: rgba(216,180,254,0.95);
-            margin-bottom: 10px;
-            letter-spacing: 0.4px;
+        .results-phase-bar-track {
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.06);
+            overflow: hidden;
+        }
+        .results-phase-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 900ms cubic-bezier(.2,.7,.2,1);
+        }
+        .results-phase-bar-fill.perf-good { background: var(--perf-good); }
+        .results-phase-bar-fill.perf-mid  { background: var(--perf-mid);  }
+        .results-phase-bar-fill.perf-bad  { background: var(--perf-bad);  }
+        .results-phase-bar-fill.perf-neutral { background: rgba(255,255,255,0.18); }
+        .results-phase-score { text-align: right; font-weight: 700; font-size: 13px; }
+        .results-phase-score.perf-good    { color: var(--perf-good); }
+        .results-phase-score.perf-mid     { color: var(--perf-mid);  }
+        .results-phase-score.perf-bad     { color: var(--perf-bad);  }
+        .results-phase-score.perf-neutral { color: var(--text-dim);  }
+
+        /* AMR — gradient bars with a triangle marker showing where you
+           landed on the 1–4 axis. Bar segments use the same red/yellow/
+           green palette so the position alone tells the story.
+
+           Both axes live inside a single light-surface card so they
+           visually group as one block. The card-internal title sits
+           on top; the axes stack below; the note rides at the bottom.
+           Layout is sized to fit BOTH axes without scroll. */
+        .screen-results-amr {
+            margin: 4px 0 4px;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            box-sizing: border-box;
+        }
+        .screen-results-amr .results-section-title {
+            margin: 0 0 12px;   /* override outer-default top margin so the title sits flush inside the card */
         }
         .results-amr-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .results-axis {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            grid-template-columns: 1fr auto;
+            row-gap: 4px; column-gap: 10px;
+            align-items: baseline;
+            min-width: 0;        /* allow children to shrink inside the card */
         }
-        .results-amr-axis {
-            padding: 10px 12px;
-            background: rgba(255,255,255,0.04);
-            border-radius: 8px;
+        .results-axis-label { font-size: 13px; font-weight: 600; color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+        .results-axis-value { font-size: 13px; font-weight: 700; color: var(--text-dim); justify-self: end; white-space: nowrap; }
+        .results-axis-bar-wrap { grid-column: 1 / -1; position: relative; padding-top: 10px; }
+        .results-axis-bar {
+            height: 10px;
+            border-radius: 5px;
+            background: linear-gradient(to right,
+                var(--perf-bad)  0%,
+                var(--perf-bad)  25%,
+                var(--perf-mid)  25%,
+                var(--perf-mid)  62.5%,
+                var(--perf-good) 62.5%,
+                var(--perf-good) 100%);
+            opacity: 0.92;
         }
-        .results-amr-axis-label {
+        .results-axis-bar.is-empty { opacity: 0.25; }
+        .results-axis-marker {
+            position: absolute;
+            top: 1px;
+            transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid var(--text);
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.55));
+            transition: left 900ms cubic-bezier(.2,.7,.2,1);
+        }
+        .results-axis-ticks {
+            display: flex; justify-content: space-between;
+            font-size: 9px; color: var(--text-dim);
+            margin-top: 4px; padding: 0 1px;
+            letter-spacing: 0.5px;
+        }
+        .results-axis-tag { grid-column: 1 / -1; font-size: 11px; margin-top: 2px; font-weight: 600; }
+        .results-axis-tag.perf-good { color: var(--perf-good); }
+        .results-axis-tag.perf-mid  { color: var(--perf-mid);  }
+        .results-axis-tag.perf-bad  { color: var(--perf-bad);  }
+        .results-axis-tag.perf-neutral { color: var(--text-dim); font-style: italic; font-weight: 500; }
+
+        .results-amr-note {
             font-size: 11px;
             color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
+            line-height: 1.55;
+            margin-top: 12px;
+            padding: 8px 10px;
+            background: rgba(255,255,255,0.025);
+            border-radius: 6px;
         }
-        .results-amr-axis-value {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text);
+        .results-amr-empty {
+            font-size: 12px;
+            color: var(--text-dim);
+            line-height: 1.55;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
         }
-        .results-amr-axis-band {
-            font-size: 11px;
-            color: rgba(216,180,254,0.85);
-            margin-top: 2px;
-        }
+
+        /* Coaching tip — color matches the band */
         .screen-results-mastery {
             font-size: 13px;
             line-height: 1.55;
-            color: var(--text-dim);
+            color: var(--text);
             padding: 12px 14px;
-            background: rgba(34,197,94,0.05);
-            border-left: 3px solid rgba(34,197,94,0.45);
-            border-radius: 6px;
-            margin-bottom: 14px;
+            border-radius: 8px;
+            margin: 20px 0 4px;
         }
+        .screen-results-mastery.perf-good { background: rgba(34,197,94,0.06); border-left: 3px solid var(--perf-good); }
+        .screen-results-mastery.perf-mid  { background: rgba(234,179,8,0.06); border-left: 3px solid var(--perf-mid);  }
+        .screen-results-mastery.perf-bad  { background: rgba(239,68,68,0.06); border-left: 3px solid var(--perf-bad);  }
+
         .screen-results-closing {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-dim);
             font-style: italic;
             text-align: center;
-            margin-top: 8px;
+            margin-top: 14px;
         }
+
+        /* Results-screen footer button — Tugatish (≥60%) or Qayta bajarish (<60%).
+           This replaces the old post-boss "Hali emas / Qayta urinish" forced-redo
+           flow: regardless of whether the Boss was beaten, the student lands here
+           and chooses (or doesn't) based on the session percentage. */
+        .screen-results-actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 18px;
+        }
+        .results-action-btn {
+            appearance: none;
+            border: 0;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.4px;
+            padding: 12px 28px;
+            border-radius: 999px;
+            transition: transform 120ms ease, filter 120ms ease;
+        }
+        .results-action-btn:hover  { filter: brightness(1.08); }
+        .results-action-btn:active { transform: translateY(1px); }
+        .results-action-btn.is-finish {
+            background: var(--perf-good);
+            color: #052e14;
+        }
+        .results-action-btn.is-redo {
+            background: var(--perf-bad);
+            color: #2a0808;
+        }
+
         @media (max-width: 600px) {
-            .screen-results-phases { grid-template-columns: 1fr; }
-            .results-amr-grid { grid-template-columns: 1fr; }
+            .results-gauge { width: 150px; height: 150px; }
+            .results-gauge-pct { font-size: 32px; }
+            .results-phase-row { grid-template-columns: 96px 1fr 56px; gap: 8px; font-size: 12px; }
+            .results-action-btn { width: 100%; }
         }
 
         /* ── Wave F2: Persistent AI Tutor Widget ────────────────── */
@@ -3765,13 +3933,6 @@
                     <div class="rl-q-body">
                         <div class="rl-q-prompt" id="rl-q3-prompt"></div>
                         <input class="rl-input" id="rl-q3-input" type="text" inputmode="text" placeholder="Ildizlarni yozing..." autocomplete="off" autocorrect="off" spellcheck="false" />
-                        <div class="rl-capture-area">
-                            <button class="rl-capture-btn" id="rl-q3-capture-btn" onclick="rlCaptureQ3()">📷 Yechimni yuklash</button>
-                            <div class="rl-capture-done" id="rl-q3-capture-done">
-                                <div class="rl-capture-confirm">✓ Yechimingiz yuklandi</div>
-                                <div class="rl-capture-mock-img">📄</div>
-                            </div>
-                        </div>
                         <div class="rl-feedback" id="rl-q3-fb"></div>
                     </div>
                 </div>
@@ -3905,6 +4066,7 @@
                 <div class="screen-results-amr" id="results-amr"></div>
                 <div class="screen-results-mastery" id="results-mastery"></div>
                 <div class="screen-results-closing" id="results-closing"></div>
+                <div class="screen-results-actions" id="results-actions"></div>
             </div>
         </div>
 
@@ -4760,30 +4922,27 @@
             else if (state.stage === 6) rlHandleAction();
             else if (state.stage === 7) bossHandleAction();
             else if (state.stage === 7.5 && btn.classList.contains('state-pill')) {
-                const defeatEl = document.getElementById('boss-defeat');
-                if (defeatEl && defeatEl.style.display !== 'none') {
-                    startFinalBoss();
-                } else {
-                    // Wave 2: Reflection sits after Boss before finish (auto-skip if empty).
-                    // After Reflection (or directly after Boss when Reflection is empty),
-                    // we always show the AMR Results scorecard as the final stage.
-                    const showResultsThenFinish = () => {
-                        if (typeof showResultsScreen === 'function') {
-                            showResultsScreen();
-                        } else {
-                            // Defensive — if for any reason showResultsScreen wasn't
-                            // injected, fall through to plain finish.
-                            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-                        }
-                        btn.classList.remove('pulse', 'state-pill');
-                        btn.classList.add('state-line');
-                        if (btnText) btnText.style.opacity = '0';
-                    };
-                    if (typeof showReflectionScreen === 'function' && reflectionHasContent()) {
-                        showReflectionScreen(showResultsThenFinish);
+                // Wave 2 + grading-flow update: regardless of whether the Boss
+                // was defeated or survived, the next click always advances to
+                // the AMR Results scorecard. The decision to redo the homework
+                // is moved INTO the results screen (a button is shown there
+                // when the session score is < 60%).
+                const showResultsThenFinish = () => {
+                    if (typeof showResultsScreen === 'function') {
+                        showResultsScreen();
                     } else {
-                        showResultsThenFinish();
+                        // Defensive — if for any reason showResultsScreen wasn't
+                        // injected, fall through to plain finish.
+                        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
                     }
+                    btn.classList.remove('pulse', 'state-pill');
+                    btn.classList.add('state-line');
+                    if (btnText) btnText.style.opacity = '0';
+                };
+                if (typeof showReflectionScreen === 'function' && reflectionHasContent()) {
+                    showReflectionScreen(showResultsThenFinish);
+                } else {
+                    showResultsThenFinish();
                 }
             }
         }
@@ -6380,12 +6539,15 @@
                         // without escalating, so we go straight to semantic
                         // — the deterministic checker always returns
                         // "unsure" and the AI does the meaning-aware match.
+                        // Per GRADING.md: Sentence Fill (Phase 3) is CLOSED
+                        // accuracy — no AMR axes. We only need a meaning-aware
+                        // correct/wrong decision. amr is intentionally false.
                         answer_spec: {
                             type: 'semantic',
                             expected: expected,
                             canonical_display: expected,
                             allow_ai_fallback: true,
-                            amr: true
+                            amr: false
                         },
                         allow_ai_fallback: true,
                         subject: (window.NETS_CTX && NETS_CTX.subject) || 'geometriya-g7-11',
@@ -6421,19 +6583,22 @@
             if (checkingBubble && checkingBubble.parentNode) checkingBubble.parentNode.removeChild(checkingBubble);
             if (ta) ta.disabled = false;
             const ok = !!result.correct;
-            // Log the result for the end-of-session AMR scorecard. We log
-            // ONCE per chain (not per sub-level) so the report mirrors the
-            // five sentence-fill prompts the student saw, with the axis
-            // values from the level-1 attempt that resolved the chain.
+            // Log the result for the end-of-session scorecard. We log ONCE
+            // per chain (not per sub-level) so the report mirrors the five
+            // sentence-fill prompts the student saw.
+            //
+            // Per GRADING.md: Phase 3 Sentence Fill is CLOSED ACCURACY — no
+            // AMR axes. The 2-axis rubric only applies to Phase 4 Real-Life
+            // and Phase 6 Final Boss. Logging axes here would inflate the
+            // overall axis means with non-rubric data.
             if (window.__sessionLog && (ok || wc.retries >= 1)) {
                 window.__sessionLog.push({
                     phase: 'sentence-fill',
                     id: 'wc-' + (wc.chainIdx + 1),
                     correct: ok,
                     score: typeof result.score === 'number' ? result.score : (ok ? 1 : 0),
-                    axis_1: result.axis_1 || (ok ? 4 : 1),
-                    axis_2: result.axis_2 || (ok ? 4 : 1),
                     first_try: ok && wc.retries === 0,
+                    closed: true,
                     feedback: result.feedback || '',
                 });
             }
@@ -7344,6 +7509,38 @@ Prezident ertaga hisobot kutmoqda.`,
                 }
             }
 
+            // Slots q2 and q5 ship with only a <div class="rl-field-group"> placeholder,
+            // not a static <input>. When their question lands as 'text' or
+            // 'text-with-capture' (single-answer authored without fields[]),
+            // the student would see no input box. Inject one on demand.
+            if (q.type === 'text' || q.type === 'text-with-capture') {
+                const fieldsDiv = document.getElementById('rl-q' + (idx + 1) + '-fields');
+                if (fieldsDiv) fieldsDiv.innerHTML = '';
+                let inp = document.getElementById('rl-q' + (idx + 1) + '-input');
+                if (!inp || inp.tagName !== 'INPUT') {
+                    if (inp) inp.remove();
+                    inp = document.createElement('input');
+                    inp.id = 'rl-q' + (idx + 1) + '-input';
+                    inp.className = 'rl-input';
+                    inp.type = 'text';
+                    inp.inputMode = 'text';
+                    inp.placeholder = 'Javobingiz...';
+                    inp.autocomplete = 'off';
+                    inp.autocorrect = 'off';
+                    inp.spellcheck = false;
+                    const promptEl = document.getElementById('rl-q' + (idx + 1) + '-prompt');
+                    const anchor = (fieldsDiv && fieldsDiv.parentNode) ? fieldsDiv : promptEl;
+                    if (anchor && anchor.parentNode) {
+                        anchor.parentNode.insertBefore(inp, anchor.nextSibling);
+                    } else if (qBody) {
+                        const fb = qBody.querySelector('.rl-feedback');
+                        if (fb) qBody.insertBefore(inp, fb); else qBody.appendChild(inp);
+                    }
+                } else {
+                    inp.value = '';
+                }
+            }
+
             rlHideFeedback('rl-q' + (idx + 1) + '-fb');
         }
 
@@ -7453,11 +7650,13 @@ Prezident ertaga hisobot kutmoqda.`,
                     stage6State.submitted[idx] = true;
                     rlSetFeedback(fbId, 'rl-correct', RT('rl.correct_prefix') + (q.type === 'text-with-capture' ? q.expectedWork : ''));
                     if (window.__sessionLog) {
+                        // Per GRADING.md: closed-form correct items count toward
+                        // the donut/phase tally but must NOT contribute to AMR
+                        // axis means (axes only fire on open responses graded by
+                        // the LLM). So we omit axis_1 / axis_2 here.
                         window.__sessionLog.push({
                             phase: 'real-life', id: q.id || ('rl-' + (idx + 1)),
-                            correct: true, score: 1,
-                            // Closed text/numeric — no AI axes; treat as Mastered both axes.
-                            axis_1: 4, axis_2: 4, first_try: true,
+                            correct: true, score: 1, first_try: true, closed: true,
                         });
                     }
                     rlMorphButton(RT('btn.next_question'));
@@ -7589,8 +7788,9 @@ Prezident ertaga hisobot kutmoqda.`,
             if (state.isAnimating) return;
             state.isAnimating = true;
             const idx = stage6State.qIndex;
+            const total = (RL_SCENARIO.questions || []).length || 6;
 
-            if (idx < 5) {
+            if (idx < total - 1) {
                 const curEl = document.getElementById('rl-q' + (idx + 1));
                 const nextIdx = idx + 1;
                 rlRenderQuestion(nextIdx);
@@ -7600,7 +7800,7 @@ Prezident ertaga hisobot kutmoqda.`,
                 stage6State.screen = 'q' + (nextIdx + 1);
 
                 const badge = document.getElementById('rl-header-badge');
-                if (badge) badge.textContent = RT('rl.question_of') + ' ' + (nextIdx + 1) + ' / 6';
+                if (badge) badge.textContent = RT('rl.question_of') + ' ' + (nextIdx + 1) + ' / ' + total;
 
                 rlAnimateTransition(curEl, nextEl, () => {
                     rlMorphButton(RT('btn.submit_response'));
@@ -7965,18 +8165,24 @@ Prezident ertaga hisobot kutmoqda.`,
                     fbEl.textContent = baseMsg;
                 }
             }
-            // Log boss attack outcome for the AMR scorecard. Closed numeric
-            // boss items (Q1, Q2) have no AI axes — treat as Mastered both
-            // axes since damage was dealt. AI-graded items use returned axes.
+            // Log boss attack outcome for the AMR scorecard.
+            // Per GRADING.md: only AI-graded open responses contribute to AMR
+            // axis means. Closed-form correct items count toward damage and
+            // the donut/phase tally but their axes are intentionally omitted.
             if (window.__sessionLog) {
-                window.__sessionLog.push({
+                const entry = {
                     phase: 'final-boss', id: q.id || ('boss-' + (bossState.qIndex + 1)),
                     correct: true, score: 1,
-                    axis_1: (opts && opts.axis_1) || 4,
-                    axis_2: (opts && opts.axis_2) || 4,
-                    first_try: !(opts && opts.aiGraded),  // local match = first try
+                    first_try: !(opts && opts.aiGraded),
                     damage: dmg,
-                });
+                };
+                if (opts && opts.aiGraded && typeof opts.axis_1 === 'number' && typeof opts.axis_2 === 'number') {
+                    entry.axis_1 = opts.axis_1;
+                    entry.axis_2 = opts.axis_2;
+                } else {
+                    entry.closed = true;
+                }
+                window.__sessionLog.push(entry);
             }
             if (bossState.hp <= 0) { setTimeout(() => bossEnd(true), 900); }
         }
@@ -8127,35 +8333,42 @@ Prezident ertaga hisobot kutmoqda.`,
         }
 
         function bossEnd(victory) {
+            // Direct boss → results flow.
+            // Per UX: there is NO intermediate victory/defeat splash and NO
+            // reflection interstitial between the last attack and the AMR
+            // scorecard. The student finishes the boss and immediately sees
+            // their score; the conditional Tugatish / Qayta bajarish button
+            // at the bottom of the scorecard owns the next-step decision.
             bossState.done = true;
             const battle = document.getElementById('boss-battle');
             if (battle) { battle.style.transition = 'opacity 400ms ease'; battle.style.opacity = '0'; }
+
+            // Make absolutely sure the legacy victory / defeat splash cards
+            // stay hidden — older builds toggled them on here.
+            const vEl = document.getElementById('boss-victory'); if (vEl) vEl.style.display = 'none';
+            const dEl = document.getElementById('boss-defeat');  if (dEl) dEl.style.display = 'none';
+
             setTimeout(() => {
                 if (battle) { battle.style.display = 'none'; battle.style.opacity = ''; battle.style.transition = ''; }
-                if (victory) {
-                    const vEl = document.getElementById('boss-victory');
-                    if (vEl) vEl.style.display = '';
-                    const stars = (bossState.hintsUsed === 0 && bossState.correct >= 8) ? '⭐⭐⭐'
-                                : (bossState.hintsUsed <= 2 && bossState.correct >= 6)  ? '⭐⭐' : '⭐';
-                    const stEl = document.getElementById('boss-v-stars'); if (stEl) stEl.textContent = stars;
-                    const siEl = document.getElementById('boss-v-stats');
-                    if (siEl) siEl.textContent = RT('boss.victory_correct') + ' ' + bossState.correct + ' / ' + BOSS_QUESTIONS.length
-                        + (bossState.hintsUsed > 0 ? ' · ' + RT('boss.victory_hints') + ' ' + bossState.hintsUsed + (RT('boss.victory_hints_unit') ? (' ' + RT('boss.victory_hints_unit')) : '') : '')
-                        + ' · ' + RT('boss.victory_damage') + ' ' + (bossState.maxHp - bossState.hp) + ' HP';
-                    btn.classList.remove('state-line');
-                    btn.classList.add('state-pill','pulse');
-                    setBtnText(RT('boss.victory_finish'));
-                } else {
-                    const dEl = document.getElementById('boss-defeat'); if (dEl) dEl.style.display = '';
-                    const sbEl = document.getElementById('boss-d-sub');
-                    if (sbEl) sbEl.textContent = RT('boss.defeat_hp') + ' ' + bossState.hp + ' · ' + RT('boss.defeat_correct') + ' ' + bossState.correct + ' / ' + BOSS_QUESTIONS.length;
-                    const tpEl = document.getElementById('boss-d-tip');
-                    if (tpEl) tpEl.textContent = RT('boss.defeat_tip');
-                    btn.classList.remove('state-line');
-                    btn.classList.add('state-pill','pulse');
-                    setBtnText(RT('btn.retry'));
+                // Flush the morphing button — the scorecard's own footer
+                // button takes over from here.
+                if (typeof btn !== 'undefined' && btn) {
+                    btn.classList.remove('pulse', 'state-pill');
+                    btn.classList.add('state-line');
+                    if (typeof btnText !== 'undefined' && btnText) btnText.style.opacity = '0';
                 }
+                // Jump straight to results, skipping reflection too — per
+                // GRADING.md §7 reflection is participation-only and not
+                // part of the score, so it has no business between the
+                // final attack and the scorecard.
                 setStage(7.5);
+                if (typeof showResultsScreen === 'function') {
+                    showResultsScreen();
+                } else {
+                    // Defensive — should never trigger, but if for some reason
+                    // the function isn't injected, just clear the screen.
+                    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                }
             }, 440);
         }
 
@@ -8463,206 +8676,199 @@ Prezident ertaga hisobot kutmoqda.`,
         }
 
         /* ── Stage 9 · AMR Results Scorecard ──────────────────────────
-           Aggregates window.__sessionLog (populated live by AQ, MS, TM,
-           SF, RL, Boss handlers) into:
-             - per-phase tally (X/N items correct)
-             - per-phase mean axis_1 / axis_2 for items that recorded axes
-             - overall mastery band based on combined axis means
-           See standards/framework/AMR-GRADING-SYSTEM.md and
-           standards/framework/GRADING.md for the rubric definitions.
+           The TEMPLATE NO LONGER COMPUTES THE SCORE. It collects the
+           session log into window.__sessionLog as the student plays,
+           then POSTs the log to /api/grading/aggregate and renders the
+           scorecard from the backend response.
+
+           The grading rules — which phase uses which method, the score
+           formula `((axis_1 + axis_2) / 2) * 25`, band thresholds, the
+           60% conditional-button rule — all live in
+           `server/services/grading.py`. Adding a new game = update the
+           PHASE_METHOD dict there. This template is just a renderer.
+
+           See: D:/Class A Education/standards/framework/GRADING.md
         */
 
         // Initialize the session log as early as the script runs so
         // every phase's grading handler can write to it without checking.
         if (!window.__sessionLog) window.__sessionLog = [];
 
-        // Phase ordering for the scorecard rows.
-        const RESULTS_PHASE_ORDER = [
-            { key: 'memory-sprint', label: 'Memory Sprint',  total: () => (typeof MS_QUESTIONS !== 'undefined' ? MS_QUESTIONS.length : 0) },
-            { key: 'adaptive-quiz', label: 'Adaptive Quiz',  total: () => 5 },
-            { key: 'tile-match',    label: 'Tile Match',     total: () => 1, isPhaseLevel: true },
-            { key: 'sentence-fill', label: 'Sentence Fill',  total: () => (typeof GB_WHY_CHAIN !== 'undefined' ? GB_WHY_CHAIN.length : 0) },
-            { key: 'real-life',     label: 'Real-Life',      total: () => (typeof RL_SCENARIO !== 'undefined' && RL_SCENARIO.questions ? RL_SCENARIO.questions.length : 0) },
-            { key: 'final-boss',    label: 'Final Boss',     total: () => (typeof BOSS_QUESTIONS !== 'undefined' ? BOSS_QUESTIONS.length : 0) },
-        ];
-
-        function _amrBandFor(score) {
-            // score is a 1-4 mean. Map to AMR band labels per GRADING.md §rubric.
-            if (score >= 3.5) return { name: 'Mastered',   key: 'mastered'   };
-            if (score >= 2.5) return { name: 'Proficient', key: 'proficient' };
-            if (score >= 1.5) return { name: 'Apprentice', key: 'apprentice' };
-            return                       { name: 'Novice',     key: 'novice'     };
-        }
-
-        function _amrAggregate(log) {
-            // Per-phase tally + axis means. Skip duplicate ids per phase
-            // (we only keep the LAST entry — captures a student's final
-            // answer on a given item).
-            const byPhase = {};
-            const seen = new Set();
-            // Walk in reverse so we keep the latest entry per (phase,id).
-            for (let i = log.length - 1; i >= 0; i--) {
-                const e = log[i];
-                const key = e.phase + '::' + e.id;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                if (!byPhase[e.phase]) byPhase[e.phase] = [];
-                byPhase[e.phase].unshift(e);  // unshift to preserve forward order
-            }
-
-            const phaseStats = RESULTS_PHASE_ORDER.map(p => {
-                const items = byPhase[p.key] || [];
-                const total = p.total();
-                const correct = items.filter(x => x.correct).length;
-                // Items that have axis values (came from AI semantic grading).
-                const axed = items.filter(x => typeof x.axis_1 === 'number' && typeof x.axis_2 === 'number');
-                let axis_1_mean = null, axis_2_mean = null;
-                if (axed.length) {
-                    axis_1_mean = axed.reduce((s, x) => s + x.axis_1, 0) / axed.length;
-                    axis_2_mean = axed.reduce((s, x) => s + x.axis_2, 0) / axed.length;
-                }
-                return {
-                    key: p.key, label: p.label, isPhaseLevel: !!p.isPhaseLevel,
-                    correct, total, items_logged: items.length,
-                    axis_1_mean, axis_2_mean,
-                };
-            });
-
-            // Overall AMR axes — pool every axed item across all phases.
-            const allAxed = [];
-            Object.keys(byPhase).forEach(k => {
-                byPhase[k].forEach(x => {
-                    if (typeof x.axis_1 === 'number' && typeof x.axis_2 === 'number') allAxed.push(x);
-                });
-            });
-            let overall_axis_1 = null, overall_axis_2 = null, overall_score = null, overall_band = null;
-            if (allAxed.length) {
-                overall_axis_1 = allAxed.reduce((s, x) => s + x.axis_1, 0) / allAxed.length;
-                overall_axis_2 = allAxed.reduce((s, x) => s + x.axis_2, 0) / allAxed.length;
-                // item_score = ((a1 + a2) / 2) × 25 per GRADING.md
-                overall_score = ((overall_axis_1 + overall_axis_2) / 2) * 25;
-                overall_band = _amrBandFor((overall_axis_1 + overall_axis_2) / 2);
-            }
-
-            // Overall closed-form tally too — sum correct / sum total across
-            // all phases that produced log entries.
-            let totalCorrect = 0, totalItems = 0;
-            phaseStats.forEach(p => {
-                if (p.isPhaseLevel) {
-                    if (p.correct) { totalCorrect += p.total; totalItems += p.total; }
-                    else totalItems += p.total;
-                } else {
-                    totalCorrect += p.correct;
-                    totalItems += p.total;
-                }
-            });
-
-            return {
-                phaseStats,
-                allAxed,
-                overall_axis_1, overall_axis_2, overall_score, overall_band,
-                totalCorrect, totalItems,
-                hasAxes: allAxed.length > 0,
-            };
-        }
-
-        function _renderAxisCard(label, mean) {
-            if (mean == null) {
-                return `<div class="results-amr-axis">
-                  <div class="results-amr-axis-label">${label}</div>
-                  <div class="results-amr-axis-value">—</div>
-                  <div class="results-amr-axis-band">${RT('res.amr_no_items')}</div>
+        // Render one AMR axis bar from the backend's prepared shape:
+        //   { mean: number|null, perf_class: string, tag: string }
+        function _renderAxisBar(label, axis) {
+            if (!axis || axis.mean == null) {
+                return `<div class="results-axis">
+                  <div class="results-axis-label">${label}</div>
+                  <div class="results-axis-value">—</div>
+                  <div class="results-axis-bar-wrap">
+                    <div class="results-axis-bar is-empty"></div>
+                    <div class="results-axis-ticks"><span>1</span><span>2</span><span>3</span><span>4</span></div>
+                  </div>
+                  <div class="results-axis-tag perf-neutral">${(axis && axis.tag) || ''}</div>
                 </div>`;
             }
-            const band = _amrBandFor(mean);
-            return `<div class="results-amr-axis">
-              <div class="results-amr-axis-label">${label}</div>
-              <div class="results-amr-axis-value">${mean.toFixed(2)} / 4</div>
-              <div class="results-amr-axis-band">${band.name}</div>
+            const mean = Number(axis.mean);
+            const x = Math.max(0, Math.min(100, ((mean - 1) / 3) * 100));
+            return `<div class="results-axis">
+              <div class="results-axis-label">${label}</div>
+              <div class="results-axis-value">${mean.toFixed(2)} / 4</div>
+              <div class="results-axis-bar-wrap">
+                <div class="results-axis-bar"></div>
+                <div class="results-axis-marker" style="left:${x.toFixed(2)}%"></div>
+                <div class="results-axis-ticks"><span>1</span><span>2</span><span>3</span><span>4</span></div>
+              </div>
+              <div class="results-axis-tag ${axis.perf_class}">${axis.tag}</div>
             </div>`;
         }
 
-        function showResultsScreen() {
-            const log  = window.__sessionLog || [];
-            const agg  = _amrAggregate(log);
-            // Activate the screen
+        // Fetch the scorecard payload from the backend.
+        // Falls back to a minimal local synthesis if the network call
+        // fails — the student should never be left without a score —
+        // but the canonical compute path is the server.
+        async function _fetchScorecard(log) {
+            try {
+                const resp = await fetch('/api/grading/aggregate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        items: log,
+                        homework_id: (window.NETS_CTX && window.NETS_CTX.homework_id) || null,
+                    }),
+                });
+                if (!resp.ok) throw new Error('http ' + resp.status);
+                return await resp.json();
+            } catch (e) {
+                console.warn('[scorecard] backend aggregate failed, using minimal fallback:', e.message);
+                // Minimal fallback — counts correct/total only, no axes.
+                let c = 0, t = 0;
+                for (const x of log) {
+                    if (x && typeof x === 'object') {
+                        t += 1;
+                        if (x.correct) c += 1;
+                    }
+                }
+                const pct = t > 0 ? Math.round(100 * c / t) : 0;
+                const perf_class = pct >= 75 ? 'perf-good' : (pct >= 50 ? 'perf-mid' : 'perf-bad');
+                const action_label = pct >= 60 ? 'Tugatish' : 'Qayta bajarish';
+                const action_kind  = pct >= 60 ? 'finish'    : 'redo';
+                return {
+                    overall_pct: pct, overall_score: null, has_axes: false,
+                    band: { key: 'novice', name: 'Novice' }, perf_class,
+                    overall_axis_1: null, overall_axis_2: null,
+                    phases: [], totals: { correct: c, items: t },
+                    axes: { axis_1: { mean: null, perf_class: 'perf-neutral', tag: '' },
+                            axis_2: { mean: null, perf_class: 'perf-neutral', tag: '' } },
+                    coaching_tip: 'Backend ishlamadi — vaqtinchalik mahalliy hisob.',
+                    action: { kind: action_kind, label: action_label, perf_class: action_kind === 'finish' ? 'is-finish' : 'is-redo' },
+                };
+            }
+        }
+
+        async function showResultsScreen() {
+            // Activate the screen immediately so the student doesn't see a
+            // blank stretch while we wait for the backend.
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             const sr = document.getElementById('screen-results');
             if (sr) sr.classList.add('active');
             setStage(8);
 
-            // Headline + band
-            const overallPct = agg.totalItems > 0 ? Math.round(100 * agg.totalCorrect / agg.totalItems) : 0;
-            const headline = document.getElementById('results-headline');
-            const bandEl   = document.getElementById('results-band');
-            if (agg.hasAxes && agg.overall_band) {
-                if (bandEl) {
-                    bandEl.textContent = agg.overall_band.name;
-                    bandEl.className = 'screen-results-band band-' + agg.overall_band.key;
-                }
-            } else if (bandEl) {
-                // No AI-graded items — derive band from raw % via the same thresholds.
-                const pseudo = overallPct / 25;  // 0–4 scale
-                const band = _amrBandFor(pseudo);
-                bandEl.textContent = band.name;
-                bandEl.className = 'screen-results-band band-' + band.key;
-            }
-            if (headline) {
-                const itemScore = agg.hasAxes ? Math.round(agg.overall_score) : overallPct;
-                headline.innerHTML = `${RT('res.headline_prefix')} <strong>${itemScore}%</strong>`
-                                   + ` &nbsp;<span style="opacity:0.6;font-weight:400">(${agg.totalCorrect} / ${agg.totalItems} ${RT('res.correct_suffix')})</span>`;
+            // Fetch the canonical scorecard from /api/grading/aggregate.
+            const log = window.__sessionLog || [];
+            const card = await _fetchScorecard(log);
+
+            const itemScore = Number(card.overall_pct) || 0;
+            const perfHex   = card.perf_class === 'perf-good' ? '#22c55e'
+                            : card.perf_class === 'perf-mid'  ? '#eab308'
+                            :                                   '#ef4444';
+
+            // Band pill — colour driven entirely by backend's perf_class.
+            const bandEl = document.getElementById('results-band');
+            if (bandEl) {
+                bandEl.textContent = (card.band && card.band.name) || 'Novice';
+                bandEl.className = 'screen-results-band ' + card.perf_class;
             }
 
-            // Per-phase rows
+            // Hero — donut gauge with the backend-calculated score.
+            const headline = document.getElementById('results-headline');
+            if (headline) {
+                const C = 2 * Math.PI * 42;
+                const dashOffset = C * (1 - itemScore / 100);
+                headline.innerHTML = `
+                <div class="screen-results-hero">
+                  <div class="results-gauge" role="img" aria-label="Umumiy ball ${itemScore} foiz">
+                    <svg viewBox="0 0 100 100" aria-hidden="true">
+                      <circle cx="50" cy="50" r="42" class="results-gauge-track" fill="none" stroke-width="9"/>
+                      <circle cx="50" cy="50" r="42" class="results-gauge-fill"  fill="none" stroke-width="9"
+                              stroke="${perfHex}"
+                              stroke-dasharray="${C.toFixed(2)}"
+                              stroke-dashoffset="${dashOffset.toFixed(2)}"/>
+                    </svg>
+                    <div class="results-gauge-center">
+                      <div class="results-gauge-pct" style="color:${perfHex}">${itemScore}%</div>
+                      <div class="results-gauge-frac">${(card.totals && card.totals.correct) || 0} / ${(card.totals && card.totals.items) || 0} to'g'ri</div>
+                    </div>
+                  </div>
+                </div>`;
+            }
+
+            // Per-phase progress bars — built from card.phases.
             const phasesEl = document.getElementById('results-phases');
             if (phasesEl) {
-                phasesEl.innerHTML = agg.phaseStats.map(p => {
-                    const score = p.isPhaseLevel
-                        ? (p.correct ? RT('res.phase_done') : RT('res.phase_undone'))
-                        : `${p.correct} / ${p.total}`;
-                    const axisStr = (p.axis_1_mean != null)
-                        ? ` · A1=${p.axis_1_mean.toFixed(1)} A2=${p.axis_2_mean.toFixed(1)}`
+                const phases = card.phases || [];
+                const rows = phases.map(p => {
+                    const axisLine = (typeof p.axis_1_mean === 'number' && typeof p.axis_2_mean === 'number')
+                        ? `<small>A1 ${p.axis_1_mean.toFixed(1)} · A2 ${p.axis_2_mean.toFixed(1)}</small>`
                         : '';
                     return `<div class="results-phase-row">
-                      <span class="results-phase-name">${p.label}${axisStr}</span>
-                      <span class="results-phase-score">${score}</span>
+                      <div class="results-phase-name">${p.label}${axisLine}</div>
+                      <div class="results-phase-bar-track">
+                        <div class="results-phase-bar-fill ${p.perf_class}" style="width:${p.pct}%"></div>
+                      </div>
+                      <div class="results-phase-score ${p.perf_class}">${p.score_text}</div>
                     </div>`;
                 }).join('');
+                phasesEl.innerHTML =
+                    `<div class="results-section-title">Faza ko'rsatkichlari</div>
+                     <div class="results-phase-list">${rows}</div>`;
             }
 
-            // AMR axis breakdown
+            // AMR axes — backend pre-computes mean / perf_class / tag.
             const amrEl = document.getElementById('results-amr');
             if (amrEl) {
-                if (agg.hasAxes) {
+                if (card.has_axes) {
                     amrEl.innerHTML = `
-                      <div class="results-amr-title">${RT('res.amr_title')}</div>
-                      <div class="results-amr-grid">
-                        ${_renderAxisCard(RT('res.amr_axis1'), agg.overall_axis_1)}
-                        ${_renderAxisCard(RT('res.amr_axis2'), agg.overall_axis_2)}
-                      </div>`;
+                    <div class="results-section-title">AMR · 2-eksa tahlili</div>
+                    <div class="results-amr-grid">
+                      ${_renderAxisBar('1-eksa · Konseptni nomlash',     card.axes && card.axes.axis_1)}
+                      ${_renderAxisBar('2-eksa · Bosqichlar izchilligi', card.axes && card.axes.axis_2)}
+                    </div>
+                    <div class="results-amr-note">
+                      2-eksa baholash <strong>faqat 4-faza Real-Life va 6-faza Final Boss</strong>
+                      ochiq javoblariga qo'llaniladi. Yopiq formatdagi raqamli javoblar
+                      (masalan, "40°") va Sentence Fill javoblari to'g'ri/noto'g'ri
+                      sifatida hisoblanadi va faza ballariga ta'sir qiladi, lekin
+                      eksa o'rtachasiga qo'shilmaydi — chunki rubrika qoidani nomlash
+                      va bosqichma-bosqich asoslashni baholaydi, faqat son javobini emas.
+                    </div>`;
                 } else {
                     amrEl.innerHTML = `
-                      <div class="results-amr-title">${RT('res.amr_title_short')}</div>
-                      <div style="font-size:13px;color:var(--text-dim);">
-                        ${RT('res.amr_no_ai')}
-                      </div>`;
+                    <div class="results-section-title">AMR · 2-eksa tahlili</div>
+                    <div class="results-amr-empty">
+                      Bu sessiyada hech qaysi 4- yoki 6-faza javobi 2-eksa rubrika
+                      bo'yicha baholanmadi. AMR ochiq, asoslangan javoblarni talab
+                      qiladi: qoidani aniq nomlang ("Pifagor teoremasi"), uni masala
+                      shartiga bog'lang, va bosqichma-bosqich yeching. Faqat son
+                      javobi rubrikaning past chegarasi (25%) hisoblanadi.
+                    </div>`;
                 }
             }
 
-            // Mastery promotion note (per GRADING.md §6)
+            // Coaching tip — text from backend, perf class for the tint.
             const masteryEl = document.getElementById('results-mastery');
             if (masteryEl) {
-                if (agg.hasAxes && agg.overall_band) {
-                    const tipByBand = {
-                        mastered:   RT('res.tip_mastered'),
-                        proficient: RT('res.tip_proficient'),
-                        apprentice: RT('res.tip_apprentice'),
-                        novice:     RT('res.tip_novice'),
-                    };
-                    masteryEl.textContent = tipByBand[agg.overall_band.key] || '';
-                } else {
-                    masteryEl.textContent = RT('res.closed_format') + overallPct + ".%";
-                }
+                masteryEl.textContent = card.coaching_tip || '';
+                masteryEl.className = 'screen-results-mastery ' + card.perf_class;
             }
 
             const closingEl = document.getElementById('results-closing');
@@ -8670,12 +8876,30 @@ Prezident ertaga hisobot kutmoqda.`,
                 closingEl.textContent = RT('res.closing');
             }
 
-            // Final button — reset to "done" state
-            btn.classList.remove('pulse','state-pill');
+            // Footer action — kind + label + class come from backend.
+            // Per GRADING.md: >= 60% renders Tugatish (finish), < 60% Qayta bajarish (restart).
+            const actionsEl = document.getElementById('results-actions');
+            if (actionsEl && card.action) {
+                actionsEl.innerHTML = '';
+                const b = document.createElement('button');
+                b.className   = 'results-action-btn ' + card.action.perf_class;
+                b.textContent = card.action.label;
+                b.addEventListener('click', () => {
+                    if (card.action.kind === 'finish') {
+                        try { window.location.href = '/'; } catch (_) {}
+                    } else {
+                        try { window.location.reload(); } catch (_) {}
+                    }
+                });
+                actionsEl.appendChild(b);
+            }
+
+            // Final button — reset to "done" state.
+            btn.classList.remove('pulse', 'state-pill');
             btn.classList.add('state-line');
             if (btnText) btnText.style.opacity = '0';
-            // Expose the aggregate for tests / future export.
-            window.__sessionAggregate = agg;
+            // Expose the backend's payload for tests / future export.
+            window.__sessionAggregate = card;
         }
     </script>
 
