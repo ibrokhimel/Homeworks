@@ -90,6 +90,21 @@ def test_select_auto_returns_library_entry():
     assert out["type"] in ("fact", "quote")
 
 
+def test_select_respects_allowed_types():
+    quote = quotes_service.select({"mode": "auto"}, rng=_seeded_rng(2), allowed_types=("quote",))
+    fact = quotes_service.select({"mode": "auto"}, rng=_seeded_rng(2), allowed_types=("fact",))
+    assert quote["type"] == "quote"
+    assert fact["type"] == "fact"
+
+
+def test_select_sequence_runtime_order():
+    seq = quotes_service.select_sequence({"mode": "auto"}, rng=_seeded_rng(3))
+    assert len(seq) == 3
+    assert seq[0]["type"] == "quote"
+    assert seq[1]["type"] in ("fact", "quote")
+    assert seq[2]["type"] == "fact"
+
+
 def test_select_auto_distribution_over_many_calls():
     """Over 1000 calls, the 55/45 origin and 70/30 type split should hold
     within a generous tolerance band."""
@@ -121,6 +136,12 @@ def test_select_legacy_string_array_treated_as_custom():
     out = quotes_service.select(["Salom dunyo"])
     assert out["t"] == "Salom dunyo"
     assert out["a"] == ""
+
+
+def test_legacy_demo_text_is_ignored():
+    assert quotes_service.migrate_legacy(["Yaxshi uka, keep poing"]) == {"mode": "auto"}
+    out = quotes_service.select(["Yaxshi uka, keep going"], rng=_seeded_rng(4))
+    assert "yaxshi uka" not in out["t"].lower()
 
 
 # --- library shape ---------------------------------------------------------

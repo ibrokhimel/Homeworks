@@ -703,9 +703,26 @@
             width: min(82vw, 420px);
             min-height: 180px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
+        }
+
+        .break-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 14px;
+            padding: 5px 14px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: rgba(0, 122, 255, 0.10);
+            border: 1px solid rgba(0, 122, 255, 0.22);
         }
 
         .break-text {
@@ -3587,7 +3604,8 @@
         </div>
         <div id="screen-break" class="screen">
             <div class="card break-card">
-                <div class="break-text">Yaxshi uka, keep poing</div>
+                <div class="break-kicker" id="break-kicker"></div>
+                <div class="break-text" id="break-text"></div>
             </div>
         </div>
 
@@ -4477,10 +4495,10 @@
         ];
 
         // QUOTES is replaced by server/services/injector.py at render time with
-        // exactly one entry produced by server/services/quotes.py (a deterministic
-        // pick from server/data/quotes_database.json applying the 55/45 + 70/30 rule
-        // for `mode: auto`, or the author's pinned/custom override). The empty
-        // default below is only ever seen if injection is bypassed during dev.
+        // a three-slot sequence from server/services/quotes.py:
+        // [0] opening gate quote, [1] first-third quote/fact mix,
+        // [2] post-flashcard fact. The empty default below is only ever seen
+        // if injection is bypassed during dev.
         const QUOTES = [];
 
         const FLASHCARDS = [
@@ -4745,6 +4763,11 @@
             else if (state.stage === 2) nextPanel();
             else if (state.stage === 2.5 && btn.classList.contains('state-pill')) startStage3();
             else if (state.stage === 3) endStage3();
+            else if (state.stage === 3.5 && btn.classList.contains('state-pill')) {
+                const breakScreen = document.getElementById('screen-break');
+                if (breakScreen) breakScreen.classList.remove('active');
+                startMemorySprintPhase();
+            }
             else if (state.stage === 4.5 && btn.classList.contains('state-pill')) {
                 const screenMs = document.getElementById('screen-ms');
                 if (screenMs) screenMs.classList.remove('active');
@@ -4826,7 +4849,7 @@
         //   7.7 = Reflection    (after Boss-done 7.5 before finish)     → dot 7 (Done)
         const phaseMap = {
             0:0, 1:1, 2:1,
-            2.5:2, 3:2,
+            2.5:2, 3:2, 3.5:3,
             4:3, 4.5:3,
             4.7:4,            // Wave 2: Reading — entering GameBreaks
             5:4,
@@ -4915,8 +4938,7 @@
             const container = document.getElementById('quote-container');
             if (!container) return;
             const presets = ['anim-quote-in-up', 'anim-quote-in-scale', 'anim-quote-in-left'];
-            // QUOTES is always length-1 (server-side selector picks one per inject).
-            const q = QUOTES[0] || { t: "", a: "", origin: "National", type: "fact" };
+            const q = QUOTES[0] || { t: "", a: "", origin: "National", type: "quote" };
             const isGlobal = q.origin === 'Global';
             const icon = q.type === 'quote' ? '❝' : '💡';
 
@@ -4944,8 +4966,8 @@
             chip.appendChild(authorNode);
             chipLine.appendChild(chip);
 
-            item.appendChild(textLine);
             item.appendChild(chipLine);
+            item.appendChild(textLine);
 
             const preset = presets[Math.floor(Math.random() * presets.length)];
             container.appendChild(item);
@@ -4954,6 +4976,22 @@
             // 5-second skip lock — show a progress ring on the locked .state-line button.
             mountSkipLockRing();
             setTimeout(morphToContinue, 5000);
+        }
+
+        function renderBreakQuote(slotIndex) {
+            const q = QUOTES[slotIndex] || { t: "", a: "", origin: "National", type: "fact" };
+            const kicker = document.getElementById('break-kicker');
+            const text = document.getElementById('break-text');
+            if (kicker) {
+                const defaultLabel = q.type === 'fact' ? 'Bilarmidingiz?' : 'Iqtibos';
+                kicker.textContent = q.a || defaultLabel;
+            }
+            if (text) {
+                text.textContent = q.t || '';
+                text.style.animation = 'none';
+                void text.offsetHeight;
+                text.style.animation = '';
+            }
         }
 
         function mountSkipLockRing() {
@@ -5112,6 +5150,7 @@
 
         function showBreakScreen() {
             state.isAnimating = true;
+            renderBreakQuote(1);
             const content = document.getElementById('panel-content');
             if (content) {
                 content.style.transition = 'all 400ms ease-in';
@@ -5445,6 +5484,7 @@
         function endStage3() {
             if (state.isAnimating) return;
             state.isAnimating = true;
+            renderBreakQuote(2);
             const fcInner = document.getElementById('fc-inner');
             if (fcInner) {
                 fcInner.removeEventListener('click', handleCardTap);
@@ -5457,7 +5497,15 @@
             if (btnText) btnText.style.opacity = '0';
             setTimeout(() => {
                 document.getElementById('screen-3').classList.remove('active');
-                startMemorySprintPhase();
+                document.getElementById('screen-break').classList.add('active');
+                setStage(3.5);
+                setTimeout(() => {
+                    btn.classList.remove('state-line');
+                    btn.classList.add('state-pill');
+                    setBtnText(RT('btn.next'));
+                    btn.classList.add('pulse');
+                    state.isAnimating = false;
+                }, 1500);
             }, 450);
         }
 

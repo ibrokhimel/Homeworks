@@ -361,16 +361,17 @@ def inject(
         data = content_json.get(key, [])
         if data is None:
             data = []
-        # Gate quote: pick exactly one quote per inject call. Source is the new
+        # Quote/fact sequence: pick the opening quote and mid-homework break
+        # cards per inject call. Source is the new
         # `gate_quote` envelope ({mode, pinned_id?, custom?}); falls back to the
-        # legacy `quotes` array for in-flight rows. The selector applies the
-        # 55/45 origin + 70/30 type rule for `mode: auto`. Wrapped in a length-1
-        # array so the template's `QUOTES[0]` indexing keeps working.
+        # legacy `quotes` array for in-flight rows. Slot 0 is quote-only before
+        # preview, slot 1 is mixed after preview, slot 2 is fact-only after
+        # flashcards.
         if key == "quotes":
             envelope = content_json.get("gate_quote")
             if envelope is None:
                 envelope = content_json.get("quotes")
-            data = [quotes_service.select(envelope)]
+            data = quotes_service.select_sequence(envelope)
 
         # Shape adapter: Memory Sprint editor emits type codes MC|TF|YNNG, but the
         # template renders item.type directly as a human label in "Savol X / Y · {type}".

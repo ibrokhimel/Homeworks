@@ -159,22 +159,27 @@ def test_tutor_widget_inline_no_external_assets(client, created_hw):
 
 
 def test_h_route_renders_single_gate_quote(client, created_hw):
-    """The runtime template now ships with a single-element QUOTES array
-    (server-side selector picks one per inject) and an author chip."""
+    """Runtime ships a three-slot sequence; opening gate is quote-only."""
     r = client.get(f"/h/{created_hw['id']}")
     assert r.status_code == 200
     body = r.text
     # Single quote injected — array literal contains exactly one object.
-    import re as _re
+    import json as _json, re as _re
     match = _re.search(r"const QUOTES\s*=\s*(\[[\s\S]*?\]);", body)
     assert match, "QUOTES array not found in rendered HTML"
-    arr_literal = match.group(1)
+    arr = _json.loads(match.group(1))
     # Only one object in the array (one closing brace immediately before the closing bracket).
-    assert arr_literal.count("{") == 1, f"expected exactly 1 quote, got literal: {arr_literal[:200]}"
+    assert len(arr) == 3
+    assert arr[0]["type"] == "quote"
+    assert arr[2]["type"] == "fact"
     # Author chip CSS class is in the template.
     assert "quote-author-chip" in body
     # Skip lock ring CSS is in the template.
     assert "skip-lock-ring" in body
+    assert "Yaxshi uka" not in body
+    assert "keep poing" not in body
+    assert 'id="break-kicker"' in body
+    assert 'id="break-text"' in body
 
 
 def test_h_route_renders_pinned_quote(client):
@@ -183,7 +188,7 @@ def test_h_route_renders_pinned_quote(client):
     from server.services import quotes as quotes_service
 
     library = quotes_service.all_quotes()
-    target = library[0]
+    target = next(q for q in library if q.get("type") == "quote")
 
     create = client.post("/api/homeworks", json={
         "title": "Pinned-quote smoke",
@@ -214,7 +219,7 @@ def test_h_route_renders_pinned_quote(client):
     match = _re.search(r"const QUOTES\s*=\s*(\[[\s\S]*?\]);", body)
     assert match, "QUOTES array not found"
     arr = _json.loads(match.group(1))
-    assert len(arr) == 1
+    assert len(arr) == 3
     assert arr[0]["t"] == target["text"]
     assert arr[0]["a"] == target["author"]
 
@@ -246,6 +251,35 @@ def test_h_route_legacy_quotes_array_migrates_to_custom(client):
     r = client.get(f"/h/{hw_id}")
     assert r.status_code == 200
     assert "Eski iqtibos matni" in r.text
+
+
+def test_h_route_legacy_demo_quote_is_ignored(client):
+    """Old demo break text should not survive through legacy quotes."""
+    create = client.post("/api/homeworks", json={
+        "title": "Legacy-demo cleanup smoke",
+        "subject": "math-algebra",
+        "grade": 8,
+        "mode": "hard",
+    })
+    assert create.status_code == 200, create.text
+    hw_id = create.json()["id"]
+
+    update = client.put(f"/api/homeworks/{hw_id}", json={
+        "content_json": {
+            "meta": {"title": "Legacy-demo cleanup smoke"},
+            "panels": [],
+            "flashcards": [],
+            "boss_questions": [],
+            "memory_sprint": [],
+            "quotes": ["Yaxshi uka, keep poing"],
+        },
+    })
+    assert update.status_code == 200, update.text
+
+    r = client.get(f"/h/{hw_id}")
+    assert r.status_code == 200
+    assert "Yaxshi uka" not in r.text
+    assert "keep poing" not in r.text
 
 
 def test_quotes_api_endpoint_returns_facets(client):
