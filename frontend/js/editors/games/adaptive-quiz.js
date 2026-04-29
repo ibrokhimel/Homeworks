@@ -1,5 +1,10 @@
 // frontend/js/editors/games/adaptive-quiz.js
-// Adaptive Quiz editor — card-styled like flashcards.
+// Adaptive Quiz editor — uses the shared flashcard-builder-card surface so it
+// stays visually consistent with the flashcards and other games. The big shift
+// in this version (Wave V, 2026-04-29) is to replace the dense ad-hoc
+// answer-spec form with a clearly grouped "Answer grading" subsection and a
+// 2-up meta row that wraps cleanly on mobile.
+//
 // Data: { q, tags, tier, ans[], answer_spec, capture, hint?, media? }
 
 (function () {
@@ -16,10 +21,12 @@
     { value: "semantic", label: "Free-form (AI only)" }
   ];
 
-  const TIER_COLORS = {
-    EASY:   { bg: "rgba(52, 199, 89, 0.14)",  fg: "#1f7a3b" },
-    MEDIUM: { bg: "rgba(255, 149, 0, 0.14)",  fg: "#a85400" },
-    HARD:   { bg: "rgba(255, 59, 48, 0.14)",  fg: "#a8281f" },
+  // Tier accent — same role as cluster accents on flashcards. Background tint
+  // for the pill, foreground for the strip/border, complementary text color.
+  const TIER_ACCENTS = {
+    EASY:   { bar: "#1f7a3b", bg: "rgba(34, 197, 94, 0.16)",  text: "#1f7a3b", label: "Easy" },
+    MEDIUM: { bar: "#a85400", bg: "rgba(255, 149, 0, 0.16)",  text: "#a85400", label: "Medium" },
+    HARD:   { bar: "#a8281f", bg: "rgba(255, 59, 48, 0.16)",  text: "#a8281f", label: "Hard" },
   };
 
   function escapeHtml(value) {
@@ -39,6 +46,10 @@
     return JSON.parse(JSON.stringify(value ?? []));
   }
 
+  function tierAccent(tier) {
+    return TIER_ACCENTS[tier] || TIER_ACCENTS.EASY;
+  }
+
   function normalizeMedia(m) {
     if (!m || typeof m !== "object") return null;
     if (m.type === "image" && (m.src || "").trim()) {
@@ -50,8 +61,8 @@
     return null;
   }
 
-  function normalizeItem(item) {
-    const spec = item?.answer_spec || {
+  function defaultSpec() {
+    return {
       type: "text_fuzzy",
       expected: "",
       canonical_display: "",
@@ -59,11 +70,16 @@
       rubric: {
         correct: "To'g'ri javob!",
         partial: "Qisman to'g'ri.",
-        incorrect: "Notog'ri javob."
-      }
+        incorrect: "Notog'ri javob.",
+      },
     };
-    
-    // Backward compat
+  }
+
+  function normalizeItem(item) {
+    const spec = item?.answer_spec || defaultSpec();
+    spec.rubric = spec.rubric || defaultSpec().rubric;
+
+    // Backward compat: legacy items only had `ans[0]` and no spec.
     if (!spec.canonical_display && item?.ans && item.ans.length) {
       spec.canonical_display = item.ans[0];
       spec.expected = item.ans[0];
@@ -92,7 +108,7 @@
   function emit(state, onChange) {
     state.forEach((item) => {
       if (!TIERS.includes(item.tier)) item.tier = "EASY";
-      // Sync old ans array
+      // Sync the legacy `ans` array off the canonical spec.
       item.ans = [item.answer_spec.canonical_display || ""];
     });
     onChange(clone(state));
@@ -100,94 +116,106 @@
 
   function renderTierOptions(active) {
     return TIERS.map(
-      (t) => `<option value="${t}" ${t === active ? "selected" : ""}>${t}</option>`,
+      (t) => `<option value="${t}" ${t === active ? "selected" : ""}>${TIER_ACCENTS[t].label}</option>`,
     ).join("");
   }
 
-  function renderAnswerSpecForm(item, index) {
-    const spec = item.answer_spec;
-    const typeOptions = ANSWER_TYPES.map(
-      t => `<option value="${t.value}" ${t.value === spec.type ? "selected" : ""}>${t.label}</option>`
-    ).join("");
+  function renderMediaPreview(media) {
+    if (!media) {
+      return `<div class="fc-media-empty"><span class="fc-media-icon" aria-hidden="true">🎯</span><span>No media — add an image or SVG to anchor the question.</span></div>`;
+    }
+    if (media.type === "image") {
+      return `<div class="fc-media-preview"><img src="${escapeHtml(media.src)}" alt="${escapeHtml(media.alt || "")}" /></div>`;
+    }
+    if (media.type === "svg") {
+      return `<div class="fc-media-preview fc-media-svg">${media.html}</div>`;
+    }
+    return "";
+  }
 
-    let typeSpecificFields = "";
+  function renderTypeSpecificFields(spec) {
     if (spec.type === "numeric") {
-      typeSpecificFields = `
-        <label class="field">
-          <span>Expected Number</span>
-          <input type="number" step="any" class="js-spec-field" data-key="expected" value="${escapeHtml(spec.expected)}" />
+      return `
+        <label class="aq-field">
+          <span class="aq-field-label">Expected number</span>
+          <input type="number" step="any" class="js-spec-field" data-key="expected" value="${escapeHtml(spec.expected)}" placeholder="42" />
         </label>
-        <label class="field">
-          <span>Tolerance (±)</span>
-          <input type="number" step="any" class="js-spec-field" data-key="tolerance" value="${escapeHtml(spec.tolerance || 0)}" />
-        </label>
-      `;
-    } else if (spec.type === "set_match") {
-      typeSpecificFields = `
-        <label class="field full-span">
-          <span>Expected Set (comma-separated, e.g. "9, -9")</span>
-          <input type="text" class="js-spec-field" data-key="expected" value="${escapeHtml(Array.isArray(spec.expected) ? spec.expected.join(", ") : spec.expected)}" />
+        <label class="aq-field">
+          <span class="aq-field-label">Tolerance (±)</span>
+          <input type="number" step="any" class="js-spec-field" data-key="tolerance" value="${escapeHtml(spec.tolerance ?? 0)}" placeholder="0.01" />
         </label>
       `;
     }
+    if (spec.type === "set_match") {
+      const value = Array.isArray(spec.expected) ? spec.expected.join(", ") : (spec.expected || "");
+      return `
+        <label class="aq-field aq-field-wide">
+          <span class="aq-field-label">Expected set <span class="aq-field-hint">comma-separated, e.g. 9, -9</span></span>
+          <input type="text" class="js-spec-field" data-key="expected" value="${escapeHtml(value)}" placeholder="9, -9" />
+        </label>
+      `;
+    }
+    return "";
+  }
+
+  function renderGradingBlock(item, index) {
+    const spec = item.answer_spec;
+    const typeOptions = ANSWER_TYPES.map(
+      (t) => `<option value="${t.value}" ${t.value === spec.type ? "selected" : ""}>${t.label}</option>`,
+    ).join("");
 
     return `
-      <div class="editor-grid">
-        <label class="field">
-          <span>Canonical Display Answer</span>
-          <input type="text" class="js-spec-field" data-key="canonical_display" value="${escapeHtml(spec.canonical_display)}" placeholder="Model answer" />
-        </label>
-        <label class="field">
-          <span>Answer Type</span>
-          <select class="js-spec-type">
-            ${typeOptions}
-          </select>
-        </label>
+      <section class="aq-grading">
+        <header class="aq-grading-head">
+          <span class="fc-face-label">Answer grading</span>
+          <span class="aq-grading-hint">how the runtime decides correct vs partial vs wrong</span>
+        </header>
 
-        ${typeSpecificFields}
+        <div class="aq-grid">
+          <label class="aq-field aq-field-wide">
+            <span class="aq-field-label">Canonical answer</span>
+            <input type="text" class="js-spec-field" data-key="canonical_display" value="${escapeHtml(spec.canonical_display)}" placeholder="The model answer learners see if they fail" />
+          </label>
+          <label class="aq-field">
+            <span class="aq-field-label">Type</span>
+            <select class="js-spec-type">${typeOptions}</select>
+          </label>
 
-        <label class="field full-span">
-          <input type="checkbox" class="js-spec-ai" ${spec.allow_ai_fallback ? "checked" : ""} />
-          <span>Allow AI Fallback</span>
-        </label>
+          ${renderTypeSpecificFields(spec)}
 
-        <details class="full-span">
-          <summary>Grading Rubric</summary>
-          <div class="editor-grid" style="margin-top: 10px;">
-            <label class="field full-span">
-              <span>Correct</span>
+          <label class="aq-field aq-field-wide aq-toggle">
+            <input type="checkbox" class="js-spec-ai" ${spec.allow_ai_fallback ? "checked" : ""} />
+            <span class="aq-toggle-text">
+              <span class="aq-toggle-title">Allow AI fallback</span>
+              <span class="aq-toggle-sub">If the local matcher rejects, ask the tutor before marking wrong.</span>
+            </span>
+          </label>
+        </div>
+
+        <details class="aq-rubric">
+          <summary><span>Custom rubric copy</span><span class="aq-rubric-meta">defaults shown to learners</span></summary>
+          <div class="aq-grid aq-rubric-grid">
+            <label class="aq-field aq-field-wide">
+              <span class="aq-field-label">Correct</span>
               <textarea class="js-rubric-field" data-key="correct" rows="2">${escapeHtml(spec.rubric.correct)}</textarea>
             </label>
-            <label class="field full-span">
-              <span>Partial</span>
+            <label class="aq-field aq-field-wide">
+              <span class="aq-field-label">Partial</span>
               <textarea class="js-rubric-field" data-key="partial" rows="2">${escapeHtml(spec.rubric.partial)}</textarea>
             </label>
-            <label class="field full-span">
-              <span>Incorrect</span>
+            <label class="aq-field aq-field-wide">
+              <span class="aq-field-label">Incorrect</span>
               <textarea class="js-rubric-field" data-key="incorrect" rows="2">${escapeHtml(spec.rubric.incorrect)}</textarea>
             </label>
           </div>
         </details>
 
-        <div class="full-span preview-pane js-preview-pane" id="preview-${index}">
-          <p class="eyebrow">Accepted Examples</p>
-          <div class="preview-content js-preview-content">Loading preview...</div>
+        <div class="aq-preview" id="preview-${index}">
+          <span class="aq-preview-label">Accepted examples</span>
+          <div class="aq-preview-content js-preview-content">Loading preview…</div>
         </div>
-      </div>
+      </section>
     `;
-  }
-
-  function renderMediaPreview(media) {
-    if (!media) {
-      return `<div class="fc-media-empty">No media attached — click <strong>Image</strong> or <strong>SVG</strong> to add one.</div>`;
-    }
-    if (media.type === "image") {
-      return `<img class="fc-media-preview-img" src="${escapeHtml(media.src)}" alt="${escapeHtml(media.alt || "")}" />`;
-    }
-    if (media.type === "svg") {
-      return `<div class="fc-media-preview-svg">${media.html}</div>`;
-    }
-    return "";
   }
 
   function render(container, data, onChange) {
@@ -204,75 +232,70 @@
               </div>
               <button class="btn btn-primary js-add-item" type="button">Add question</button>
             </div>
+            <p class="muted-text" style="margin-top:8px;">
+              Each question carries a <strong>tier</strong> (Easy / Medium / Hard), a grading rule,
+              optional media, and an optional hint. Tiers drive adaptive selection at runtime.
+            </p>
           </section>
 
           ${
             state.length
               ? state
                   .map((item, index) => {
-                    const tier = item.tier;
-                    const colors = TIER_COLORS[tier] || TIER_COLORS.EASY;
-                    const qSummary = stripHtml(item.q) || "Untitled adaptive question";
+                    const accent = tierAccent(item.tier);
+                    const hasMedia = !!item.media;
+                    const qSummary = stripHtml(item.q) || `Untitled question ${index + 1}`;
                     return `
-                      <section class="flashcard-builder-card" data-index="${index}" style="--fc-strip:${colors.fg};">
-                        <div class="flashcard-builder-strip" style="background:${colors.fg};"></div>
-                        <div class="flashcard-builder-header">
-                          <div class="flashcard-builder-title">
-                            <span class="eyebrow">Question ${index + 1}</span>
-                            <h3>${escapeHtml(qSummary).slice(0, 80)}</h3>
-                          </div>
-                          <div class="flashcard-builder-actions">
-                            <span class="status-pill" style="background:${colors.bg};color:${colors.fg};">${tier}</span>
-                            <button class="btn btn-danger js-remove-item" type="button">Remove</button>
-                          </div>
+                      <section class="flashcard-builder-card aq-card" data-index="${index}" style="--fc-bar:${accent.bar};">
+                        <div class="fc-card-head">
+                          <span class="fc-card-num">Question ${index + 1}</span>
+                          <span class="fc-cluster-pill" style="background:${accent.bg};color:${accent.text};">
+                            ${escapeHtml(accent.label)}
+                          </span>
+                          <span class="aq-card-summary">${escapeHtml(qSummary).slice(0, 64)}</span>
+                          <button class="btn btn-ghost btn-small js-remove-item" type="button" aria-label="Remove question">Remove</button>
                         </div>
 
                         <div class="fc-media-zone">
-                          <div class="fc-media-head">
-                            <span class="fc-face-label">Media (optional)</span>
-                            <div class="fc-media-tools">
-                              <button class="btn btn-ghost js-card-img" type="button">✓ Image</button>
-                              <button class="btn btn-ghost js-card-svg" type="button">◆ SVG</button>
-                              ${item.media ? `<button class="btn btn-ghost js-card-clear-media" type="button">Clear</button>` : ""}
+                          <div class="fc-media-toolbar">
+                            <span class="fc-media-label">Media (optional)</span>
+                            <div class="fc-media-actions">
+                              <button type="button" class="btn btn-ghost btn-small js-aq-media-image">🖼 Image</button>
+                              <button type="button" class="btn btn-ghost btn-small js-aq-media-svg">◆ SVG</button>
+                              ${hasMedia ? '<button type="button" class="btn btn-ghost btn-small js-aq-media-clear">Clear</button>' : ""}
                             </div>
                           </div>
-                          <div class="fc-media-body">
-                            ${renderMediaPreview(item.media)}
-                          </div>
+                          ${renderMediaPreview(item.media)}
                         </div>
 
                         <div class="fc-face">
-                          <div class="fc-face-label">Question</div>
+                          <span class="fc-face-label">Question</span>
                           <div class="js-rich-host" data-key="q" data-index="${index}"></div>
                         </div>
 
-                        <div class="fc-divider"><span>↓ answer grading below ↓</span></div>
+                        ${renderGradingBlock(item, index)}
 
-                        <div class="fc-face">
-                          ${renderAnswerSpecForm(item, index)}
-                        </div>
-
-                        <div class="fc-meta-row">
-                          <div class="field">
-                            <span>Tier</span>
+                        <div class="fc-meta-row aq-meta-row">
+                          <div class="fc-meta-field">
+                            <span class="fc-meta-label">Tier</span>
                             <select class="js-field" data-key="tier">
-                              ${renderTierOptions(tier)}
+                              ${renderTierOptions(item.tier)}
                             </select>
                           </div>
-                          <div class="field">
-                            <span>Capture</span>
+                          <div class="fc-meta-field">
+                            <span class="fc-meta-label">Notebook capture</span>
                             <select class="js-capture">
                               <option value="false" ${!item.capture ? "selected" : ""}>Off</option>
-                              <option value="true" ${item.capture ? "selected" : ""}>Require notebook</option>
+                              <option value="true" ${item.capture ? "selected" : ""}>Require photo</option>
                             </select>
                           </div>
-                          <div class="field full-span">
-                            <span>Tags</span>
+                          <div class="fc-meta-field aq-meta-wide">
+                            <span class="fc-meta-label">Tags</span>
                             <input class="js-field" data-key="tags" type="text" value="${escapeHtml(item.tags)}" placeholder="[Bloom: L1 | PISA: L1]" />
                           </div>
-                          <div class="field full-span">
-                            <span>🧠 Hint (optional)</span>
-                            <textarea class="js-field" data-key="hint" rows="2" placeholder="A gentle nudge...">${escapeHtml(item.hint)}</textarea>
+                          <div class="fc-meta-field aq-meta-wide">
+                            <span class="fc-meta-label">🧠 Hint (optional)</span>
+                            <textarea class="js-field" data-key="hint" rows="2" placeholder="A gentle nudge if the learner is stuck…">${escapeHtml(item.hint)}</textarea>
                           </div>
                         </div>
                       </section>
@@ -282,6 +305,7 @@
               : `<div class="empty-state glass-card inline-empty">
                   <div class="empty-orb" aria-hidden="true">🎯</div>
                   <h3>No adaptive questions</h3>
+                  <p>Add a question and pick a tier to drive adaptive selection at runtime.</p>
                   <button class="btn btn-primary js-add-item" type="button">Add first question</button>
                 </div>`
           }
@@ -296,7 +320,7 @@
           const initial = state[index]?.[key] || "";
           const mini = window.RichField.create({
             value: initial,
-            placeholder: "Type the question here...",
+            placeholder: "Type the question here…",
             compact: false,
             onChange: (html) => {
               if (!state[index]) return;
@@ -318,13 +342,14 @@
         const resp = await fetch("/api/ai/answer-spec/preview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ answer_spec: q.answer_spec })
+          body: JSON.stringify({ answer_spec: q.answer_spec }),
         });
         if (!resp.ok) throw new Error("Preview failed");
         const data = await resp.json();
-        previewEl.innerHTML = (data.examples || []).map(ex => `<code class="preview-tag">${escapeHtml(ex)}</code>`).join(" ");
+        const examples = (data.examples || []).map((ex) => `<code class="aq-preview-tag">${escapeHtml(ex)}</code>`).join("");
+        previewEl.innerHTML = examples || `<span class="aq-preview-empty">No accepted examples yet — fill in the canonical answer.</span>`;
       } catch (err) {
-        previewEl.innerText = "Error loading preview.";
+        previewEl.innerHTML = `<span class="aq-preview-empty">Preview offline — backend unreachable.</span>`;
       }
     }
 
@@ -381,13 +406,17 @@
         state.push(makeItem());
         emit(state, onChange);
         repaint();
-      } else if (target.closest(".js-remove-item")) {
-        const index = Number(target.closest("[data-index]")?.dataset.index);
+        return;
+      }
+      const wrap = target.closest("[data-index]");
+      const index = wrap ? Number(wrap.dataset.index) : -1;
+      if (!Number.isFinite(index) || index < 0) return;
+
+      if (target.closest(".js-remove-item")) {
         state.splice(index, 1);
         emit(state, onChange);
         repaint();
-      } else if (target.closest(".js-card-img")) {
-        const index = Number(target.closest("[data-index]")?.dataset.index);
+      } else if (target.closest(".js-aq-media-image")) {
         if (window.RichField?.openImageModal) {
           window.RichField.openImageModal((src, alt) => {
             if (!src) return;
@@ -396,8 +425,7 @@
             repaint();
           });
         }
-      } else if (target.closest(".js-card-svg")) {
-        const index = Number(target.closest("[data-index]")?.dataset.index);
+      } else if (target.closest(".js-aq-media-svg")) {
         if (window.RichField?.openSvgModal) {
           window.RichField.openSvgModal((svgHtml) => {
             if (!svgHtml) return;
@@ -406,8 +434,7 @@
             repaint();
           });
         }
-      } else if (target.closest(".js-card-clear-media")) {
-        const index = Number(target.closest("[data-index]")?.dataset.index);
+      } else if (target.closest(".js-aq-media-clear")) {
         state[index].media = null;
         emit(state, onChange);
         repaint();

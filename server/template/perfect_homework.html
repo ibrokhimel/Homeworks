@@ -130,7 +130,11 @@
         }
         .block-image img {
             max-width: 100%;
+            /* Cap tall images so a single block can't push the panel past the
+               viewport. Authors who want a bigger image can split into pages. */
+            max-height: 56vh;
             height: auto;
+            object-fit: contain;
             border-radius: 14px;
             box-shadow: var(--shadow-mid, 0 8px 24px rgba(0,0,0,0.08));
         }
@@ -140,6 +144,7 @@
         }
         .block-svg svg {
             max-width: 100%;
+            max-height: 56vh;
             height: auto;
         }
 
@@ -703,9 +708,26 @@
             width: min(82vw, 420px);
             min-height: 180px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
+        }
+
+        .break-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 14px;
+            padding: 5px 14px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: rgba(0, 122, 255, 0.10);
+            border: 1px solid rgba(0, 122, 255, 0.22);
         }
 
         .break-text {
@@ -787,7 +809,13 @@
         }
 
         .panel-card {
-            height: 82vh;
+            /* Hug content up to a viewport-bounded ceiling so short pages
+               don't stretch into a large empty card and long pages still
+               scroll inside the card instead of pushing it off-screen.
+               The screen flex container centers a shorter card vertically. */
+            height: auto;
+            min-height: min(360px, 70vh);
+            max-height: 82vh;
             display: flex;
             flex-direction: column;
             border: 1px solid var(--surface-border);
@@ -795,18 +823,39 @@
         }
 
         .content-area {
-            flex: 1;
+            /* flex-shrink lets the area collapse to the page's natural height
+               when content is short, so the card hugs content instead of
+               leaving a tall blank scroll region below. */
+            flex: 1 1 auto;
             overflow-y: auto;
             overflow-x: hidden;
             position: relative;
-            padding-bottom: 20px;
+            padding-bottom: 8px;
             touch-action: pan-y;
             -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
             min-height: 0;
         }
 
         .content-area::-webkit-scrollbar { display: none; }
         .content-area { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Fade hint at the bottom of the scrollable area so long pages
+           visually advertise "there's more below" without showing a
+           scrollbar. Toggled on/off by JS when scrollHeight > clientHeight. */
+        .panel-card::after {
+            content: "";
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            bottom: 56px;
+            height: 28px;
+            pointer-events: none;
+            background: linear-gradient(180deg, transparent, var(--surface));
+            opacity: 0;
+            transition: opacity 200ms ease;
+        }
+        .panel-card.has-overflow::after { opacity: 0.85; }
 
         .page {
             position: absolute;
@@ -3390,6 +3439,175 @@
         #nets-tutor-cta[hidden] { display: none !important; }
         [data-theme="dark"] #nets-tutor-cta { background: #3395ff; box-shadow: 0 2px 8px rgba(51,149,255,0.35); }
         [data-theme="dark"] #nets-tutor-cta:hover { background: #57aaff; }
+
+        /* ── Wave V (visual-runtime polish 2026-04-29): dark-mode button & input visibility ──
+           Many runtime games and prompts hardcoded white/cream backgrounds and dark text
+           colors that disappear on the dark surface. Provide themed counterparts so every
+           input, capture button, label pill, tile and feedback strip stays legible in dark
+           mode without changing light-mode values. */
+
+        /* Quote screen (Phase 0) ----------------------------------- */
+        [data-theme="dark"] .quote-item { color: #cbd5e1; }
+        [data-theme="dark"] .quote-author-chip {
+            background: rgba(0, 122, 255, 0.18);
+            color: #93c5fd;
+            border-color: rgba(0, 122, 255, 0.42);
+        }
+        [data-theme="dark"] .quote-author-chip--global {
+            background: rgba(0, 153, 102, 0.18);
+            color: #6ee7b7;
+            border-color: rgba(0, 153, 102, 0.42);
+        }
+
+        /* Boss Battle ---------------------------------------------- */
+        [data-theme="dark"] .boss-input {
+            background: rgba(15, 23, 42, 0.74);
+            border-color: rgba(96, 165, 250, 0.42);
+            color: var(--text);
+        }
+        [data-theme="dark"] .boss-input:focus { border-color: var(--accent); }
+        [data-theme="dark"] .boss-hint-btn {
+            color: #fcd34d;
+            background: rgba(245, 158, 11, 0.16);
+            border-color: rgba(245, 158, 11, 0.42);
+        }
+        [data-theme="dark"] .boss-hint-text { color: #fcd34d; }
+        [data-theme="dark"] .boss-feedback.correct { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+        [data-theme="dark"] .boss-feedback.wrong   { background: rgba(239, 68, 68, 0.20); color: #fca5a5; }
+        [data-theme="dark"] .boss-q-card {
+            border-color: rgba(96, 165, 250, 0.30);
+        }
+
+        /* Reading checkpoints -------------------------------------- */
+        [data-theme="dark"] .screen-reading-input {
+            background: rgba(15, 23, 42, 0.74);
+            border-color: rgba(96, 165, 250, 0.42);
+            color: var(--text);
+        }
+        [data-theme="dark"] .screen-reading-btn {
+            color: #93c5fd;
+            background: rgba(0, 122, 255, 0.18);
+            border-color: rgba(0, 122, 255, 0.45);
+        }
+        [data-theme="dark"] .screen-reading-btn:hover:not(:disabled) {
+            background: rgba(0, 122, 255, 0.30);
+        }
+        [data-theme="dark"] .screen-reading-feedback.is-correct { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+        [data-theme="dark"] .screen-reading-feedback.is-wrong   { background: rgba(239, 68, 68, 0.20); color: #fca5a5; }
+        [data-theme="dark"] .screen-reading-feedback.is-pending { background: rgba(0, 122, 255, 0.18); color: #93c5fd; }
+
+        /* Consolidation toggle ------------------------------------- */
+        [data-theme="dark"] .screen-cons-toggle {
+            color: #93c5fd;
+            background: rgba(0, 122, 255, 0.18);
+            border-color: rgba(0, 122, 255, 0.45);
+        }
+        [data-theme="dark"] .screen-cons-toggle:hover:not(:disabled) {
+            background: rgba(0, 122, 255, 0.30);
+        }
+        [data-theme="dark"] .screen-cons-answer {
+            background: rgba(0, 122, 255, 0.12);
+        }
+
+        /* Adaptive Quiz (game break) -------------------------------- */
+        [data-theme="dark"] .gb-aq-input {
+            background: rgba(15, 23, 42, 0.74);
+            border-color: rgba(96, 165, 250, 0.42);
+            color: var(--text);
+        }
+        [data-theme="dark"] .gb-aq-capture-btn {
+            background: rgba(15, 23, 42, 0.74);
+            border-color: rgba(96, 165, 250, 0.42);
+        }
+        [data-theme="dark"] .gb-aq-capture-btn.confirmed {
+            background: rgba(34, 197, 94, 0.18);
+            border-color: #5bb85d;
+        }
+        [data-theme="dark"] .gb-aq-feedback.correct { background: rgba(34, 197, 94, 0.18); color: #86efac; border-color: rgba(34, 197, 94, 0.45); }
+        [data-theme="dark"] .gb-aq-feedback.wrong   { background: rgba(239, 68, 68, 0.20); color: #fca5a5; border-color: rgba(239, 68, 68, 0.45); }
+
+        /* Why Chain (game break) ----------------------------------- */
+        [data-theme="dark"] .gb-wc-textarea {
+            background: rgba(15, 23, 42, 0.74);
+            border-color: rgba(96, 165, 250, 0.42);
+            color: var(--text);
+        }
+        [data-theme="dark"] .gb-wc-bubble-ai {
+            background: rgba(0, 122, 255, 0.16);
+            border-color: rgba(0, 122, 255, 0.32);
+            color: var(--text);
+        }
+        [data-theme="dark"] .gb-wc-reprompt {
+            color: #fcd34d;
+            background: rgba(245, 158, 11, 0.14);
+            border-color: rgba(245, 158, 11, 0.40);
+        }
+
+        /* Mystery Box / Puzzle Lock / Tile Match / Memory Match ---- */
+        [data-theme="dark"] .gb-mb-label {
+            background: rgba(15, 23, 42, 0.74);
+            border-color: rgba(148, 163, 184, 0.30);
+            color: var(--text);
+        }
+        [data-theme="dark"] .gb-mb-label.picked-correct { border-color: #5bb85d; background: rgba(34, 197, 94, 0.22); }
+        [data-theme="dark"] .gb-mb-label.picked-wrong   { border-color: #d9534f; background: rgba(239, 68, 68, 0.22); }
+        [data-theme="dark"] .gb-mb-label.picked-truth   { border-color: #5bb85d; background: rgba(34, 197, 94, 0.14); }
+        [data-theme="dark"] .gb-mb-input,
+        [data-theme="dark"] .gb-pl-input,
+        [data-theme="dark"] .gb-mm-confirm-input {
+            background: rgba(15, 23, 42, 0.74);
+            border-color: rgba(96, 165, 250, 0.42);
+            color: var(--text);
+        }
+        [data-theme="dark"] .gb-mb-feedback.correct { color: #86efac; }
+        [data-theme="dark"] .gb-mb-feedback.partial { color: #fcd34d; }
+        [data-theme="dark"] .gb-mb-feedback.wrong   { color: #fca5a5; }
+        [data-theme="dark"] .gb-mb-win-text,
+        [data-theme="dark"] .gb-pl-win-text { color: #86efac; }
+        [data-theme="dark"] .gb-pl-grid { background: rgba(15, 23, 42, 0.45); }
+        [data-theme="dark"] .gb-pl-cell {
+            background: rgba(15, 23, 42, 0.74);
+            border-color: rgba(148, 163, 184, 0.28);
+            color: var(--text);
+        }
+        [data-theme="dark"] .gb-pl-question-box {
+            background: rgba(0, 122, 255, 0.14);
+            border-color: rgba(0, 122, 255, 0.42);
+        }
+        [data-theme="dark"] .gb-mm-confirm-box {
+            background: rgba(0, 122, 255, 0.14);
+            border-color: var(--accent);
+        }
+        [data-theme="dark"] .gb-mm-front-face {
+            background: rgba(15, 23, 42, 0.78);
+            border-color: rgba(96, 165, 250, 0.42);
+            color: var(--text);
+        }
+        [data-theme="dark"] .gb-mm-card.matched .gb-mm-front-face {
+            background: rgba(34, 197, 94, 0.22);
+            border-color: #5bb85d;
+        }
+
+        /* Real Life screen ----------------------------------------- */
+        [data-theme="dark"] .rl-capture-btn {
+            background: rgba(15, 23, 42, 0.50);
+            border-color: rgba(96, 165, 250, 0.42);
+            color: var(--text);
+        }
+        [data-theme="dark"] .rl-capture-btn:active {
+            background: rgba(0, 122, 255, 0.24);
+        }
+
+        /* Phase progress bar (top of screen) ----------------------- */
+        [data-theme="dark"] .phase-seg { background: rgba(255, 255, 255, 0.10); }
+
+        /* Glyph badges on game tiles use light-mode greens; brighten for dark ---- */
+        [data-theme="dark"] .gb-tm-tile.matched::after,
+        [data-theme="dark"] .gb-mm-card.matched::after,
+        [data-theme="dark"] .gb-pl-cell.locked::after,
+        [data-theme="dark"] .gb-mb-label.picked-correct::after,
+        [data-theme="dark"] .gb-mb-label.picked-truth::after { color: #86efac; }
+        [data-theme="dark"] .gb-mb-label.picked-wrong::after { color: #fca5a5; }
     </style>
 
     <!-- KaTeX: render $...$ / $$...$$ math in any prompt that uses LaTeX. -->
@@ -3587,7 +3805,8 @@
         </div>
         <div id="screen-break" class="screen">
             <div class="card break-card">
-                <div class="break-text">Yaxshi uka, keep poing</div>
+                <div class="break-kicker" id="break-kicker"></div>
+                <div class="break-text" id="break-text"></div>
             </div>
         </div>
 
@@ -4477,10 +4696,10 @@
         ];
 
         // QUOTES is replaced by server/services/injector.py at render time with
-        // exactly one entry produced by server/services/quotes.py (a deterministic
-        // pick from server/data/quotes_database.json applying the 55/45 + 70/30 rule
-        // for `mode: auto`, or the author's pinned/custom override). The empty
-        // default below is only ever seen if injection is bypassed during dev.
+        // a three-slot sequence from server/services/quotes.py:
+        // [0] opening gate quote, [1] first-third quote/fact mix,
+        // [2] post-flashcard fact. The empty default below is only ever seen
+        // if injection is bypassed during dev.
         const QUOTES = [];
 
         const FLASHCARDS = [
@@ -4745,6 +4964,11 @@
             else if (state.stage === 2) nextPanel();
             else if (state.stage === 2.5 && btn.classList.contains('state-pill')) startStage3();
             else if (state.stage === 3) endStage3();
+            else if (state.stage === 3.5 && btn.classList.contains('state-pill')) {
+                const breakScreen = document.getElementById('screen-break');
+                if (breakScreen) breakScreen.classList.remove('active');
+                startMemorySprintPhase();
+            }
             else if (state.stage === 4.5 && btn.classList.contains('state-pill')) {
                 const screenMs = document.getElementById('screen-ms');
                 if (screenMs) screenMs.classList.remove('active');
@@ -4826,7 +5050,7 @@
         //   7.7 = Reflection    (after Boss-done 7.5 before finish)     → dot 7 (Done)
         const phaseMap = {
             0:0, 1:1, 2:1,
-            2.5:2, 3:2,
+            2.5:2, 3:2, 3.5:3,
             4:3, 4.5:3,
             4.7:4,            // Wave 2: Reading — entering GameBreaks
             5:4,
@@ -4915,8 +5139,7 @@
             const container = document.getElementById('quote-container');
             if (!container) return;
             const presets = ['anim-quote-in-up', 'anim-quote-in-scale', 'anim-quote-in-left'];
-            // QUOTES is always length-1 (server-side selector picks one per inject).
-            const q = QUOTES[0] || { t: "", a: "", origin: "National", type: "fact" };
+            const q = QUOTES[0] || { t: "", a: "", origin: "National", type: "quote" };
             const isGlobal = q.origin === 'Global';
             const icon = q.type === 'quote' ? '❝' : '💡';
 
@@ -4944,8 +5167,8 @@
             chip.appendChild(authorNode);
             chipLine.appendChild(chip);
 
-            item.appendChild(textLine);
             item.appendChild(chipLine);
+            item.appendChild(textLine);
 
             const preset = presets[Math.floor(Math.random() * presets.length)];
             container.appendChild(item);
@@ -4954,6 +5177,22 @@
             // 5-second skip lock — show a progress ring on the locked .state-line button.
             mountSkipLockRing();
             setTimeout(morphToContinue, 5000);
+        }
+
+        function renderBreakQuote(slotIndex) {
+            const q = QUOTES[slotIndex] || { t: "", a: "", origin: "National", type: "fact" };
+            const kicker = document.getElementById('break-kicker');
+            const text = document.getElementById('break-text');
+            if (kicker) {
+                const defaultLabel = q.type === 'fact' ? 'Bilarmidingiz?' : 'Iqtibos';
+                kicker.textContent = q.a || defaultLabel;
+            }
+            if (text) {
+                text.textContent = q.t || '';
+                text.style.animation = 'none';
+                void text.offsetHeight;
+                text.style.animation = '';
+            }
         }
 
         function mountSkipLockRing() {
@@ -5078,7 +5317,30 @@
 
             container.scrollTop = 0;
             updatePanelButton();
+            updatePanelOverflowHint();
         }
+
+        // Toggle the "more below" fade only when the active page actually
+        // overflows its scroll container. Re-checks on resize / scroll / image
+        // load so the hint stays accurate as content settles.
+        function updatePanelOverflowHint() {
+            const card = document.getElementById('panel-card');
+            const container = document.getElementById('panel-content');
+            if (!card || !container) return;
+            const overflow = container.scrollHeight - container.clientHeight > 4
+                && container.scrollTop + container.clientHeight < container.scrollHeight - 4;
+            card.classList.toggle('has-overflow', overflow);
+        }
+
+        // Hook scroll + load events once. The handler is cheap (one DOM read).
+        (function wirePanelOverflowHint() {
+            const container = document.getElementById('panel-content');
+            if (!container || container.dataset.overflowWired === '1') return;
+            container.dataset.overflowWired = '1';
+            container.addEventListener('scroll', updatePanelOverflowHint, { passive: true });
+            window.addEventListener('resize', updatePanelOverflowHint);
+            container.addEventListener('load', updatePanelOverflowHint, true);
+        })();
 
         function updatePanelButton() {
             const panel = PANELS[state.panelIndex];
@@ -5112,6 +5374,7 @@
 
         function showBreakScreen() {
             state.isAnimating = true;
+            renderBreakQuote(1);
             const content = document.getElementById('panel-content');
             if (content) {
                 content.style.transition = 'all 400ms ease-in';
@@ -5445,6 +5708,7 @@
         function endStage3() {
             if (state.isAnimating) return;
             state.isAnimating = true;
+            renderBreakQuote(2);
             const fcInner = document.getElementById('fc-inner');
             if (fcInner) {
                 fcInner.removeEventListener('click', handleCardTap);
@@ -5457,7 +5721,15 @@
             if (btnText) btnText.style.opacity = '0';
             setTimeout(() => {
                 document.getElementById('screen-3').classList.remove('active');
-                startMemorySprintPhase();
+                document.getElementById('screen-break').classList.add('active');
+                setStage(3.5);
+                setTimeout(() => {
+                    btn.classList.remove('state-line');
+                    btn.classList.add('state-pill');
+                    setBtnText(RT('btn.next'));
+                    btn.classList.add('pulse');
+                    state.isAnimating = false;
+                }, 1500);
             }, 450);
         }
 
@@ -5834,6 +6106,7 @@
                     pages[idx].style.opacity = '1';
                     pages[idx].classList.add('active');
                     if (container) container.scrollTop = 0;
+                    updatePanelOverflowHint();
                 });
                 state.pageIndex = idx;
                 updateDots();
