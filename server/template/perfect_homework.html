@@ -729,6 +729,15 @@
             background: rgba(0, 122, 255, 0.10);
             border: 1px solid rgba(0, 122, 255, 0.22);
         }
+        /* When the break card shows an attributed quote, the author kicker
+           moves below the text (column-reverse on the card flips it
+           visually without rewriting HTML), and the kicker margin swaps
+           so the gap stays on the inner side of the layout. */
+        .break-card--quote { flex-direction: column-reverse; }
+        .break-card--quote .break-kicker {
+            margin-bottom: 0;
+            margin-top: 14px;
+        }
 
         .break-text {
             font-size: 22px;
@@ -1047,6 +1056,14 @@
             background: rgba(0, 122, 255, 0.10);
             color: var(--accent);
             border: 1px solid rgba(0, 122, 255, 0.22);
+        }
+        /* When the chip introduces the content (facts / "Bilarmidingiz?")
+           it sits ABOVE the text instead of below — same pill, swapped
+           gap so it reads as a label heading. Quotes keep the chip
+           below the content as the conventional attribution line. */
+        .quote-author-chip--top {
+            margin-top: 0;
+            margin-bottom: 14px;
         }
         .quote-author-chip--global {
             background: rgba(0, 153, 102, 0.10);
@@ -5517,7 +5534,11 @@
             const presets = ['anim-quote-in-up', 'anim-quote-in-scale', 'anim-quote-in-left'];
             const q = QUOTES[0] || { t: "", a: "", origin: "National", type: "quote" };
             const isGlobal = q.origin === 'Global';
-            const icon = q.type === 'quote' ? '❝' : '💡';
+            // Facts are introduced by the "Bilarmidingiz?" pill above the text;
+            // quotes are attributed by the author pill below the text. Skip the
+            // leading 💡 emoji on facts so the label pill isn't doubled.
+            const isFact = q.type !== 'quote';
+            const icon = isFact ? '' : '❝';
 
             const item = document.createElement('div');
             item.className = 'quote-item';
@@ -5525,16 +5546,23 @@
             // Quote line — span+icon prefix, then the quote text as a text node
             // (no innerHTML interpolation, immune to XSS regardless of source).
             const textLine = document.createElement('div');
-            const iconNode = document.createElement('span');
-            iconNode.className = 'quote-type-icon';
-            iconNode.textContent = icon;
-            textLine.appendChild(iconNode);
+            if (icon) {
+                const iconNode = document.createElement('span');
+                iconNode.className = 'quote-type-icon';
+                iconNode.textContent = icon;
+                textLine.appendChild(iconNode);
+            }
             textLine.appendChild(document.createTextNode(q.t || ''));
 
             // Author chip — origin-tinted pill with a dot + author name.
+            // Facts (Bilarmidingiz?) put the chip ABOVE the text as a heading;
+            // quotes keep the chip BELOW as the conventional attribution line.
             const chipLine = document.createElement('div');
             const chip = document.createElement('span');
-            chip.className = isGlobal ? 'quote-author-chip quote-author-chip--global' : 'quote-author-chip';
+            const chipClasses = ['quote-author-chip'];
+            if (isGlobal) chipClasses.push('quote-author-chip--global');
+            if (isFact) chipClasses.push('quote-author-chip--top');
+            chip.className = chipClasses.join(' ');
             const dot = document.createElement('span');
             dot.className = 'quote-author-chip-dot';
             const authorNode = document.createElement('span');
@@ -5543,8 +5571,13 @@
             chip.appendChild(authorNode);
             chipLine.appendChild(chip);
 
-            item.appendChild(chipLine);
-            item.appendChild(textLine);
+            if (isFact) {
+                item.appendChild(chipLine);
+                item.appendChild(textLine);
+            } else {
+                item.appendChild(textLine);
+                item.appendChild(chipLine);
+            }
 
             const preset = presets[Math.floor(Math.random() * presets.length)];
             container.appendChild(item);
@@ -5557,26 +5590,15 @@
 
         function renderBreakQuote(slotIndex) {
             const q = QUOTES[slotIndex] || { t: "", a: "", origin: "National", type: "fact" };
+            const card = document.querySelector('#screen-break .break-card');
             const kicker = document.getElementById('break-kicker');
             const text = document.getElementById('break-text');
+            // Facts keep "Bilarmidingiz?" above the text; quotes flip so the
+            // author chip sits underneath as conventional attribution.
+            const isQuote = q.type === 'quote';
+            if (card) card.classList.toggle('break-card--quote', isQuote);
             if (kicker) {
-                const defaultLabel = q.type === 'fact' ? 'Bilarmidingiz?' : 'Iqtibos';
-                kicker.textContent = q.a || defaultLabel;
-            }
-            if (text) {
-                text.textContent = q.t || '';
-                text.style.animation = 'none';
-                void text.offsetHeight;
-                text.style.animation = '';
-            }
-        }
-
-        function renderBreakQuote(slotIndex) {
-            const q = QUOTES[slotIndex] || { t: "", a: "", origin: "National", type: "fact" };
-            const kicker = document.getElementById('break-kicker');
-            const text = document.getElementById('break-text');
-            if (kicker) {
-                const defaultLabel = q.type === 'fact' ? 'Bilarmidingiz?' : 'Iqtibos';
+                const defaultLabel = isQuote ? 'Iqtibos' : 'Bilarmidingiz?';
                 kicker.textContent = q.a || defaultLabel;
             }
             if (text) {
