@@ -94,20 +94,76 @@ def test_xss_escape_applied_to_runtime_context_field():
     )
 
 
-def test_other_dangerous_substrings_also_escaped_optional():
-    """Non-blocking: verify the fix doesn't break a normal homework title
-    (i.e., no unintended mutation of safe content)."""
-    safe_ctx = {
-        "apiBase": "",
-        "subject": "math-algebra",
-        "grade": 8,
-        "homeworkTitle": "Quadratic Equations — Chapter 3",
-        "homeworkSummary": "Solve using the quadratic formula.",
-        "hwId": "HW-SAFE-001",
-        "lang": "uz",
-    }
+def test_line_separators_escaped():
+    """U+2028 / U+2029 are valid in JSON but terminate JS string
+    literals — they must be escaped as \\u2028 / \\u2029. Pins down
+    the additional protection PR #55's _safe_js_json adds beyond
+    the minimal </script> fix."""
+    from server.services.injector import _safe_js_json
 
-    rendered = inject(_MINIMAL_CONTENT, runtime_context=safe_ctx)
+    payload = {"homeworkTitle": "before   middle   after"}
+    out = _safe_js_json(payload)
 
-    assert "window.NETS_CTX" in rendered
-    assert "Quadratic Equations" in rendered
+    # The literal U+2028/U+2029 must NOT appear in the output —
+    # the HTML-then-JS parsing chain would terminate the string early.
+    assert " " not in out, (
+        "Raw U+2028 in output — would terminate JS string literal"
+    )
+    assert " " not in out, (
+        "Raw U+2029 in output — would terminate JS string literal"
+    )
+    # The escaped form must be present:
+    assert "\\u2028" in out, "Expected escaped \\u2028 in output"
+    assert "\\u2029" in out, "Expected escaped \\u2029 in output"
+
+    # Sanity: round-trip through json.loads should restore the original
+    import json
+    restored = json.loads(out)
+    assert restored["homeworkTitle"] == "before   middle   after"
+
+
+def test_all_inline_json_call_sites_use_safe_helper():
+    """Meta-lint: every json.dumps() call in injector.py must either
+    flow through _safe_js_json (the safe path for inline <script>
+    contexts) OR carry an inline comment justifying the bypass.
+
+    Regression rule per the new server workflow: this is the guard
+    that would have caught the original injector.py:779 issue before
+    PR #55 needed to fix it, AND will catch any future contributor
+    adding a raw json.dumps in a script-embedding context."""
+    from pathlib import Path
+    import re
+
+    src = Path("server/services/injector.py").read_text(encoding="utf-8")
+    lines = src.splitlines()
+
+    # Find every line that has a bare json.dumps call (not inside a
+    # def of _safe_js_json itself).
+    inside_safe_helper = False
+    bad = []
+    for i, line in enumerate(lines, 1):
+        # Track whether we're inside the _safe_js_json definition
+        if line.lstrip().startswith("def _safe_js_json"):
+            inside_safe_helper = True
+            continue
+        if inside_safe_helper:
+            # Heuristic: helper ends at the next top-level def or blank-then-non-indented line
+            if line and not line.startswith((" ", "\t")) and not line.startswith("def _safe_js_json"):
+                inside_safe_helper = False
+            else:
+                continue
+
+        # Find unwrapped json.dumps calls
+        if re.search(r"\bjson\.dumps\b", line):
+            # Allow if there's an inline comment explaining the bypass
+            if re.search(r"#.*(safe|bypass|not.*script|json[- ]only)", line, re.IGNORECASE):
+                continue
+            bad.append(f"injector.py:{i}: {line.strip()}")
+
+    # The ONLY allowed unwrapped json.dumps is inside _safe_js_json's body
+    # (which we skipped above). Anything else is a regression.
+    assert not bad, (
+        "Unwrapped json.dumps in injector.py — these must go through "
+        "_safe_js_json or carry a justifying comment:\n  "
+        + "\n  ".join(bad)
+    )
