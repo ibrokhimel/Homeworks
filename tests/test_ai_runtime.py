@@ -757,6 +757,33 @@ def test_review_queue_dedup(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
+def test_check_answer_numeric_string_tolerance_does_not_500(client):
+    resp = client.post(
+        "/api/ai/check-answer",
+        json={
+            "question_id": "numeric-string-tolerance",
+            "question": "What is x?",
+            "student_answer": "10.4",
+            "expected_answers": [],
+            "answer_spec": {
+                "type": "numeric",
+                "expected": "10",
+                "tolerance": "0.5",
+                "canonical_display": "10",
+            },
+            "allow_ai_fallback": False,
+            "subject": "math-algebra",
+            "grade": 8,
+            "phase": "boss",
+        },
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["correct"] is True
+    assert body["source"] == "deterministic"
+
+
 @pytest.mark.requires_ai
 def test_check_answer(client):
     """

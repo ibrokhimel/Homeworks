@@ -482,48 +482,42 @@ async def reflection_feedback(
 # ---------------------------------------------------------------------------
 
 
-# Keys we strip from any question payload before it enters the LLM context for
-# practice/boss phases. Bridge B (answer-leak prevention) — see the plan.
-# Includes camelCase, snake_case, and common alternative names from external
-# content schemas. Adding a new field name here is the cheapest way to plug a
-# leak when a content author introduces new naming.
-_ANSWER_LEAK_KEYS: tuple[str, ...] = (
-    "a",
-    "acceptable",
-    "acceptableAnswers",
-    "accepted_answers",
-    "answer",
-    "answer_key",
-    "answerKey",
-    "ans",
-    "canonical_display",
-    "canonicalDisplay",
-    "correct",
-    "correctAnswer",
-    "correct_answer",
-    "correctChoice",
-    "correct_choice",
-    "expected",
-    "expectedAnswer",
-    "expected_answer",
-    "expectedValue",
-    "expected_value",
-    "key",
-    "matched_expected",
-    "right_answer",
-    "rightAnswer",
-    "solution",
-    "solutionKey",
-    "solution_key",
-)
+# Keys we allow from question payloads before they enter the LLM context for
+# practice/boss phases. Bridge B (answer-leak prevention) fails closed:
+# adding a new content field never exposes it until it is reviewed here.
+_TUTOR_CONTEXT_SAFE_KEYS: frozenset[str] = frozenset({
+    "id",
+    "question_id",
+    "q",
+    "prompt",
+    "question",
+    "title",
+    "subtitle",
+    "text",
+    "label",
+    "term",
+    "term_html",
+    "cluster",
+    "type",
+    "options",
+    "fields",
+    "front",
+    "tier",
+    "bloom",
+    "pisa",
+    "tags",
+    "damage",
+    "dmg",
+})
 
 
 def _redact_question_for_tutor(question: dict, phase: str) -> dict:
-    """Return a deep-ish copy of `question` with answer-bearing keys removed.
+    """Return a safe copy of `question` for LLM prompt context.
 
-    For non-preview phases, `expected`, `ans`, `accepted_answers`, and `correct`
-    are stripped at top level AND inside `answer_spec`. Preview phase passes
-    through unchanged so the tutor can explain why X is the answer.
+    Preview phase passes through unchanged so the tutor can explain why X is the
+    answer. Practice/boss phases use an allow-list instead of a leak-key
+    deny-list, so newly introduced fields like work/hints/solution_text fail
+    closed by default.
     """
     if not isinstance(question, dict):
         return {}
@@ -536,7 +530,7 @@ def _redact_question_for_tutor(question: dict, phase: str) -> dict:
             return {
                 k: scrub(v)
                 for k, v in value.items()
-                if k not in _ANSWER_LEAK_KEYS
+                if k in _TUTOR_CONTEXT_SAFE_KEYS
             }
         if isinstance(value, list):
             return [scrub(item) for item in value]

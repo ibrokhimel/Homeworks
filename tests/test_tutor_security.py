@@ -15,6 +15,7 @@ Locks the fixes from the full-system audit:
 from __future__ import annotations
 
 import asyncio
+import json
 from unittest.mock import patch
 
 import aiosqlite
@@ -177,6 +178,53 @@ def test_screen_context_allowed_in_preview_phase(mock_generate, client):
 # ---------------------------------------------------------------------------
 # C2 — session_id format validation
 # ---------------------------------------------------------------------------
+
+
+def test_practice_question_context_uses_allowlist_for_answer_leaks():
+    from server.services.tutor import _redact_question_for_tutor
+
+    question = {
+        "id": "q-allow",
+        "prompt": "Solve x",
+        "options": [
+            {"label": "A", "text": "Visible option", "correct": True},
+        ],
+        "fields": [
+            {"label": "Visible step", "acceptable": ["LEAK_FIELD"]},
+        ],
+        "work": "LEAK_WORK",
+        "hint": "LEAK_HINT",
+        "hints": ["LEAK_HINTS"],
+        "expectedWork": "LEAK_EXPECTED_WORK",
+        "solution_text": "LEAK_SOLUTION_TEXT",
+        "back": {"hook": "LEAK_BACK_HOOK"},
+        "meta": {"solution": "LEAK_META_SOLUTION"},
+    }
+
+    redacted = _redact_question_for_tutor(question, "practice")
+    blob = json.dumps(redacted, ensure_ascii=False)
+
+    assert "Solve x" in blob
+    assert "Visible option" in blob
+    assert "Visible step" in blob
+    for token in (
+        "LEAK_WORK",
+        "LEAK_HINT",
+        "LEAK_HINTS",
+        "LEAK_EXPECTED_WORK",
+        "LEAK_SOLUTION_TEXT",
+        "LEAK_BACK_HOOK",
+        "LEAK_META_SOLUTION",
+        "LEAK_FIELD",
+    ):
+        assert token not in blob
+
+
+def test_preview_question_context_still_allows_full_answer_context():
+    from server.services.tutor import _redact_question_for_tutor
+
+    question = {"prompt": "Explain", "answer": "42", "work": "Javob: 42"}
+    assert _redact_question_for_tutor(question, "preview") == question
 
 
 @pytest.mark.parametrize(

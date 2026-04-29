@@ -65,9 +65,11 @@ def _make_tip(verdict: str, student_answer: str, canonical: str) -> Optional[str
 
 def _check_numeric(expected: float, tolerance: float, student_answer: str, canonical: str) -> dict:
     try:
+        expected_value = float(expected)
+        tolerance_value = float(tolerance or 0.0)
         clean_ans = student_answer.strip().replace(',', '.')
         val = float(clean_ans)
-        if abs(val - float(expected)) <= tolerance + 1e-9:
+        if abs(val - expected_value) <= tolerance_value + 1e-9:
             return {
                 "verdict": "correct",
                 "reason": "within tolerance",
@@ -75,7 +77,7 @@ def _check_numeric(expected: float, tolerance: float, student_answer: str, canon
             }
         else:
             return {"verdict": "incorrect", "reason": "outside tolerance"}
-    except ValueError:
+    except (TypeError, ValueError):
         return {"verdict": "unsure", "reason": "could not parse numeric value"}
 
 def _check_set_match(expected: list, student_answer: str, canonical: str) -> dict:
