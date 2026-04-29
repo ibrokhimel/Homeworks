@@ -11,10 +11,10 @@
     --text: #1d1d1f;
     --text-muted: #86868b;
     --text-subtle: #a1a1a6;
-    --accent: #007AFF;
+    --accent: #0066CC;
     --accent-hover: #0056b3;
-    --accent-glow: rgba(0, 122, 255, 0.28);
-    --accent-light: rgba(0, 122, 255, 0.08);
+    --accent-glow: rgba(0, 102, 204, 0.28);
+    --accent-light: rgba(0, 102, 204, 0.08);
     --border: rgba(0, 0, 0, 0.08);
     --border-light: rgba(0, 0, 0, 0.04);
     --line: rgba(0, 0, 0, 0.08);
@@ -43,10 +43,10 @@
     --text: #e5e7eb;
     --text-muted: #94a3b8;
     --text-subtle: #64748b;
-    --accent: #0A84FF;
-    --accent-hover: #60a5fa;
-    --accent-glow: rgba(10, 132, 255, 0.38);
-    --accent-light: rgba(10, 132, 255, 0.14);
+    --accent: #006FE0;
+    --accent-hover: #0050B0;
+    --accent-glow: rgba(0, 111, 224, 0.38);
+    --accent-light: rgba(0, 111, 224, 0.18);
     --border: rgba(148, 163, 184, 0.22);
     --border-light: rgba(148, 163, 184, 0.12);
     --line: rgba(148, 163, 184, 0.18);
@@ -2907,5 +2907,53 @@ body:has(.preview-panel:not([hidden])) .fab-add {
   background: var(--accent);
   color: #fff;
   box-shadow: 0 1px 4px var(--accent-glow);
+}
+
+/* =========================================================================
+   Mobile overflow guard — keep narrow viewports (≤640px / iPhone) from
+   producing horizontal scroll. Existing rules already collapse the grids
+   to 1 column above; this block hardens the obvious overflow surfaces
+   (homework cards, library cards, topbar, gamebreak tab strip).
+   ========================================================================= */
+@media (max-width: 640px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .app-shell,
+  .builder-shell {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .homework-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .homework-grid .glass-card,
+  .homework-grid .homework-card {
+    min-width: 0;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+  }
+
+  .topbar-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .game-break-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .game-tabs {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(140px, max-content);
+    overflow-x: auto;
+    max-width: 100%;
+  }
 }
 

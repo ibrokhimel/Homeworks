@@ -3313,7 +3313,7 @@
         <div class="phase-seg" id="ps-7"><div class="phase-seg-fill"></div></div>
     </div>
 
-    <div id="app">
+    <main id="app" aria-label="NETS Homework Player">
         <!-- Stage 0 -->
         <div id="screen-0" class="screen active">
             <div style="margin-bottom: 140px;">
@@ -3420,11 +3420,11 @@
                     <div class="ms-question-subtitle" id="ms-question-subtitle"></div>
                     <div class="ms-question-explainer" id="ms-question-explainer"></div>
                 </div>
-                <div class="ms-answer-zone" id="ms-answer-zone">
-                    <button class="ms-option-btn tappable" id="ms-opt-0"></button>
-                    <button class="ms-option-btn tappable" id="ms-opt-1"></button>
-                    <button class="ms-option-btn tappable" id="ms-opt-2"></button>
-                    <button class="ms-option-btn tappable" id="ms-opt-3"></button>
+                <div class="ms-answer-zone" id="ms-answer-zone" role="group" aria-label="Memory Sprint javob variantlari">
+                    <button class="ms-option-btn tappable" id="ms-opt-0" type="button" aria-label="Variant 1"></button>
+                    <button class="ms-option-btn tappable" id="ms-opt-1" type="button" aria-label="Variant 2"></button>
+                    <button class="ms-option-btn tappable" id="ms-opt-2" type="button" aria-label="Variant 3"></button>
+                    <button class="ms-option-btn tappable" id="ms-opt-3" type="button" aria-label="Variant 4"></button>
                 </div>
             </div>
             <div id="ms-result-panel" style="display:none; flex-direction:column; align-items:center; justify-content:center; position:absolute; inset:0;">
@@ -3461,7 +3461,7 @@
                         </div>
                         <div class="gb-aq-input-row">
                             <input class="gb-aq-input" id="gb-aq-input" type="text" inputmode="text" placeholder="Javob kiriting..." autocomplete="off" autocorrect="off" spellcheck="false" />
-                            <button class="gb-aq-capture-btn" id="gb-aq-capture-btn" onclick="gbAQCapture()">📷</button>
+                            <button class="gb-aq-capture-btn" id="gb-aq-capture-btn" type="button" onclick="gbAQCapture()" aria-label="Yechim rasmini yuklash"><span aria-hidden="true">📷</span></button>
                         </div>
                         <div class="gb-aq-capture-status" id="gb-aq-capture-status">Yechimingizni yuklang (📷)</div>
                         <div class="gb-aq-feedback" id="gb-aq-feedback"></div>
@@ -3721,7 +3721,7 @@
         <div id="skip-overlay">
             <div id="skip-pill">⏭ Fazani o'tkazib yuborish</div>
         </div>
-    </div>
+    </main>
 
     <script>
         // ── Wave I3: top-level runtime i18n ────────────────────────────────
@@ -5395,6 +5395,10 @@
                 b.disabled = false;
                 b.classList.remove('correct', 'wrong', 'merging');
                 b.textContent = item.options[i];
+                // Keep accessible name synced with visible text — the static
+                // aria-label="Variant N" is a pre-JS fallback; once we have
+                // real option text, that is the more useful label.
+                b.setAttribute('aria-label', item.options[i] || ('Variant ' + (i + 1)));
                 b.style.left = '50%';
                 b.style.top = '50%';
                 b.style.transform = 'translate(-50%, -50%) scale(0.15)';

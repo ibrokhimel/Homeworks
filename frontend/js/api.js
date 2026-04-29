@@ -29,6 +29,38 @@
     return response.text();
   }
 
+  // Extract the human-readable error from a JSON error payload.
+  // Handles FastAPI's `{ detail: ... }` envelope (where detail can be a
+  // string or an object like `{ error, code }`), our own `{ error }`
+  // shape, and a generic `{ message }` shape. Falls back to the status
+  // text so callers don't surface the unhelpful "Request failed with 4xx".
+  function extractErrorMessage(payload, fallback) {
+    if (payload && typeof payload === "object") {
+      const detail = payload.detail;
+      if (typeof detail === "string" && detail.trim()) {
+        return detail;
+      }
+      if (detail && typeof detail === "object") {
+        if (typeof detail.error === "string" && detail.error.trim()) {
+          return detail.error;
+        }
+        if (typeof detail.message === "string" && detail.message.trim()) {
+          return detail.message;
+        }
+      }
+      if (typeof payload.error === "string" && payload.error.trim()) {
+        return payload.error;
+      }
+      if (typeof payload.message === "string" && payload.message.trim()) {
+        return payload.message;
+      }
+    }
+    if (typeof payload === "string" && payload.trim()) {
+      return payload;
+    }
+    return fallback;
+  }
+
   async function request(path, options = {}) {
     const headers = new Headers(options.headers || {});
     const hasBody = Object.prototype.hasOwnProperty.call(options, "body");
@@ -49,10 +81,10 @@
     const payload = await parseResponse(response);
 
     if (!response.ok) {
-      const message =
-        payload && typeof payload === "object" && payload.error
-          ? payload.error
-          : `Request failed with ${response.status}`;
+      const message = extractErrorMessage(
+        payload,
+        `Request failed with ${response.status}`
+      );
 
       const error = new Error(message);
       error.status = response.status;
@@ -159,10 +191,10 @@
     }).then(async (response) => {
       if (!response.ok) {
         const payload = await parseResponse(response);
-        const message =
-          payload && typeof payload === "object" && payload.error
-            ? payload.error
-            : `AI generation failed with ${response.status}`;
+        const message = extractErrorMessage(
+          payload,
+          `AI generation failed with ${response.status}`
+        );
 
         const error = new Error(message);
         error.status = response.status;

@@ -153,9 +153,13 @@
 }
 
 /* ---- Responsive adjustments ---- */
-@media (max-width: 600px) {
+@media (max-width: 640px) {
     .lib-grid {
         grid-template-columns: 1fr;
+    }
+
+    .lib-card {
+        min-width: 0;
     }
 
     .lib-toolbar {
