@@ -26,7 +26,7 @@
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 20px;
-    --family-aniq: #007AFF;
+    --family-aniq: #0066CC;
     --family-tabiy: #34C759;
     --family-til: #AF52DE;
     --family-ijtimoiy: #FF9500;
@@ -441,24 +441,57 @@ code {
 .search-box {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     flex: 1;
     min-width: 220px;
-    padding: 10px 14px;
-    background: var(--surface-elevated);
+    min-height: 44px;
+    padding: 8px 12px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.94), rgba(255,255,255,0.78)),
+        var(--surface-elevated);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    transition: border-color 150ms ease, box-shadow 150ms ease;
+    border-radius: 999px;
+    box-shadow: var(--shadow-low);
+    transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
 }
 
 .search-box:focus-within {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
+    background: var(--surface-elevated);
+    box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-mid);
 }
 
 .search-box span {
-    color: var(--text-muted);
-    font-size: 1rem;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border-radius: 50%;
+    background: var(--accent-light);
+    color: transparent;
+    font-size: 0;
+}
+
+.search-box span::before {
+    content: "";
+    width: 11px;
+    height: 11px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+}
+
+.search-box span::after {
+    content: "";
+    position: absolute;
+    width: 7px;
+    height: 2px;
+    border-radius: 999px;
+    background: var(--accent);
+    transform: translate(7px, 7px) rotate(45deg);
+    transform-origin: center;
 }
 
 .search-box input {
@@ -467,7 +500,18 @@ code {
     outline: 0;
     background: transparent;
     font-size: 14px;
+    font-weight: 500;
     color: var(--text);
+}
+
+.search-box input::placeholder {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] .search-box {
+    background:
+        linear-gradient(180deg, rgba(30,41,59,0.94), rgba(15,23,42,0.86)),
+        var(--surface-elevated);
 }
 
 .toolbar {
