@@ -52,6 +52,71 @@ def _safe_js_json(value) -> str:
     )
 
 
+def _find_js_const_statement_end(src: str, literal_start: int) -> int:
+    opener = src[literal_start]
+    closer = {"[": "]", "{": "}"}[opener]
+    depth = 0
+    quote: str | None = None
+    escaped = False
+    line_comment = False
+    block_comment = False
+    i = literal_start
+
+    while i < len(src):
+        ch = src[i]
+        nxt = src[i + 1] if i + 1 < len(src) else ""
+
+        if line_comment:
+            if ch in "\r\n":
+                line_comment = False
+        elif block_comment:
+            if ch == "*" and nxt == "/":
+                block_comment = False
+                i += 1
+        elif quote:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == quote:
+                quote = None
+        elif ch in ("'", '"', "`"):
+            quote = ch
+        elif ch == "/" and nxt == "/":
+            line_comment = True
+            i += 1
+        elif ch == "/" and nxt == "*":
+            block_comment = True
+            i += 1
+        elif ch == opener:
+            depth += 1
+        elif ch == closer:
+            depth -= 1
+            if depth == 0:
+                end = i + 1
+                while end < len(src) and src[end].isspace():
+                    end += 1
+                if end < len(src) and src[end] == ";":
+                    return end + 1
+                raise ValueError("JS const literal is not terminated with a semicolon")
+        i += 1
+
+    raise ValueError("JS const literal did not terminate")
+
+
+def _replace_js_const(html: str, const_name: str, replacement: str) -> str:
+    match = re.search(rf"\bconst\s+{re.escape(const_name)}\s*=", html)
+    if not match:
+        return html
+    literal_start = match.end()
+    while literal_start < len(html) and html[literal_start].isspace():
+        literal_start += 1
+    if literal_start >= len(html) or html[literal_start] not in "[{":
+        return html
+    end = _find_js_const_statement_end(html, literal_start)
+    return html[: match.start()] + replacement + html[end:]
+
+
 def _strip_html(s) -> str:
     """Strip HTML tags + decode common entities. Used for plain-text fields like
     flashcard front terms, which the template renders via textContent."""
@@ -694,8 +759,7 @@ def inject(
                     "hints":      ["Builder'dan savollarni qo'shing.", "Savollar shu yerda paydo bo'ladi.", "Kontent tayyorlanishi kutilmoqda."],
                 }]
         replacement = f"const {const_name} = {_safe_js_json(data)};"
-        pattern = rf"const {const_name}\s*=\s*\[.*?\];"
-        html = re.sub(pattern, lambda _, r=replacement: r, html, count=1, flags=re.DOTALL)
+        html = _replace_js_const(html, const_name, replacement)
 
     # 4. Replace RL_SCENARIO (object, not array). Fallback if missing to avoid template crash.
     rl = content_json.get("real_life")
@@ -719,30 +783,7 @@ def inject(
         if "questions" not in rl or "closure" not in rl:
             rl = _rl_adapt_to_template(rl)
         rl_json = f"const RL_SCENARIO = {_safe_js_json(rl)};"
-        # Try primary pattern (with // BOSS marker)
-        primary = re.search(r"const RL_SCENARIO\s*=\s*\{.*?\};\s*// BOSS", html, flags=re.DOTALL)
-        if primary:
-            html = html[: primary.start()] + rl_json + "\n// BOSS" + html[primary.end():]
-        else:
-            # Fallback: match the const statement up to its TERMINATING ';'.
-            # Earlier this used `}\s*(?=\s*(const|var|let|function|//))` but
-            # that regex backtracked through every `}` inside the literal
-            # until it found one followed by a const/function declaration.
-            # When the template kept `const stage6State = {...}` immediately
-            # after RL_SCENARIO, that worked; when subsequent edits added a
-            # bare `;` between them or a function followed RL directly, the
-            # regex over-matched and ate `stage6State` plus the `rl*`
-            # helpers, producing a white screen after Tile Match.
-            # The non-greedy `.*?};` reliably stops at RL_SCENARIO's
-            # terminating semicolon — no nested `};` exists in the literal
-            # body (object members end with `}` + comma, not semicolon).
-            fallback = re.search(
-                r"const RL_SCENARIO\s*=\s*\{.*?\};",
-                html,
-                flags=re.DOTALL,
-            )
-            if fallback:
-                html = html[: fallback.start()] + rl_json + html[fallback.end():]
+        html = _replace_js_const(html, "RL_SCENARIO", rl_json)
 
     # 5. Replace OBJECT constants — reading / consolidation / reflection.
     # Authors edit these via dedicated editors; builder routes them straight into
@@ -793,10 +834,7 @@ def inject(
             normalized = obj
 
         replacement = f"const {const_name} = {_safe_js_json(normalized)};"
-        # Replace the existing object literal (matches: const NAME = { ... };).
-        pattern = rf"const {const_name}\s*=\s*\{{.*?\}};"
-        if re.search(pattern, html, flags=re.DOTALL):
-            html = re.sub(pattern, lambda _, r=replacement: r, html, count=1, flags=re.DOTALL)
+        html = _replace_js_const(html, const_name, replacement)
 
     # Always inject the AI tutor runtime hook before </body>.
     ctx_json = _safe_js_json(runtime_context)

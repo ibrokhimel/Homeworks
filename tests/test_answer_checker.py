@@ -12,6 +12,11 @@ def test_numeric():
     assert check(spec, "abc")["verdict"] == "unsure"  # fails to parse
     assert check(spec, "")["verdict"] == "unsure"
 
+def test_numeric_coerces_string_expected_and_tolerance():
+    spec = {"type": "numeric", "expected": "10", "tolerance": "0.5", "canonical_display": "10"}
+    assert check(spec, "10.4")["verdict"] == "correct"
+    assert check(spec, "10.6")["verdict"] == "incorrect"
+
 def test_numeric_format_tip():
     spec = {"type": "numeric", "expected": 1000, "tolerance": 0.0, "canonical_display": "1 000"}
     res = check(spec, "1000")
