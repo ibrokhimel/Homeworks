@@ -37,6 +37,13 @@ for _q in _LIBRARY:
     _type = str(_q.get("type", "fact"))
     _BUCKETS.setdefault((_origin, _type), []).append(_q)
 
+_VALID_TYPES = ("fact", "quote")
+_DEMO_PHRASES = (
+    "yaxshi uka",
+    "keep going",
+    "keep poing",
+)
+
 
 def all_quotes() -> list[dict]:
     """Return the full library (read-only — do not mutate)."""
@@ -56,30 +63,49 @@ def _to_template_shape(entry: dict) -> dict:
     }
 
 
-def _weighted_random(rng) -> dict:
+def _is_demo_text(text: str) -> bool:
+    lowered = text.lower()
+    return any(phrase in lowered for phrase in _DEMO_PHRASES)
+
+
+def _normalized_allowed_types(allowed_types: tuple[str, ...] | list[str] | None) -> tuple[str, ...]:
+    if not allowed_types:
+        return _VALID_TYPES
+    out = tuple(t for t in allowed_types if t in _VALID_TYPES)
+    return out or _VALID_TYPES
+
+
+def _weighted_random(rng, *, allowed_types: tuple[str, ...] | list[str] | None = None) -> dict:
     """Pick one entry applying the 55/45 + 70/30 rule.
 
     Falls through to nearest non-empty bucket if a target combo is missing,
     so the function never raises even if the library is unbalanced.
     """
+    allowed = _normalized_allowed_types(allowed_types)
     origin = "National" if rng.random() < 0.55 else "Global"
-    qtype = "fact" if rng.random() < 0.70 else "quote"
+    if allowed == ("quote",):
+        qtype = "quote"
+    elif allowed == ("fact",):
+        qtype = "fact"
+    else:
+        qtype = "fact" if rng.random() < 0.70 else "quote"
     bucket = _BUCKETS.get((origin, qtype))
     if not bucket:
         # Try the same origin with the other type.
         other_type = "quote" if qtype == "fact" else "fact"
-        bucket = _BUCKETS.get((origin, other_type))
+        if other_type in allowed:
+            bucket = _BUCKETS.get((origin, other_type))
     if not bucket:
         # Try the other origin with the original type.
         other_origin = "Global" if origin == "National" else "National"
         bucket = _BUCKETS.get((other_origin, qtype))
     if not bucket:
-        # Anything we can find.
-        bucket = _LIBRARY
+        # Anything allowed we can find.
+        bucket = [q for q in _LIBRARY if str(q.get("type", "fact")) in allowed] or _LIBRARY
     return _to_template_shape(rng.choice(bucket))
 
 
-def select(content_quote: Any, *, rng=None) -> dict:
+def select(content_quote: Any, *, rng=None, allowed_types: tuple[str, ...] | list[str] | None = None) -> dict:
     """Return one gate quote in template shape.
 
     content_quote: the value of `content_json.gate_quote` (or the legacy
@@ -95,16 +121,21 @@ def select(content_quote: Any, *, rng=None) -> dict:
     """
     if rng is None:
         rng = _random_module
+    allowed = _normalized_allowed_types(allowed_types)
     envelope = migrate_legacy(content_quote)
     mode = envelope.get("mode", "auto")
 
     if mode == "custom":
         custom = envelope.get("custom") or {}
+        text = str(custom.get("text", "")).strip()
+        qtype = str(custom.get("type", "quote"))
+        if not text or _is_demo_text(text) or qtype not in allowed:
+            return _weighted_random(rng, allowed_types=allowed)
         return {
-            "t": str(custom.get("text", "")),
+            "t": text,
             "a": str(custom.get("author", "")),
             "origin": str(custom.get("origin", "National")),
-            "type": str(custom.get("type", "quote")),
+            "type": qtype,
             "id": None,
             "category": None,
         }
@@ -116,10 +147,28 @@ def select(content_quote: Any, *, rng=None) -> dict:
         except (TypeError, ValueError):
             pid_int = None
         if pid_int is not None and pid_int in _BY_ID:
-            return _to_template_shape(_BY_ID[pid_int])
+            entry = _BY_ID[pid_int]
+            if str(entry.get("type", "fact")) in allowed:
+                return _to_template_shape(entry)
         # Pinned id missing or invalid → fall through to auto.
 
-    return _weighted_random(rng)
+    return _weighted_random(rng, allowed_types=allowed)
+
+
+def select_sequence(content_quote: Any, *, rng=None) -> list[dict]:
+    """Return the runtime quote/fact sequence.
+
+    Slot 0 is the gate before preview, so it is quote-only. Slot 1 is the
+    first-third break between preview and flashcards, where facts and quotes
+    may mix. Slot 2 is shown after flashcards and is fact-only.
+    """
+    if rng is None:
+        rng = _random_module
+    return [
+        select(content_quote, rng=rng, allowed_types=("quote",)),
+        select({"mode": "auto"}, rng=rng),
+        select({"mode": "auto"}, rng=rng, allowed_types=("fact",)),
+    ]
 
 
 def migrate_legacy(value: Any) -> dict:
@@ -161,22 +210,25 @@ def migrate_legacy(value: Any) -> dict:
         # filled in.
         for entry in value:
             if isinstance(entry, str) and entry.strip():
+                text = entry.strip()
+                if _is_demo_text(text):
+                    continue
                 return {
                     "mode": "custom",
-                    "custom": {"text": entry.strip(), "author": ""},
+                    "custom": {"text": text, "author": ""},
                 }
             if isinstance(entry, dict):
                 text = entry.get("t") or entry.get("text") or ""
                 author = entry.get("a") or entry.get("author") or ""
                 text_str = str(text).strip()
-                if text_str:
+                if text_str and not _is_demo_text(text_str):
                     return {
                         "mode": "custom",
                         "custom": {"text": text_str, "author": str(author).strip()},
                     }
         return {"mode": "auto"}
 
-    if isinstance(value, str) and value.strip():
+    if isinstance(value, str) and value.strip() and not _is_demo_text(value.strip()):
         return {"mode": "custom", "custom": {"text": value.strip(), "author": ""}}
 
     return {"mode": "auto"}
