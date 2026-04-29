@@ -264,12 +264,20 @@ def test_runtime_memory_sprint_options_have_accessible_names():
 def test_runtime_memory_sprint_js_keeps_aria_label_synced_with_text():
     """The static aria-label is just a fallback; once JS sets the real
     option text we must also update aria-label so screen readers
-    announce the actual answer, not ``Variant 1``."""
+    announce the actual answer, not ``Variant 1``.
+
+    The 2026-04-29 dynamic-options follow-up renamed the local from
+    ``item.options[i]`` to ``opts[i]`` (after introducing the bounds
+    guard for TF/YNNG questions); the invariant under test is that
+    aria-label is set in the same loop iteration as textContent — not
+    the exact variable name."""
     html = _runtime_html()
-    # The fix adds setAttribute('aria-label', ...) inside the option
-    # render loop next to ``b.textContent = item.options[i]``.
+    # Match either the original `item.options[i]` form or the post-
+    # fix `opts[i]` form, with optional comments between the two
+    # statements. The aria-label assignment must follow inside the
+    # same block.
     assert re.search(
-        r"b\.textContent\s*=\s*item\.options\[i\];\s*"
+        r"b\.textContent\s*=\s*(?:item\.options|opts)\[i\];\s*"
         r"(?://[^\n]*\n\s*)*"
         r"(?:b\.setAttribute\(\s*['\"]aria-label['\"]|b\.ariaLabel\s*=)",
         html,
