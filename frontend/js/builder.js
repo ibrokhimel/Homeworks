@@ -116,6 +116,7 @@
     "gb_memory_match",
     "gb_puzzle_lock",
     "gb_mystery_box",
+    "gb_ttt",
     "real_life",
     "boss_questions",
     "reflection",
@@ -475,6 +476,7 @@
         memory_match: clone(content.gb_memory_match),
         puzzle_lock: clone(content.gb_puzzle_lock),
         mystery_box: clone(content.gb_mystery_box),
+        ttt: clone(content.gb_ttt),
       };
     }
 
@@ -504,6 +506,7 @@
       content.gb_memory_match = Array.isArray(nextData?.memory_match) ? nextData.memory_match : [];
       content.gb_puzzle_lock = Array.isArray(nextData?.puzzle_lock) ? nextData.puzzle_lock : [];
       content.gb_mystery_box = Array.isArray(nextData?.mystery_box) ? nextData.mystery_box : [];
+      content.gb_ttt = Array.isArray(nextData?.ttt) ? nextData.ttt : [];
     } else if (phase === "real_life") {
       content.real_life = nextData || null;
     } else if (phase === "consolidation") {

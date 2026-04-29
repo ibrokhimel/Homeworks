@@ -1169,6 +1169,44 @@
             animation: fadeInFinal 700ms ease forwards;
         }
 
+        /* Generic phase-intro announcement card — used at the start of Stage 5
+           (Game Breaks) and Reading. Independent of .card so the centering
+           translate isn't clobbered by .card's scale-on-active transform.
+           Kept visually consistent with .card via shared CSS variables. */
+        .phase-intro-card {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(84vw, 460px);
+            min-height: 190px;
+            padding: 28px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-radius: 28px;
+            border: 1px solid var(--surface-border);
+            box-shadow: var(--shadow-low), var(--shadow-card);
+            opacity: 0;
+            transition: opacity 400ms ease;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .phase-intro-card.show {
+            opacity: 1;
+        }
+        .phase-intro-text {
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1.45;
+            color: var(--accent);
+            text-shadow: 0 0 15px var(--accent-glow);
+            text-align: center;
+        }
+
         .ms-phase-anchor {
             position: absolute;
             top: 28px;
@@ -1262,6 +1300,14 @@
         @keyframes fadeOutDown {
             from { opacity: 1; transform: translateY(0); }
             to { opacity: 0; transform: translateY(12px); }
+        }
+        /* Same as fadeOutDown but keeps the .phase-intro-card's centering
+           translate(-50%, -50%) intact — without this the keyframe's bare
+           translateY would overwrite the centering and the card would jump
+           off-center (top-left at absolute center instead of card-center). */
+        @keyframes phaseIntroFadeOut {
+            from { opacity: 1; transform: translate(-50%, -50%); }
+            to   { opacity: 0; transform: translate(-50%, calc(-50% + 12px)); }
         }
 
         .ms-question-top {
@@ -2169,6 +2215,145 @@
             margin-bottom: 6px;
         }
         .gb-mb-win-sub {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* ── PHASE 3 · TIC TAC TOE vs AI ──────────────────────────────── */
+        .gb-ttt-counter {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+            text-align: center;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+        .gb-ttt-status {
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 14px;
+            color: var(--text-primary);
+            min-height: 22px;
+        }
+        .gb-ttt-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 8px;
+            width: min(360px, 80vw);
+            aspect-ratio: 1 / 1;
+            margin: 0 auto 18px;
+        }
+        .gb-ttt-cell {
+            background: rgba(212,175,55,0.06);
+            border: 1.5px solid rgba(212,175,55,0.3);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 56px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 180ms ease, transform 180ms ease, border-color 180ms ease;
+            user-select: none;
+        }
+        .gb-ttt-cell:hover:not(.filled):not(.locked) {
+            background: rgba(212,175,55,0.14);
+            border-color: var(--accent);
+            transform: scale(1.03);
+        }
+        .gb-ttt-cell.filled { cursor: default; }
+        .gb-ttt-cell.locked { cursor: not-allowed; opacity: 0.85; }
+        .gb-ttt-cell.x { color: #2d7ad4; }
+        .gb-ttt-cell.o { color: #888; }
+        .gb-ttt-cell.win {
+            background: rgba(91,184,93,0.22);
+            border-color: #5bb85d;
+            animation: gb-ttt-win-pulse 0.5s ease;
+        }
+        .gb-ttt-cell.scattered {
+            animation: gb-ttt-scatter 0.45s ease;
+        }
+        @keyframes gb-ttt-win-pulse {
+            0%   { transform: scale(1); }
+            50%  { transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+        @keyframes gb-ttt-scatter {
+            0%   { transform: scale(0.3) rotate(-12deg); opacity: 0; }
+            100% { transform: scale(1)   rotate(0);     opacity: 1; }
+        }
+        .gb-ttt-question-box {
+            display: none;
+            background: rgba(212,175,55,0.07);
+            border: 1.5px solid rgba(212,175,55,0.3);
+            border-radius: 16px;
+            padding: 16px 18px;
+            margin-bottom: 14px;
+        }
+        .gb-ttt-question-box.show { display: block; }
+        .gb-ttt-question {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+        .gb-ttt-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .gb-ttt-option {
+            padding: 12px 14px;
+            border: 1.5px solid rgba(212,175,55,0.35);
+            border-radius: 10px;
+            background: var(--surface);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 150ms ease, border-color 150ms ease;
+            text-align: left;
+        }
+        .gb-ttt-option:hover:not([disabled]) {
+            background: rgba(212,175,55,0.10);
+            border-color: var(--accent);
+        }
+        .gb-ttt-option.correct { background: rgba(91,184,93,0.18); border-color: #5bb85d; }
+        .gb-ttt-option.wrong   { background: rgba(212,76,76,0.16); border-color: #d44c4c; }
+        .gb-ttt-option[disabled] { cursor: default; opacity: 0.85; }
+        .gb-ttt-feedback {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-align: center;
+            min-height: 18px;
+        }
+        .gb-ttt-feedback.correct { color: #2d7a2f; }
+        .gb-ttt-feedback.wrong   { color: #c43a3a; }
+        .gb-ttt-result-banner, .gb-ttt-session-banner {
+            background: linear-gradient(135deg,rgba(91,184,93,0.16),rgba(212,175,55,0.12));
+            border: 1.5px solid #5bb85d;
+            border-radius: 18px;
+            padding: 18px 20px;
+            text-align: center;
+            display: none;
+            margin-bottom: 12px;
+        }
+        .gb-ttt-result-banner.show, .gb-ttt-session-banner.show { display: block; }
+        .gb-ttt-result-banner.lost {
+            background: linear-gradient(135deg,rgba(120,120,120,0.16),rgba(212,175,55,0.10));
+            border-color: #888;
+        }
+        .gb-ttt-result-text {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2d7a2f;
+            margin-bottom: 6px;
+        }
+        .gb-ttt-result-banner.lost .gb-ttt-result-text { color: #555; }
+        .gb-ttt-result-sub {
             font-size: 14px;
             color: var(--text-muted);
         }
@@ -4021,7 +4206,11 @@
 
         <!-- Stage 5 — Game Break -->
         <div id="screen-5">
-            <div class="gb-shell">
+            <!-- Phase-intro announcement card (mirrors Memory Sprint's pattern). -->
+            <div id="gb-phase-center-card" class="phase-intro-card">
+                <div class="phase-intro-text">O'yin tanaffusi</div>
+            </div>
+            <div class="gb-shell" id="gb-shell">
                 <div class="gb-progress">
                     <div class="gb-progress-dots" id="gb-pdots">
                         <div class="gb-pdot" id="gb-pd-1"></div>
@@ -4029,6 +4218,7 @@
                         <div class="gb-pdot" id="gb-pd-3"></div>
                         <div class="gb-pdot" id="gb-pd-4" style="display:none"></div>
                         <div class="gb-pdot" id="gb-pd-5" style="display:none"></div>
+                        <div class="gb-pdot" id="gb-pd-6" style="display:none"></div>
                     </div>
                     <div class="gb-progress-label" id="gb-plabel">1/3 Adaptive Quiz</div>
                 </div>
@@ -4114,6 +4304,26 @@
                         <div class="gb-mb-win-banner" id="gb-mb-win-banner">
                             <div class="gb-mb-win-text">Barcha qutilar ochildi!</div>
                             <div class="gb-mb-win-sub">Aralash mashq — turli toifadagi masalalarni ajrata oldingiz.</div>
+                        </div>
+                    </div>
+                    <!-- Sub-game 6: Tic Tac Toe vs AI (optional — only if GB_TTT has items) -->
+                    <div class="gb-game-panel enter-right" id="gb-panel-ttt">
+                        <div class="gb-section-title">O'YIN — TIC TAC TOE</div>
+                        <div class="gb-ttt-counter" id="gb-ttt-counter">O'yin 1 / 3 · 0Y - 0D - 0M</div>
+                        <div class="gb-ttt-status" id="gb-ttt-status">Hujayrani tanlang</div>
+                        <div class="gb-ttt-board" id="gb-ttt-board"></div>
+                        <div class="gb-ttt-question-box" id="gb-ttt-question-box">
+                            <div class="gb-ttt-question" id="gb-ttt-question"></div>
+                            <div class="gb-ttt-options" id="gb-ttt-options"></div>
+                            <div class="gb-ttt-feedback" id="gb-ttt-feedback"></div>
+                        </div>
+                        <div class="gb-ttt-result-banner" id="gb-ttt-result-banner">
+                            <div class="gb-ttt-result-text" id="gb-ttt-result-text"></div>
+                            <div class="gb-ttt-result-sub" id="gb-ttt-result-sub"></div>
+                        </div>
+                        <div class="gb-ttt-session-banner" id="gb-ttt-session-banner">
+                            <div class="gb-ttt-result-text">3 ta o'yin yakunlandi!</div>
+                            <div class="gb-ttt-result-sub" id="gb-ttt-session-summary"></div>
                         </div>
                     </div>
                 </div>
@@ -4243,7 +4453,11 @@
 
         <!-- Stage Reading (between Memory Sprint and Game Breaks for Til pipeline) -->
         <div id="screen-reading" class="screen">
-            <div class="card panel-card screen-wave2-card">
+            <!-- Phase-intro announcement card. -->
+            <div id="reading-phase-center-card" class="phase-intro-card">
+                <div class="phase-intro-text">O'qish</div>
+            </div>
+            <div class="card panel-card screen-wave2-card" id="reading-content-card">
                 <div class="caption screen-wave2-caption" id="reading-title">O'qish</div>
                 <div class="content-area screen-reading-passage" id="reading-passage"></div>
                 <div id="reading-checkpoints"></div>
@@ -4330,6 +4544,7 @@
                 'btn.complete':          'Tugatish',
                 'btn.retry':             'Qayta urinish',
                 'btn.game_break':        "O'yin tanaffusi",
+                'btn.read':              "O'qishga o'tish",
                 'btn.submit_response':   'Javobni yuborish',
                 // verdicts (shared)
                 'verdict.correct':       "✓ To'g'ri!",
@@ -4449,6 +4664,7 @@
                 'btn.complete':          'Завершить',
                 'btn.retry':             'Попробовать снова',
                 'btn.game_break':        'Игровой перерыв',
+                'btn.read':              'К чтению',
                 'btn.submit_response':   'Отправить ответ',
                 'verdict.correct':       '✓ Верно!',
                 'verdict.wrong':         '✗ Неверно.',
@@ -4555,6 +4771,7 @@
                 'btn.complete':          'Complete',
                 'btn.retry':             'Try again',
                 'btn.game_break':        'Game break',
+                'btn.read':              'Go to reading',
                 'btn.submit_response':   'Submit answer',
                 'verdict.correct':       '✓ Correct!',
                 'verdict.wrong':         '✗ Wrong.',
@@ -6250,7 +6467,11 @@
 
             btn.classList.remove('state-line');
             btn.classList.add('state-pill', 'pulse');
-            setBtnText(RT('btn.game_break'));
+            // Pick label based on which phase actually comes next: Reading (Til
+            // pipeline) sits between MS and Game Breaks and auto-skips when empty.
+            // Hardcoding "Game break" before Reading misleads the student.
+            const nextIsReading = (typeof readingHasContent === 'function') && readingHasContent();
+            setBtnText(RT(nextIsReading ? 'btn.read' : 'btn.game_break'));
             setStage(4.5);
             msState.isAnimating = false;
         }
@@ -6422,13 +6643,16 @@
 
         const GB_MYSTERY_BOX = [];
 
+        const GB_TTT = [];
+
         let gbState = {
             subGame: 0,
             aq: { shown:0, correct:0, currentItem:null, currentTier:'easy', captureOk:false, answered:false },
             wc: { chainIdx:0, levelIdx:0, retries:0 },
             mm: { tiles:[], flipped:[], matched:0, pendingPair:null, busy:false, complete:false },
             pl: { size:3, cells:[], emptyIdx:0, tiles:[], selected:null, total:0, correct:0, wrongCount:0, complete:false, busy:false },
-            mb: { boxes:[], opened:[], idx:-1, phase:'select', labels:[], pickedLabel:'', idCorrect:null, ansCorrect:null, complete:false, busy:false }
+            mb: { boxes:[], opened:[], idx:-1, phase:'select', labels:[], pickedLabel:'', idCorrect:null, ansCorrect:null, complete:false, busy:false },
+            ttt: { gameIdx:0, wins:0, draws:0, losses:0, board:Array(9).fill(''), targetCell:-1, currentItem:null, itemCursor:0, phase:'await-tap', busy:false, complete:false, winLine:null }
         };
 
         // ── Registry-driven game-break order ─────────────────────────────
@@ -6449,6 +6673,8 @@
                 list.push({ id: 'pl', sub: 3, init: gbInitPL, panel: 'gb-panel-pl', label: 'Puzzle Lock', setupBtn: null });
             if (Array.isArray(GB_MYSTERY_BOX) && GB_MYSTERY_BOX.length > 0)
                 list.push({ id: 'mb', sub: 4, init: gbInitMB, panel: 'gb-panel-mb', label: 'Mystery Box', setupBtn: null });
+            if (Array.isArray(GB_TTT) && GB_TTT.length > 0)
+                list.push({ id: 'ttt', sub: 5, init: gbInitTTT, panel: 'gb-panel-ttt', label: 'Tic Tac Toe', setupBtn: null });
             return list;
         }
 
@@ -6467,7 +6693,7 @@
             const idx = order.findIndex(g => g.sub === currentSub);
             if (idx < 0 || idx >= order.length - 1) {
                 // No more games in the registry — exit Stage 5.
-                gbState.subGame = 5;
+                gbState.subGame = 6;
                 gbExitToStage6();
                 return;
             }
@@ -6511,15 +6737,51 @@
                 firstPanel.classList.remove('enter-right', 'exit-left');
                 firstPanel.classList.add('active');
             }
-            first.init();
             const s5 = document.getElementById('screen-5');
             if (s5) s5.classList.add('active');
             gbUpdateProgress(0);
-            if (first.setupBtn) {
-                first.setupBtn();
-            }
-            // Else: init function (MM/PL/MB) already set the button to inert.
-            setTimeout(() => { state.isAnimating = false; }, 500);
+
+            // Phase-intro announcement (mirrors Memory Sprint pattern): show the
+            // intro card centered for ~1.2s, fade out (700ms), then reveal the
+            // game shell instantly — no opacity overlap.
+            //
+            // Defer first.init() until AFTER the announcement: AQ's init arms
+            // the bottom button ("Javobni tekshirish"), which would otherwise
+            // appear during the card animation. Mirrors showReadingScreen's
+            // deferral of renderReading().
+            const gbShell = document.getElementById('gb-shell');
+            if (gbShell) { gbShell.style.transition = 'none'; gbShell.style.opacity = '0'; }
+            playPhaseIntro('gb-phase-center-card', () => {
+                if (gbShell) { gbShell.style.transition = 'opacity 300ms ease'; gbShell.style.opacity = '1'; }
+                first.init();
+                if (first.setupBtn) { first.setupBtn(); }
+                // Else: init function (MM/PL/MB) already set the button to inert.
+                state.isAnimating = false;
+            });
+        }
+
+        // Generic phase-intro animation runner. Shows the card for ~1.2s, fades
+        // out 700ms, then calls onDone at 1950ms. Used by Stage 5 (Game Breaks)
+        // and Reading. Pattern matches startMemorySprintPhase exactly.
+        function playPhaseIntro(cardId, onDone) {
+            const card = document.getElementById(cardId);
+            if (!card) { onDone && onDone(); return; }
+            card.style.display = '';
+            card.style.animation = '';
+            // requestAnimationFrame to ensure the browser paints with .show absent
+            // before we add it — guarantees the opacity transition runs.
+            requestAnimationFrame(() => {
+                card.classList.add('show');
+            });
+            setTimeout(() => {
+                card.style.animation = 'phaseIntroFadeOut 700ms ease forwards';
+            }, 1200);
+            setTimeout(() => {
+                card.classList.remove('show');
+                card.style.display = 'none';
+                card.style.animation = '';
+                onDone && onDone();
+            }, 1950);
         }
 
         function gbUpdateProgress(idx) {
@@ -6531,7 +6793,7 @@
                     ? ((idx + 1) + '/' + total + ' ' + labels[idx])
                     : '';
             }
-            for (let i = 1; i <= 5; i++) {
+            for (let i = 1; i <= 6; i++) {
                 const d = document.getElementById('gb-pd-' + i);
                 if (!d) continue;
                 if (i > total) {
@@ -6569,7 +6831,11 @@
 
         function gbHandleAction() {
             if (state.isAnimating) return;
-            if (gbState.subGame === 5) { gbExitToStage6(); return; }
+            if (gbState.subGame === 6) { gbExitToStage6(); return; }
+            if (gbState.subGame === 5) {
+                if (gbState.ttt && gbState.ttt.complete) { gbAdvanceFromGame(5, 'gb-panel-ttt'); return; }
+                gbTTTAction(); return;
+            }
             if (gbState.subGame === 4) {
                 if (gbState.mb && gbState.mb.complete) { gbAdvanceFromGame(4, 'gb-panel-mb'); return; }
                 gbMBAction(); return;
@@ -6651,6 +6917,8 @@
         function gbAQShowNext() {
             const aq = gbState.aq;
             if (aq.shown >= 5) { gbAQFinish(); return; }
+            // Clear any pending auto-advance timer from the previous question.
+            if (aq._autoAdvanceTimer) { clearTimeout(aq._autoAdvanceTimer); aq._autoAdvanceTimer = null; }
             const item = gbAQPickItem();
             aq.currentItem = item;
             // Notebook Capture is per-item. When item.capture is false, pre-satisfy
@@ -6663,7 +6931,11 @@
             if (tierEl) { tierEl.textContent = item.tier.toUpperCase(); tierEl.className = 'gb-aq-tier ' + item.tier; }
             const qEl = document.getElementById('gb-aq-question');
             // innerHTML — adaptive quiz prompt may contain inline images/SVGs/bold/italic.
-            if (qEl) qEl.innerHTML = item.prompt || '';
+            // Format inline MC option markers ("A)", "B)", "C)", "D)") onto separate
+            // lines when authors include them inside the prompt text. Looks for a
+            // whitespace boundary so mid-word matches ("VitaminA)…") aren't broken.
+            const formattedPrompt = (item.prompt || '').replace(/\s+([A-D]\))/g, '<br>$1');
+            if (qEl) qEl.innerHTML = formattedPrompt;
             const tags = document.getElementById('gb-aq-tags');
             if (tags) tags.textContent = '[Bloom: ' + item.bloom + ' | PISA: ' + item.pisa + ']';
             const inp = document.getElementById('gb-aq-input');
@@ -6688,7 +6960,12 @@
 
         function gbAQAction() {
             const aq = gbState.aq;
-            if (aq.answered) { aq.shown++; gbAQShowNext(); return; }
+            if (aq.answered) {
+                // User clicked Next before the auto-advance timer fired — cancel
+                // it to prevent double-advance.
+                if (aq._autoAdvanceTimer) { clearTimeout(aq._autoAdvanceTimer); aq._autoAdvanceTimer = null; }
+                aq.shown++; gbAQShowNext(); return;
+            }
             if (!aq.captureOk) {
                 const capStatus = document.getElementById('gb-aq-capture-status');
                 if (capStatus) {
@@ -6723,13 +7000,17 @@
             if (inp) inp.disabled = true;
             const fb = document.getElementById('gb-aq-feedback');
             const displayAnswer = acceptList.length ? acceptList[0] : (item.answer || '');
+            // item.work holds the author's hint/explanation. Only append it when
+            // non-empty — otherwise we'd print just a trailing ". " or duplicate
+            // the answer (when the injector used to default work to "Javob: X").
+            const workSuffix = item.work ? ('. ' + item.work) : '';
             if (isCorrect) {
                 aq.correct++;
-                if (fb) { fb.className = 'gb-aq-feedback correct'; fb.textContent = RT('aq.correct_prefix') + item.work; }
+                if (fb) { fb.className = 'gb-aq-feedback correct'; fb.textContent = RT('aq.correct_prefix') + (item.work || ''); }
                 if (item.tier === 'easy') aq.currentTier = 'medium';
                 else if (item.tier === 'medium') aq.currentTier = 'hard';
             } else {
-                if (fb) { fb.className = 'gb-aq-feedback wrong'; fb.textContent = RT('aq.wrong_prefix') + displayAnswer + '. ' + item.work; }
+                if (fb) { fb.className = 'gb-aq-feedback wrong'; fb.textContent = RT('aq.wrong_prefix') + displayAnswer + workSuffix; }
                 if (item.tier === 'hard') aq.currentTier = 'medium';
                 else if (item.tier === 'medium') aq.currentTier = 'easy';
             }
@@ -6744,7 +7025,19 @@
                     score: isCorrect ? 1 : 0,
                 });
             }
+            // Auto-advance: students don't need to click Next themselves. Show the
+            // feedback for ~1.5s on correct, ~2.5s on wrong (so they can read the
+            // correct answer + explanation), then move on. The button still works
+            // as a manual skip — clicking it cancels the timer (see gbAQAction
+            // entry guard).
             gbSetButtonNext(RT('btn.next_question'));
+            if (aq._autoAdvanceTimer) clearTimeout(aq._autoAdvanceTimer);
+            aq._autoAdvanceTimer = setTimeout(() => {
+                aq._autoAdvanceTimer = null;
+                if (!aq.answered) return; // safety: state already advanced elsewhere
+                aq.shown++;
+                gbAQShowNext();
+            }, 2000);
         }
 
         function gbAQFinish() {
@@ -7522,6 +7815,331 @@
             if (mb.phase === 'solve') { gbMBSubmitAnswer(); return; }
             if (mb.phase === 'feedback') { gbMBNextBox(); return; }
             // 'select' or 'identify' — button is inert; clicks come from board / labels.
+        }
+
+        // ── PHASE 3 · TIC TAC TOE vs AI ──────────────────────────────────
+        // 3 games per session. Student is X (always first). Tap-before-question:
+        // student taps a cell, then a MC question appears. Correct → mark lands
+        // on intended cell. Wrong → mark lands on a random empty cell. AI plays
+        // optimally (minimax) — best student outcome is a draw.
+
+        const GB_TTT_LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+        function gbTTTWinner(board) {
+            for (const line of GB_TTT_LINES) {
+                const [a,b,c] = line;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    return { mark: board[a], line: line };
+                }
+            }
+            return null;
+        }
+
+        function gbTTTBoardFull(board) {
+            return board.every(c => c !== '');
+        }
+
+        function gbTTTScore(board, player) {
+            const w = gbTTTWinner(board);
+            if (w) return w.mark === player ? 1 : -1;
+            if (gbTTTBoardFull(board)) return 0;
+            const opp = player === 'X' ? 'O' : 'X';
+            let best = -Infinity;
+            for (let i = 0; i < 9; i++) {
+                if (board[i]) continue;
+                board[i] = player;
+                const s = -gbTTTScore(board, opp);
+                board[i] = '';
+                if (s > best) best = s;
+            }
+            return best;
+        }
+
+        function gbTTTBestMove(board, player) {
+            const opp = player === 'X' ? 'O' : 'X';
+            let bestScore = -Infinity, bestMove = -1;
+            for (let i = 0; i < 9; i++) {
+                if (board[i]) continue;
+                board[i] = player;
+                const s = -gbTTTScore(board, opp);
+                board[i] = '';
+                if (s > bestScore) { bestScore = s; bestMove = i; }
+            }
+            return bestMove;
+        }
+
+        function gbTTTPickItem() {
+            const items = Array.isArray(GB_TTT) ? GB_TTT : [];
+            if (items.length === 0) return null;
+            const ttt = gbState.ttt;
+            const item = items[ttt.itemCursor % items.length];
+            ttt.itemCursor++;
+            return item;
+        }
+
+        function gbTTTRender() {
+            const ttt = gbState.ttt;
+            const board = document.getElementById('gb-ttt-board');
+            if (!board) return;
+            const winSet = ttt.winLine ? new Set(ttt.winLine) : null;
+            board.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'gb-ttt-cell';
+                const mark = ttt.board[i];
+                if (mark) {
+                    cell.classList.add('filled');
+                    cell.classList.add(mark === 'X' ? 'x' : 'o');
+                    cell.textContent = mark;
+                }
+                if (winSet && winSet.has(i)) cell.classList.add('win');
+                if (ttt.phase !== 'await-tap' || ttt.busy) cell.classList.add('locked');
+                if (!mark && ttt.phase === 'await-tap' && !ttt.busy) {
+                    cell.addEventListener('click', () => gbTTTCellClick(i));
+                }
+                board.appendChild(cell);
+            }
+            const counter = document.getElementById('gb-ttt-counter');
+            if (counter) counter.textContent = "O'yin " + (ttt.gameIdx + 1) + " / 3 · " + ttt.wins + "Y - " + ttt.draws + "D - " + ttt.losses + "M";
+        }
+
+        function gbTTTSetStatus(text) {
+            const el = document.getElementById('gb-ttt-status');
+            if (el) el.textContent = text;
+        }
+
+        function gbInitTTT() {
+            const ttt = gbState.ttt;
+            ttt.gameIdx = 0;
+            ttt.wins = 0; ttt.draws = 0; ttt.losses = 0;
+            ttt.board = Array(9).fill('');
+            ttt.targetCell = -1;
+            ttt.currentItem = null;
+            ttt.itemCursor = 0;
+            ttt.phase = 'await-tap';
+            ttt.busy = false;
+            ttt.complete = false;
+            ttt.winLine = null;
+            const qbox = document.getElementById('gb-ttt-question-box');
+            if (qbox) qbox.classList.remove('show');
+            const rb = document.getElementById('gb-ttt-result-banner');
+            if (rb) { rb.classList.remove('show', 'lost'); }
+            const sb = document.getElementById('gb-ttt-session-banner');
+            if (sb) sb.classList.remove('show');
+            gbTTTSetStatus("Hujayrani tanlang");
+            gbTTTRender();
+        }
+
+        function gbTTTCellClick(idx) {
+            const ttt = gbState.ttt;
+            if (ttt.busy || ttt.phase !== 'await-tap') return;
+            if (ttt.board[idx]) return;
+            ttt.targetCell = idx;
+            ttt.phase = 'awaiting-answer';
+            ttt.busy = true;
+            gbTTTRender();
+            gbTTTShowQuestion();
+        }
+
+        function gbTTTShowQuestion() {
+            const ttt = gbState.ttt;
+            const item = gbTTTPickItem();
+            ttt.currentItem = item;
+            const qbox = document.getElementById('gb-ttt-question-box');
+            const qEl = document.getElementById('gb-ttt-question');
+            const optsEl = document.getElementById('gb-ttt-options');
+            const fbEl = document.getElementById('gb-ttt-feedback');
+            if (!qbox || !qEl || !optsEl) return;
+            qEl.textContent = item.q || '';
+            const correct = String(item.correct ?? item.a ?? '');
+            const distractors = Array.isArray(item.distractors) ? item.distractors.map(String) : [];
+            const opts = [correct, ...distractors];
+            // Fisher-Yates shuffle.
+            for (let i = opts.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [opts[i], opts[j]] = [opts[j], opts[i]];
+            }
+            optsEl.innerHTML = '';
+            opts.forEach((text) => {
+                const b = document.createElement('button');
+                b.className = 'gb-ttt-option';
+                b.type = 'button';
+                b.textContent = text;
+                b.addEventListener('click', () => gbTTTAnswer(text, correct, b));
+                optsEl.appendChild(b);
+            });
+            if (fbEl) { fbEl.textContent = ''; fbEl.className = 'gb-ttt-feedback'; }
+            qbox.classList.add('show');
+            gbTTTSetStatus("Savolga javob bering");
+        }
+
+        function gbTTTAnswer(picked, correct, btnEl) {
+            const ttt = gbState.ttt;
+            if (ttt.phase !== 'awaiting-answer') return;
+            const optsEl = document.getElementById('gb-ttt-options');
+            if (optsEl) {
+                Array.from(optsEl.children).forEach(c => { c.setAttribute('disabled', 'disabled'); });
+            }
+            const isCorrect = picked === correct;
+            const fbEl = document.getElementById('gb-ttt-feedback');
+            if (btnEl) btnEl.classList.add(isCorrect ? 'correct' : 'wrong');
+            if (fbEl) {
+                fbEl.textContent = isCorrect ? "To'g'ri — belgi siz tanlagan joyga tushdi." : "Noto'g'ri — belgi tasodifiy joyga tushdi.";
+                fbEl.classList.add(isCorrect ? 'correct' : 'wrong');
+            }
+            // Place player mark.
+            let placedAt;
+            if (isCorrect) {
+                placedAt = ttt.targetCell;
+            } else {
+                const empties = [];
+                for (let i = 0; i < 9; i++) if (!ttt.board[i]) empties.push(i);
+                placedAt = empties[Math.floor(Math.random() * empties.length)];
+            }
+            setTimeout(() => {
+                ttt.board[placedAt] = 'X';
+                const qbox = document.getElementById('gb-ttt-question-box');
+                if (qbox) qbox.classList.remove('show');
+                gbTTTRender();
+                // Highlight scattered placement when wrong.
+                if (!isCorrect) {
+                    const cellEl = document.querySelectorAll('.gb-ttt-cell')[placedAt];
+                    if (cellEl) cellEl.classList.add('scattered');
+                }
+                gbTTTAfterPlayerMove();
+            }, 700);
+        }
+
+        function gbTTTAfterPlayerMove() {
+            const ttt = gbState.ttt;
+            const w = gbTTTWinner(ttt.board);
+            if (w) {
+                ttt.winLine = w.line;
+                gbTTTRender();
+                gbTTTEndGame(w.mark === 'X' ? 'win' : 'loss');
+                return;
+            }
+            if (gbTTTBoardFull(ttt.board)) {
+                gbTTTEndGame('draw');
+                return;
+            }
+            // AI's turn.
+            ttt.phase = 'ai-thinking';
+            gbTTTSetStatus("AI o'ylamoqda...");
+            setTimeout(() => gbTTTAIMove(), 600);
+        }
+
+        function gbTTTAIMove() {
+            const ttt = gbState.ttt;
+            const move = gbTTTBestMove(ttt.board.slice(), 'O');
+            if (move >= 0) ttt.board[move] = 'O';
+            gbTTTRender();
+            const w = gbTTTWinner(ttt.board);
+            if (w) {
+                ttt.winLine = w.line;
+                gbTTTRender();
+                gbTTTEndGame(w.mark === 'X' ? 'win' : 'loss');
+                return;
+            }
+            if (gbTTTBoardFull(ttt.board)) {
+                gbTTTEndGame('draw');
+                return;
+            }
+            ttt.phase = 'await-tap';
+            ttt.busy = false;
+            gbTTTSetStatus("Hujayrani tanlang");
+            gbTTTRender();
+        }
+
+        function gbTTTEndGame(result) {
+            const ttt = gbState.ttt;
+            ttt.phase = 'game-over';
+            ttt.busy = true;
+            if (result === 'win') ttt.wins++;
+            else if (result === 'draw') ttt.draws++;
+            else ttt.losses++;
+            const banner = document.getElementById('gb-ttt-result-banner');
+            const txt = document.getElementById('gb-ttt-result-text');
+            const sub = document.getElementById('gb-ttt-result-sub');
+            if (banner && txt && sub) {
+                banner.classList.remove('lost');
+                if (result === 'win') {
+                    txt.textContent = "Yutdingiz!";
+                    sub.textContent = "Mumkin bo'lmagan natija — AI shubhali yurish qildi.";
+                } else if (result === 'draw') {
+                    txt.textContent = "Durang — chiziqni tutdingiz.";
+                    sub.textContent = "Optimal AI bilan eng yaxshi natija shu.";
+                } else {
+                    txt.textContent = "Hali emas";
+                    sub.textContent = "Bilim bo'shliqlari belgini tasodifiy joyga tushirdi. Keyingi safar.";
+                    banner.classList.add('lost');
+                }
+                banner.classList.add('show');
+            }
+            const isLastGame = ttt.gameIdx >= 2;
+            if (isLastGame) {
+                gbTTTSessionEnd();
+            } else {
+                gbTTTSetStatus("Keyingi o'yin uchun davom eting");
+                gbSetButtonForTTT(RT('btn.continue'));
+            }
+        }
+
+        function gbTTTNextGame() {
+            const ttt = gbState.ttt;
+            ttt.gameIdx++;
+            ttt.board = Array(9).fill('');
+            ttt.targetCell = -1;
+            ttt.currentItem = null;
+            ttt.phase = 'await-tap';
+            ttt.busy = false;
+            ttt.winLine = null;
+            const banner = document.getElementById('gb-ttt-result-banner');
+            if (banner) banner.classList.remove('show', 'lost');
+            const qbox = document.getElementById('gb-ttt-question-box');
+            if (qbox) qbox.classList.remove('show');
+            gbTTTSetStatus("Hujayrani tanlang");
+            gbTTTRender();
+            // Reset button to inert.
+            btn.classList.remove('pulse','state-pill','state-line');
+            btn.classList.add('state-line');
+            if (btnText) btnText.style.opacity = '0';
+        }
+
+        function gbTTTSessionEnd() {
+            const ttt = gbState.ttt;
+            ttt.complete = true;
+            const banner = document.getElementById('gb-ttt-result-banner');
+            if (banner) banner.classList.remove('show', 'lost');
+            const sb = document.getElementById('gb-ttt-session-banner');
+            const ssum = document.getElementById('gb-ttt-session-summary');
+            if (ssum) ssum.textContent = "Yutuq: " + ttt.wins + " · Durang: " + ttt.draws + " · Mag'lubiyat: " + ttt.losses;
+            if (sb) sb.classList.add('show');
+            if (window.__sessionLog) {
+                window.__sessionLog.push({
+                    phase: 'tic-tac-toe', id: 'ttt-session',
+                    correct: ttt.draws + ttt.wins >= 2,
+                    score: (ttt.wins + ttt.draws * 0.5) / 3,
+                });
+            }
+            // Registry decides exit on click; just label the button.
+            gbSetButtonNext(gbIsLastGame(5) ? RT('btn.next_stage') : RT('btn.continue'));
+        }
+
+        function gbSetButtonForTTT(text) {
+            btn.classList.remove('pulse','state-pill','state-line');
+            btn.classList.add('state-pill');
+            setBtnText(text || RT('btn.continue'));
+            btn.classList.add('pulse');
+        }
+
+        function gbTTTAction() {
+            const ttt = gbState.ttt;
+            if (ttt.phase === 'game-over' && !ttt.complete) {
+                gbTTTNextGame();
+                return;
+            }
+            // 'await-tap', 'awaiting-answer', 'ai-thinking' — button is inert; clicks come from cells / options.
         }
 
         function gbExitToStage6() {
@@ -8915,17 +9533,27 @@ Prezident ertaga hisobot kutmoqda.`,
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             const sr = document.getElementById('screen-reading');
             if (sr) sr.classList.add('active');
-            renderReading();
-            btn.classList.remove('pulse','state-line');
-            btn.classList.add('state-pill','pulse');
-            setBtnText(RT('btn.continue'));
-            // Single-tap continuation
-            const handler = () => {
-                btn.removeEventListener('click', handler, true);
-                if (sr) sr.classList.remove('active');
-                onContinue();
-            };
-            btn.addEventListener('click', handler, true);
+            // Hide the reading content card during the intro announcement.
+            const readingContent = document.getElementById('reading-content-card');
+            if (readingContent) { readingContent.style.transition = 'none'; readingContent.style.opacity = '0'; }
+            // Keep button inert during the intro.
+            btn.classList.remove('pulse','state-pill');
+            btn.classList.add('state-line');
+            if (btnText) btnText.style.opacity = '0';
+            playPhaseIntro('reading-phase-center-card', () => {
+                if (readingContent) { readingContent.style.transition = 'opacity 300ms ease'; readingContent.style.opacity = '1'; }
+                renderReading();
+                btn.classList.remove('state-line');
+                btn.classList.add('state-pill','pulse');
+                setBtnText(RT('btn.continue'));
+                // Single-tap continuation.
+                const handler = () => {
+                    btn.removeEventListener('click', handler, true);
+                    if (sr) sr.classList.remove('active');
+                    onContinue();
+                };
+                btn.addEventListener('click', handler, true);
+            });
         }
 
         function showConsolidationScreen(onContinue) {

@@ -76,15 +76,15 @@
               <input class="js-root-field" data-key="title" type="text" value="${escapeHtml(state.title)}" placeholder="Mustahkamlash" />
             </label>
 
-            <label class="field full-span">
+            <div class="field full-span">
               <span>Mnemonic / lock phrase</span>
               <div class="js-rich-host" data-key="mnemonic"></div>
-            </label>
+            </div>
 
-            <label class="field full-span">
+            <div class="field full-span">
               <span>Check prompt</span>
               <div class="js-rich-host" data-key="check_prompt"></div>
-            </label>
+            </div>
 
             <label class="field full-span">
               <span>Check answer</span>

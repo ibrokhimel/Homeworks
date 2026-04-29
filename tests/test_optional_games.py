@@ -25,6 +25,7 @@ GAME_KEYS = [
     ("gb_memory_match",  "GB_MEMORY_MATCH"),
     ("gb_puzzle_lock",   "GB_PUZZLE_LOCK"),
     ("gb_mystery_box",   "GB_MYSTERY_BOX"),
+    ("gb_ttt",           "GB_TTT"),
 ]
 
 
@@ -45,6 +46,7 @@ def _empty_content():
         "gb_memory_match": [],
         "gb_puzzle_lock": [],
         "gb_mystery_box": [],
+        "gb_ttt": [],
         "boss_questions": [],
         "real_life": None,
         "reading": None,
@@ -97,11 +99,11 @@ def test_registry_helpers_present_in_template():
         assert f"function {fn}(" in html, f"Runtime registry helper {fn}() is missing — was it removed?"
 
 
-def test_registry_lists_all_five_games():
-    """gbActiveGameOrder must enumerate AQ, WC, MM, PL, MB. Every new game
-    added to Phase 3 must be appended to this registry — that's the single
-    source of truth for the runtime ordering. This test catches the case
-    where someone adds a game to the schema/injector but forgets the
+def test_registry_lists_all_games():
+    """gbActiveGameOrder must enumerate every game in GAME_KEYS. Every new
+    game added to Phase 3 must be appended to this registry — that's the
+    single source of truth for the runtime ordering. This test catches the
+    case where someone adds a game to the schema/injector but forgets the
     registry entry (which would silently dead-end the new game)."""
     html = inject(_empty_content(), runtime_context={"hw_id": "HW-RG", "subject": "math-algebra", "grade": 8})
     for const_name in [c for _, c in GAME_KEYS]:
@@ -136,10 +138,11 @@ def test_advancement_uses_registry_not_hardcoded_subgame_indices():
     assert "gbAdvanceFromGame(2, 'gb-panel-mm')" in html, "MM completion must call gbAdvanceFromGame(2, 'gb-panel-mm')"
     assert "gbAdvanceFromGame(3, 'gb-panel-pl')" in html, "PL completion must call gbAdvanceFromGame(3, 'gb-panel-pl')"
     assert "gbAdvanceFromGame(4, 'gb-panel-mb')" in html, "MB completion must call gbAdvanceFromGame(4, 'gb-panel-mb')"
+    assert "gbAdvanceFromGame(5, 'gb-panel-ttt')" in html, "TTT completion must call gbAdvanceFromGame(5, 'gb-panel-ttt')"
 
 
 def test_empty_homework_preview_renders_without_game_placeholders(client):
-    """End-to-end: create a homework with all 5 games empty, fetch /preview,
+    """End-to-end: create a homework with all games empty, fetch /preview,
     confirm the served HTML has [] for every game constant and contains the
     skip-stage-5 path."""
     create = client.post(
@@ -159,7 +162,7 @@ def test_empty_homework_preview_renders_without_game_placeholders(client):
                 "gate_quote": {"mode": "auto"},
                 "panels": [], "flashcards": [], "memory_sprint": [],
                 "gb_adaptive_quiz": [], "gb_why_chain": [], "gb_memory_match": [],
-                "gb_puzzle_lock": [], "gb_mystery_box": [],
+                "gb_puzzle_lock": [], "gb_mystery_box": [], "gb_ttt": [],
                 "boss_questions": [], "real_life": None,
                 "reading": None, "consolidation": None, "reflection": None,
             },

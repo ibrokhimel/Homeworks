@@ -25,6 +25,7 @@ _ARRAY_CONSTANTS = [
     ("gb_memory_match",  "GB_MEMORY_MATCH"),
     ("gb_puzzle_lock",   "GB_PUZZLE_LOCK"),
     ("gb_mystery_box",   "GB_MYSTERY_BOX"),
+    ("gb_ttt",           "GB_TTT"),
     ("boss_questions",   "BOSS_QUESTIONS"),
 ]
 
@@ -436,7 +437,11 @@ def inject(
                     "answer": answer,
                     # Wave 2 fix: runtime checks acceptable[] first, falls back to answer.
                     "acceptable": acceptable,
-                    "work":   hint_text or f"Javob: {answer}",
+                    # work = author-provided hint/explanation only. Don't default
+                    # to "Javob: X" — the runtime already shows the correct answer
+                    # in the wrong-answer feedback, and a default that just repeats
+                    # the answer prints it twice (see Unit 19 regression 2026-04-29).
+                    "work":   hint_text,
                     # Preserve extras for future use
                     "capture": bool(item.get("capture", False)),
                     "ans_all": acceptable,

@@ -105,20 +105,20 @@
             </div>
 
             <div class="editor-grid">
-              <label class="field full-span">
+              <div class="field full-span">
                 <span>Prompt</span>
                 <div class="js-rich-host" data-path="checkpoints.${index}.prompt"></div>
-              </label>
+              </div>
 
               <label class="field full-span">
                 <span>Accepted answer</span>
                 <input class="js-checkpoint-field" data-key="ans" type="text" value="${escapeHtml(checkpoint.ans)}" placeholder="Expected answer" />
               </label>
 
-              <label class="field full-span">
+              <div class="field full-span">
                 <span>Feedback</span>
                 <div class="js-rich-host" data-path="checkpoints.${index}.fb"></div>
-              </label>
+              </div>
             </div>
           </section>
         `
@@ -148,10 +148,10 @@
               <input class="js-root-field" data-key="title" type="text" value="${escapeHtml(state.title)}" placeholder="Reading title" />
             </label>
 
-            <label class="field full-span">
+            <div class="field full-span">
               <span>Passage</span>
               <div class="js-rich-host" data-path="passage"></div>
-            </label>
+            </div>
           </div>
         </section>
 
