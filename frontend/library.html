@@ -51,8 +51,9 @@
         </div>
 
         <label class="search-box lib-search">
-          <span aria-hidden="true">⌕</span>
+          <span class="search-box__icon" aria-hidden="true">⌕</span>
           <input id="lib-search" type="search" data-i18n-placeholder="library.search_placeholder" placeholder="Search by title or chapter…" autocomplete="off" />
+          <button type="button" class="search-box__clear" data-search-clear data-i18n-aria-label="common.clear" aria-label="Clear search" tabindex="-1">×</button>
         </label>
 
         <button class="btn btn-ghost" id="lib-clear-btn" type="button" data-i18n="library.clear">Clear</button>
@@ -99,6 +100,7 @@
   <script src="/js/i18n/strings.js?v=__VERSION__"></script>
   <script src="/js/i18n.js?v=__VERSION__"></script>
   <script src="/js/api.js?v=__VERSION__"></script>
+  <script src="/js/search-box.js?v=__VERSION__"></script>
   <script src="/js/library.js?v=__VERSION__"></script>
 </body>
 </html>

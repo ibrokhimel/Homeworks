@@ -729,6 +729,15 @@
             background: rgba(0, 122, 255, 0.10);
             border: 1px solid rgba(0, 122, 255, 0.22);
         }
+        /* When the break card shows an attributed quote, the author kicker
+           moves below the text (column-reverse on the card flips it
+           visually without rewriting HTML), and the kicker margin swaps
+           so the gap stays on the inner side. */
+        .break-card--quote { flex-direction: column-reverse; }
+        .break-card--quote .break-kicker {
+            margin-bottom: 0;
+            margin-top: 14px;
+        }
 
         .break-text {
             font-size: 22px;
@@ -1047,6 +1056,14 @@
             background: rgba(0, 122, 255, 0.10);
             color: var(--accent);
             border: 1px solid rgba(0, 122, 255, 0.22);
+        }
+        /* When the chip introduces the content (facts / "Bilarmidingiz?")
+           it sits ABOVE the text instead of below — same pill, swapped
+           gap so it reads as a label heading. Quotes keep the chip below
+           the content as the conventional attribution line. */
+        .quote-author-chip--top {
+            margin-top: 0;
+            margin-bottom: 14px;
         }
         .quote-author-chip--global {
             background: rgba(0, 153, 102, 0.10);
@@ -3534,6 +3551,66 @@
         .nets-tutor-msg li { margin: 2px 0; }
         .nets-tutor-msg p { margin: 0 0 6px 0; }
         .nets-tutor-msg p:last-child { margin-bottom: 0; }
+        /* Assistant-only: fenced code blocks + JSON cards. */
+        .nets-tutor-msg.assistant pre {
+            margin: 6px 0;
+            padding: 8px 10px;
+            background: rgba(15, 23, 42, 0.06);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: ui-monospace, "SF Mono", Menlo, monospace;
+            font-size: 12.5px;
+            line-height: 1.5;
+        }
+        .nets-tutor-msg.assistant pre code {
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            font-size: inherit;
+            white-space: pre;
+        }
+        .nets-tutor-json {
+            margin: 4px 0;
+            padding: 8px 10px;
+            background: rgba(99, 102, 241, 0.06);
+            border: 1px solid rgba(99, 102, 241, 0.18);
+            border-radius: 10px;
+        }
+        .nets-tutor-json > pre {
+            margin: 0;
+            background: transparent;
+            border: 0;
+            padding: 0;
+        }
+        .nets-tutor-json-dl {
+            display: grid;
+            grid-template-columns: minmax(80px, max-content) 1fr;
+            gap: 4px 12px;
+            margin: 0;
+        }
+        .nets-tutor-json-dl dt {
+            font-weight: 600;
+            color: rgba(15, 23, 42, 0.78);
+            font-size: 12.5px;
+            margin: 0;
+        }
+        .nets-tutor-json-dl dd {
+            margin: 0;
+            font-size: 13px;
+            color: rgba(15, 23, 42, 0.88);
+            word-break: break-word;
+        }
+        [data-theme="dark"] .nets-tutor-msg.assistant pre {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.10);
+        }
+        [data-theme="dark"] .nets-tutor-json {
+            background: rgba(129, 140, 248, 0.10);
+            border-color: rgba(129, 140, 248, 0.28);
+        }
+        [data-theme="dark"] .nets-tutor-json-dl dt { color: rgba(226, 232, 240, 0.85); }
+        [data-theme="dark"] .nets-tutor-json-dl dd { color: rgba(241, 245, 249, 0.95); }
 
         .nets-tutor-typing {
             align-self: flex-start;
@@ -4095,6 +4172,50 @@
 
         /* Phase progress bar (top of screen) ----------------------- */
         [data-theme="dark"] .phase-seg { background: rgba(255, 255, 255, 0.10); }
+
+        /* ── Wave V.1 (runtime UX polish 2026-04-30): Memory Sprint dark mode ──
+           User-flagged: option buttons rendered white-on-light-grey in dark
+           mode. Make every Memory Sprint surface read on the dark theme. */
+        [data-theme="dark"] .ms-question-box {
+            background: var(--surface);
+            border-color: rgba(96, 165, 250, 0.30);
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36), var(--shadow-card);
+        }
+        [data-theme="dark"] .ms-option-btn {
+            background: rgba(15, 23, 42, 0.78);
+            border-color: rgba(96, 165, 250, 0.32);
+            color: var(--text);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+        }
+        [data-theme="dark"] .ms-option-btn:hover:not(.merging):not(.is-hidden) {
+            background: rgba(15, 23, 42, 0.90);
+            border-color: rgba(96, 165, 250, 0.55);
+        }
+        [data-theme="dark"] .ms-option-btn.correct {
+            background: rgba(34, 197, 94, 0.22);
+            border-color: rgba(34, 197, 94, 0.62);
+            color: #86efac;
+            box-shadow: 0 0 18px rgba(34, 197, 94, 0.20);
+        }
+        [data-theme="dark"] .ms-option-btn.wrong {
+            background: rgba(239, 68, 68, 0.22);
+            border-color: rgba(239, 68, 68, 0.62);
+            color: #fca5a5;
+            box-shadow: 0 0 16px rgba(239, 68, 68, 0.18);
+        }
+        [data-theme="dark"] .ms-option-btn.correct::after { color: #86efac; }
+        [data-theme="dark"] .ms-option-btn.wrong::after   { color: #fca5a5; }
+
+        /* Real Life answer input — pale-blue background was unreadable. */
+        [data-theme="dark"] .rl-input {
+            background: rgba(15, 23, 42, 0.74);
+            border-color: rgba(96, 165, 250, 0.42);
+            color: var(--text);
+        }
+        [data-theme="dark"] .rl-input:focus {
+            background: rgba(15, 23, 42, 0.86);
+            border-color: var(--accent);
+        }
 
         /* Glyph badges on game tiles use light-mode greens; brighten for dark ---- */
         [data-theme="dark"] .gb-tm-tile.matched::after,
@@ -5216,6 +5337,88 @@
             }
         ];
 
+        // ── Wave V.1 (preview pagination 2026-04-30) ─────────────────────
+        // Long authored pages used to scroll into a long article that didn't
+        // fit the panel-card and left awkward blank space below the action
+        // button. Split each authored page into multiple rendered pages
+        // sized so the active page only needs ~1-2cm of scroll at most.
+        //
+        // The estimate is intentionally rough — exact pixel measurement
+        // depends on font metrics, KaTeX layout, and image natural size
+        // none of which are stable until paint. A character-count proxy
+        // is good enough to keep most pages within the budget without
+        // reflowing forever; the panel-card max-height + overflow-hint
+        // (PR #68) handles the remainder.
+        const PREVIEW_PAGE_BUDGET_PX = 760;
+        function _previewEstimateBlockHeight(b) {
+            if (!b || !b.type) return 0;
+            // Block-level media: capped at 56vh (~360px on a 640px viewport)
+            // by .block-image img / .block-svg svg, plus margin.
+            if (b.type === 'image' || b.type === 'svg' || b.type === 'diagram') {
+                return 380;
+            }
+            const text = String(b.text || '');
+            // Roughly 50 chars per visible line at the panel width.
+            const lines = (s, perLine) => Math.max(1, Math.ceil(s.length / perLine));
+            if (b.type === 'h2') {
+                return 56 + lines(text, 32) * 32;
+            }
+            if (b.type === 'code') {
+                return 36 + lines(text, 56) * 22;
+            }
+            if (b.type === 'ul' || b.type === 'ol') {
+                const items = Array.isArray(b.items) ? b.items : [];
+                return 8 + items.reduce((s, it) => s + 24 + lines(String(it || ''), 50) * 22, 0);
+            }
+            if (b.type === 'quote' || b.type === 'callout') {
+                return 28 + lines(text, 46) * 26;
+            }
+            // p (default)
+            return 22 + lines(text, 50) * 24;
+        }
+        function _previewChunkPageBlocks(blocks, budget) {
+            // Return an array of block-arrays, each estimated to fit within
+            // `budget`. Blocks are kept in source order; never split a single
+            // block. If a single block alone exceeds the budget (a huge
+            // image, say), it's allowed onto its own page so we don't drop
+            // it. Caller-empty pages return [[]] so the panel still has at
+            // least one page to render.
+            const out = [];
+            let current = [];
+            let acc = 0;
+            for (const b of (Array.isArray(blocks) ? blocks : [])) {
+                const h = _previewEstimateBlockHeight(b);
+                if (acc + h > budget && current.length > 0) {
+                    out.push(current);
+                    current = [];
+                    acc = 0;
+                }
+                current.push(b);
+                acc += h;
+            }
+            if (current.length) out.push(current);
+            return out.length ? out : [[]];
+        }
+        function _previewExpandPanelPages(panel, budget) {
+            const expanded = [];
+            const sourcePages = Array.isArray(panel && panel.pages) ? panel.pages : [];
+            for (const page of sourcePages) {
+                const chunks = _previewChunkPageBlocks(page && page.blocks, budget);
+                for (const chunk of chunks) expanded.push({ blocks: chunk });
+            }
+            return Object.assign({}, panel, { pages: expanded.length ? expanded : [{ blocks: [] }] });
+        }
+        // Apply chunking once at script init so renderPanel / nextPanel /
+        // prevPanel / swipe / dot count all see the same expanded pages.
+        // Exposed on window for the test harness to drive directly.
+        for (let i = 0; i < PANELS.length; i++) {
+            PANELS[i] = _previewExpandPanelPages(PANELS[i], PREVIEW_PAGE_BUDGET_PX);
+        }
+        window._previewChunkPageBlocks = _previewChunkPageBlocks;
+        window._previewEstimateBlockHeight = _previewEstimateBlockHeight;
+        window._previewExpandPanelPages = _previewExpandPanelPages;
+        window.PREVIEW_PAGE_BUDGET_PX = PREVIEW_PAGE_BUDGET_PX;
+
         // QUOTES is replaced by server/services/injector.py at render time with
         // a three-slot sequence from server/services/quotes.py:
         // [0] opening gate quote, [1] first-third quote/fact mix,
@@ -5659,24 +5862,35 @@
             const presets = ['anim-quote-in-up', 'anim-quote-in-scale', 'anim-quote-in-left'];
             const q = QUOTES[0] || { t: "", a: "", origin: "National", type: "quote" };
             const isGlobal = q.origin === 'Global';
-            const icon = q.type === 'quote' ? '❝' : '💡';
+            // Facts are introduced by the "Bilarmidingiz?" pill above the text;
+            // quotes are attributed by the author pill below the text. Skip the
+            // leading 💡 emoji on facts so the label pill isn't doubled.
+            const isFact = q.type !== 'quote';
+            const icon = isFact ? '' : '❝';
 
             const item = document.createElement('div');
             item.className = 'quote-item';
 
-            // Quote line — span+icon prefix, then the quote text as a text node
-            // (no innerHTML interpolation, immune to XSS regardless of source).
+            // Quote line — optional icon prefix, then the quote text as a text
+            // node (no innerHTML interpolation, immune to XSS regardless of source).
             const textLine = document.createElement('div');
-            const iconNode = document.createElement('span');
-            iconNode.className = 'quote-type-icon';
-            iconNode.textContent = icon;
-            textLine.appendChild(iconNode);
+            if (icon) {
+                const iconNode = document.createElement('span');
+                iconNode.className = 'quote-type-icon';
+                iconNode.textContent = icon;
+                textLine.appendChild(iconNode);
+            }
             textLine.appendChild(document.createTextNode(q.t || ''));
 
             // Author chip — origin-tinted pill with a dot + author name.
+            // Facts (Bilarmidingiz?) put the chip ABOVE the text as a heading;
+            // quotes keep the chip BELOW as the conventional attribution line.
             const chipLine = document.createElement('div');
             const chip = document.createElement('span');
-            chip.className = isGlobal ? 'quote-author-chip quote-author-chip--global' : 'quote-author-chip';
+            const chipClasses = ['quote-author-chip'];
+            if (isGlobal) chipClasses.push('quote-author-chip--global');
+            if (isFact) chipClasses.push('quote-author-chip--top');
+            chip.className = chipClasses.join(' ');
             const dot = document.createElement('span');
             dot.className = 'quote-author-chip-dot';
             const authorNode = document.createElement('span');
@@ -5685,8 +5899,13 @@
             chip.appendChild(authorNode);
             chipLine.appendChild(chip);
 
-            item.appendChild(chipLine);
-            item.appendChild(textLine);
+            if (isFact) {
+                item.appendChild(chipLine);
+                item.appendChild(textLine);
+            } else {
+                item.appendChild(textLine);
+                item.appendChild(chipLine);
+            }
 
             const preset = presets[Math.floor(Math.random() * presets.length)];
             container.appendChild(item);
@@ -5699,26 +5918,15 @@
 
         function renderBreakQuote(slotIndex) {
             const q = QUOTES[slotIndex] || { t: "", a: "", origin: "National", type: "fact" };
+            const card = document.querySelector('#screen-break .break-card');
             const kicker = document.getElementById('break-kicker');
             const text = document.getElementById('break-text');
+            // Facts keep "Bilarmidingiz?" above the text; quotes flip so the
+            // author chip sits underneath as conventional attribution.
+            const isQuote = q.type === 'quote';
+            if (card) card.classList.toggle('break-card--quote', isQuote);
             if (kicker) {
-                const defaultLabel = q.type === 'fact' ? 'Bilarmidingiz?' : 'Iqtibos';
-                kicker.textContent = q.a || defaultLabel;
-            }
-            if (text) {
-                text.textContent = q.t || '';
-                text.style.animation = 'none';
-                void text.offsetHeight;
-                text.style.animation = '';
-            }
-        }
-
-        function renderBreakQuote(slotIndex) {
-            const q = QUOTES[slotIndex] || { t: "", a: "", origin: "National", type: "fact" };
-            const kicker = document.getElementById('break-kicker');
-            const text = document.getElementById('break-text');
-            if (kicker) {
-                const defaultLabel = q.type === 'fact' ? 'Bilarmidingiz?' : 'Iqtibos';
+                const defaultLabel = isQuote ? 'Iqtibos' : 'Bilarmidingiz?';
                 kicker.textContent = q.a || defaultLabel;
             }
             if (text) {
@@ -10304,13 +10512,144 @@ Prezident ertaga hisobot kutmoqda.`,
             }
         }
 
+        // ── Assistant-only formatter ─────────────────────────────
+        // Tries JSON first, then markdown (with fenced code blocks).
+        // XSS-safe: every string lands in textContent / createTextNode;
+        // we never assign untrusted output to innerHTML. KaTeX runs
+        // afterwards on the built DOM so $x^2$ etc. render too.
+        function _isPrimitive(v) {
+            return v === null || typeof v !== 'object';
+        }
+        function _hasNestedObject(v) {
+            if (Array.isArray(v)) {
+                return v.some(item => !_isPrimitive(item));
+            }
+            if (v && typeof v === 'object') {
+                return Object.values(v).some(item => !_isPrimitive(item));
+            }
+            return false;
+        }
+        function renderJsonInto(parent, value) {
+            const wrap = document.createElement('div');
+            wrap.className = 'nets-tutor-json';
+            const renderAsPre = Array.isArray(value) || _hasNestedObject(value);
+            if (renderAsPre) {
+                const pre = document.createElement('pre');
+                const code = document.createElement('code');
+                code.textContent = JSON.stringify(value, null, 2);
+                pre.appendChild(code);
+                wrap.appendChild(pre);
+            } else {
+                const dl = document.createElement('dl');
+                dl.className = 'nets-tutor-json-dl';
+                for (const key of Object.keys(value)) {
+                    const dt = document.createElement('dt');
+                    dt.textContent = String(key);
+                    const dd = document.createElement('dd');
+                    const v = value[key];
+                    if (v === null) {
+                        dd.textContent = 'null';
+                    } else if (typeof v === 'string') {
+                        appendInline(dd, v);
+                    } else {
+                        dd.textContent = String(v);
+                    }
+                    dl.appendChild(dt);
+                    dl.appendChild(dd);
+                }
+                wrap.appendChild(dl);
+            }
+            parent.appendChild(wrap);
+        }
+
+        // Markdown-with-fences rendering — XSS-safe via textContent.
+        // Whitelisted tags: p, ul, ol, li, code, pre, strong, em, br.
+        function renderMarkdownWithFencesInto(parent, text) {
+            if (!text) return;
+            const src = String(text);
+            const lines = src.split('\n');
+            let i = 0;
+            const buf = [];
+            const flushBuf = () => {
+                if (!buf.length) return;
+                const joined = buf.join('\n');
+                if (joined.trim()) renderMarkdownInto(parent, joined);
+                buf.length = 0;
+            };
+            while (i < lines.length) {
+                const line = lines[i];
+                const fence = /^\s*```(.*)$/.exec(line);
+                if (fence) {
+                    flushBuf();
+                    const codeLines = [];
+                    i += 1;
+                    while (i < lines.length && !/^\s*```\s*$/.test(lines[i])) {
+                        codeLines.push(lines[i]);
+                        i += 1;
+                    }
+                    if (i < lines.length) i += 1;
+                    const pre = document.createElement('pre');
+                    const code = document.createElement('code');
+                    code.textContent = codeLines.join('\n');
+                    pre.appendChild(code);
+                    parent.appendChild(pre);
+                    continue;
+                }
+                buf.push(line);
+                i += 1;
+            }
+            flushBuf();
+        }
+
+        function _maybeRenderMath(container) {
+            try {
+                if (window.renderMathInElement) {
+                    window.renderMathInElement(container, {
+                        delimiters: [
+                            { left: '$$', right: '$$', display: true },
+                            { left: '$',  right: '$',  display: false },
+                            { left: '\\(', right: '\\)', display: false },
+                            { left: '\\[', right: '\\]', display: true }
+                        ],
+                        throwOnError: false,
+                        ignoredTags: ['script','noscript','style','textarea','pre','code','option']
+                    });
+                }
+            } catch (e) { /* best-effort */ }
+        }
+
+        function formatAssistantMessage(text, container) {
+            const raw = String(text == null ? '' : text);
+            const trimmed = raw.trim();
+            if (trimmed && (trimmed[0] === '{' || trimmed[0] === '[')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (parsed !== null && typeof parsed === 'object') {
+                        renderJsonInto(container, parsed);
+                        _maybeRenderMath(container);
+                        return container;
+                    }
+                } catch (e) { /* fall through to markdown */ }
+            }
+            renderMarkdownWithFencesInto(container, raw);
+            if (!container.firstChild) container.textContent = raw;
+            _maybeRenderMath(container);
+            return container;
+        }
+
+        // Expose for tests / future callers.
+        window._netsFormatAssistantMessage = formatAssistantMessage;
+
         // ── Message rendering ───────────────────────────────────
         function appendMessage(role, content) {
             const el = document.createElement('div');
             el.className = 'nets-tutor-msg ' + (role === 'user' ? 'user' : (role === 'error' ? 'error' : 'assistant'));
-            renderMarkdownInto(el, content);
-            // If markdown produced nothing (empty after trim), fall back to raw text.
-            if (!el.firstChild) el.textContent = String(content || '');
+            if (role === 'user' || role === 'error') {
+                renderMarkdownInto(el, content);
+                if (!el.firstChild) el.textContent = String(content || '');
+            } else {
+                formatAssistantMessage(content, el);
+            }
             messages.appendChild(el);
             messages.scrollTop = messages.scrollHeight;
             return el;

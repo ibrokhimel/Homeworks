@@ -438,80 +438,148 @@ code {
     border-color: rgba(0, 122, 255, 0.22);
 }
 
+/* -------- Unified search bar --------
+   Shared by dashboard (#search-input), library (#lib-search), and the
+   quote picker modal (.js-quote-search). Goal: one premium, compact,
+   accessible pill — subtle inset shadow, smooth focus-ring expansion,
+   light/dark parity. Edit here once, every search inherits. */
 .search-box {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     flex: 1;
     min-width: 220px;
-    min-height: 44px;
-    padding: 8px 12px;
-    background:
-        linear-gradient(180deg, rgba(255,255,255,0.94), rgba(255,255,255,0.78)),
-        var(--surface-elevated);
+    height: 38px;
+    padding: 0 10px 0 12px;
+    background: var(--surface-elevated);
     border: 1px solid var(--border);
-    border-radius: 999px;
-    box-shadow: var(--shadow-low);
-    transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+    border-radius: 11px;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.6),
+        0 1px 2px rgba(15, 23, 42, 0.04);
+    transition:
+        border-color 180ms cubic-bezier(0.2, 0.9, 0.32, 1.1),
+        box-shadow 220ms cubic-bezier(0.2, 0.9, 0.32, 1.1),
+        background-color 180ms ease;
+}
+
+.search-box:hover {
+    border-color: rgba(0, 102, 204, 0.28);
 }
 
 .search-box:focus-within {
     border-color: var(--accent);
-    background: var(--surface-elevated);
-    box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-mid);
+    box-shadow:
+        0 0 0 4px var(--accent-glow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6),
+        0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
-.search-box span {
-    position: relative;
+.search-box .search-box__icon,
+.search-box > span[aria-hidden="true"] {
+    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
-    border-radius: 50%;
-    background: var(--accent-light);
-    color: transparent;
-    font-size: 0;
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted);
+    font-size: 16px;
+    line-height: 1;
+    transition: color 180ms ease;
+    user-select: none;
+    pointer-events: none;
 }
 
-.search-box span::before {
-    content: "";
-    width: 11px;
-    height: 11px;
-    border: 2px solid var(--accent);
-    border-radius: 50%;
-}
-
-.search-box span::after {
-    content: "";
-    position: absolute;
-    width: 7px;
-    height: 2px;
-    border-radius: 999px;
-    background: var(--accent);
-    transform: translate(7px, 7px) rotate(45deg);
-    transform-origin: center;
+.search-box:focus-within .search-box__icon,
+.search-box:focus-within > span[aria-hidden="true"] {
+    color: var(--accent);
 }
 
 .search-box input {
     flex: 1;
+    min-width: 0;
     border: 0;
     outline: 0;
     background: transparent;
     font-size: 14px;
     font-weight: 500;
     color: var(--text);
+    height: 100%;
+    padding: 0;
 }
 
 .search-box input::placeholder {
     color: var(--text-muted);
 }
 
+/* Hide the browser-native search clear UI — we render our own button
+   so the design + dark mode stays consistent across browsers. */
+.search-box input[type="search"]::-webkit-search-decoration,
+.search-box input[type="search"]::-webkit-search-cancel-button,
+.search-box input[type="search"]::-webkit-search-results-button,
+.search-box input[type="search"]::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.search-box .search-box__clear {
+    flex: 0 0 auto;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-right: -2px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+        color 140ms ease,
+        background-color 140ms ease,
+        transform 140ms cubic-bezier(0.2, 0.9, 0.32, 1.1);
+}
+
+.search-box.is-filled .search-box__clear {
+    display: inline-flex;
+}
+
+.search-box .search-box__clear:hover {
+    color: var(--text);
+    background: var(--accent-light);
+}
+
+.search-box .search-box__clear:active {
+    transform: scale(0.92);
+}
+
+.search-box .search-box__clear:focus-visible {
+    outline: 0;
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
 [data-theme="dark"] .search-box {
-    background:
-        linear-gradient(180deg, rgba(30,41,59,0.94), rgba(15,23,42,0.86)),
-        var(--surface-elevated);
+    background: var(--surface-elevated);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 1px 2px rgba(0, 0, 0, 0.32);
+}
+
+[data-theme="dark"] .search-box:focus-within {
+    box-shadow:
+        0 0 0 4px var(--accent-glow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 1px 2px rgba(0, 0, 0, 0.32);
+}
+
+[data-theme="dark"] .search-box .search-box__clear:hover {
+    background: var(--accent-light);
 }
 
 .toolbar {
@@ -2247,6 +2315,74 @@ textarea:disabled {
   padding-top: 2px;
 }
 
+/* Numbered sections: Question / Media / Answer / Settings.
+   Each opens with an eyebrow + hint, then the existing inner card
+   content. The dotted divider above each section reinforces the
+   "this is a separate region" reading. Subtle staggered fade-in
+   on first paint so the card doesn't feel like one undifferentiated
+   wall of inputs. */
+.aq-section {
+  position: relative;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border-light, var(--border));
+  animation: aq-section-fade-in 320ms ease both;
+}
+.aq-section:first-of-type {
+  margin-top: 14px;
+  padding-top: 0;
+  border-top: 0;
+}
+.aq-section--media   { animation-delay: 40ms; }
+.aq-section--answer  { animation-delay: 80ms; }
+.aq-section--settings{ animation-delay: 120ms; }
+
+@keyframes aq-section-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aq-section { animation: none; }
+}
+
+.aq-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.aq-section-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.aq-section-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.4;
+  flex: 1 1 auto;
+  min-width: 140px;
+  text-align: right;
+}
+
+/* When the inner Answer-grading panel sits directly inside an
+   aq-section, drop its top margin so the section padding stays in
+   charge of vertical rhythm. */
+.aq-section--answer .aq-grading {
+  margin-top: 0;
+}
+/* The Question rich-host now stands on its own without an inner
+   "Question" face label (the section eyebrow took over). Tighten
+   the bottom margin so the next section's divider sits closer. */
+.aq-section--question .fc-face {
+  margin-bottom: 4px;
+}
+
 .aq-grading {
   margin: 18px 0 4px;
   padding: 16px 16px 14px;
@@ -2470,6 +2606,15 @@ textarea:disabled {
     text-overflow: clip;
   }
   .aq-grading { padding: 14px 12px; }
+  .aq-section-head {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .aq-section-hint {
+    text-align: left;
+    min-width: 0;
+  }
+  .aq-section { margin-top: 14px; padding-top: 12px; }
 }
 
 /* ============================================================
@@ -3025,8 +3170,11 @@ body:has(.preview-panel:not([hidden])) .fab-add {
   padding: 8px 10px;
   border-radius: 8px;
 }
-.quote-picker-filters .js-quote-search {
+/* Quote picker search now uses the shared .search-box pill — span the
+   full row width and keep the field height in line with the selects. */
+.quote-picker-filters .quote-picker-search {
   grid-column: 1 / -1;
+  min-width: 0;
 }
 
 .quote-picker-meta {
@@ -3101,7 +3249,7 @@ body:has(.preview-panel:not([hidden])) .fab-add {
 
 @media (max-width: 540px) {
   .quote-picker-filters { grid-template-columns: 1fr 1fr; }
-  .quote-picker-filters .js-quote-search { grid-column: 1 / -1; }
+  .quote-picker-filters .quote-picker-search { grid-column: 1 / -1; }
 }
 
 /* ============================================================
