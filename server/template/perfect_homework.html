@@ -5571,6 +5571,22 @@
             }
         }
 
+        function renderBreakQuote(slotIndex) {
+            const q = QUOTES[slotIndex] || { t: "", a: "", origin: "National", type: "fact" };
+            const kicker = document.getElementById('break-kicker');
+            const text = document.getElementById('break-text');
+            if (kicker) {
+                const defaultLabel = q.type === 'fact' ? 'Bilarmidingiz?' : 'Iqtibos';
+                kicker.textContent = q.a || defaultLabel;
+            }
+            if (text) {
+                text.textContent = q.t || '';
+                text.style.animation = 'none';
+                void text.offsetHeight;
+                text.style.animation = '';
+            }
+        }
+
         function mountSkipLockRing() {
             if (!btn || btn.querySelector('.skip-lock-ring')) return;
             const NS = 'http://www.w3.org/2000/svg';
