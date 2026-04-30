@@ -515,7 +515,7 @@ def test_session_message_cap_returns_429(mock_generate, client):
 @patch("server.services.gemini.generate")
 def test_tutor_chat_accepts_screen_context(mock_generate, client):
     """screen_context sent from the client must appear in the prompt under
-    the PREVIEW_CONTEXT: heading so the tutor can reference on-screen text."""
+    the SCREEN_CONTEXT: heading so the tutor can reference on-screen text."""
     captured: dict[str, str] = {}
 
     def _fake_generate(prompt: str, *args, **kwargs):
@@ -537,7 +537,7 @@ def test_tutor_chat_accepts_screen_context(mock_generate, client):
     assert resp.status_code == 200, resp.text
 
     prompt = captured.get("prompt", "")
-    assert "PREVIEW_CONTEXT:" in prompt, "PREVIEW_CONTEXT: section missing from prompt"
+    assert "SCREEN_CONTEXT:" in prompt, "SCREEN_CONTEXT: section missing from prompt"
     assert screen_text in prompt, "screen_context text not found in prompt"
 
 
@@ -570,16 +570,22 @@ def test_tutor_chat_truncates_long_screen_context(mock_generate, client):
     assert resp.status_code == 200, resp.text
 
     prompt = captured.get("prompt", "")
-    assert "PREVIEW_CONTEXT:" in prompt, "PREVIEW_CONTEXT: section missing from prompt"
-    # The section injected is "PREVIEW_CONTEXT:\n<context>"; find its content.
-    marker = "PREVIEW_CONTEXT:\n"
+    assert "SCREEN_CONTEXT:" in prompt, "SCREEN_CONTEXT: section missing from prompt"
+    # The section injected is "SCREEN_CONTEXT:\n<UNTRUSTED>...\n<context>...\n</UNTRUSTED>"
+    # Just verify the total "A" run present in the prompt is at most 2000 chars.
+    a_count = prompt.count("A" * 1)
+    # Count consecutive A chars by extracting the UNTRUSTED-fenced block.
+    marker = "SCREEN_CONTEXT:\n"
     idx = prompt.index(marker)
     context_slice = prompt[idx + len(marker):]
-    # The slice ends at the next "\n" separator or end of string.
-    next_section = context_slice.find("\n")
-    injected = context_slice if next_section == -1 else context_slice[:next_section]
-    assert len(injected) <= 2000, (
-        f"PREVIEW_CONTEXT section is {len(injected)} chars, expected ≤ 2000"
+    # Strip the fence tags for measuring.
+    import re
+    inner = re.sub(r"</?UNTRUSTED>", "", context_slice)
+    # Take up to the next double-newline section separator.
+    next_section = inner.find("\n\n")
+    injected = inner if next_section == -1 else inner[:next_section]
+    assert len(injected.strip()) <= 2000, (
+        f"SCREEN_CONTEXT section is {len(injected.strip())} chars, expected ≤ 2000"
     )
 
 
@@ -613,9 +619,22 @@ def test_tutor_assistant_prompt_locks_in_tone_rules():
         "back-prompt",            # soft follow-up rule
         "{PHASE}",                # variable references block present
         "{STUDENT_MESSAGE}",      # variable references block present
+        # Wave J.2 directives
+        "FEATURE NAMES, not language signals",  # (A) brand-name strip
+        "Find the referenced content",          # (B) content-ref vs word-def
+        "in THAT language's culture",           # (C) idiom locality
+        "Never end mid-sentence",               # (D) output completeness
+        "STUDENT_ATTEMPT",                      # (E) new context fields
+        "SCREEN_CONTEXT",                       # (E) new context fields
+        "SUBPHASE",                             # (E) new context fields
+    ]
+    forbidden_markers = [
+        "PREVIEW_CONTEXT",  # replaced by SCREEN_CONTEXT in Wave J.2 (T3)
     ]
     missing = [m for m in required_markers if m not in text]
-    assert not missing, f"Wave K tone markers missing from tutor-assistant.md: {missing}"
+    assert not missing, f"Tone markers missing from tutor-assistant.md: {missing}"
+    leaked = [m for m in forbidden_markers if m in text]
+    assert not leaked, f"Stale markers still in tutor-assistant.md: {leaked}"
 
 
 # ---------------------------------------------------------------------------
@@ -706,4 +725,215 @@ def test_tutor_chat_uses_fast_model_for_non_math(mock_generate, client):
     from server.services import gemini
     assert model == gemini.FAST_MODEL, (
         f"english should use FAST_MODEL, got {model}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Wave J.2 — _strip_fence_tags unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_strip_fence_tags_removes_untrusted_wrapper():
+    """<UNTRUSTED>...</UNTRUSTED> wrapping the whole reply must be stripped."""
+    from server.services.tutor import _strip_fence_tags
+
+    assert _strip_fence_tags("<UNTRUSTED>hello</UNTRUSTED>") == "hello"
+    # Orphan closing tag
+    assert _strip_fence_tags("</UNTRUSTED>some text") == "some text"
+    # Orphan opening tag
+    assert _strip_fence_tags("<UNTRUSTED>some text") == "some text"
+
+
+def test_strip_fence_tags_collapses_extra_newlines():
+    """After tag removal, 3+ consecutive newlines must collapse to 2."""
+    from server.services.tutor import _strip_fence_tags
+
+    result = _strip_fence_tags("foo\n\n<UNTRUSTED>\n\nbar\n\n</UNTRUSTED>\n\nbaz")
+    import re
+    assert not re.search(r"\n{3,}", result), (
+        f"Found 3+ consecutive newlines in result: {result!r}"
+    )
+    assert "foo" in result
+    assert "bar" in result
+    assert "baz" in result
+
+
+# ---------------------------------------------------------------------------
+# Wave J.2 — screen_context accepted in practice + boss phase
+# ---------------------------------------------------------------------------
+
+
+@patch("server.services.gemini.generate")
+def test_screen_context_accepted_in_practice_phase(mock_generate, client):
+    """screen_context must reach the LLM prompt even in practice phase."""
+    captured: dict[str, str] = {}
+
+    def _fake_generate(prompt: str, *args, **kwargs):
+        captured["prompt"] = prompt
+        return "Here is a hint."
+
+    mock_generate.side_effect = _fake_generate
+
+    hw_id = _make_homework_with_question(client)
+    payload = {
+        "session_id": "sess-sc-practice",
+        "hw_id": hw_id,
+        "phase": "practice",
+        "message": "I need help",
+        "screen_context": "this is the active question",
+    }
+    resp = client.post("/api/ai/tutor/chat", json=payload)
+    assert resp.status_code == 200, resp.text
+
+    prompt = captured.get("prompt", "")
+    assert "SCREEN_CONTEXT:" in prompt, (
+        "SCREEN_CONTEXT: missing from prompt in practice phase"
+    )
+
+
+@patch("server.services.gemini.generate")
+def test_screen_context_accepted_in_boss_phase(mock_generate, client):
+    """screen_context must reach the LLM prompt in boss phase."""
+    captured: dict[str, str] = {}
+
+    def _fake_generate(prompt: str, *args, **kwargs):
+        captured["prompt"] = prompt
+        return "Boss reply."
+
+    mock_generate.side_effect = _fake_generate
+
+    hw_id = _make_homework_with_question(client)
+    payload = {
+        "session_id": "sess-sc-boss",
+        "hw_id": hw_id,
+        "phase": "boss",
+        "message": "I need help",
+        "screen_context": "this is the active question",
+    }
+    resp = client.post("/api/ai/tutor/chat", json=payload)
+    assert resp.status_code == 200, resp.text
+
+    prompt = captured.get("prompt", "")
+    assert "SCREEN_CONTEXT:" in prompt, (
+        "SCREEN_CONTEXT: missing from prompt in boss phase"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Wave J.2 — student_work_text appears in prompt
+# ---------------------------------------------------------------------------
+
+
+@patch("server.services.gemini.generate")
+def test_student_work_text_appears_in_prompt(mock_generate, client):
+    """student_work_text must appear in the prompt under STUDENT_ATTEMPT:."""
+    captured: dict[str, str] = {}
+
+    def _fake_generate(prompt: str, *args, **kwargs):
+        captured["prompt"] = prompt
+        return "Great attempt!"
+
+    mock_generate.side_effect = _fake_generate
+
+    hw_id = _make_homework_with_question(client)
+    payload = {
+        "session_id": "sess-swt-01",
+        "hw_id": hw_id,
+        "phase": "practice",
+        "message": "Am I on the right track?",
+        "student_work_text": "x = 5",
+    }
+    resp = client.post("/api/ai/tutor/chat", json=payload)
+    assert resp.status_code == 200, resp.text
+
+    prompt = captured.get("prompt", "")
+    assert "STUDENT_ATTEMPT:" in prompt, "STUDENT_ATTEMPT: section missing from prompt"
+    assert "x = 5" in prompt, "student_work_text value not found in prompt"
+
+
+# ---------------------------------------------------------------------------
+# Wave J.2 — subphase allowlist validation
+# ---------------------------------------------------------------------------
+
+
+@patch("server.services.gemini.generate")
+def test_subphase_appears_in_prompt_when_in_allowlist(mock_generate, client):
+    """A valid subphase value must appear as SUBPHASE: in the prompt."""
+    captured: dict[str, str] = {}
+
+    def _fake_generate(prompt: str, *args, **kwargs):
+        captured["prompt"] = prompt
+        return "Good work!"
+
+    mock_generate.side_effect = _fake_generate
+
+    hw_id = _make_homework_with_question(client)
+    payload = {
+        "session_id": "sess-sp-valid",
+        "hw_id": hw_id,
+        "phase": "practice",
+        "message": "Help!",
+        "subphase": "adaptive-quiz",
+    }
+    resp = client.post("/api/ai/tutor/chat", json=payload)
+    assert resp.status_code == 200, resp.text
+
+    prompt = captured.get("prompt", "")
+    assert "SUBPHASE: adaptive-quiz" in prompt, (
+        "SUBPHASE: adaptive-quiz not found in prompt"
+    )
+
+
+@patch("server.services.gemini.generate")
+def test_subphase_dropped_when_not_in_allowlist(mock_generate, client):
+    """An invalid subphase must be silently dropped — no SUBPHASE: in prompt."""
+    captured: dict[str, str] = {}
+
+    def _fake_generate(prompt: str, *args, **kwargs):
+        captured["prompt"] = prompt
+        return "Here is a hint."
+
+    mock_generate.side_effect = _fake_generate
+
+    hw_id = _make_homework_with_question(client)
+    payload = {
+        "session_id": "sess-sp-invalid",
+        "hw_id": hw_id,
+        "phase": "practice",
+        "message": "Help!",
+        "subphase": "HACK; DROP TABLE",
+    }
+    resp = client.post("/api/ai/tutor/chat", json=payload)
+    assert resp.status_code == 200, resp.text
+
+    prompt = captured.get("prompt", "")
+    assert "SUBPHASE:" not in prompt, (
+        "SUBPHASE: appears in prompt despite invalid subphase value"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Wave J.2 — <UNTRUSTED> tags stripped from model output
+# ---------------------------------------------------------------------------
+
+
+@patch("server.services.gemini.generate")
+def test_response_strips_untrusted_tags_from_model_output(mock_generate, client):
+    """If the LLM returns text wrapped in <UNTRUSTED> tags, the final HTTP
+    response body must not contain those tags."""
+    mock_generate.return_value = "<UNTRUSTED>response body</UNTRUSTED>"
+
+    hw_id = _make_homework_with_question(client)
+    payload = {
+        "session_id": "sess-strip-tags",
+        "hw_id": hw_id,
+        "phase": "practice",
+        "message": "help",
+    }
+    resp = client.post("/api/ai/tutor/chat", json=payload)
+    assert resp.status_code == 200, resp.text
+
+    response_text = resp.json()["response"]
+    assert response_text == "response body", (
+        f"Expected 'response body', got {response_text!r}"
     )

@@ -72,6 +72,57 @@ def _fence_untrusted(text: str) -> str:
     return f"<UNTRUSTED>{cleaned}</UNTRUSTED>"
 
 
+def _sanitize_screen_context(text: str, expected_value: str | None = None) -> str:
+    """Scrub answer-bearing content from DOM-derived screen context.
+
+    Rules applied in order:
+      1. Empty/None input → return "".
+      2. Drop entire lines that match HTML answer-marker patterns (data-correct,
+         class=correct/is-correct/answer-key, data-expected/answer attributes).
+      3. If `expected_value` is non-empty, strip whole-token occurrences of it
+         from the remaining text (case-insensitive).
+      4. Truncate the result to 2000 chars.
+    """
+    if not text:
+        return ""
+    if not isinstance(text, str):
+        text = str(text)
+
+    # Pattern that flags lines containing HTML answer markers.
+    _ANSWER_MARKER_RE = re.compile(
+        r"data-correct\s*=\s*['\"]?true"
+        r"|class=['\"][^'\"]*\b(?:correct|is-correct|answer-key)\b"
+        r"|data-(?:expected|answer)\s*=\s*",
+        re.IGNORECASE,
+    )
+
+    lines = text.splitlines()
+    clean_lines = [line for line in lines if not _ANSWER_MARKER_RE.search(line)]
+    result = "\n".join(clean_lines)
+
+    if expected_value and isinstance(expected_value, str):
+        # Strip whole-token occurrences of expected_value (case-insensitive).
+        pattern = r"(?<!\w)" + re.escape(expected_value) + r"(?!\w)"
+        result = re.sub(pattern, "", result, flags=re.IGNORECASE)
+
+    return result[:2000]
+
+
+def _strip_fence_tags(reply: str) -> str:
+    """Remove <UNTRUSTED> / </UNTRUSTED> tags from the LLM's reply.
+
+    The model occasionally mirrors the fence tags back into its response.
+    This function strips them from the *output* so they never reach the UI.
+    Excess blank lines produced by the removal are collapsed to at most two.
+    """
+    if not reply:
+        return reply
+    stripped = re.sub(r"</?UNTRUSTED>", "", reply)
+    # Collapse 3+ consecutive newlines to 2.
+    stripped = re.sub(r"\n{3,}", "\n\n", stripped)
+    return stripped
+
+
 def _validate_phase(phase: str) -> str:
     """Reject phases that are not in `ALLOWED_PHASES`.
 
@@ -563,7 +614,9 @@ def _build_tutor_chat_prompt(
     grade: int,
     question_text: str,
     question_context: Optional[dict],
-    preview_context: Optional[str],
+    screen_context: Optional[str] = None,
+    student_attempt: Optional[str] = None,
+    subphase: Optional[str] = None,
     student_profile: Optional[str],
     persona_traits: Optional[list[str]],
     chat_history: list[dict],
@@ -592,8 +645,12 @@ def _build_tutor_chat_prompt(
             "QUESTION_CONTEXT:\n"
             + json.dumps(question_context, ensure_ascii=False, indent=2)
         )
-    if preview_context:
-        parts.append(f"PREVIEW_CONTEXT:\n{preview_context}")
+    if subphase:
+        parts.append(f"SUBPHASE: {subphase}")
+    if student_attempt:
+        parts.append(f"STUDENT_ATTEMPT:\n{_fence_untrusted(student_attempt)}")
+    if screen_context:
+        parts.append(f"SCREEN_CONTEXT:\n{_fence_untrusted(screen_context)}")
     if student_profile:
         parts.append(f"STUDENT_PROFILE:\n{student_profile}")
     if persona_traits:
@@ -639,6 +696,10 @@ async def tutor_chat(
     behavior_summary: str = "",
     message_lang: str = "uz",
     recent_assistant_phrases: Optional[list[str]] = None,
+    # Wave J.2 — new context fields (all default None for backward compat)
+    screen_context: Optional[str] = None,
+    student_work_text: Optional[str] = None,
+    subphase: Optional[str] = None,
 ) -> dict:
     """Live tutor chat — persists the user turn, calls the LLM, persists the
     assistant turn, returns ``{"response": str, "message_id": int}``.
@@ -697,7 +758,6 @@ async def tutor_chat(
     # named. Strip answer-bearing keys for non-preview phases.
     question_text = ""
     question_context: Optional[dict] = None
-    preview_context = hw_meta.get("preview_context")
     if question_id and isinstance(hw_meta.get("question"), dict):
         redacted = _redact_question_for_tutor(hw_meta["question"], phase)
         # Use the prompt/q text the student sees.
@@ -709,6 +769,19 @@ async def tutor_chat(
         )
         question_context = redacted
 
+    # Wave J.2 — sanitize screen_context to scrub answer-bearing DOM attributes.
+    # Pull expected_value from the question's answer_spec when available so the
+    # sanitizer can strip it even if it slipped past the DOM-marker regex.
+    expected_value: Optional[str] = None
+    q_dict = hw_meta.get("question")
+    if isinstance(q_dict, dict):
+        ans_spec = q_dict.get("answer_spec")
+        if isinstance(ans_spec, dict):
+            ev = ans_spec.get("expected")
+            if isinstance(ev, str):
+                expected_value = ev
+    screen_context_clean = _sanitize_screen_context(screen_context, expected_value)
+
     full_prompt = _build_tutor_chat_prompt(
         system_prompt=system_prompt,
         phase=phase,
@@ -716,7 +789,9 @@ async def tutor_chat(
         grade=int(hw_meta.get("grade", 0) or 0),
         question_text=question_text,
         question_context=question_context,
-        preview_context=preview_context,
+        screen_context=screen_context_clean or None,
+        student_attempt=student_work_text,
+        subphase=subphase,
         student_profile=hw_meta.get("student_profile"),
         persona_traits=hw_meta.get("persona_traits"),
         chat_history=chat_history,
@@ -751,6 +826,9 @@ async def tutor_chat(
                 "code": "TUTOR_BACKEND_ERROR",
             },
         ) from exc
+
+    # Strip any <UNTRUSTED> fence tags the LLM may have mirrored back.
+    response_text = _strip_fence_tags(response_text)
 
     # Step 7 — persist the assistant turn and return.
     asst_turn_id = await db.add_tutor_turn(

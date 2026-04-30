@@ -316,6 +316,45 @@ _NAUGHTY: Dict[str, Tuple[Severity, str]]
 _SAFE_LIST: Set[str]
 _NAUGHTY, _SAFE_LIST = _load()
 
+# ---------------------------------------------------------------------------
+# Wave J.2 T1b — hardcoded insult_mild supplements (BUG 3c)
+#
+# These terms were absent from Naughty_words.md but confirmed by the 12-msg
+# audit to return casual_safe when they should be insult_mild.  We inject
+# them here so the markdown file stays authoritative for everything else and
+# these don't accidentally get mixed into section-labelled categories.
+#
+# Conventions:
+#   - Phrases (multi-word) are stored as-is; the regex handles them because
+#     the pattern uses re.escape and word-boundary guards on the outer edges.
+#   - Uzbek suffix forms (ahmoqsan) are stored as separate entries so
+#     agglutinated inputs still match without breaking English word-boundary
+#     semantics.
+#   - Safe-list override still applies: if a future Slangs.md entry rescues
+#     one of these, the existing suppression logic in classify() handles it.
+# ---------------------------------------------------------------------------
+
+_INSULT_MILD_SUPPLEMENTS: Dict[str, Tuple[Severity, str]] = {
+    # Uzbek Latin
+    "aqlsiz":       ("insult_mild", "uz_mild_insult"),
+    "jin ursin":    ("insult_mild", "uz_mild_insult"),
+    # Uzbek suffix variant — ahmoqsan ("you are an idiot"), tentak forms
+    "ahmoqsan":     ("insult_mild", "uz_mild_insult"),
+    # English
+    "hell":         ("insult_mild", "en_profanity"),
+    # Russian Cyrillic — mild exclamatives and insults
+    "чёрт":         ("insult_mild", "ru_mixed_profanity"),
+    "чёрт возьми":  ("insult_mild", "ru_mixed_profanity"),
+    "дурак":        ("insult_mild", "ru_mixed_profanity"),
+    "тупой":        ("insult_mild", "ru_mixed_profanity"),
+    "идиот":        ("insult_mild", "ru_mixed_profanity"),
+}
+
+for _supp_term, _supp_val in _INSULT_MILD_SUPPLEMENTS.items():
+    # Only add if NOT already in _NAUGHTY (don't downgrade a stronger entry).
+    if _supp_term not in _NAUGHTY:
+        _NAUGHTY[_supp_term] = _supp_val
+
 # One compiled regex per severity tier, so we know which tier each match
 # belongs to without re-checking the dict.
 _PATTERNS_BY_SEVERITY: Dict[Severity, Optional[re.Pattern]] = {}
@@ -323,7 +362,7 @@ for _sev in _SEVERITY_ORDER:
     _terms_for_sev = [t for t, (s, _) in _NAUGHTY.items() if s == _sev]
     if _terms_for_sev:
         _PATTERNS_BY_SEVERITY[_sev] = re.compile(
-            r"(?<![\w'])(?:" + "|".join(re.escape(t) for t in _terms_for_sev) + r")(?![\w'])",
+            r"(?<![\w'])(?:" + "|".join(re.escape(t) for t in sorted(_terms_for_sev, key=len, reverse=True)) + r")(?![\w'])",
             re.IGNORECASE,
         )
     else:
@@ -344,14 +383,35 @@ _UZ_CYRILLIC_HINTS = re.compile(r"[ўғқҳЎҒҚҲ]")
 # Russian Cyrillic block (covers Russian + Uzbek Cyrillic).
 _CYRILLIC_BLOCK = re.compile(r"[Ѐ-ӿ]")
 
-# Latin words that are heavily Uzbek-leaning; pulled from Slangs.md.
+# Uzbek-Latin digraphs: o' / oʻ and g' / gʻ (unique to Uzbek Latin script).
+# Any of these in the input is an immediate uz signal, stronger than the
+# token-list check below.
+_UZ_LATIN_DIGRAPH = re.compile(r"(?:o['ʻʻ‘’]|g['ʻʻ‘’])", re.IGNORECASE)
+
+# Latin words that are heavily Uzbek-leaning; pulled from Slangs.md plus
+# common grammar / everyday vocabulary and insult inflections (Wave J.2 T1b).
 _UZ_LATIN_HINTS = {
+    # --- original Slangs.md tokens ---
     "uka", "opa", "aka", "salom", "rahmat", "tushundim", "tushunmadim",
     "ovqat", "yaxshi", "yomon", "qanday", "qalay", "qalaysiz", "qalaysan",
     "nima", "kerak", "bilan", "uchun", "xop", "mayli", "bo'pti", "bopti",
-    "bo'ldi", "rahmat", "iltimos", "javob", "savol", "vazifa", "darsda",
-    "darsdamiz", "ustoz", "uka", "jo'ra", "og'a", "sherik", "yaxwi",
+    "bo'ldi", "iltimos", "javob", "savol", "vazifa", "darsda",
+    "darsdamiz", "ustoz", "jo'ra", "og'a", "sherik", "yaxwi",
     "bowqa", "wunaqa",
+    # --- Wave J.2 T1b additions: pronouns, common grammar, everyday vocab ---
+    "bu", "shu", "men", "sen", "biz", "siz", "ular", "mening", "sening", "uning",
+    "gap", "til", "kitob", "daftar", "qoida", "qoidasini", "masala",
+    "son", "harf", "tushuntir", "tushuntirib", "tushuntirmoq",
+    "bilmayman", "bilaman", "ber", "bering", "qil", "qilmoq", "qilib",
+    "ayt", "aytib", "aytadi", "juda", "ozgina", "hozir", "keyin", "oldin",
+    "hech", "hamma", "har", "qaysi", "qachon", "qayer", "nimaga", "nega",
+    "lekin", "ammo", "agar", "chunki", "balki", "ham", "doim", "qiziq",
+    "javobini", "savolni", "gapni", "mavzu", "dars", "vazifa", "oquvchi",
+    "ishla", "ishlamoqda", "oyla", "oylash", "oylaydi", "qilamiz", "qilaman",
+    "bormoq", "ketmoq", "kelmoq", "olmoq", "faqat", "yana", "ha", "xa",
+    # --- insult-adjacent Uzbek tokens so insult messages get lang=uz ---
+    "eshak", "ahmoq", "ahmoqsan", "tentak", "aqlsiz",
+    "savolni", "gapni", "sprintdagi", "aytyapman",
 }
 
 
@@ -367,12 +427,19 @@ def _detect_message_lang(text: str) -> str:
     """
     if not text:
         return "en"
+    # 1. Uzbek-specific Cyrillic letters (ў, ғ, қ, ҳ) win outright.
     if _UZ_CYRILLIC_HINTS.search(text):
         return "uz"
+    # 2. Any generic Cyrillic (without Uzbek markers) → Russian.
     if _CYRILLIC_BLOCK.search(text):
         return "ru"
+    # 3. Uzbek-Latin digraph short-circuit: o'/oʻ or g'/gʻ are unique to
+    #    Uzbek Latin script and not present in English or Russian.
+    if _UZ_LATIN_DIGRAPH.search(text):
+        return "uz"
     lowered = text.lower()
-    # Token split that survives apostrophes inside words like bo'pti.
+    # 4. Token match against the Uzbek-leaning word list.
+    #    Token split that survives apostrophes inside words like bo'pti.
     tokens = re.findall(r"[a-z']+", lowered)
     for tok in tokens:
         if tok in _UZ_LATIN_HINTS:
