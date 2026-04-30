@@ -22,7 +22,7 @@ Used for: units introducing new grammar, production tasks, multi-paragraph readi
 | 2 | `flashcards.md` | Front/Back cards — count from CEFR tier |
 | 3 | `memory-sprint.md` | Tap-only items from prior unit |
 | 4 | `reading.md` | One continuous narrative + 3-5 checkpoints |
-| 5 | `game-breaks.md` | 3 games (1 Adaptive Quiz + 2 others) |
+| 5 | `game-breaks.md` | 3 supported games (Adaptive Quiz + 2 from the runtime game list) |
 | 6 | `real-life.md` | 1 scenario, 4-6 sub-questions, first-person pro-role |
 | 7 | `consolidation.md` | Mnemonic lock (SKIP if single grammar/vocab concept) |
 | 8 | `final-challenge.md` | Boss fight, 4-6 questions, HP by grade |
@@ -41,6 +41,6 @@ All phase outputs are assembled into a single `.md` file — that is the final h
 - Covers: English G5-11
 - CEFR level drives quantitative parameters (card count, sentence length, tenses, word count)
 - Grade drives cultural anchors (pro-roles in real-life.md, location concreteness in consolidation.md)
-- Games: Adaptive Quiz (mandatory), Tile Match, Memory Match, Sentence Fill
+- Games: Adaptive Quiz (mandatory), Sentence Fill, Tile Match, Puzzle Lock, Mystery Box, Tic Tac Toe vs AI
 - Teaching: CPA for grammar, UZ↔EN bridge required, no invented content
 - All content student-facing English; UZ bridge lines use formal "Siz"
