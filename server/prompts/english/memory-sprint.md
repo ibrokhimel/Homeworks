@@ -11,6 +11,22 @@ This is NOT new practice. No writing, no production, no multi-step analysis. Jus
 - The flashcards generated for this same unit (see `flashcards.md` output) — primary source for item content
 - The unit's theme (grammar focus + vocabulary cluster) — fallback source when a flashcard angle doesn't fit a chosen format
 
+## Current Unit Only — Hard Constraint
+
+**Memory Sprint tests recognition of THIS unit's content only.**
+
+Every item must trace to the current textbook unit:
+- Only vocabulary that appears in the attached chapter
+- Only grammar structures the attached chapter introduces or practices
+- Only examples adapted from sentences visible in the attached chapter
+- Only collocations and false friends that appear in the Flash Cards deck for this unit
+
+**Do NOT pull from prior units. Do NOT use generic dictionary content.**
+
+If the current unit doesn't supply enough distinct recognition angles, output fewer items rather than padding with off-chapter content. A short sprint of 3 real items beats a padded sprint with invented or off-chapter items.
+
+---
+
 ## Output
 
 Item count and format by CEFR level. Must use at least 2 different formats.
@@ -67,7 +83,7 @@ Example:
 Each item must include a `hint` field. The hint is gated — the student requests it when stuck, then sees a one-line nudge. The hint must never expose the answer.
 
 **Hint rules (hard constraints):**
-- Hint must NEVER expose the answer or any inflected form of it.
+- Hint must never expose the answer. Specifically: hint must NEVER expose the answer or any inflected form of it.
 - Hint must NOT name the correct option (for MC), the correct verdict (for T/F or YNNG), or paraphrase the answer in a way that gives it away.
 - Hint must be a clue, contrast cue, or location pointer — not a teaching paragraph.
 - Length: ≤2 sentences.
@@ -97,8 +113,9 @@ The student answers the item exactly once. The hint does not unlock a second att
 - **Tap only.** No typing, no drag-and-drop, no fill-in-blank, no open-ended.
 - **2 minutes max.** Every item answerable in ≤25 seconds.
 - **Flashcard- or theme-relevant only.** Every item must connect to one of the flashcards generated for this unit OR to the unit's grammar/vocabulary theme. No off-topic content, no pop-culture trivia, no facts the student hasn't seen here.
+- **Current unit only.** No items from other chapters. No generic dictionary content. See the hard constraint section above.
 - **At least 1 item per Sprint must directly mirror a flashcard** (test the same word/rule/collocation the flashcard introduced).
-- **Hints are gated, not absent.** See the "Hint (button-revealed)" section above. Every item must carry a `hint` that guides without exposing the answer.
+- **Hints are gated, not absent.** See the "Hint (gated, on-demand)" section above. Every item must carry a `hint` that guides without exposing the answer.
 - **No production.** If solving requires writing a sentence, it doesn't belong here.
 - **Wrong-answer feedback (`explain` field):** one line explaining WHY the correct answer is correct + UZ bridge. Do not just restate the answer; teach the rule.
   - BAD: "The answer is 'She went'."
