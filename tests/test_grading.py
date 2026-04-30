@@ -396,3 +396,81 @@ def test_lmr_floor_25_pct_same_as_amr():
     eng = aggregate(items, subject="english")
     math = aggregate(items, subject="math-algebra")
     assert eng["overall_pct"] == math["overall_pct"] == 25
+
+
+# ── O'qish (reading-checkpoint) row visibility — LMR-only phase ──────────
+
+def test_reading_checkpoint_row_hidden_for_non_language_subjects():
+    """User-flagged: 'O'qish' was rendering as a '—' row on every scorecard
+    even for math/science homeworks where the phase is meaningless. The
+    reading-checkpoint phase only makes sense for language subjects.
+    Pin: non-language subjects must NOT include the row at all."""
+    items = [{"phase": "real-life", "id": "Q1", "correct": True, "score": 1.0,
+              "axis_1": 4, "axis_2": 4}]
+    for subject in ("math-algebra", "math-geometry", "geometriya-g7-11",
+                    "biologiya", "physics", "tarix", None, ""):
+        out = aggregate(items, subject=subject)
+        keys = [row["key"] for row in out["phases"]]
+        assert "reading-checkpoint" not in keys, (
+            f"reading-checkpoint row should NOT appear for non-language "
+            f"subject {subject!r}, but it did"
+        )
+
+
+def test_reading_checkpoint_row_present_for_language_subjects():
+    """For language subjects (English / Ona Tili / Rus Tili), the
+    reading-checkpoint row must appear on the scorecard — even when
+    the student didn't engage the phase (so a teacher knows it was
+    available). This is the per-row design for LMR."""
+    items = [{"phase": "real-life", "id": "Q1", "correct": True, "score": 1.0,
+              "axis_1": 4, "axis_2": 4}]
+    for subject in ("english", "ona-tili", "rus-tili",
+                    "ingliz-tili-g1-11", "ona-tili-g1-11", "rus-tili-g1-11"):
+        out = aggregate(items, subject=subject)
+        keys = [row["key"] for row in out["phases"]]
+        assert "reading-checkpoint" in keys, (
+            f"reading-checkpoint row SHOULD appear for language "
+            f"subject {subject!r}, but it didn't"
+        )
+
+
+def test_reading_checkpoint_row_carries_data_when_items_present():
+    """When a language homework's session log includes reading-checkpoint
+    items, the row must reflect them correctly (not just appear empty)."""
+    items = [
+        {"phase": "real-life",        "id": "Q1",   "correct": True,  "score": 1.0,
+         "axis_1": 4, "axis_2": 4},
+        {"phase": "reading-checkpoint", "id": "rcp1", "correct": True,  "score": 1.0,
+         "axis_1": 3, "axis_2": 4},
+        {"phase": "reading-checkpoint", "id": "rcp2", "correct": False, "score": 0.0,
+         "axis_1": 1, "axis_2": 1},
+    ]
+    out = aggregate(items, subject="english")
+    rcp_row = next((r for r in out["phases"] if r["key"] == "reading-checkpoint"), None)
+    assert rcp_row is not None, "reading-checkpoint row missing for English"
+    assert rcp_row["correct"] == 1
+    assert rcp_row["total"] == 2
+    assert rcp_row["axis_1_mean"] is not None  # axes flow through
+
+
+def test_reading_checkpoint_axes_pool_unchanged_by_visibility_filter():
+    """The visibility filter only hides the row from the rendered list; it
+    must NOT affect overall axis means. A non-language subject that
+    somehow logs reading-checkpoint axes (edge case) shouldn't have its
+    overall axis pool corrupted."""
+    items = [
+        {"phase": "real-life",          "id": "Q1",   "correct": True, "score": 1.0,
+         "axis_1": 4, "axis_2": 4},
+        {"phase": "reading-checkpoint", "id": "rcp1", "correct": True, "score": 1.0,
+         "axis_1": 4, "axis_2": 4},
+    ]
+    out = aggregate(items, subject="math-algebra")
+    # Reading row is hidden but its axes still pool into overall (correctness:
+    # the aggregator counts every "amr"-method item with axes, regardless of
+    # whether its row renders).
+    keys = [r["key"] for r in out["phases"]]
+    assert "reading-checkpoint" not in keys
+    # Both items' axes pool: A1 mean = (4+4)/2 = 4.0, same for A2 → 100%
+    assert out["overall_axis_1"] == 4.0
+    assert out["overall_axis_2"] == 4.0
+    assert out["overall_pct"] == 100

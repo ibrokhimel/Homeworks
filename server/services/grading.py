@@ -227,9 +227,18 @@ def aggregate(
         by_phase.setdefault(it.phase, []).append(it)
 
     # ── Per-phase rows ───────────────────────────────────────────────
+    # Reading checkpoint ("O'qish") is an LMR-only phase — it only makes
+    # sense for language subjects (English / Ona Tili / Rus Tili). For
+    # math/science/social subjects the row is meaningless and was rendering
+    # as "—" on every scorecard. Skip it entirely outside the LMR path.
+    from .language import is_language_subject as _is_lang  # local — avoids cycle
+    _show_reading_row = _is_lang(subject)
+
     phase_rows: list[dict[str, Any]] = []
     for spec in PHASE_DISPLAY_ORDER:
         key = spec["key"]
+        if key == "reading-checkpoint" and not _show_reading_row:
+            continue
         items_in_phase = by_phase.get(key, [])
         method = PHASE_METHOD.get(key, "closed")
         is_phase_level = bool(spec["phase_level"])
