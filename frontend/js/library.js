@@ -58,20 +58,20 @@
     "ijtimoiy-fanlar",
   ];
 
-  // Apple-system colors (locked by spec) ─ aligned with the CSS agent.
+  // Production palette — matches app.css --family-* tokens.
   const FAMILY_COLORS = {
-    "aniq-fanlar":     "#0a84ff", // Apple blue
-    "tabiy-fanlar":    "#30d158", // Apple green
-    "til-fanlar":      "#bf5af2", // Apple purple
-    "ijtimoiy-fanlar": "#ff9f0a", // Apple orange
+    "aniq-fanlar":     "#0066CC", // production blue
+    "tabiy-fanlar":    "#34C759", // production green
+    "til-fanlar":      "#AF52DE", // production purple
+    "ijtimoiy-fanlar": "#FF9500", // production orange
   };
 
-  // Stat accent colors — blue / green / red / purple per spec.
+  // Stat accent colors — production palette per spec.
   const STAT_COLORS = {
-    total:    "#0a84ff",
-    subjects: "#30d158",
-    hard:     "#ff453a",
-    uz:       "#bf5af2",
+    total:    "#0066CC",
+    subjects: "#34C759",
+    hard:     "#FF453A",
+    uz:       "#AF52DE",
   };
 
   // ── DOM refs ─────────────────────────────────────────────────────────────
