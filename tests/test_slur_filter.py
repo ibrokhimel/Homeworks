@@ -148,3 +148,52 @@ def test_route_passes_slur_context_to_llm(mock_generate, client):
     data = resp.json()
     assert "warning_level" in data
     assert "homework_failed" in data
+
+
+# ---------------------------------------------------------------------------
+# Wave J.2 T1b — BUG 3b + BUG 3c regression tests
+# ---------------------------------------------------------------------------
+
+import json
+from pathlib import Path
+
+
+@pytest.mark.parametrize(
+    "case",
+    json.loads(
+        (Path(__file__).parent / "fixtures" / "tutor_audit_2026-04-30.json").read_text(encoding="utf-8")
+    )["cases"],
+    ids=lambda c: c["id"],
+)
+def test_audit_2026_04_30_lang_and_severity(case):
+    from server.services.slur_filter import classify
+    result = classify(case["input"])
+    assert result.lang == case["expected_lang"], (
+        f"{case['id']}: input={case['input']!r} got lang={result.lang!r}"
+    )
+    if case["expected_severity"] == "casual_safe":
+        assert result.severity == "casual_safe", (
+            f"{case['id']}: input={case['input']!r} got severity={result.severity!r}"
+        )
+    else:
+        # Insult cases: must be at least insult_mild (not casual_safe / casual_negative).
+        assert result.severity not in ("casual_safe", "casual_negative"), (
+            f"{case['id']}: input={case['input']!r} got severity={result.severity!r} "
+            f"(expected at least {case['expected_severity']})"
+        )
+
+
+@pytest.mark.parametrize("text", ["ok", "thanks bro", "what is this", "explain please"])
+def test_short_english_not_misclassified_as_uz(text):
+    from server.services.slur_filter import _detect_message_lang
+    assert _detect_message_lang(text) == "en", f"{text!r} mis-classified"
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("Bu grammatika qoidasini tushuntir menga", "uz"),
+    ("Javobni o'zing aytib ber menga",          "uz"),  # apostrophe digraph
+    ("Memory sprintdagi savolni aytyapman",     "uz"),  # mixed brand+uz token
+])
+def test_audit_uzbek_latin_recognized(text, expected):
+    from server.services.slur_filter import _detect_message_lang
+    assert _detect_message_lang(text) == expected

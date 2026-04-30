@@ -179,6 +179,11 @@
         };
         if (opts.question_id) body.question_id = opts.question_id;
         if (opts.screen_context) body.screen_context = opts.screen_context;
+        // Wave J.2 / T2: forward fine-grained subphase + student's
+        // current active input so the tutor backend can inject them
+        // into the prompt (TutorContext: subphase + student_work_text).
+        if (opts.student_work_text) body.student_work_text = opts.student_work_text;
+        if (opts.subphase) body.subphase = opts.subphase;
         // Wave J / T4: forward last assistant openings so the backend can
         // pass them to the prompt as RECENT_OPENINGS (anti-repetition).
         if (opts.recent_assistant_phrases && opts.recent_assistant_phrases.length) {

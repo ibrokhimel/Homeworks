@@ -110,36 +110,54 @@ def clean_db():
 
 
 @patch("server.services.gemini.generate")
-def test_screen_context_dropped_in_practice_phase(mock_generate, client):
-    """In PRACTICE/BOSS, the client may have rendered the answer into the DOM.
-    screen_context must be ignored entirely so a student can't echo the answer
-    back to the tutor and have it surface in the LLM prompt."""
+def test_screen_context_sanitized_in_practice_phase(mock_generate, client):
+    """Wave J.2: screen_context is now passed through in PRACTICE/BOSS but
+    sanitized — HTML answer-marker lines are stripped by _sanitize_screen_context.
+
+    This test verifies that a DOM snippet containing data-correct="true" does
+    NOT reach the LLM, but surrounding safe text does. The old behavior was to
+    drop screen_context entirely outside preview; the new behavior is to scrub it.
+    """
     mock_generate.return_value = "ok"
     hw_id = _make_homework_with_boss_question(client, expected="42")
+    # Screen context that contains both a safe line and an HTML answer-marker line.
     payload = {
         "session_id": "sess-screen-practice",
         "hw_id": hw_id,
         "phase": "practice",
         "question_id": "qb-sec",
         "message": "What's next?",
-        "screen_context": "LEAKED_ANSWER_42 visible in DOM",
+        "screen_context": (
+            "Safe context line about the problem.\n"
+            '<span data-correct="true">42</span>\n'
+            "Another safe line."
+        ),
     }
     resp = client.post("/api/ai/tutor/chat", json=payload)
     assert resp.status_code == 200, resp.text
     prompt = mock_generate.call_args[0][0]
-    assert "LEAKED_ANSWER_42" not in prompt, (
-        "screen_context content reached LLM in PRACTICE — answer-leak channel"
+
+    # The answer-marker line must have been stripped by the sanitizer.
+    assert 'data-correct="true"' not in prompt, (
+        "HTML answer-marker line reached LLM in PRACTICE — sanitizer failed"
     )
-    # The system prompt itself documents the PREVIEW_CONTEXT slot; only the
-    # INPUT block should be searched for the runtime emission.
+    # Safe context lines still reach the LLM.
+    assert "Safe context line" in prompt, (
+        "Safe screen_context text was incorrectly dropped"
+    )
+    # The old PREVIEW_CONTEXT: label is gone; new label is SCREEN_CONTEXT:.
     input_section = prompt.split("INPUT:", 1)[1] if "INPUT:" in prompt else ""
     assert "PREVIEW_CONTEXT:" not in input_section, (
-        "PREVIEW_CONTEXT block emitted in INPUT outside PREVIEW phase"
+        "Old PREVIEW_CONTEXT block emitted — should be SCREEN_CONTEXT: now"
     )
 
 
 @patch("server.services.gemini.generate")
-def test_screen_context_dropped_in_boss_phase(mock_generate, client):
+def test_screen_context_sanitized_in_boss_phase(mock_generate, client):
+    """Wave J.2: screen_context is sanitized (not dropped) in BOSS phase.
+
+    HTML answer markers are stripped; safe text still reaches the LLM.
+    """
     mock_generate.return_value = "ok"
     hw_id = _make_homework_with_boss_question(client, expected="42")
     payload = {
@@ -148,12 +166,21 @@ def test_screen_context_dropped_in_boss_phase(mock_generate, client):
         "phase": "boss",
         "question_id": "qb-sec",
         "message": "Hint?",
-        "screen_context": "LEAKED_ANSWER_42 visible in DOM",
+        "screen_context": (
+            "Boss question text visible to student.\n"
+            '<div data-expected="42">hidden answer</div>\n'
+            "Timer shows 45 seconds left."
+        ),
     }
     resp = client.post("/api/ai/tutor/chat", json=payload)
     assert resp.status_code == 200
     prompt = mock_generate.call_args[0][0]
-    assert "LEAKED_ANSWER_42" not in prompt
+    # Answer-marker line stripped.
+    assert "data-expected" not in prompt, (
+        "HTML answer-marker line reached LLM in BOSS — sanitizer failed"
+    )
+    # Safe text present.
+    assert "Boss question text" in prompt
 
 
 @patch("server.services.gemini.generate")

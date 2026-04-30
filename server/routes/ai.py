@@ -75,6 +75,24 @@ class ReviewDecideRequest(BaseModel):
 
 # Wave F1 — live tutor chat + boss-plan + history.
 
+# Allowlist of fine-grained subphase values. Anything outside this set is
+# silently dropped to None before it reaches the tutor service.
+SUBPHASE_ALLOWLIST: frozenset[str] = frozenset({
+    "preview",
+    "memory-sprint",
+    "story-mode",
+    "adaptive-quiz",
+    "sentence-fill",
+    "tile-match",
+    "mystery-box",
+    "puzzle-lock",
+    "real-life",
+    "consolidation",
+    "final-boss",
+    "reflection",
+})
+
+
 class TutorChatRequest(BaseModel):
     session_id: str
     hw_id: str
@@ -82,6 +100,8 @@ class TutorChatRequest(BaseModel):
     question_id: Optional[str] = None
     message: str
     screen_context: Optional[str] = None
+    student_work_text: Optional[str] = None
+    subphase: Optional[str] = None
     recent_assistant_phrases: list[str] = []
 
 
@@ -322,11 +342,18 @@ async def tutor_chat(req: TutorChatRequest):
             q = _find_question_in_content(content, req.question_id)
             if q is not None:
                 hw_meta["question"] = q
-    # screen_context is allowed only in PREVIEW phase. In PRACTICE/BOSS the
-    # student can put rendered DOM (including the answer) into this field, so
-    # we drop it entirely outside preview rather than try to scrub.
-    if req.screen_context and req.phase == "preview":
-        hw_meta["preview_context"] = req.screen_context[:2000]
+    # screen_context is now passed for ALL phases. The server-side sanitizer in
+    # tutor.py (_sanitize_screen_context) scrubs answer-bearing DOM attributes
+    # so we no longer need to silently drop it outside preview.
+    screen_context = req.screen_context[:2000] if req.screen_context else None
+
+    # student_work_text: what the student has typed/selected right now.
+    student_work_text = (
+        req.student_work_text[:2000] if req.student_work_text else None
+    )
+
+    # subphase: validate against the allowlist; drop silently if unknown.
+    subphase = req.subphase if req.subphase in SUBPHASE_ALLOWLIST else None
 
     # --- Warning state machine ---
     # Step 1: classify the incoming message via T1's new classifier.
@@ -384,6 +411,9 @@ async def tutor_chat(req: TutorChatRequest):
             message=req.message,
             hw_meta=hw_meta,
             recent_assistant_phrases=req.recent_assistant_phrases or [],
+            screen_context=screen_context,
+            student_work_text=student_work_text,
+            subphase=subphase,
             **warning_kwargs,
         )
 

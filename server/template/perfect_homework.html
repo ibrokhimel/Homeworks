@@ -10966,15 +10966,182 @@ Prezident ertaga hisobot kutmoqda.`,
             }
         }
 
+        // ── Wave J.2 / T2: fine-grained subphase tracking ───────
+        // The runtime emits `nets:phase-change` events with detail
+        // `{ phase, stage, questionId }` (from setStage at ~line 5748)
+        // or `{ phase: 'reflection', failed, ... }` (from the fail
+        // overlay at ~line 10810). The 3-cat `phase` covers the
+        // tutor-prompt branch selection; `currentSubphase` adds a
+        // finer-grained label (memory-sprint, adaptive-quiz, ...) that
+        // the backend Wave J.2 prompt rebuild consumes.
+        let currentSubphase = 'preview';
+
+        // Map gbState.subGame index → subphase string (matches
+        // gbActiveGameOrder() at ~line 7019).
+        const GB_SUBGAME_TO_SUBPHASE = {
+            0: 'adaptive-quiz',
+            1: 'sentence-fill',
+            2: 'tile-match',
+            3: 'puzzle-lock',
+            4: 'mystery-box',
+            5: 'tile-match', // ttt has no listed subphase; degrade to nearest game.
+        };
+
+        function deriveSubphase(detail) {
+            const phase = detail && detail.phase;
+            const stage = (detail && typeof detail.stage === 'number') ? detail.stage : null;
+            // Direct hit: reflection dispatch site sets phase='reflection'.
+            if (phase === 'reflection') return 'reflection';
+            // Boss range: 7..7.7 → final-boss; 7.7+ → reflection (but
+            // reflection comes via its own event above).
+            if (phase === 'boss') return 'final-boss';
+            if (phase === 'practice') {
+                // Practice covers: flashcards (2.5–3.5), memory-sprint
+                // (4–4.5), reading (4.7), game-breaks (5), real-life (6),
+                // consolidation (6.5).
+                if (stage === null) return 'preview';
+                if (stage >= 4 && stage < 4.7)  return 'memory-sprint';
+                if (stage >= 4.7 && stage < 5)  return 'consolidation'; // reading checkpoints share the reading-cp-input pattern
+                if (stage >= 5 && stage < 6) {
+                    const idx = (typeof gbState !== 'undefined' && gbState) ? gbState.subGame : 0;
+                    return GB_SUBGAME_TO_SUBPHASE[idx] || 'adaptive-quiz';
+                }
+                if (stage >= 6 && stage < 6.5)   return 'real-life';
+                if (stage >= 6.5 && stage < 7)   return 'consolidation';
+                // 2.5–3.5 (flashcards) and any other practice fallthrough.
+                return 'preview';
+            }
+            return 'preview';
+        }
+
         // ── Phase-change listener ───────────────────────────────
         document.addEventListener('nets:phase-change', (ev) => {
             const detail = (ev && ev.detail) || {};
             const phase = detail.phase || 'preview';
             state.currentPhase = (phase === 'practice' || phase === 'boss') ? phase : 'preview';
             state.currentQuestionId = detail.questionId || null;
+            currentSubphase = deriveSubphase(detail);
             updateBadge(state.currentPhase);
             updateAvatar(state.currentPhase);
         });
+
+        // ── Wave J.2 / T2: per-subphase active-input extractor ──
+        // Returns the student's CURRENT raw input on the active screen
+        // (text typed or option label most-recently picked). Each branch
+        // is a thin DOM read; falls back to null when nothing's typed.
+        function extractStudentWork(subphase) {
+            const get = (sel) => {
+                const el = document.querySelector(sel);
+                return el ? (el.value != null ? el.value : null) : null;
+            };
+            const SELECTORS = {
+                'real-life': () => {
+                    const idx = (typeof stage6State !== 'undefined' && stage6State) ? (stage6State.qIndex != null ? stage6State.qIndex : 0) : 0;
+                    // stage6State.qIndex is 0-indexed; DOM ids are rl-q1-input..rl-q6-input.
+                    return get('#rl-q' + (idx + 1) + '-input');
+                },
+                'consolidation': () => {
+                    // Reading checkpoint inputs are id=`reading-cp-input-N`.
+                    // We grab the first non-empty enabled one (the "active"
+                    // checkpoint the student is on).
+                    const inputs = document.querySelectorAll('input[id^="reading-cp-input-"]');
+                    for (let i = 0; i < inputs.length; i++) {
+                        const el = inputs[i];
+                        if (!el.disabled && el.value) return el.value;
+                    }
+                    // Fall back to the first one even if empty/disabled.
+                    return inputs.length ? (inputs[0].value || null) : null;
+                },
+                'adaptive-quiz': () => get('#gb-aq-input'),
+                'sentence-fill': () => get('#gb-wc-textarea'),
+                'mystery-box': () => {
+                    const v = get('#gb-mb-solve-input');
+                    if (v) return v;
+                    return (typeof gbState !== 'undefined' && gbState && gbState.mb && gbState.mb.pickedLabel) || null;
+                },
+                'puzzle-lock': () => get('#gb-pl-input'),
+                'tile-match': () => {
+                    const mm = (typeof gbState !== 'undefined' && gbState) ? gbState.mm : null;
+                    if (!mm) return null;
+                    // Runtime uses `selectedLeft = {pairId, el}` for the
+                    // currently-selected left tile (no pendingPair array).
+                    if (mm.selectedLeft && mm.selectedLeft.el) {
+                        const txt = mm.selectedLeft.el.textContent || '';
+                        return txt.trim() ? ('selected: ' + txt.trim().slice(0, 80)) : null;
+                    }
+                    return null;
+                },
+                'memory-sprint': () => {
+                    // msState only tracks {index, score, isAnimating} —
+                    // there is no last-selected-label field. Surface the
+                    // current question index instead so the tutor knows
+                    // which item the student is on.
+                    if (typeof msState === 'undefined' || !msState) return null;
+                    return 'ms question index: ' + (msState.index != null ? msState.index : 0);
+                },
+                'story-mode': () => {
+                    // Story mode shares stage6State (it's the intro screen
+                    // for real-life). No dedicated input; return null and
+                    // let screen_context carry the visible text.
+                    return null;
+                },
+                'final-boss': () => get('#boss-input'),
+                'reflection': () => {
+                    // Reflection screen has no input field — it's display-
+                    // only. Return null so the tutor sees only screen_ctx.
+                    return null;
+                },
+            };
+            try {
+                const fn = SELECTORS[subphase];
+                const v = fn ? fn() : null;
+                if (typeof v === 'string' && v.length) return v.slice(0, 2000);
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // ── Wave J.2 / T2: answer-key DOM scrub ─────────────────
+        // Walks the active root, removes nodes flagged as answer-key
+        // (data-correct=true, data-expected, .correct, etc.) BEFORE
+        // serializing to text — so the tutor never sees the answer it's
+        // supposed to be coaching the student toward.
+        function sanitizeScreenContext(activeRoot) {
+            if (!activeRoot) return '';
+            let clone;
+            try {
+                clone = activeRoot.cloneNode(true);
+            } catch (e) {
+                return '';
+            }
+            const SCRUB_SELECTORS = [
+                '[data-correct="true"]',
+                '[data-expected]',
+                '[data-answer]',
+                '.correct',
+                '.is-correct',
+                '.answer-key',
+                '.gb-aq-answer',
+            ];
+            for (let i = 0; i < SCRUB_SELECTORS.length; i++) {
+                const matches = clone.querySelectorAll(SCRUB_SELECTORS[i]);
+                for (let j = 0; j < matches.length; j++) {
+                    const n = matches[j];
+                    if (n && n.parentNode) n.parentNode.removeChild(n);
+                }
+            }
+            // Strip any expected/answer attributes that leak through on
+            // surviving nodes (e.g., questions that hold the expected
+            // answer in a data-* attribute for client-side checking).
+            const attrLeaks = clone.querySelectorAll('[data-expected], [data-answer]');
+            for (let k = 0; k < attrLeaks.length; k++) {
+                attrLeaks[k].removeAttribute('data-expected');
+                attrLeaks[k].removeAttribute('data-answer');
+            }
+            const raw = (clone.innerText || clone.textContent || '');
+            return raw.replace(/\s+/g, ' ').trim().slice(0, 2000);
+        }
 
         // ── API ─────────────────────────────────────────────────
         function apiAvailable() {
@@ -11001,8 +11168,16 @@ Prezident ertaga hisobot kutmoqda.`,
                 // guard, burning 1/SESSION_CAP for every failed offline ping.
                 state.messageCount += 1;
                 const activeScreen = document.querySelector('.screen.active');
-                const rawText = activeScreen ? (activeScreen.textContent || '') : '';
-                const screenContext = rawText.replace(/\s+/g, ' ').trim().slice(0, 2000);
+                // Wave J.2 / T2: sanitize answer-key markers BEFORE the
+                // text leaves the browser. sanitizeScreenContext clones
+                // the active root, drops [data-correct=true], .correct,
+                // .answer-key, etc., then serializes to plain text.
+                const screenContext = sanitizeScreenContext(activeScreen);
+                // Wave J.2 / T2: per-subphase active-input read. The
+                // backend uses this as `student_work_text` so the tutor
+                // sees what the student actually typed/picked, not just
+                // the surrounding chrome.
+                const studentWork = extractStudentWork(currentSubphase);
                 // Wave J / T4: collect last 3 assistant openings BEFORE
                 // we inject the new turn so we get the previous tone, not
                 // the one we're about to send.
@@ -11014,6 +11189,8 @@ Prezident ertaga hisobot kutmoqda.`,
                     question_id: state.currentQuestionId || undefined,
                     message: text,
                     screen_context: screenContext || undefined,
+                    student_work_text: studentWork || undefined,
+                    subphase: currentSubphase || undefined,
                     recent_assistant_phrases: recentOpenings.length ? recentOpenings : undefined,
                 });
                 removeTyping();
