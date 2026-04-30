@@ -90,6 +90,22 @@ def test_runtime_caps_tall_preview_media_inside_panels():
     assert "max-height: 56vh" in svg_block
 
 
+def test_reading_runtime_paginates_and_requires_checkpoint_answer():
+    html = _read(RUNTIME)
+
+    assert 'id="reading-progress"' in html
+    assert 'id="reading-status"' in html
+    assert "function readingBuildPages" in html
+    assert "function readingIsComplete" in html
+    assert "function updateReadingContinueState" in html
+    assert "READING.passage || READING.text || ''" in html
+    assert "readingState.answered[i] = true" in html
+    assert "if (!readingIsComplete(checkpoints))" in html
+    assert "readingGoToPage(readingCheckpointPage(firstMissing" in html
+    assert "tier: 'HARD'" in html
+    assert "tier: 'EASY'" not in html[html.index("function renderReading"):html.index("function renderConsolidation")]
+
+
 def test_adaptive_quiz_builder_has_grouped_grading_ui():
     js = _read(AQ_EDITOR)
     css = _read(APP_CSS)
