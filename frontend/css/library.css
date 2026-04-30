@@ -11,14 +11,14 @@
     --apple-spring-close: cubic-bezier(.22, 1, .36, 1);
     --apple-ease:         cubic-bezier(.25, .1, .25, 1);
 
-    --apple-blue:   #0a84ff;
-    --apple-cyan:   #64d2ff;
-    --apple-purple: #bf5af2;
-    --apple-red:    #ff453a;
-    --apple-orange: #ff9f0a;
-    --apple-green:  #30d158;
-    --apple-pink:   #ff375f;
-    --apple-yellow: #ffd60a;
+    --lib-blue:   #0066CC;   /* family-aniq, primary */
+    --lib-purple: #AF52DE;   /* family-til */
+    --lib-orange: #FF9500;   /* family-ijtimoiy */
+    --lib-green:  #34C759;   /* family-tabiy */
+    --lib-red:    #FF453A;   /* hard stat only */
+    --lib-cyan:   #5AC8FA;   /* hw-tag.cyan accent */
+    --lib-pink:   #ff375f;
+    --lib-yellow: #ffd60a;
 }
 
 /* ---------- Theme-aware library tokens ---------- */
@@ -32,9 +32,9 @@
     --lib-stat-bg-to:   rgba(255, 255, 255, .048);
     --lib-tile-base:    #111827;
     --lib-tile-mix-pct: 45%;
-    --lib-radial-bg-1:  rgba(10, 132, 255, .36);
-    --lib-radial-bg-2:  rgba(191, 90, 242, .18);
-    --lib-radial-bg-3:  rgba(255, 159, 10, .12);
+    --lib-radial-bg-1:  rgba(0, 102, 204, .36);
+    --lib-radial-bg-2:  rgba(175, 82, 222, .18);
+    --lib-radial-bg-3:  rgba(255, 149, 0, .12);
     --lib-shadow-glass: 0 30px 90px rgba(0, 0, 0, .42);
     --lib-shadow-tile:  0 18px 44px rgba(0, 0, 0, .28);
     --lib-shadow-panel: 0 34px 90px rgba(0, 0, 0, .38);
@@ -56,9 +56,9 @@
     --lib-stat-bg-to:   rgba(255, 255, 255, .65);
     --lib-tile-base:    #ffffff;
     --lib-tile-mix-pct: 30%;
-    --lib-radial-bg-1:  rgba(10, 132, 255, .12);
-    --lib-radial-bg-2:  rgba(191, 90, 242, .08);
-    --lib-radial-bg-3:  rgba(255, 159, 10, .06);
+    --lib-radial-bg-1:  rgba(0, 102, 204, .12);
+    --lib-radial-bg-2:  rgba(175, 82, 222, .08);
+    --lib-radial-bg-3:  rgba(255, 149, 0, .06);
     --lib-shadow-glass: 0 18px 54px rgba(15, 23, 42, .14);
     --lib-shadow-tile:  0 14px 36px rgba(15, 23, 42, .12);
     --lib-shadow-panel: 0 28px 70px rgba(15, 23, 42, .20);
@@ -104,6 +104,13 @@ body[data-page="library"] h1 {
     font-size: clamp(24px, 3vw, 32px);
     line-height: .95;
 }
+/* Topbar brand h1 stays at production size — matches dashboard */
+body[data-page="library"] .topbar h1,
+body[data-page="library"] .brand-block h1 {
+    font-size: 1.35rem;
+    letter-spacing: -.025em;
+    line-height: 1.1;
+}
 body[data-page="library"] h2 { letter-spacing: -.045em; font-size: 28px; }
 body[data-page="library"] h3 { letter-spacing: -.025em; font-size: 23px; }
 
@@ -125,7 +132,7 @@ body[data-page="library"] .lang-pill {
 }
 body[data-page="library"] .lang-pill.active,
 body[data-page="library"] .lang-pill.is-active {
-    box-shadow: 0 8px 22px rgba(10, 132, 255, .36);
+    box-shadow: 0 8px 22px rgba(0, 102, 204, .36);
 }
 
 /* ---------- Glass toolbar (existing search + lang chips) ---------- */
@@ -196,14 +203,14 @@ body[data-page="library"] .lang-pill.is-active {
 }
 
 .lib-chip:focus-visible {
-    outline: 2px solid var(--apple-blue);
+    outline: 2px solid var(--lib-blue);
     outline-offset: 2px;
 }
 
 .lib-chip.is-active {
     color: #fff;
-    background: linear-gradient(180deg, #2997ff, #006ee6);
-    box-shadow: 0 8px 22px rgba(10, 132, 255, .36);
+    background: linear-gradient(180deg, #1a80e0, #0055b3);
+    box-shadow: 0 8px 22px rgba(0, 102, 204, .36);
 }
 
 .lib-chip[disabled] {
@@ -236,7 +243,7 @@ body[data-page="library"] .lang-pill.is-active {
 #lib-clear-btn:hover {
     transform: translateY(-1px);
     background: var(--lib-chip-bg);
-    border-color: rgba(10, 132, 255, .34);
+    border-color: rgba(0, 102, 204, .34);
     color: var(--text);
 }
 
@@ -328,7 +335,7 @@ body[data-page="library"] .lang-pill.is-active {
 /* ---------- Stage (the big glass panel that holds the tile grid) ---------- */
 .lib-stage {
     position: relative;
-    min-height: 590px;
+    min-height: 440px;
     padding: 15px;
     border-radius: 31px;
     overflow: hidden;
@@ -365,19 +372,19 @@ body[data-page="library"] .lang-pill.is-active {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 14px;
-    min-height: 426px;
+    min-height: 300px;
 }
 
 .subject-tile {
     position: relative;
-    min-height: 210px;
+    min-height: 140px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    justify-content: space-between;
-    gap: 18px;
-    padding: 20px;
-    border-radius: 31px;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 16px 18px;
+    border-radius: 22px;
     overflow: hidden;
     text-align: left;
     cursor: pointer;
@@ -428,10 +435,10 @@ body[data-page="library"] .lang-pill.is-active {
 
 .subject-tile .tile-orb {
     position: absolute;
-    width: 190px;
-    height: 190px;
-    right: -76px;
-    top: -72px;
+    width: 140px;
+    height: 140px;
+    right: -50px;
+    top: -46px;
     border-radius: 999px;
     background: radial-gradient(circle,
         rgba(255, 255, 255, .68),
@@ -444,15 +451,15 @@ body[data-page="library"] .lang-pill.is-active {
 .subject-tile .tile-icon {
     position: relative;
     z-index: 1;
-    width: 58px;
-    height: 58px;
+    width: 44px;
+    height: 44px;
     flex: 0 0 auto;
     display: grid;
     place-items: center;
-    border-radius: 20px;
+    border-radius: 14px;
     background: rgba(0, 0, 0, .16);
     border: 1px solid rgba(255, 255, 255, .18);
-    font-size: 28px;
+    font-size: 22px;
     line-height: 1;
     font-weight: 900;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .13);
@@ -470,9 +477,9 @@ body[data-page="library"] .lang-pill.is-active {
 }
 
 .subject-tile .tile-copy h3 {
-    font-size: 23px;
+    font-size: 18px;
     line-height: 1.05;
-    letter-spacing: -.04em;
+    letter-spacing: -.025em;
     white-space: nowrap;
     color: var(--lib-on-tile);
     font-weight: 900;
@@ -480,11 +487,11 @@ body[data-page="library"] .lang-pill.is-active {
 }
 
 .subject-tile .tile-copy p {
-    margin: 7px 0 0;
+    margin: 4px 0 0;
     color: color-mix(in oklab, var(--lib-on-tile) 78%, transparent);
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.25;
-    min-height: 18px;
+    min-height: 16px;
 }
 
 .subject-tile .tile-footer {
@@ -492,9 +499,9 @@ body[data-page="library"] .lang-pill.is-active {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-top: 18px;
+    margin-top: auto;
     color: color-mix(in oklab, var(--lib-on-tile) 88%, transparent);
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 800;
     width: 100%;
     position: relative;
@@ -502,7 +509,7 @@ body[data-page="library"] .lang-pill.is-active {
 }
 
 .subject-tile .tile-pill {
-    padding: 7px 11px;
+    padding: 6px 10px;
     border-radius: 999px;
     background: rgba(0, 0, 0, .17);
     border: 1px solid rgba(255, 255, 255, .16);
@@ -628,7 +635,7 @@ body[data-page="library"] .lang-pill.is-active {
     background: color-mix(in oklab, var(--text) 12%, var(--lib-chip-bg));
 }
 .panel-close:focus-visible {
-    outline: 2px solid var(--apple-blue);
+    outline: 2px solid var(--lib-blue);
     outline-offset: 2px;
 }
 
@@ -663,7 +670,7 @@ body[data-page="library"] .lang-pill.is-active {
     border-color: color-mix(in oklab, var(--accent, #0a84ff) 32%, var(--lib-hairline));
 }
 .lib-grade-chip:focus-visible {
-    outline: 2px solid var(--apple-blue);
+    outline: 2px solid var(--lib-blue);
     outline-offset: 2px;
 }
 .lib-grade-chip.is-active {
@@ -719,7 +726,7 @@ body[data-page="library"] .lang-pill.is-active {
 }
 
 .homework-card:focus-visible {
-    outline: 2px solid var(--apple-blue);
+    outline: 2px solid var(--lib-blue);
     outline-offset: 2px;
 }
 
@@ -832,11 +839,11 @@ body[data-page="library"] .lang-pill.is-active {
 .homework-card .hw-tag.orange { color: #ffd9a8; background: rgba(255, 159, 10, .17); }
 .homework-card .hw-tag.green  { color: #b6f3c4; background: rgba(48, 209, 88, .17); }
 
-:root[data-theme="light"] .homework-card .hw-tag.blue   { color: #0a58ff; background: rgba(10, 132, 255, .12); }
-:root[data-theme="light"] .homework-card .hw-tag.purple { color: #7e34c4; background: rgba(191, 90, 242, .12); }
-:root[data-theme="light"] .homework-card .hw-tag.cyan   { color: #0a87a8; background: rgba(100, 210, 255, .18); }
-:root[data-theme="light"] .homework-card .hw-tag.orange { color: #b56b00; background: rgba(255, 159, 10, .14); }
-:root[data-theme="light"] .homework-card .hw-tag.green  { color: #1f7a3a; background: rgba(48, 209, 88, .14); }
+:root[data-theme="light"] .homework-card .hw-tag.blue   { color: #004a99; background: rgba(0, 102, 204, .12); }
+:root[data-theme="light"] .homework-card .hw-tag.purple { color: #6a2faa; background: rgba(175, 82, 222, .12); }
+:root[data-theme="light"] .homework-card .hw-tag.cyan   { color: #007a99; background: rgba(90, 200, 250, .15); }
+:root[data-theme="light"] .homework-card .hw-tag.orange { color: #b56b00; background: rgba(255, 149, 0, .12); }
+:root[data-theme="light"] .homework-card .hw-tag.green  { color: #1d6e30; background: rgba(52, 199, 89, .14); }
 
 .homework-card .hw-bottom {
     margin-top: auto;
@@ -870,9 +877,9 @@ body[data-page="library"] .lang-pill.is-active {
     margin: 0 auto 14px;
     background: radial-gradient(circle at 30% 30%,
         rgba(255, 255, 255, .55),
-        color-mix(in oklab, var(--apple-blue) 70%, transparent) 50%,
+        color-mix(in oklab, var(--lib-blue) 70%, transparent) 50%,
         transparent 80%);
-    box-shadow: 0 14px 36px color-mix(in oklab, var(--apple-blue) 28%, transparent);
+    box-shadow: 0 14px 36px color-mix(in oklab, var(--lib-blue) 28%, transparent);
 }
 
 .spinner {
@@ -880,7 +887,7 @@ body[data-page="library"] .lang-pill.is-active {
     height: 36px;
     border-radius: 50%;
     border: 3px solid var(--lib-hairline);
-    border-top-color: var(--apple-blue);
+    border-top-color: var(--lib-blue);
     animation: spin .8s linear infinite;
     margin: 0 auto 14px;
 }
@@ -895,7 +902,7 @@ body[data-page="library"] .lang-pill.is-active {
     height: 22px;
     padding: 0 7px;
     border-radius: 999px;
-    background: color-mix(in oklab, var(--apple-blue) 22%, var(--lib-chip-bg));
+    background: color-mix(in oklab, var(--lib-blue) 22%, var(--lib-chip-bg));
     color: var(--text);
     font-size: 12px;
     font-weight: 850;
