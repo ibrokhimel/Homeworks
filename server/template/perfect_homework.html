@@ -6334,8 +6334,8 @@
             const gateLabels = { uz: 'Bilarmidingiz?', ru: 'Знаете ли вы?', en: 'Did you know?' };
             const gateLabel = gateLabels[_runtimeDetectLang()] || gateLabels.uz;
             // Facts use the localized label as the eyebrow (chrome).
-            // Quotes show the actual author from data; fall back to label only if author is empty.
-            authorNode.textContent = isFact ? gateLabel : (q.a || gateLabel);
+            // Quotes show the actual author from data; never reuse the fact label.
+            authorNode.textContent = isFact ? gateLabel : (q.a || 'Iqtibos');
             chip.appendChild(dot);
             chip.appendChild(authorNode);
             chipLine.appendChild(chip);

@@ -72,6 +72,18 @@ def test_run_quote_sequence_drops_emoji_for_facts():
     )
 
 
+def test_run_quote_sequence_does_not_use_fact_label_as_quote_author():
+    html = _read(RUNTIME)
+    block_match = re.search(
+        r"function runQuoteSequence\s*\(\)\s*\{(?P<body>.*?)\n        \}",
+        html,
+        re.DOTALL,
+    )
+    body = block_match.group("body")
+    assert "isFact ? gateLabel : (q.a || gateLabel)" not in body
+    assert "isFact ? gateLabel : (q.a || 'Iqtibos')" in body
+
+
 # ── Mid-homework break card ──────────────────────────────────────────
 
 
