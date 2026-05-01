@@ -163,14 +163,14 @@
         <div class="filter-row">
           <label>
             <span data-i18n="common.subject">Subject</span>
-            <select id="subject-filter">
+            <select id="subject-filter" aria-label="Subject" data-i18n-aria-label="common.subject">
               <option value="all" data-i18n="dashboard.all_subjects">All subjects</option>
             </select>
           </label>
 
           <label>
             <span data-i18n="common.status">Status</span>
-            <select id="status-filter">
+            <select id="status-filter" aria-label="Status" data-i18n-aria-label="common.status">
               <option value="all" data-i18n="dashboard.all_statuses">All statuses</option>
               <option value="draft" data-i18n="common.draft">Draft</option>
               <option value="generating" data-i18n="common.generating">Generating</option>
@@ -181,7 +181,7 @@
 
           <label>
             <span data-i18n="common.mode">Mode</span>
-            <select id="mode-filter">
+            <select id="mode-filter" aria-label="Mode" data-i18n-aria-label="common.mode">
               <option value="all" data-i18n="dashboard.all_modes">All modes</option>
               <option value="easy" data-i18n="common.easy">Easy</option>
               <option value="hard" data-i18n="common.hard">Hard</option>
@@ -263,21 +263,21 @@
 
         <label class="field">
           <span data-i18n="common.subject">Subject</span>
-          <select id="homework-subject" name="subject" required>
+          <select id="homework-subject" name="subject" required aria-label="Subject" data-i18n-aria-label="common.subject">
             <option value="" disabled selected data-i18n="dashboard.select_subject">Select subject</option>
           </select>
         </label>
 
         <label class="field">
           <span data-i18n="common.grade">Grade</span>
-          <select id="homework-grade" name="grade" required disabled>
+          <select id="homework-grade" name="grade" required disabled aria-label="Grade" data-i18n-aria-label="common.grade">
             <option value="" disabled selected data-i18n="dashboard.select_grade">Select grade</option>
           </select>
         </label>
 
         <label class="field">
           <span data-i18n="common.mode">Mode</span>
-          <select id="homework-mode" name="mode" required>
+          <select id="homework-mode" name="mode" required aria-label="Mode" data-i18n-aria-label="common.mode">
             <option value="easy" data-i18n="common.easy">Easy</option>
             <option value="hard" data-i18n="common.hard">Hard</option>
           </select>
