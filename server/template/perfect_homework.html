@@ -1079,50 +1079,61 @@
             color: var(--accent);
             border: 1px solid rgba(0, 122, 255, 0.22);
         }
-        /* Gate-quote card (Stage 1) — translucent glass shell with a centered
-           pill eyebrow + readable quote body below. Glass chrome (background,
-           backdrop-filter, border, shadow) is fully inherited from .card so
-           the card sits on the gradient bg the same way every other Wave-1
-           card does. */
+        /* Gate-quote card (Stage 1) — translucent glass card with eyebrow pill + body text. */
         .quote-card {
-            padding: 44px 28px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            box-shadow: var(--shadow-card);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            padding: 48px 36px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
-            min-height: 240px;
+            min-height: 220px;
+            border-radius: 28px;
         }
         .quote-card #quote-container {
-            width: 100%;
-            min-height: 120px;
+            min-height: 84px;
             padding: 0;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 16px;
+            width: 100%;
         }
         .quote-card .quote-item {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 18px;
-            width: 100%;
+            gap: 16px;
             color: var(--text);
+            font-size: 17px;
+            font-style: normal;
+            line-height: 1.55;
+            max-width: 560px;
         }
         .quote-card .quote-text-line {
             font-size: 17px;
             line-height: 1.55;
-            font-weight: 500;
             color: var(--text);
-            max-width: 36ch;
-            text-wrap: balance;
+            font-style: italic;
+            max-width: 560px;
+        }
+        .quote-card .quote-type-icon {
+            margin-right: 6px;
+            color: var(--accent);
+            font-style: normal;
         }
         .quote-card .quote-author-chip,
         .quote-card .quote-author-chip--global {
             margin: 0;
             padding: 7px 15px;
-            background: rgba(0, 102, 204, 0.10);
-            border-color: rgba(0, 102, 204, 0.22);
+            background: rgba(0, 102, 204, 0.09);
+            border-color: rgba(0, 102, 204, 0.25);
             color: var(--accent);
             font-size: 11px;
             font-weight: 700;
@@ -4442,7 +4453,13 @@
         [data-theme="dark"] .gb-ttt-cell:hover:not(.filled):not(.locked) {
             background: var(--surface-strong);
         }
-        [data-theme="dark"] .quote-card .quote-text-line {
+        [data-theme="dark"] .quote-card {
+            background: var(--surface);
+            border-color: var(--surface-border);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42);
+        }
+        [data-theme="dark"] .quote-card .quote-text-line,
+        [data-theme="dark"] .quote-card .quote-item {
             color: var(--text);
         }
         [data-theme="dark"] .quote-card .quote-author-chip,
@@ -6314,11 +6331,10 @@
             const dot = document.createElement('span');
             dot.className = 'quote-author-chip-dot';
             const authorNode = document.createElement('span');
-            // Facts → localized "Did you know?" chrome eyebrow ABOVE the body.
-            // Quotes → actual author from data (q.a) BELOW the body, with a
-            // sensible fallback if the data is missing the byline.
             const gateLabels = { uz: 'Bilarmidingiz?', ru: 'Знаете ли вы?', en: 'Did you know?' };
             const gateLabel = gateLabels[_runtimeDetectLang()] || gateLabels.uz;
+            // Facts use the localized label as the eyebrow (chrome).
+            // Quotes show the actual author from data; fall back to label only if author is empty.
             authorNode.textContent = isFact ? gateLabel : (q.a || gateLabel);
             chip.appendChild(dot);
             chip.appendChild(authorNode);
