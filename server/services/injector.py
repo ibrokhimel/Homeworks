@@ -918,6 +918,38 @@ def inject(
                 # Legacy alias used by the parity report
                 "recap":        str(obj.get("recap") or obj.get("mnemonic") or ""),
             }
+            # Bug #7: pass through the new panels[] + check shape used by the
+            # wave2 sliding-panel renderer. Generic across mnemonic techniques
+            # (Radiant Summary branches, Memory Palace stations, Link System
+            # steps, etc.) — each entry is {title?, html, media?, kind?}.
+            # Legacy fixtures (no panels[] in content_json) keep rendering via
+            # the existing single-panel path above.
+            raw_panels = obj.get("panels")
+            if isinstance(raw_panels, list):
+                panels_out = []
+                for p in raw_panels:
+                    if not isinstance(p, dict):
+                        continue
+                    panel_entry = {
+                        "title": str(p.get("title") or ""),
+                        "html":  str(p.get("html") or ""),
+                        "kind":  str(p.get("kind") or ""),
+                    }
+                    pmedia = p.get("media")
+                    if isinstance(pmedia, dict):
+                        panel_entry["media"] = {
+                            "type": str(pmedia.get("type") or ""),
+                            "html": str(pmedia.get("html") or ""),
+                        }
+                    panels_out.append(panel_entry)
+                if panels_out:
+                    normalized["panels"] = panels_out
+            check = obj.get("check")
+            if isinstance(check, dict):
+                normalized["check"] = {
+                    "prompt": str(check.get("prompt") or ""),
+                    "answer": str(check.get("answer") or ""),
+                }
         elif key == "reflection":
             normalized = {
                 "summary":    str(obj.get("summary") or ""),

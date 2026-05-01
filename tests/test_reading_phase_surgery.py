@@ -106,39 +106,55 @@ def test_reading_lock_message_does_not_render_on_text_segment_panels():
 # ---- Invariant 3: Keyingi button removed for segment-aware panels ---------
 
 def test_reading_per_checkpoint_next_button_rendered_only_in_legacy_mode():
-    """The per-checkpoint manual Next button is gated on legacy chunker pages."""
-    body = _slice_function("renderReading")
+    """The per-checkpoint manual Next button is gated on legacy chunker mode.
+
+    Post-wave2 the checkpoint UI builder is `_buildReadingCheckpointBlock`
+    and it creates `nextBtn` only when its `mode` argument is 'legacy'.
+    Segment-aware question panels have no manual Next button — auto-advance
+    handles forward motion after a correct answer.
+    """
+    body = _slice_function("_buildReadingCheckpointBlock")
     assert re.search(
-        r"if\s*\(\s*currentPage\.kind\s*===\s*'legacy'\s*\)\s*\{[^}]*?nextBtn\s*=\s*document\.createElement",
+        r"if\s*\(\s*mode\s*===\s*'legacy'\s*\)\s*\{[^}]*?nextBtn\s*=\s*document\.createElement",
         body, flags=re.DOTALL,
-    ), "per-checkpoint nextBtn must be rendered only when currentPage.kind is 'legacy'"
+    ), "_buildReadingCheckpointBlock must create nextBtn only when mode === 'legacy'"
 
 
-def test_reading_bottom_page_nav_rendered_only_in_legacy_mode():
-    """The bottom prev/next page-nav row is gated on legacy chunker pages."""
+def test_reading_no_bottom_page_nav_in_segment_mode():
+    """Post-wave2 the bottom prev/next page-nav row is gone entirely.
+
+    Pre-wave2 each chunker page rendered a `screen-reading-btn-row` with a
+    Back button + a `pageNextBtn`. Now the wave2 stream + dot indicator
+    handle navigation via swipe; no bottom nav buttons exist anywhere in
+    the renderReading function.
+    """
     body = _slice_function("renderReading")
-    # The bottom nav block (with prev/next page buttons) must be inside an
-    # `if (currentPage.kind === 'legacy')` guard, not unconditional.
-    legacy_guards = re.findall(r"currentPage\.kind\s*===\s*'legacy'", body)
-    assert len(legacy_guards) >= 2, (
-        "expected at least 2 'currentPage.kind === \"legacy\"' guards in renderReading "
-        "(one for per-checkpoint nextBtn, one for the bottom page-nav row); "
-        f"found {len(legacy_guards)}"
+    assert "pageNextBtn" not in body, (
+        "renderReading must NOT create pageNextBtn anymore — wave2 swipe "
+        "navigation replaces the bottom page-nav row"
     )
 
 
 # ---- Invariant 4: auto-advance after correct answer -----------------------
 
-def test_reading_correct_answer_auto_advances_on_question_panel():
-    """A correct answer on a question panel triggers a setTimeout-driven advance."""
-    body = _slice_function("renderReading")
-    # Pattern: `if (isCorrect && isQuestionPanel) { setTimeout(...) }`
+def test_reading_correct_answer_auto_advances_in_segment_mode():
+    """A correct answer in segment mode auto-advances via wave2SlideNavigate.
+
+    The auto-advance path now lives inside `_buildReadingCheckpointBlock`'s
+    checkBtn handler, gated on (isCorrect && mode === 'segment'), and calls
+    wave2SlideNavigate on the reading-stream after a 1100ms beat.
+    """
+    body = _slice_function("_buildReadingCheckpointBlock")
     assert re.search(
-        r"if\s*\(\s*isCorrect\s*&&\s*isQuestionPanel\s*\)\s*\{[^}]*setTimeout",
+        r"if\s*\(\s*isCorrect\s*&&\s*mode\s*===\s*'segment'\s*\)\s*\{[^}]*setTimeout",
         body, flags=re.DOTALL,
     ), (
-        "auto-advance must be gated on (isCorrect && isQuestionPanel) and use "
-        "setTimeout — direct synchronous advance would cut off the feedback line"
+        "auto-advance must be gated on (isCorrect && mode === 'segment') and "
+        "use setTimeout for the read-the-feedback beat"
+    )
+    assert "wave2SlideNavigate('reading-stream', +1)" in body, (
+        "auto-advance must dispatch through the wave2 helper, not call any "
+        "internal go-to-page function directly"
     )
 
 
@@ -175,39 +191,56 @@ def test_reading_finish_function_accepts_force_param_to_bypass_completion_check(
 # ---- Invariant 6: within-phase swipe-left advances reading panels ---------
 
 def test_reading_swipe_handler_does_not_block_non_edge_swipes_on_stage_4_7():
-    """Stage 4.7 (Reading) is excluded from the wave-2 no-swipe filter."""
-    # Pre-fix the comparison was `state.stage === 4.7 || state.stage === 6.5 || state.stage === 7.7`
-    # and any non-edge swipe on 4.7 returned early. Post-fix Reading is removed
-    # from that exclusion list.
-    assert "isInterstitialNoSwipe = state.stage === 6.5 || state.stage === 7.7" in TEMPLATE, (
-        "Reading (4.7) must NOT be in the no-non-edge-swipe interstitial list — "
-        "it now accepts within-phase swipe-left for panel advance"
+    """Stage 4.7 (Reading) AND 6.5 (Consolidation) accept non-edge swipes.
+
+    Post-Bug-#7: both are removed from the interstitial-no-swipe list and
+    the only remaining "edge-only" Wave-2 stage is 7.7 (Reflection).
+    """
+    assert "isInterstitialNoSwipe = state.stage === 7.7" in TEMPLATE, (
+        "only Reflection (7.7) should be in the interstitial-no-swipe filter; "
+        "Reading (4.7) and Consolidation (6.5) both run wave2 streams now"
     )
 
 
-def test_reading_swipe_left_advances_panel_when_unlocked():
-    """Pointerup on stage 4.7 with leftward dx >= threshold advances the panel."""
-    # The new branch checks `state.stage === 4.7`, computes isLockedQuestion,
-    # and either advances via readingGoToPage or calls onContinue.
+def test_reading_swipe_dispatches_to_wave2_helper():
+    """Pointerup on stage 4.7 calls wave2SlideNavigate with ±1.
+
+    The bespoke isLockedQuestion / readingGoToPage path is replaced by a
+    single `wave2SlideNavigate('reading-stream', dir)` call. The helper's
+    canAdvance hook (declared inside renderReading) handles the question
+    lock; we don't repeat that logic at the swipe-handler level.
+    """
     assert re.search(
         r"absDx\s*>\s*50\s*&&\s*state\.stage\s*===\s*4\.7",
         TEMPLATE,
-    ), "pointerup must dispatch a stage-4.7 branch for within-phase swipes"
-    assert "isLockedQuestion =" in TEMPLATE
-    assert "readingGoToPage(readingState.page + 1)" in TEMPLATE
+    ), "pointerup must still dispatch a stage-4.7 branch"
+    assert "wave2SlideNavigate('reading-stream'," in TEMPLATE, (
+        "Reading swipe handling must route through wave2SlideNavigate so the "
+        "shared helper owns the slide animation + dot updates"
+    )
 
 
-def test_reading_swipe_left_blocked_by_unanswered_checkpoint():
-    """A leftward swipe on a question panel with no answer yet is a no-op."""
-    # The isLockedQuestion check must gate the readingGoToPage(advance) call.
-    assert re.search(
-        r"isLockedQuestion\s*=\s*\n?\s*currentPage\.kind\s*===\s*'question'\s*&&\s*\n?"
-        r"\s*typeof\s+currentPage\.cpIndex\s*===\s*'number'\s*&&\s*\n?"
-        r"\s*!readingState\.answered\[currentPage\.cpIndex\]",
-        TEMPLATE,
-    ), (
-        "isLockedQuestion must be true exactly when the current panel is a "
-        "question panel whose checkpoint hasn't been answered yet"
+def test_reading_can_advance_hook_blocks_unanswered_question_panels():
+    """canAdvance returns false when leaving an unanswered question panel.
+
+    The lock invariant (no skipping a question without answering it) is
+    moved out of the swipe handler and into the canAdvance callback the
+    consumer passes to wave2SlideInit.
+    """
+    body = _slice_function("renderReading")
+    # canAdvance hook is registered with the helper
+    assert "canAdvance:" in body
+    # The hook reads from readingState.pages[fromIdx] and gates on
+    # !readingState.answered[fromPage.cpIndex] for question panels.
+    assert "fromPage.kind === 'question'" in body
+    assert "!readingState.answered[fromPage.cpIndex]" in body, (
+        "canAdvance must return false when the current question panel's "
+        "checkpoint hasn't been answered — that's the lock invariant"
+    )
+    # Back-swipe (toIdx < fromIdx) must be unconditionally allowed.
+    assert "if (toIdx < fromIdx) return true" in body, (
+        "canAdvance must allow back-swipe unconditionally (toIdx < fromIdx); "
+        "the lock only gates forward motion"
     )
 
 

@@ -138,11 +138,59 @@ A vocab unit on family relations has no spatial structure either — it is hiera
 ---
 
 ## OUTPUT REQUIREMENT
-Return valid JSON matching this exact schema:
+
+Return valid JSON matching this schema. The `panels[]` array carries the
+mnemonic content as a sliding-panel sequence — generic across techniques
+(Radiant Summary branches, Memory Palace stations, Link System steps,
+Peg System pegs). Each panel becomes one slide in the runtime; the
+student swipes between them. Optional `check` is a non-graded
+reveal-on-demand block (lock-code or recall prompt).
+
 ```json
 {
-  "mnemonic": "string",
-  "lock_code": "string",
-  "explanation": "string"
+  "title": "string — the technique header, e.g. 'Radiant Summary — the Family Tree'",
+  "panels": [
+    {
+      "kind":  "center | branch | station | step | check",
+      "title": "string — short panel heading shown above the body",
+      "html":  "string — the panel's prose content; **bold** is converted to <strong> by the adapter",
+      "media": {
+        "type": "svg",
+        "html": "<svg viewBox='0 0 300 200' xmlns='http://www.w3.org/2000/svg'>...</svg>"
+      }
+    }
+  ],
+  "check": {
+    "prompt": "string — the recall question (optional)",
+    "answer": "string — the canonical answer revealed on-demand (optional)"
+  }
 }
 ```
+
+**Panel structure rules:**
+- `kind` is informational, not load-bearing — the runtime renders every
+  panel the same way. Use `center` for an overview/anchor panel,
+  `branch` for Radiant Summary leaves, `station` for Memory Palace stops,
+  `step` for Link System chains, `check` for a dedicated lock-code panel.
+- `title` is required on every panel — student sees it as the slide heading.
+- `html` is the panel body. Markdown `**bold**` is supported (the adapter
+  converts to `<strong>`).
+- `media` is REQUIRED on every non-`check` panel that illustrates a
+  structural concept. Inline SVG only, ≤300×200px, depicts the panel's
+  specific mental image (a tree node, a station glyph, a slider, three
+  refusing figures, etc.) — never decorative clipart, never a generic
+  monument outline.
+- Panel count matches the level table at the top of this prompt.
+
+**Check block rules:**
+- Optional. Omit entirely if the technique doesn't suit a recall test.
+- NOT graded — the runtime renders a "Show answer" button that reveals
+  `check.answer` on click. No correct/wrong verdict, no auto-advance,
+  no gating of forward navigation.
+- If included, `prompt` is what the student sees first; `answer` is the
+  canonical line the reveal toggle exposes.
+
+**Backward compatibility:** Legacy fixtures may still emit the old
+`{mnemonic, lock_code, explanation}` shape. The runtime renders those as
+a single non-sliding panel (no swipe, just the existing scrollable
+consolidation card). Do NOT emit both shapes at once — pick one.
