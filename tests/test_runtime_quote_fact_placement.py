@@ -72,6 +72,59 @@ def test_run_quote_sequence_drops_emoji_for_facts():
     )
 
 
+def test_gate_quote_card_keeps_body_text_visible():
+    """The gate quote card must show the text body under/above the label.
+
+    A stale branch hid `.quote-text-line`, leaving only the Bilarmidingiz?
+    pill floating in an empty card. Keep the restored glass card layout pinned.
+    """
+    html = _read(RUNTIME)
+    rule = re.search(
+        r"\.quote-card \.quote-text-line\s*\{(?P<body>[^}]*)\}",
+        html,
+        re.DOTALL,
+    )
+    assert rule, "missing .quote-card .quote-text-line rule"
+    body = rule.group("body")
+    assert "display: none" not in body, (
+        "gate quote text must stay visible; do not hide .quote-text-line"
+    )
+    assert "color: var(--text)" in body, (
+        "gate quote text should use the runtime body text color"
+    )
+
+    item_rule = re.search(
+        r"\.quote-card \.quote-item\s*\{(?P<body>[^}]*)\}",
+        html,
+        re.DOTALL,
+    )
+    assert item_rule, "missing .quote-card .quote-item layout rule"
+    item_body = item_rule.group("body")
+    assert "display: flex" in item_body
+    assert "align-items: center" in item_body
+
+
+def test_gate_break_text_uses_body_text_color():
+    html = _read(RUNTIME)
+    rule = re.search(r"\.break-text\s*\{(?P<body>[^}]*)\}", html, re.DOTALL)
+    assert rule, "missing .break-text rule"
+    body = rule.group("body")
+    assert "color: var(--text)" in body
+    assert "text-shadow: none" in body
+
+
+def test_run_quote_sequence_does_not_use_fact_label_as_quote_author():
+    html = _read(RUNTIME)
+    block_match = re.search(
+        r"function runQuoteSequence\s*\(\)\s*\{(?P<body>.*?)\n        \}",
+        html,
+        re.DOTALL,
+    )
+    body = block_match.group("body")
+    assert "isFact ? gateLabel : (q.a || gateLabel)" not in body
+    assert "isFact ? gateLabel : (q.a || 'Iqtibos')" in body
+
+
 # ── Mid-homework break card ──────────────────────────────────────────
 
 
