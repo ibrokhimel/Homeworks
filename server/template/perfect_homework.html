@@ -6385,16 +6385,49 @@
             setTimeout(() => {
                 document.getElementById('screen-2').classList.add('active');
                 setStage(2);
-                // Preview phase: 1 unit for the gate-quote continue (the student
-                // just pressed it to land here), plus 1 per upcoming panel.
-                // The panel array is fully built by this point.
-                const panelCount = (typeof PANELS !== 'undefined' && Array.isArray(PANELS))
-                    ? PANELS.length : 1;
-                setPhaseRequired('preview', 1 + panelCount);
-                bumpPhase('preview', 1);  // gate continue → real action just happened
+                // Preview phase: 1 unit for the gate-quote continue plus 1
+                // unit per *sub-page* of every panel. Counting sub-pages
+                // (not just panel transitions) is what makes the bar move
+                // while the student is actually reading a multi-page panel.
+                // Back-swipes don't over-count because we track distinct
+                // (panel,page) tokens in state.previewSeenPages.
+                let totalPages = 0;
+                if (typeof PANELS !== 'undefined' && Array.isArray(PANELS)) {
+                    PANELS.forEach(p => {
+                        const n = (p && Array.isArray(p.pages)) ? p.pages.length : 1;
+                        totalPages += Math.max(1, n);
+                    });
+                }
+                if (totalPages < 1) totalPages = 1;
+                state.previewSeenPages = new Set();
+                setPhaseRequired('preview', 1 + totalPages);
+                // 1 unit for the gate-quote continue + 1 unit for the first
+                // (panel 0, page 0) which is on screen the moment stage 2
+                // mounts. Subsequent moves register through previewMarkPageSeen.
+                state.previewSeenPages.add('0:0');
+                setPhaseProgress('preview', 1 + state.previewSeenPages.size, 1 + totalPages);
                 renderPanel();
                 state.isAnimating = false;
             }, 500);
+        }
+
+        // Mark a (panel, page) pair as visited so the preview phase reflects
+        // the student's actual reading progress through the panels. Distinct
+        // pairs only — back-swiping doesn't double-count, and re-visiting an
+        // earlier page doesn't push the bar past the highest unique count.
+        function previewMarkPageSeen(panelIdx, pageIdx) {
+            if (!state.previewSeenPages) state.previewSeenPages = new Set();
+            const key = panelIdx + ':' + pageIdx;
+            const before = state.previewSeenPages.size;
+            state.previewSeenPages.add(key);
+            if (state.previewSeenPages.size !== before) {
+                // 1 (gate continue) + distinct pages seen so far.
+                setPhaseProgress(
+                    'preview',
+                    1 + state.previewSeenPages.size,
+                    completionState.preview.required
+                );
+            }
         }
 
         function renderPanel() {
@@ -6578,12 +6611,15 @@
                 state.cardIndex = 0;
                 state.cardFlipped = false;
                 state.hintShown = false;
-                // Real completion: 1 unit per flashcard the student steps to.
-                // First card is "viewed" by virtue of being on-screen.
+                // Honest progress: count distinct flashcard indices the
+                // student has seen (not switchCard events). Wrap-around
+                // browsing back to a card already in the set is a no-op.
                 const fcCount = (typeof FLASHCARDS !== 'undefined' && Array.isArray(FLASHCARDS))
                     ? FLASHCARDS.length : 1;
+                state.flashcardsSeen = new Set();
+                state.flashcardsSeen.add(0);  // first card on screen
                 setPhaseRequired('flashcards', fcCount);
-                bumpPhase('flashcards', 1);  // student is looking at card 1
+                setPhaseProgress('flashcards', state.flashcardsSeen.size, fcCount);
                 renderFlashcard(false);
                 document.getElementById('fc-inner').addEventListener('click', handleCardTap);
                 setupFlashcardCarouselControls();
@@ -6846,10 +6882,19 @@
 
             setTimeout(() => {
                 state.cardIndex = newIdx;
-                // Each card the student moves to counts toward flashcards
-                // completion. The progress model caps `viewed` at `required`,
-                // so wrap-around browsing won't push past 100%.
-                bumpPhase('flashcards', 1);
+                // Honest progress: only distinct card indices count. Going
+                // back to a card already in the set is a no-op; wrap-around
+                // can't push past required.
+                if (!state.flashcardsSeen) state.flashcardsSeen = new Set();
+                const beforeSize = state.flashcardsSeen.size;
+                state.flashcardsSeen.add(newIdx);
+                if (state.flashcardsSeen.size !== beforeSize) {
+                    setPhaseProgress(
+                        'flashcards',
+                        state.flashcardsSeen.size,
+                        completionState.flashcards.required
+                    );
+                }
                 const showYakunlash = (newIdx === FLASHCARDS.length - 1);
                 renderFlashcard(showYakunlash);
 
@@ -7296,6 +7341,9 @@
                     updatePanelOverflowHint();
                 });
                 state.pageIndex = idx;
+                // Honest progress: mark this (panel, page) pair as seen.
+                // Distinct only — back-swiping doesn't add new units.
+                previewMarkPageSeen(state.panelIndex, idx);
                 updateDots();
                 updatePanelButton();
 
@@ -7332,8 +7380,9 @@
             setTimeout(() => {
                 state.panelIndex++;
                 state.pageIndex = 0;
-                // Real student action: advanced to next preview panel.
-                bumpPhase('preview', 1);
+                // Honest progress: a brand-new panel's page 0 just became
+                // visible. Counted as one distinct (panel, page) pair.
+                previewMarkPageSeen(state.panelIndex, 0);
                 renderPanel();
                 if (content) {
                     content.style.transition = 'none';
@@ -7369,6 +7418,11 @@
             setTimeout(() => {
                 state.panelIndex--;
                 state.pageIndex = PANELS[state.panelIndex].pages.length - 1;
+                // Cover the case where the user jumps backward to a panel/page
+                // they've already seen — Set semantics make this a no-op, but
+                // landing on an unseen position (e.g. last page of an earlier
+                // panel they skipped over) does count.
+                previewMarkPageSeen(state.panelIndex, state.pageIndex);
                 renderPanel();
                 if (content) {
                     content.style.transition = 'none';

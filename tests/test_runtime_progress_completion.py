@@ -84,15 +84,20 @@ def test_progress_helpers_exist(runtime_source: str, fn: str):
 # ---------------------------------------------------------------------------
 
 REQUIRED_HOOKS = [
-    # Preview: 1 (gate) + N panels, bump on entry + each next-panel,
-    # complete when transitioning into flashcards.
+    # Preview: 1 (gate) + total sub-pages across all panels, distinct
+    # (panel,page) pairs tracked via state.previewSeenPages so back-swipes
+    # don't double-count and intra-panel page swipes drive the bar.
+    # Complete when transitioning into flashcards.
     ("setPhaseRequired('preview',", "preview required set when stage 2 opens"),
-    ("bumpPhase('preview',", "preview bumps as student advances panels"),
+    ("previewMarkPageSeen(", "preview tracks distinct (panel,page) pairs"),
+    ("state.previewSeenPages", "preview seen-pages Set initialised"),
     ("completePhase('preview')", "preview marked done at flashcards transition"),
-    # Flashcards: required = FLASHCARDS.length, bump per switchCard,
-    # complete on endStage3.
+    # Flashcards: required = FLASHCARDS.length, distinct card indices
+    # tracked in state.flashcardsSeen so back-and-forth navigation doesn't
+    # over-count. Complete on endStage3.
     ("setPhaseRequired('flashcards',", "flashcards required at startStage3"),
-    ("bumpPhase('flashcards',", "flashcards bumps per card switch"),
+    ("state.flashcardsSeen", "flashcards seen-cards Set initialised"),
+    ("setPhaseProgress(\n                        'flashcards'", "flashcards progress driven by Set size"),
     ("completePhase('flashcards')", "flashcards marked done at endStage3"),
     # Sprint: required = MS_QUESTIONS.length, bump per next question,
     # complete on msFinishSprint.
@@ -206,4 +211,70 @@ def test_legacy_update_phase_progress_still_callable(runtime_source: str):
     assert "function updatePhaseProgress() { updateProgress(); }" in runtime_source, (
         "back-compat updatePhaseProgress() shim missing — setStage() and "
         "other call sites would crash."
+    )
+
+
+# ---------------------------------------------------------------------------
+# The "stuck at 35%" regression — preview must move with intra-panel page
+# swipes, not just panel-to-panel transitions.
+# ---------------------------------------------------------------------------
+
+def test_preview_required_counts_sub_pages_not_just_panels(runtime_source: str):
+    """startStage2 must set preview.required to (1 + total sub-pages across
+    all panels), not just (1 + PANELS.length). Without this, a student
+    reading a multi-page panel sees the bar frozen at the same percentage
+    until they finish the panel and tap next — the user-visible 35% bug."""
+    # The startStage2 body should sum p.pages.length across PANELS.
+    src = runtime_source
+    start = src.index("function startStage2(")
+    body = src[start:start + 2500]
+    assert "p.pages.length" in body or "panel.pages.length" in body, (
+        "startStage2 doesn't sum sub-page counts — preview.required will "
+        "stay at PANELS.length and the bar will stutter (the original "
+        "'stuck at 35%' bug)."
+    )
+    assert "totalPages" in body, "totalPages accumulator missing in startStage2"
+
+
+def test_switchpage_marks_each_page_seen(runtime_source: str):
+    """switchPage (intra-panel sub-page navigation) must call
+    previewMarkPageSeen so the bar moves while the student reads a long
+    panel. This is the fix for the 35%-stuck regression."""
+    src = runtime_source
+    start = src.index("function switchPage(")
+    end = src.find("\n        function ", start + 1)
+    body = src[start:end] if end > 0 else src[start:start + 2500]
+    assert "previewMarkPageSeen(" in body, (
+        "switchPage doesn't mark the new page as seen — student swipes "
+        "through panel sub-pages and the progress bar doesn't move."
+    )
+
+
+def test_nextpanel_marks_page_zero_of_new_panel_seen(runtime_source: str):
+    """nextPanel must register the freshly-revealed (newPanelIdx, 0)
+    pair as seen so transitioning panels also drives the bar forward."""
+    src = runtime_source
+    start = src.index("function nextPanel(")
+    end = src.find("\n        function ", start + 1)
+    body = src[start:end] if end > 0 else src[start:start + 2500]
+    assert "previewMarkPageSeen(state.panelIndex, 0)" in body, (
+        "nextPanel doesn't register the new panel's page 0 as seen."
+    )
+
+
+def test_flashcards_uses_distinct_set_not_per_event_bumps(runtime_source: str):
+    """Flashcards progress must count distinct card indices visited (so
+    back-and-forth navigation doesn't over-count or stall the bar). Look
+    for state.flashcardsSeen and the size-changed guard."""
+    src = runtime_source
+    start = src.index("function switchCard(")
+    end = src.find("\n        function ", start + 1)
+    body = src[start:end] if end > 0 else src[start:start + 2500]
+    assert "state.flashcardsSeen" in body, (
+        "switchCard doesn't track distinct cards in state.flashcardsSeen — "
+        "back-and-forth navigation would over-bump or stall the bar."
+    )
+    assert "beforeSize" in body and ".size !== beforeSize" in body, (
+        "switchCard doesn't guard the progress write on a size change — "
+        "re-visiting a card would double-count."
     )
