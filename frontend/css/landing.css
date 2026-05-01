@@ -726,6 +726,7 @@ img, svg { display: block; max-width: 100%; }
 
 .phone-frame {
   position: relative;
+  aspect-ratio: 9 / 19.5;
   border-radius: 51px;
   border: 1px solid rgba(255, 255, 255, 0.20);
   background: var(--landing-zinc-950);
@@ -740,6 +741,7 @@ img, svg { display: block; max-width: 100%; }
 }
 
 .phone-screen {
+  height: 100%;
   overflow: hidden;
   border-radius: 39px;
   border: 1px solid rgba(255, 255, 255, 0.10);
@@ -764,7 +766,9 @@ img, svg { display: block; max-width: 100%; }
 
 .phone-screen-inner {
   position: relative;
-  min-height: 620px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   padding: 20px;
   background: radial-gradient(circle at 50% 0%, #ffffff 0%, #eef4ff 40%, #f6f6f6 100%);
 }
@@ -1460,7 +1464,7 @@ img, svg { display: block; max-width: 100%; }
   .hero-title { font-size: clamp(32px, 8vw, 44px); }
   .preview-grid { gap: 40px; }
   .lesson-panel__title { font-size: 16px; }
-  .phone-screen-inner { min-height: 560px; padding: 16px; }
+  .phone-screen-inner { padding: 16px; }
   .phone-foot { left: 16px; right: 16px; bottom: 16px; }
 }
 
