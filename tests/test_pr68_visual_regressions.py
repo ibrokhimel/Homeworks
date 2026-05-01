@@ -187,17 +187,28 @@ def test_reading_gate_blocks_empty_and_whitespace_answers():
 
 
 def test_reading_continue_button_disabled_until_complete():
-    """Page-next button must be disabled while unanswered checkpoints remain
-    on the current page — not just structurally present but wired via
-    hasBlockingCheckpoint."""
+    """Forward progression past an unanswered checkpoint must be blocked.
+
+    Pre-wave2: a `pageNextBtn` button at the bottom of each chunker page
+    was disabled while `hasBlockingCheckpoint` was true.
+
+    Post-wave2: the bottom nav button is gone — navigation is via swipe
+    through the shared wave2 stream. The same guard moved into the
+    `canAdvance` hook passed to wave2SlideInit, which blocks forward
+    movement when the current question panel is unanswered. The intent
+    (no advancing while checkpoints remain unanswered) is preserved.
+    """
     template_text = _read(RUNTIME)
     assert "readingIsComplete" in template_text, (
         "readingIsComplete function must exist in the reading runtime"
     )
-    # The page-next disable guard uses hasBlockingCheckpoint
-    assert "const hasBlockingCheckpoint = pageCheckpointIndexes.some(i => !readingState.answered[i])" in template_text, (
-        "page-next button gate must derive hasBlockingCheckpoint from unanswered checkpoints"
+    # canAdvance hook is the new gate. It must check
+    # `!readingState.answered[fromPage.cpIndex]` and return false to block.
+    assert "canAdvance:" in template_text and "fromPage.cpIndex" in template_text, (
+        "the wave2 canAdvance hook must reference fromPage.cpIndex so it can "
+        "tell which checkpoint blocks forward movement"
     )
-    assert "pageNextBtn.disabled = hasBlockingCheckpoint" in template_text, (
-        "page-next button must be disabled when hasBlockingCheckpoint is true"
+    assert "!readingState.answered[fromPage.cpIndex]" in template_text, (
+        "canAdvance must block forward movement when the current question's "
+        "checkpoint hasn't been answered yet"
     )

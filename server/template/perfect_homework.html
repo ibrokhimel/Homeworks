@@ -923,6 +923,62 @@
             position: relative;
         }
 
+        /* ── Bug #5/#7 — shared sliding-panel system ───────────────────────
+         * Used by Reading + Consolidation. Mirrors Preview's .page animation
+         * recipe byte-for-byte (transform + filter + opacity, same timing
+         * curves) but lives under wave2-* namespace so adding/changing this
+         * never accidentally touches Preview's existing pipeline. */
+        .wave2-slide-stream {
+            position: relative;
+            overflow: hidden;
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .wave2-slide-page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0;
+            transform: translateX(100%);
+            pointer-events: none;
+            overflow-y: auto;
+            padding: 4px 4px 12px 4px;
+            transition: transform 400ms cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 400ms ease,
+                        filter 400ms ease;
+        }
+        .wave2-slide-page.wave2-active {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+            filter: blur(0);
+            position: relative;
+        }
+        .wave2-dot-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 12px;
+            padding-bottom: 12px;
+            flex-shrink: 0;
+        }
+        .wave2-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--dot);
+            transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .wave2-dot.wave2-active {
+            background: var(--accent);
+            width: 18px;
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
         /* BUBBLY ENTRANCE */
         .bubbly {
             opacity: 0;
@@ -3478,6 +3534,33 @@
         .screen-cons-bullets {
             margin-bottom: 14px;
         }
+        /* Bug #7 — per-panel layout for the panels[] sliding mode */
+        .cons-panel-media {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+        .cons-panel-media svg {
+            max-width: 100%;
+            max-height: 220px;
+            height: auto;
+        }
+        .cons-panel-title {
+            font-size: 1.05em;
+            font-weight: 700;
+            color: var(--accent);
+            margin: 0 0 10px 0;
+        }
+        .cons-panel-body {
+            margin-bottom: 14px;
+            font-size: 1em;
+            line-height: 1.55;
+        }
+        .cons-panel-check {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(99,184,255,0.22);
+        }
         .screen-cons-prompt {
             margin-bottom: 8px;
         }
@@ -5363,26 +5446,42 @@
             <div class="card panel-card screen-wave2-card" id="reading-content-card">
                 <div class="screen-reading-topline">
                     <div class="caption screen-wave2-caption" id="reading-title">O'qish</div>
-                    <div class="screen-reading-progress" id="reading-progress"></div>
+                    <!-- Page-counter text retained as a hidden a11y label;
+                         the wave2 dot row below is the visible progress
+                         indicator. JS keeps reading-progress.textContent
+                         updated for screen-reader users. -->
+                    <div class="screen-reading-progress" id="reading-progress" aria-live="polite"></div>
                 </div>
                 <div class="screen-reading-status" id="reading-status"></div>
-                <div class="screen-reading-shell">
-                    <div class="content-area screen-reading-passage" id="reading-passage"></div>
-                    <div id="reading-checkpoints"></div>
-                </div>
+                <!-- Bug #5: Reading panels run through the wave2 slide stream.
+                     Each panel (text segment OR question) becomes one
+                     .wave2-slide-page child of #reading-stream, populated
+                     dynamically by renderReading(). The dot row below
+                     shows the student which panel they're on. -->
+                <div class="wave2-slide-stream" id="reading-stream"></div>
+                <div class="wave2-dot-row" id="reading-dots"></div>
             </div>
         </div>
 
         <!-- Stage Consolidation (between Real-Life and Boss) -->
         <div id="screen-consolidation" class="screen">
-            <div class="card panel-card screen-wave2-card">
+            <div class="card panel-card screen-wave2-card" id="cons-card">
                 <div class="caption screen-wave2-caption" id="cons-title">Mustahkamlash</div>
-                <div class="content-area screen-cons-mnemonic" id="cons-mnemonic"></div>
-                <ul id="cons-bullets" class="screen-cons-bullets"></ul>
-                <div id="cons-check-block" style="display:none;">
-                    <div class="content-area screen-cons-prompt" id="cons-check-prompt"></div>
-                    <button type="button" class="screen-cons-toggle" id="cons-check-toggle">Javobni ko'rsatish</button>
-                    <div class="content-area screen-cons-answer" id="cons-check-answer"></div>
+                <!-- Bug #7: panels[] shape renders here as a wave2 sliding stream.
+                     Legacy {mnemonic, bullets, check_*} fixtures use the fallback
+                     block below; renderConsolidation hides whichever isn't in use. -->
+                <div class="wave2-slide-stream" id="cons-stream" style="display:none;"></div>
+                <div class="wave2-dot-row" id="cons-dots" style="display:none;"></div>
+                <!-- Legacy fallback (single scrollable card). Used when content_json
+                     has no panels[] — preserves rendering for pre-Bug-#7 homework rows. -->
+                <div id="cons-legacy-block">
+                    <div class="content-area screen-cons-mnemonic" id="cons-mnemonic"></div>
+                    <ul id="cons-bullets" class="screen-cons-bullets"></ul>
+                    <div id="cons-check-block" style="display:none;">
+                        <div class="content-area screen-cons-prompt" id="cons-check-prompt"></div>
+                        <button type="button" class="screen-cons-toggle" id="cons-check-toggle">Javobni ko'rsatish</button>
+                        <div class="content-area screen-cons-answer" id="cons-check-answer"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -6368,7 +6467,12 @@
                 // (skip gesture) — let internal content scroll/interact freely.
                 // Reading (4.7) DOES allow within-phase horizontal swipe-left to
                 // advance between segment + checkpoint panels.
-                const isInterstitialNoSwipe = state.stage === 6.5 || state.stage === 7.7;
+                // Stage 5 (Game Breaks) + Reflection (7.7) accept ONLY edge
+                // drags (skip gesture) so internal content can scroll/interact
+                // freely. Reading (4.7) and Consolidation (6.5) DO allow
+                // within-phase horizontal swipes — both run the wave2 slide
+                // stream and dispatch into wave2SlideNavigate below.
+                const isInterstitialNoSwipe = state.stage === 7.7;
                 if ((state.stage === 5 || isInterstitialNoSwipe) && !fromEdge) return;
                 // Detect horizontally scrollable ancestor — if found, skip swipe handling
                 // (horizontal swipe only blocked by horizontally-scrolling content; vertical
@@ -6443,32 +6547,20 @@
                             resetDragPreview();
                         }
                     } else if (absDx > 50 && state.stage === 4.7) {
-                        // Reading: forward (left) swipe advances the panel stream.
-                        // Question panels with unanswered checkpoints stay locked —
-                        // the answer is the gate, not the swipe. Backward (right)
-                        // swipe is a no-op for now (reading is forward-only by design).
-                        const dir = dx > 0 ? 'right' : 'left';
-                        if (dir === 'left' && typeof readingState !== 'undefined') {
-                            const totalPages = readingState.pages.length;
-                            const currentPage = readingState.pages[readingState.page] || {};
-                            const isLockedQuestion =
-                                currentPage.kind === 'question' &&
-                                typeof currentPage.cpIndex === 'number' &&
-                                !readingState.answered[currentPage.cpIndex];
-                            if (isLockedQuestion) {
-                                updateReadingContinueState();
-                                resetDragPreview();
-                            } else if (readingState.page < totalPages - 1) {
-                                readingGoToPage(readingState.page + 1);
-                            } else if (readingIsComplete(Array.isArray(READING.checkpoints) ? READING.checkpoints : [])
-                                       && typeof readingState.onContinue === 'function') {
-                                readingState.onContinue();
-                            } else {
-                                resetDragPreview();
-                            }
-                        } else {
-                            resetDragPreview();
-                        }
+                        // Reading: dispatch into the wave2 slide stream. The
+                        // helper's canAdvance hook gates forward swipes when
+                        // the current panel is an unanswered question; back
+                        // swipes are always allowed.
+                        const dir = dx > 0 ? -1 : +1;
+                        wave2SlideNavigate('reading-stream', dir);
+                        resetDragPreview();
+                    } else if (absDx > 50 && state.stage === 6.5) {
+                        // Consolidation: dispatch into the wave2 slide stream.
+                        // Not graded — canAdvance returns true always; swipe
+                        // past the last panel calls onExitForward.
+                        const dir = dx > 0 ? -1 : +1;
+                        wave2SlideNavigate('cons-stream', dir);
+                        resetDragPreview();
                     } else {
                         resetDragPreview();
                     }
@@ -7846,6 +7938,125 @@
             msState.isAnimating = false;
         }
 
+        // ── Bug #5/#7 — shared sliding-panel helper (wave2 streams) ──────
+        // Mirrors Preview's switchPage animation recipe (transform +
+        // filter + opacity, 50ms wait + reflow + requestAnimationFrame +
+        // 500ms cleanup) byte-for-byte, but operates on independent
+        // streams keyed by container id so Reading and Consolidation can
+        // each have their own without colliding with Preview.
+        //
+        // Consumers are responsible for putting .wave2-slide-page child
+        // elements into the container before calling wave2SlideInit.
+        // The helper handles: opacity/transform stage management, dot
+        // indicator rendering, navigation animations, exit hooks.
+        const _wave2Streams = {};
+
+        function wave2SlideInit(opts) {
+            const container = document.getElementById(opts.containerId);
+            if (!container) return null;
+            const pages = container.querySelectorAll(':scope > .wave2-slide-page');
+            pages.forEach((p, i) => {
+                p.classList.toggle('wave2-active', i === 0);
+                if (i !== 0) {
+                    p.style.transform = 'translateX(100%)';
+                    p.style.opacity = '0';
+                }
+            });
+            const dotsRow = opts.dotsId ? document.getElementById(opts.dotsId) : null;
+            if (dotsRow) {
+                dotsRow.innerHTML = '';
+                for (let i = 0; i < opts.panelCount; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'wave2-dot' + (i === 0 ? ' wave2-active' : '');
+                    dotsRow.appendChild(dot);
+                }
+            }
+            const stream = {
+                containerId: opts.containerId,
+                dotsId: opts.dotsId,
+                index: 0,
+                panelCount: opts.panelCount,
+                canAdvance: opts.canAdvance || (() => true),
+                onSettle: opts.onSettle || (() => {}),
+                onExitForward: opts.onExitForward || (() => {}),
+                onExitBackward: opts.onExitBackward || (() => {}),
+                isAnimating: false,
+            };
+            _wave2Streams[opts.containerId] = stream;
+            return stream;
+        }
+
+        function wave2SlideNavigate(containerId, dir) {
+            const stream = _wave2Streams[containerId];
+            if (!stream || stream.isAnimating) return;
+            const newIdx = stream.index + dir;
+            if (newIdx < 0) { stream.onExitBackward(); return; }
+            if (newIdx >= stream.panelCount) { stream.onExitForward(); return; }
+            if (!stream.canAdvance(stream.index, newIdx)) return;
+            wave2SlideTo(containerId, newIdx);
+        }
+
+        function wave2SlideTo(containerId, idx) {
+            const stream = _wave2Streams[containerId];
+            if (!stream || stream.isAnimating) return;
+            if (idx < 0 || idx >= stream.panelCount || idx === stream.index) return;
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const pages = container.querySelectorAll(':scope > .wave2-slide-page');
+            const cur = pages[stream.index];
+            const nxt = pages[idx];
+            if (!cur || !nxt) return;
+
+            stream.isAnimating = true;
+            const dir = idx > stream.index ? 1 : -1;
+
+            // Animate current OUT (mirrors Preview's switchPage exactly).
+            cur.style.transform = `translateX(${dir * -100}%)`;
+            cur.style.filter = 'blur(15px)';
+            cur.style.opacity = '0';
+
+            setTimeout(() => {
+                cur.classList.remove('wave2-active');
+                nxt.style.transition = 'none';
+                nxt.style.transform = `translateX(${dir * 100}%)`;
+                nxt.style.filter = 'blur(15px)';
+                nxt.style.opacity = '0';
+                void nxt.offsetHeight;
+
+                requestAnimationFrame(() => {
+                    nxt.style.transition = 'all 450ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+                    nxt.style.transform = 'translateX(0)';
+                    nxt.style.filter = 'blur(0)';
+                    nxt.style.opacity = '1';
+                    nxt.classList.add('wave2-active');
+                });
+
+                stream.index = idx;
+                if (stream.dotsId) {
+                    const dotsRow = document.getElementById(stream.dotsId);
+                    if (dotsRow) {
+                        const dots = dotsRow.querySelectorAll('.wave2-dot');
+                        dots.forEach((d, i) => d.classList.toggle('wave2-active', i === idx));
+                    }
+                }
+                try { stream.onSettle(idx); } catch (e) { /* swallow */ }
+
+                setTimeout(() => {
+                    [cur, nxt].forEach(el => {
+                        el.style.transition = '';
+                        el.style.transform = '';
+                        el.style.filter = '';
+                        el.style.opacity = '';
+                    });
+                    stream.isAnimating = false;
+                }, 500);
+            }, 50);
+        }
+
+        function wave2SlideDestroy(containerId) {
+            delete _wave2Streams[containerId];
+        }
+
         function switchPage(idx) {
             state.isAnimating = true;
             const pages = document.querySelectorAll('.page');
@@ -8081,14 +8292,12 @@
             const next = order[idx + 1];
             gbState.subGame = next.sub;
             gbUpdateProgress(idx + 1);
-            // Bug #4: announce the next sub-game's name before its init runs.
-            // Card is the shared phase-announce-card; text is read from i18n
-            // (e.g. game.aq → "Adaptive Quiz" / "Moslashuvchan test"). The card
-            // is suppressed for empty sub-games because gbActiveGameOrder()
-            // already filters them out — we never reach here for an unauthored
-            // game (preserves the games-optional rule).
-            gbTransition(currentPanelId, next.panel, () => {
-                playPhaseAnnouncement(next.labelKey || ('game.' + next.id), () => {
+            // Bug #6: announcement card MUST appear before the next panel
+            // becomes visible. Order: previous panel still on screen → card
+            // overlays it with the next game's name → card fades → THEN
+            // gbTransition slides the new panel in → init runs.
+            playPhaseAnnouncement(next.labelKey || ('game.' + next.id), () => {
+                gbTransition(currentPanelId, next.panel, () => {
                     next.init();
                     if (next.setupBtn) {
                         next.setupBtn();
@@ -10392,15 +10601,17 @@ Prezident ertaga hisobot kutmoqda.`,
             const badge = document.getElementById('rl-header-badge');
             if (badge) badge.textContent = RT('rl.task_badge') + ' · ' + (RL_SCENARIO.title || RL_SCENARIO.badge || '');
 
-            // Bug #4: hold the story content + button inert during the phase
-            // announcement card, then reveal both when the card fades out.
-            // Mirrors the showReadingScreen pattern.
-            if (story) { story.style.transition = 'none'; story.style.opacity = '0'; }
+            // Bug #6: hide the WHOLE rl-card during the announcement, not
+            // just rl-story-section. The card chrome (badge, story, buttons)
+            // would otherwise show up behind the announcement card so the
+            // student sees them simultaneously. Fade in after the card lands.
+            const rlCard = document.getElementById('rl-card');
+            if (rlCard) { rlCard.style.transition = 'none'; rlCard.style.opacity = '0'; }
             btn.classList.remove('pulse', 'state-line', 'state-start', 'state-pill');
             btn.classList.add('state-line');
             if (btnText) btnText.style.opacity = '0';
             playPhaseAnnouncement('phase.real_life', () => {
-                if (story) { story.style.transition = 'opacity 300ms ease'; story.style.opacity = '1'; }
+                if (rlCard) { rlCard.style.transition = 'opacity 300ms ease'; rlCard.style.opacity = '1'; }
                 btn.classList.remove('state-line');
                 btn.classList.add('state-pill', 'pulse');
                 setBtnText(RT('btn.start'));
@@ -11087,278 +11298,373 @@ Prezident ertaga hisobot kutmoqda.`,
             setBtnText(RT('btn.continue'));
         }
 
+        // Thin wrapper kept for compat with finishReading's `firstMissing` jump.
+        // Real navigation goes through the wave2 slide stream.
         function readingGoToPage(nextPage) {
             const max = Math.max(0, readingState.pages.length - 1);
             readingState.page = Math.min(max, Math.max(0, nextPage));
-            renderReading();
-            const card = document.getElementById('reading-content-card');
-            if (card) card.scrollTop = 0;
+            wave2SlideTo('reading-stream', readingState.page);
+        }
+
+        // Build one .wave2-slide-page for a checkpoint question. Mode: 'segment'
+        // (auto-advance on correct, no manual Next) or 'legacy' (manual Next,
+        // no auto-advance — preserves old chunker UX for pre-segment fixtures).
+        function _buildReadingCheckpointBlock(i, cp, mode, readingPassage) {
+            cp = cp || {};
+            const block = document.createElement('div');
+            block.className = 'screen-reading-checkpoint';
+            block.id = 'reading-cp-' + i;
+
+            const q = document.createElement('div');
+            q.className = 'screen-reading-prompt';
+            q.innerHTML = '<span class="caption screen-reading-q-tag">Q' + (i + 1) + '</span>' + (cp.prompt || cp.q || '');
+            block.appendChild(q);
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'screen-reading-input';
+            input.id = 'reading-cp-input-' + i;
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('spellcheck', 'false');
+            input.placeholder = RT('reading.placeholder');
+            input.value = readingState.answers[i] || '';
+            input.disabled = Boolean(readingState.answered[i]);
+            block.appendChild(input);
+
+            const btnRow = document.createElement('div');
+            btnRow.className = 'screen-reading-btn-row';
+            const checkBtn = document.createElement('button');
+            checkBtn.type = 'button';
+            checkBtn.className = 'screen-reading-btn';
+            checkBtn.id = 'reading-cp-check-' + i;
+            checkBtn.textContent = RT('reading.check');
+            checkBtn.disabled = Boolean(readingState.answered[i]);
+            btnRow.appendChild(checkBtn);
+
+            let nextBtn = null;
+            if (mode === 'legacy') {
+                nextBtn = document.createElement('button');
+                nextBtn.type = 'button';
+                nextBtn.className = 'screen-reading-btn is-primary';
+                nextBtn.id = 'reading-cp-next-' + i;
+                nextBtn.textContent = RT('btn.next');
+                nextBtn.style.display = readingState.answered[i] ? '' : 'none';
+                btnRow.appendChild(nextBtn);
+            }
+            block.appendChild(btnRow);
+
+            const fb = document.createElement('div');
+            fb.className = 'screen-reading-feedback';
+            fb.id = 'reading-cp-fb-' + i;
+            if (readingState.feedback[i]) {
+                fb.style.display = '';
+                fb.className = 'screen-reading-feedback ' + (readingState.results[i] ? 'is-correct' : 'is-wrong');
+                fb.innerHTML = readingState.feedback[i];
+            } else {
+                fb.style.display = 'none';
+            }
+            block.appendChild(fb);
+
+            checkBtn.addEventListener('click', async () => {
+                if (input.disabled) return;
+                const studentAnswer = (input.value || '').trim();
+                if (!studentAnswer) {
+                    input.style.borderColor = '#d9534f';
+                    setTimeout(() => { input.style.borderColor = ''; }, 1200);
+                    return;
+                }
+                const isLanguage = (typeof gbIsLanguageSubject === 'function')
+                    ? gbIsLanguageSubject() : false;
+                const expectedList = [];
+                if (cp.ans) expectedList.push(cp.ans);
+                if (Array.isArray(cp.acceptable)) expectedList.push(...cp.acceptable);
+                input.disabled = true;
+                checkBtn.disabled = true;
+                let isCorrect;
+                let aiResult = null;
+                if (isLanguage) {
+                    fb.style.display = '';
+                    fb.className = 'screen-reading-feedback is-pending';
+                    fb.innerHTML = '<em>' + RT('wc.checking') + '</em>';
+                    try {
+                        const resp = await fetch('/api/ai/check-answer', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                question_id: cp.id || ('reading-cp-' + i),
+                                question: cp.prompt || cp.q || '',
+                                student_answer: studentAnswer,
+                                expected_answers: expectedList,
+                                answer_spec: {
+                                    type: 'semantic',
+                                    expected: (expectedList[0] || ''),
+                                    canonical_display: (expectedList[0] || ''),
+                                    allow_ai_fallback: true,
+                                    amr: true,
+                                },
+                                allow_ai_fallback: true,
+                                subject: (window.NETS_CTX && NETS_CTX.subject) || 'english',
+                                grade: (window.NETS_CTX && NETS_CTX.grade) || 8,
+                                tier: 'HARD',
+                                phase: 'reading-checkpoint',
+                                context: readingPassage,
+                            }),
+                        });
+                        if (resp.ok) aiResult = await resp.json();
+                    } catch (e) { /* fall back to local match */ }
+                    isCorrect = (aiResult && typeof aiResult.correct === 'boolean')
+                        ? aiResult.correct
+                        : readingMatchLocal(studentAnswer, cp);
+                } else {
+                    isCorrect = readingMatchLocal(studentAnswer, cp);
+                }
+                fb.style.display = '';
+                if (isCorrect) {
+                    fb.className = 'screen-reading-feedback is-correct';
+                    const aiFb = (aiResult && aiResult.feedback) ? (' <span style="opacity:0.85;">' + aiResult.feedback + '</span>') : '';
+                    const cpFb = cp.fb ? (' <span style="opacity:0.85;">' + cp.fb + '</span>') : '';
+                    fb.innerHTML = RT('reading.correct') + aiFb + cpFb;
+                } else {
+                    fb.className = 'screen-reading-feedback is-wrong';
+                    const expected = cp.ans ? ('<br><span style="opacity:0.85;">' + RT('reading.right_answer') + ' ' + cp.ans + '</span>') : '';
+                    const aiFb = (aiResult && aiResult.feedback) ? ('<br><span style="opacity:0.7;">' + aiResult.feedback + '</span>') : '';
+                    const cpFb = cp.fb ? ('<br><span style="opacity:0.7;">' + cp.fb + '</span>') : '';
+                    fb.innerHTML = RT('reading.wrong') + expected + aiFb + cpFb;
+                }
+                readingState.answered[i] = true;
+                readingState.answers[i] = studentAnswer;
+                readingState.results[i] = Boolean(isCorrect);
+                readingState.feedback[i] = fb.innerHTML;
+                if (nextBtn) nextBtn.style.display = '';
+                updateReadingContinueState();
+
+                // Segment-aware mode: auto-advance after correct via the wave2
+                // helper. Legacy chunker mode keeps the manual Next button so
+                // pre-segment fixtures don't change UX behavior.
+                if (isCorrect && mode === 'segment') {
+                    setTimeout(() => {
+                        wave2SlideNavigate('reading-stream', +1);
+                    }, 1100);
+                }
+
+                if (window.__sessionLog) {
+                    const entry = {
+                        phase: 'reading-checkpoint',
+                        id: cp.id || ('reading-cp-' + i),
+                        correct: isCorrect,
+                        score: (aiResult && typeof aiResult.score === 'number') ? aiResult.score : (isCorrect ? 1 : 0),
+                    };
+                    if (aiResult && typeof aiResult.axis_1 === 'number') entry.axis_1 = aiResult.axis_1;
+                    if (aiResult && typeof aiResult.axis_2 === 'number') entry.axis_2 = aiResult.axis_2;
+                    window.__sessionLog.push(entry);
+                }
+            });
+
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    if (!readingState.answered[i]) return;
+                    wave2SlideNavigate('reading-stream', +1);
+                });
+            }
+
+            return block;
         }
 
         function renderReading() {
             const titleEl = document.getElementById('reading-title');
-            const passageEl = document.getElementById('reading-passage');
+            const stream = document.getElementById('reading-stream');
             const progressEl = document.getElementById('reading-progress');
-            const cpEl = document.getElementById('reading-checkpoints');
             const checkpoints = Array.isArray(READING.checkpoints) ? READING.checkpoints : [];
             const segments = Array.isArray(READING.segments) ? READING.segments : null;
             const readingPassage = READING.passage || READING.text || '';
 
             if (titleEl) titleEl.textContent = (READING.title || RT('reading.title_default')).toUpperCase();
-            if (!readingState.pages.length) {
-                readingState.pages = readingBuildPages(readingPassage, segments);
-                if (!readingState.pages.length) readingState.pages = [{ kind: 'text', html: '' }];
-            }
-            if (readingState.page >= readingState.pages.length) readingState.page = readingState.pages.length - 1;
+            readingState.pages = readingBuildPages(readingPassage, segments);
+            if (!readingState.pages.length) readingState.pages = [{ kind: 'text', html: '' }];
+            readingState.page = 0;
 
-            const currentPage = readingState.pages[readingState.page] || { kind: 'text', html: '' };
-            const isQuestionPanel = currentPage.kind === 'question';
+            if (!stream) return;
+            stream.innerHTML = '';
 
-            // Passage area: text + legacy show their html; question panels hide the
-            // passage block entirely so the checkpoint UI gets the full panel.
-            if (passageEl) {
-                if (isQuestionPanel) {
-                    passageEl.style.display = 'none';
-                    passageEl.innerHTML = '';
-                } else {
-                    passageEl.style.display = '';
-                    passageEl.innerHTML = currentPage.html || '';
-                }
-            }
-            if (progressEl) {
-                progressEl.textContent = RT('reading.page_label') + ' ' + (readingState.page + 1) + ' / ' + readingState.pages.length;
-            }
+            // One wave2-slide-page per logical reading panel. Text segments
+            // render their HTML; question panels render the checkpoint UI;
+            // legacy chunker pages combine text + any geometric checkpoint(s).
+            readingState.pages.forEach((page, idx) => {
+                const panelEl = document.createElement('div');
+                panelEl.className = 'wave2-slide-page';
+                panelEl.dataset.pageKind = page.kind;
+                panelEl.dataset.pageIndex = String(idx);
 
-            if (cpEl) {
-                cpEl.innerHTML = '';
-                let pageCheckpointIndexes = [];
-                if (isQuestionPanel && typeof currentPage.cpIndex === 'number') {
-                    // Segment-aware: question page renders exactly one checkpoint.
-                    pageCheckpointIndexes = [currentPage.cpIndex];
-                } else if (currentPage.kind === 'legacy') {
-                    // Legacy chunker: checkpoints geometrically attached to chunked pages.
-                    pageCheckpointIndexes = checkpoints
+                if (page.kind === 'text') {
+                    const passage = document.createElement('div');
+                    passage.className = 'screen-reading-passage';
+                    passage.innerHTML = page.html || '';
+                    panelEl.appendChild(passage);
+                } else if (page.kind === 'question') {
+                    const cpIdx = page.cpIndex;
+                    panelEl.appendChild(_buildReadingCheckpointBlock(cpIdx, checkpoints[cpIdx], 'segment', readingPassage));
+                } else { // 'legacy'
+                    const passage = document.createElement('div');
+                    passage.className = 'screen-reading-passage';
+                    passage.innerHTML = page.html || '';
+                    panelEl.appendChild(passage);
+                    const attachedCps = checkpoints
                         .map((_, i) => i)
-                        .filter(i => readingCheckpointPage(i, readingState.pages.length, checkpoints.length) === readingState.page);
-                }
-                // Text-kind pages render no checkpoint at all (segment-aware path).
-
-                pageCheckpointIndexes.forEach((i) => {
-                    const cp = checkpoints[i] || {};
-                    const block = document.createElement('div');
-                    block.className = 'screen-reading-checkpoint';
-                    block.id = 'reading-cp-' + i;
-
-                    const q = document.createElement('div');
-                    q.className = 'screen-reading-prompt';
-                    q.innerHTML = '<span class="caption screen-reading-q-tag">Q' + (i + 1) + '</span>' + (cp.prompt || cp.q || '');
-                    block.appendChild(q);
-
-                    const input = document.createElement('input');
-                    input.type = 'text';
-                    input.className = 'screen-reading-input';
-                    input.id = 'reading-cp-input-' + i;
-                    input.setAttribute('autocomplete', 'off');
-                    input.setAttribute('autocapitalize', 'off');
-                    input.setAttribute('spellcheck', 'false');
-                    input.placeholder = RT('reading.placeholder');
-                    input.value = readingState.answers[i] || '';
-                    input.disabled = Boolean(readingState.answered[i]);
-                    block.appendChild(input);
-
-                    const btnRow = document.createElement('div');
-                    btnRow.className = 'screen-reading-btn-row';
-                    const checkBtn = document.createElement('button');
-                    checkBtn.type = 'button';
-                    checkBtn.className = 'screen-reading-btn';
-                    checkBtn.id = 'reading-cp-check-' + i;
-                    checkBtn.textContent = RT('reading.check');
-                    checkBtn.disabled = Boolean(readingState.answered[i]);
-                    btnRow.appendChild(checkBtn);
-                    // Per-checkpoint manual "Next" button — legacy chunker mode only.
-                    // Segment-aware mode (current question panel kind === 'question')
-                    // auto-advances after a correct answer; no manual next needed.
-                    let nextBtn = null;
-                    if (currentPage.kind === 'legacy') {
-                        nextBtn = document.createElement('button');
-                        nextBtn.type = 'button';
-                        nextBtn.className = 'screen-reading-btn is-primary';
-                        nextBtn.id = 'reading-cp-next-' + i;
-                        nextBtn.textContent = (readingState.page < readingState.pages.length - 1) ? RT('btn.next') : RT('btn.continue');
-                        nextBtn.style.display = readingState.answered[i] ? '' : 'none';
-                        btnRow.appendChild(nextBtn);
-                    }
-                    block.appendChild(btnRow);
-
-                    const fb = document.createElement('div');
-                    fb.className = 'screen-reading-feedback';
-                    fb.id = 'reading-cp-fb-' + i;
-                    if (readingState.feedback[i]) {
-                        fb.style.display = '';
-                        fb.className = 'screen-reading-feedback ' + (readingState.results[i] ? 'is-correct' : 'is-wrong');
-                        fb.innerHTML = readingState.feedback[i];
-                    } else {
-                        fb.style.display = 'none';
-                    }
-                    block.appendChild(fb);
-
-                    cpEl.appendChild(block);
-
-                    checkBtn.addEventListener('click', async () => {
-                        if (input.disabled) return;
-                        const studentAnswer = (input.value || '').trim();
-                        if (!studentAnswer) {
-                            input.style.borderColor = '#d9534f';
-                            setTimeout(() => { input.style.borderColor = ''; }, 1200);
-                            return;
-                        }
-
-                        const isLanguage = (typeof gbIsLanguageSubject === 'function')
-                            ? gbIsLanguageSubject() : false;
-
-                        const expectedList = [];
-                        if (cp.ans) expectedList.push(cp.ans);
-                        if (Array.isArray(cp.acceptable)) expectedList.push(...cp.acceptable);
-
-                        input.disabled = true;
-                        checkBtn.disabled = true;
-
-                        let isCorrect;
-                        let aiResult = null;
-
-                        if (isLanguage) {
-                            fb.style.display = '';
-                            fb.className = 'screen-reading-feedback is-pending';
-                            fb.innerHTML = '<em>' + RT('wc.checking') + '</em>';
-
-                            try {
-                                const resp = await fetch('/api/ai/check-answer', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        question_id: cp.id || ('reading-cp-' + i),
-                                        question: cp.prompt || cp.q || '',
-                                        student_answer: studentAnswer,
-                                        expected_answers: expectedList,
-                                        answer_spec: {
-                                            type: 'semantic',
-                                            expected: (expectedList[0] || ''),
-                                            canonical_display: (expectedList[0] || ''),
-                                            allow_ai_fallback: true,
-                                            amr: true,
-                                        },
-                                        allow_ai_fallback: true,
-                                        subject: (window.NETS_CTX && NETS_CTX.subject) || 'english',
-                                        grade: (window.NETS_CTX && NETS_CTX.grade) || 8,
-                                        tier: 'HARD',
-                                        phase: 'reading-checkpoint',
-                                        context: readingPassage,
-                                    }),
-                                });
-                                if (resp.ok) aiResult = await resp.json();
-                            } catch (e) { /* fall back to local match below */ }
-
-                            isCorrect = (aiResult && typeof aiResult.correct === 'boolean')
-                                ? aiResult.correct
-                                : readingMatchLocal(studentAnswer, cp);
-                        } else {
-                            isCorrect = readingMatchLocal(studentAnswer, cp);
-                        }
-
-                        fb.style.display = '';
-                        if (isCorrect) {
-                            fb.className = 'screen-reading-feedback is-correct';
-                            const aiFb = (aiResult && aiResult.feedback) ? (' <span style="opacity:0.85;">' + aiResult.feedback + '</span>') : '';
-                            const cpFb = cp.fb ? (' <span style="opacity:0.85;">' + cp.fb + '</span>') : '';
-                            fb.innerHTML = RT('reading.correct') + aiFb + cpFb;
-                        } else {
-                            fb.className = 'screen-reading-feedback is-wrong';
-                            const expected = cp.ans ? ('<br><span style="opacity:0.85;">' + RT('reading.right_answer') + ' ' + cp.ans + '</span>') : '';
-                            const aiFb = (aiResult && aiResult.feedback) ? ('<br><span style="opacity:0.7;">' + aiResult.feedback + '</span>') : '';
-                            const cpFb = cp.fb ? ('<br><span style="opacity:0.7;">' + cp.fb + '</span>') : '';
-                            fb.innerHTML = RT('reading.wrong') + expected + aiFb + cpFb;
-                        }
-
-                        readingState.answered[i] = true;
-                        readingState.answers[i] = studentAnswer;
-                        readingState.results[i] = Boolean(isCorrect);
-                        readingState.feedback[i] = fb.innerHTML;
-                        if (nextBtn) nextBtn.style.display = '';
-                        updateReadingContinueState();
-
-                        // Segment-aware mode: auto-advance after a correct answer
-                        // so the student doesn't have to hunt for a Next button.
-                        // 1100ms beat = enough to read the feedback line, not so
-                        // long it feels stalled. Wrong answers stay on the panel
-                        // (the input + feedback already block the lock-message).
-                        if (isCorrect && isQuestionPanel) {
-                            setTimeout(() => {
-                                if (readingState.page < readingState.pages.length - 1) {
-                                    readingGoToPage(readingState.page + 1);
-                                } else if (readingIsComplete(checkpoints) && typeof readingState.onContinue === 'function') {
-                                    readingState.onContinue();
-                                }
-                            }, 1100);
-                        }
-
-                        if (window.__sessionLog) {
-                            const entry = {
-                                phase: 'reading-checkpoint',
-                                id: cp.id || ('reading-cp-' + i),
-                                correct: isCorrect,
-                                score: (aiResult && typeof aiResult.score === 'number') ? aiResult.score : (isCorrect ? 1 : 0),
-                            };
-                            if (aiResult && typeof aiResult.axis_1 === 'number') entry.axis_1 = aiResult.axis_1;
-                            if (aiResult && typeof aiResult.axis_2 === 'number') entry.axis_2 = aiResult.axis_2;
-                            window.__sessionLog.push(entry);
-                        }
+                        .filter(i => readingCheckpointPage(i, readingState.pages.length, checkpoints.length) === idx);
+                    attachedCps.forEach(cpIdx => {
+                        panelEl.appendChild(_buildReadingCheckpointBlock(cpIdx, checkpoints[cpIdx], 'legacy', readingPassage));
                     });
-
-                    if (nextBtn) {
-                        nextBtn.addEventListener('click', () => {
-                            if (!readingState.answered[i]) return;
-                            if (readingState.page < readingState.pages.length - 1) {
-                                readingGoToPage(readingState.page + 1);
-                            } else if (readingIsComplete(checkpoints) && typeof readingState.onContinue === 'function') {
-                                readingState.onContinue();
-                            }
-                        });
-                    }
-                });
-
-                // Bottom prev/next page nav — legacy chunker mode only.
-                // Segment-aware mode uses swipe-left for text panels and
-                // auto-advance on correct for question panels.
-                if (currentPage.kind === 'legacy') {
-                    const nav = document.createElement('div');
-                    nav.className = 'screen-reading-btn-row';
-                    if (readingState.page > 0) {
-                        const prevBtn = document.createElement('button');
-                        prevBtn.type = 'button';
-                        prevBtn.className = 'screen-reading-btn';
-                        prevBtn.textContent = 'Back';
-                        prevBtn.addEventListener('click', () => readingGoToPage(readingState.page - 1));
-                        nav.appendChild(prevBtn);
-                    }
-                    if (readingState.page < readingState.pages.length - 1) {
-                        const hasBlockingCheckpoint = pageCheckpointIndexes.some(i => !readingState.answered[i]);
-                        const pageNextBtn = document.createElement('button');
-                        pageNextBtn.type = 'button';
-                        pageNextBtn.className = 'screen-reading-btn is-primary';
-                        pageNextBtn.textContent = RT('btn.next');
-                        pageNextBtn.disabled = hasBlockingCheckpoint;
-                        pageNextBtn.addEventListener('click', () => readingGoToPage(readingState.page + 1));
-                        nav.appendChild(pageNextBtn);
-                    }
-                    if (nav.children.length) cpEl.appendChild(nav);
                 }
+
+                stream.appendChild(panelEl);
+            });
+
+            wave2SlideInit({
+                containerId: 'reading-stream',
+                dotsId: 'reading-dots',
+                panelCount: readingState.pages.length,
+                canAdvance: (fromIdx, toIdx) => {
+                    // Back-swipe always allowed.
+                    if (toIdx < fromIdx) return true;
+                    const fromPage = readingState.pages[fromIdx] || { kind: 'text' };
+                    if (fromPage.kind === 'question' && typeof fromPage.cpIndex === 'number') {
+                        if (!readingState.answered[fromPage.cpIndex]) {
+                            updateReadingContinueState();
+                            return false;
+                        }
+                    } else if (fromPage.kind === 'legacy') {
+                        const idxs = checkpoints
+                            .map((_, i) => i)
+                            .filter(i => readingCheckpointPage(i, readingState.pages.length, checkpoints.length) === fromIdx);
+                        if (idxs.some(i => !readingState.answered[i])) {
+                            updateReadingContinueState();
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                onSettle: (idx) => {
+                    readingState.page = idx;
+                    if (progressEl) {
+                        progressEl.textContent = RT('reading.page_label') + ' ' + (idx + 1) + ' / ' + readingState.pages.length;
+                    }
+                    updateReadingContinueState();
+                    const card = document.getElementById('reading-content-card');
+                    if (card) card.scrollTop = 0;
+                },
+                onExitForward: () => {
+                    if (readingIsComplete(checkpoints) && typeof readingState.onContinue === 'function') {
+                        readingState.onContinue();
+                    }
+                },
+                onExitBackward: () => { /* no phase before reading inside the wave2 stream */ },
+            });
+
+            if (progressEl) {
+                progressEl.textContent = RT('reading.page_label') + ' 1 / ' + readingState.pages.length;
             }
             updateReadingContinueState();
         }
 
+        const consState = { onContinue: null };
+
         function renderConsolidation() {
             const titleEl = document.getElementById('cons-title');
             if (titleEl) titleEl.textContent = (CONSOLIDATION.title || RT('cons.title_default')).toUpperCase();
+
+            const stream = document.getElementById('cons-stream');
+            const dotsRow = document.getElementById('cons-dots');
+            const legacyBlock = document.getElementById('cons-legacy-block');
+            const panels = Array.isArray(CONSOLIDATION.panels) ? CONSOLIDATION.panels : null;
+
+            if (panels && panels.length) {
+                // ── Bug #7: panels[] shape — sliding panel sequence ──────────
+                if (legacyBlock) legacyBlock.style.display = 'none';
+                if (stream) stream.style.display = '';
+                if (dotsRow) dotsRow.style.display = '';
+
+                if (!stream) return;
+                stream.innerHTML = '';
+                panels.forEach((p, i) => {
+                    const panelEl = document.createElement('div');
+                    panelEl.className = 'wave2-slide-page';
+                    panelEl.dataset.panelKind = p.kind || '';
+                    panelEl.dataset.panelIndex = String(i);
+
+                    if (p.media && p.media.html) {
+                        const mediaEl = document.createElement('div');
+                        mediaEl.className = 'cons-panel-media';
+                        mediaEl.innerHTML = p.media.html;
+                        panelEl.appendChild(mediaEl);
+                    }
+                    if (p.title) {
+                        const h = document.createElement('h3');
+                        h.className = 'cons-panel-title';
+                        h.innerHTML = p.title;
+                        panelEl.appendChild(h);
+                    }
+                    if (p.html) {
+                        const body = document.createElement('div');
+                        body.className = 'cons-panel-body content-area';
+                        body.innerHTML = p.html;
+                        panelEl.appendChild(body);
+                    }
+
+                    // The 'check' kind panel (or any panel marked check) carries
+                    // the reveal-on-demand block. Not graded — student clicks
+                    // "Show answer" to expose it. No advance gating.
+                    if (p.kind === 'check' && CONSOLIDATION.check) {
+                        const checkBlock = document.createElement('div');
+                        checkBlock.className = 'cons-panel-check';
+                        const prompt = document.createElement('div');
+                        prompt.className = 'screen-cons-prompt content-area';
+                        prompt.innerHTML = CONSOLIDATION.check.prompt || '';
+                        checkBlock.appendChild(prompt);
+                        const toggle = document.createElement('button');
+                        toggle.type = 'button';
+                        toggle.className = 'screen-cons-toggle';
+                        toggle.textContent = RT('cons.show_answer');
+                        checkBlock.appendChild(toggle);
+                        const answerEl = document.createElement('div');
+                        answerEl.className = 'screen-cons-answer content-area';
+                        answerEl.innerHTML = CONSOLIDATION.check.answer
+                            ? (RT('cons.expected_prefix') + CONSOLIDATION.check.answer)
+                            : '';
+                        checkBlock.appendChild(answerEl);
+                        toggle.addEventListener('click', () => {
+                            if (toggle.disabled) return;
+                            toggle.disabled = true;
+                            answerEl.classList.add('is-revealed');
+                        });
+                        panelEl.appendChild(checkBlock);
+                    }
+
+                    stream.appendChild(panelEl);
+                });
+
+                wave2SlideInit({
+                    containerId: 'cons-stream',
+                    dotsId: 'cons-dots',
+                    panelCount: panels.length,
+                    canAdvance: () => true, // not graded — never block navigation
+                    onSettle: () => {
+                        const card = document.getElementById('cons-card');
+                        if (card) card.scrollTop = 0;
+                    },
+                    onExitForward: () => {
+                        if (typeof consState.onContinue === 'function') consState.onContinue();
+                    },
+                    onExitBackward: () => { /* no phase before consolidation in the stream */ },
+                });
+                return;
+            }
+
+            // ── Legacy shape — single scrollable card ─────────────────────────
+            if (stream) stream.style.display = 'none';
+            if (dotsRow) dotsRow.style.display = 'none';
+            if (legacyBlock) legacyBlock.style.display = '';
+
             const mn = document.getElementById('cons-mnemonic');
             if (mn) mn.innerHTML = CONSOLIDATION.mnemonic || CONSOLIDATION.recap || '';
             const bl = document.getElementById('cons-bullets');
@@ -11387,7 +11693,6 @@ Prezident ertaga hisobot kutmoqda.`,
                 toggle.style.display = hasAnswer ? '' : 'none';
                 toggle.disabled = false;
                 toggle.textContent = RT('cons.show_answer');
-                // Bind exactly once per render — clone-replace to drop stale listeners.
                 const fresh = toggle.cloneNode(true);
                 toggle.parentNode.replaceChild(fresh, toggle);
                 fresh.addEventListener('click', () => {
@@ -11482,6 +11787,16 @@ Prezident ertaga hisobot kutmoqda.`,
             btn.classList.add('state-line');
             if (btnText) btnText.style.opacity = '0';
             const handler = () => {
+                btn.removeEventListener('click', handler, true);
+                if (sc) sc.classList.remove('active');
+                onContinue();
+            };
+            // Bug #7: store onContinue on consState so the wave2 stream's
+            // onExitForward (swipe past last panel) can trigger phase exit
+            // without the bottom button. The bottom button still works as a
+            // fallback for legacy single-card mode + as a backup for the
+            // sliding mode if the user prefers tapping it.
+            consState.onContinue = () => {
                 btn.removeEventListener('click', handler, true);
                 if (sc) sc.classList.remove('active');
                 onContinue();

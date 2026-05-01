@@ -97,21 +97,22 @@ def test_each_sub_game_registry_entry_has_label_key():
         )
 
 
-def test_gb_advance_from_game_plays_announcement_before_next_init():
-    """gbAdvanceFromGame fires playPhaseAnnouncement before next.init()."""
+def test_gb_advance_from_game_plays_announcement_before_transition():
+    """Bug #6 fix: announcement card must precede gbTransition AND next.init.
+
+    Pre-fix order was `gbTransition(...) { playPhaseAnnouncement(...) { init } }`
+    which let the next sub-game's panel slide in underneath the announcement
+    card. Correct order is `playPhaseAnnouncement(...) { gbTransition(...) { init } }`:
+    previous panel stays visible behind the card, then after the card fades
+    the new panel slides in cleanly.
+    """
     body = _slice_function("gbAdvanceFromGame")
-    assert "playPhaseAnnouncement(next.labelKey" in body, (
-        "the announcement must wrap next.init() so the student sees the "
-        "next game's name before the game shell appears"
-    )
-    # The init() call should be inside the announcement callback, not before
-    # it. Check ordering: playPhaseAnnouncement appears BEFORE next.init().
     pa_pos = body.find("playPhaseAnnouncement(next.labelKey")
+    transition_pos = body.find("gbTransition(currentPanelId, next.panel")
     init_pos = body.find("next.init()")
-    assert 0 < pa_pos < init_pos, (
-        "next.init() must run inside the playPhaseAnnouncement onDone "
-        "callback, not before — running it first would let the next game "
-        "render under the announcement card"
+    assert 0 < pa_pos < transition_pos < init_pos, (
+        f"ordering must be playPhaseAnnouncement → gbTransition → next.init(); "
+        f"got positions pa@{pa_pos} transition@{transition_pos} init@{init_pos}"
     )
 
 
@@ -124,6 +125,26 @@ def test_real_life_phase_plays_announcement():
         "Real-Life Challenge entry must show the labeled announcement card; "
         "without it, students transition silently from Game Breaks into a "
         "fresh scenario with no labeled hand-off"
+    )
+
+
+def test_real_life_card_hidden_during_announcement():
+    """Bug #6 fix: startStage6 hides the WHOLE rl-card during the card.
+
+    Hiding only `#rl-story-section` (pre-fix) left the rl-header-badge +
+    card chrome visible behind the announcement so the student saw both
+    simultaneously. Now the entire #rl-card opacity goes to 0 before the
+    announcement and back to 1 inside the onDone callback.
+    """
+    body = _slice_function("startStage6")
+    assert "rlCard.style.opacity = '0'" in body, (
+        "startStage6 must set #rl-card opacity to 0 BEFORE playPhaseAnnouncement"
+    )
+    pa_pos = body.find("playPhaseAnnouncement('phase.real_life'")
+    reveal_pos = body.find("rlCard.style.opacity = '1'")
+    assert 0 < pa_pos < reveal_pos, (
+        "rl-card reveal (opacity 1) must be inside the playPhaseAnnouncement "
+        "onDone callback, not before it"
     )
 
 
