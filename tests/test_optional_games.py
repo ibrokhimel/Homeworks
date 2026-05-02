@@ -27,10 +27,22 @@ GAME_KEYS = [
     ("gb_mystery_box",   "GB_MYSTERY_BOX"),
     ("gb_ttt",           "GB_TTT"),
     ("gb_sentence_fill", "GB_SENTENCE_FILL"),
-    # NOTE: gb_tile_match landing in this PR's schema/injector/endpoint, but
-    # gbActiveGameOrder runtime registration ships in the frontend redesign
-    # PR. Adding it here would fail test_registry_lists_all_games until the
-    # runtime panel + init function exist. Add this row in the runtime PR.
+    ("gb_tile_match",    "GB_TILE_MATCH"),
+]
+
+# Separate list for the runtime registry check.
+# GB_MEMORY_MATCH is still injected by _ARRAY_CONSTANTS (so GAME_KEYS keeps it
+# for legacy-data round-trips), but TM replaced MM at slot 2 in
+# gbActiveGameOrder — so the registry now guards GB_TILE_MATCH, NOT
+# GB_MEMORY_MATCH. That's the only difference between GAME_KEYS and this list.
+REGISTRY_GAME_CONST_NAMES = [
+    "GB_ADAPTIVE_QUIZ",
+    "GB_WHY_CHAIN",
+    "GB_TILE_MATCH",       # TM replaced MM at slot 2 in gbActiveGameOrder
+    "GB_PUZZLE_LOCK",
+    "GB_MYSTERY_BOX",
+    "GB_TTT",
+    "GB_SENTENCE_FILL",
 ]
 
 
@@ -53,6 +65,7 @@ def _empty_content():
         "gb_mystery_box": [],
         "gb_ttt": [],
         "gb_sentence_fill": [],
+        "gb_tile_match": [],
         "boss_questions": [],
         "real_life": None,
         "reading": None,
@@ -106,13 +119,18 @@ def test_registry_helpers_present_in_template():
 
 
 def test_registry_lists_all_games():
-    """gbActiveGameOrder must enumerate every game in GAME_KEYS. Every new
+    """gbActiveGameOrder must enumerate every game in REGISTRY_GAME_CONST_NAMES. Every new
     game added to Phase 3 must be appended to this registry — that's the
     single source of truth for the runtime ordering. This test catches the
     case where someone adds a game to the schema/injector but forgets the
-    registry entry (which would silently dead-end the new game)."""
+    registry entry (which would silently dead-end the new game).
+
+    Note: GB_MEMORY_MATCH is absent from REGISTRY_GAME_CONST_NAMES — TM
+    replaced MM at slot 2 in gbActiveGameOrder. GB_MEMORY_MATCH is still in
+    GAME_KEYS (injector emits it for legacy data compatibility) but no longer
+    has a registry entry."""
     html = inject(_empty_content(), runtime_context={"hw_id": "HW-RG", "subject": "math-algebra", "grade": 8})
-    for const_name in [c for _, c in GAME_KEYS]:
+    for const_name in REGISTRY_GAME_CONST_NAMES:
         # Each constant must appear on a line that pushes it into the registry.
         assert re.search(
             rf"Array\.isArray\({const_name}\)\s*&&\s*{const_name}\.length\s*>\s*0",
@@ -141,7 +159,7 @@ def test_advancement_uses_registry_not_hardcoded_subgame_indices():
     # gbHandleAction's subGame=2/3/4 completion paths must dispatch to gbAdvanceFromGame.
     # Checking the whole HTML (the dispatch calls are unique enough); a
     # function-body regex would have to handle nested braces and is fragile.
-    assert "gbAdvanceFromGame(2, 'gb-panel-mm')" in html, "MM completion must call gbAdvanceFromGame(2, 'gb-panel-mm')"
+    assert "gbAdvanceFromGame(2, 'gb-panel-tm')" in html, "TM completion must call gbAdvanceFromGame(2, 'gb-panel-tm') — TM replaced MM at slot 2"
     assert "gbAdvanceFromGame(3, 'gb-panel-pl')" in html, "PL completion must call gbAdvanceFromGame(3, 'gb-panel-pl')"
     assert "gbAdvanceFromGame(4, 'gb-panel-mb')" in html, "MB completion must call gbAdvanceFromGame(4, 'gb-panel-mb')"
     assert "gbAdvanceFromGame(5, 'gb-panel-ttt')" in html, "TTT completion must call gbAdvanceFromGame(5, 'gb-panel-ttt')"
@@ -150,6 +168,19 @@ def test_advancement_uses_registry_not_hardcoded_subgame_indices():
     assert sf_finish, "gbSFFinish not found"
     assert "gbAdvanceFromGame(6, 'gb-panel-sf')" in sf_finish.group(0), (
         "gbSFFinish must call gbAdvanceFromGame(6, 'gb-panel-sf')."
+    )
+    # Tile Match (slot 2) — gbTMFinish must NOT hardcode 'gb-panel-mm';
+    # advancement must go through gbAdvanceFromGame(2, 'gb-panel-tm') (lives in gbTMAction).
+    tm_finish = re.search(r"function gbTMFinish\(\)\s*\{[\s\S]*?\n\s{8}\}", html)
+    assert tm_finish, "gbTMFinish not found"
+    assert "'gb-panel-mm'" not in tm_finish.group(0), (
+        "gbTMFinish must NOT hardcode 'gb-panel-mm' — TM replaced MM at slot 2."
+    )
+    # gbAdvanceFromGame(2, 'gb-panel-tm') lives in gbTMAction (called by gbTMFinish's
+    # complete-flag path via gbHandleAction) — verify it exists in the JS.
+    assert "gbAdvanceFromGame(2, 'gb-panel-tm')" in html, (
+        "TM completion must call gbAdvanceFromGame(2, 'gb-panel-tm') — "
+        "lives in gbTMAction(); must not be removed."
     )
 
 
