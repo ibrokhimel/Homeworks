@@ -100,6 +100,15 @@ def _has_panels(content: dict) -> bool:
 
 
 def _has_real_life(content: dict) -> bool:
+    # New `real_life_challenge` (RLC) case satisfies the section as well.
+    rlc = content.get("real_life_challenge")
+    if isinstance(rlc, dict):
+        steps = rlc.get("steps")
+        if isinstance(steps, list) and len(steps) >= 1:
+            # any step with a prompt counts as authored
+            for s in steps:
+                if isinstance(s, dict) and (s.get("prompt") or "").strip():
+                    return True
     rl = content.get("real_life")
     if not isinstance(rl, dict):
         return False

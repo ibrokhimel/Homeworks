@@ -529,6 +529,89 @@ Per-item perfect-fill bonus query. Aggregates the per-blank attempt log built up
 
 ---
 
+### POST /api/ai/check-answer  *(phase = `"real-life-challenge"`, PR #N)*
+
+Per-step grading for the 5-step Real-Life Challenge mechanic. Same URL as the regular `/check-answer`; dispatch is gated on `phase="real-life-challenge"` AND `homework_id` present (legacy callers without `homework_id` fall through to the regular handler).
+
+**Request**
+```json
+{
+  "phase": "real-life-challenge",
+  "homework_id": "string",
+  "step_id": "step1",
+  "session_id": "string|null",
+  "selected_option_id": "a|b|c|...",
+  "selected_chip_id": "string|null",
+  "reasoning_text": "string|null"
+}
+```
+
+- `step_id` ∈ `{"step1", "step2", "step3", "step4", "step5"}` matching the case's 5 steps in order: `decision → info_request → final_decision → concept_select → reasoning`.
+- Only ONE of `selected_option_id` / `selected_chip_id` / `reasoning_text` is used per request, gated by the step's `kind`. Sending the wrong payload kind for a step returns `400 RLC_PAYLOAD_KIND_MISMATCH`.
+- `session_id` keys the in-memory `_RLC_ATTEMPTS` tracker. Refreshing the runtime resets the session.
+
+**200**
+```json
+{
+  "step_id": "step1",
+  "kind": "decision|info_request|final_decision|concept_select|reasoning",
+  "correct": true,
+  "consequence": "string|null",
+  "correct_option_label": "string|null",
+  "reasoning_score": "int|null",
+  "reasoning_feedback": "string|null",
+  "xp": {
+    "decision_quality": 50,
+    "reasoning_quality": 0,
+    "concept_id": 0,
+    "step_total": 50
+  },
+  "step_index": 0,
+  "total_steps": 5,
+  "complete": false,
+  "outcome": "expert_decision|strong_analysis|passing|hali_emas|null",
+  "completion_bonus_xp": 0,
+  "total_xp": 50,
+  "rubric_breakdown": null
+}
+```
+
+- **Decision steps** (1, 2, 3): `correct` echoes correctness; on first wrong attempt, server returns `correct=false` with `correct_option_label=null` (encourage retry); on second wrong attempt, server returns `correct_option_label=<label of the right option>` for pedagogical reveal.
+- **`consequence` text** surfaces ONLY on a wrong decision (mentor hint). Correct decisions return `consequence: null` to keep the no-leak invariant strict.
+- **Concept-select** (step 4): single attempt, no retry policy.
+- **Reasoning** (step 5): server enforces `min_chars` (default 80); short submissions return `400 RLC_REASONING_TOO_SHORT` before any AI call. AI grader returns `{score: 0-100, feedback: str}`; `xp.reasoning_quality = score` (1:1 map).
+- **On step 5 graded** → `complete: true`. Server applies outcome multiplier per spec §5:
+  - 90–100% → `outcome="expert_decision"`, `completion_bonus_xp=50`, `total_xp = sum + 50`
+  - 75–89% → `outcome="strong_analysis"`, no bonus
+  - 60–74% → `outcome="passing"`, `total_xp = round(sum * 0.8)` (no bonus)
+  - <60% → `outcome="hali_emas"`, `total_xp = round(sum * 0.4)`
+- **`rubric_breakdown`** is populated only on `complete=true`; surfaces `{decision_quality, reasoning_quality, concept_id, bonus, total}` for the closure card.
+
+**Per-step XP allocation (sums to spec §5's 300 max):**
+
+| Step kind | XP credited to | Cap |
+|---|---|---|
+| `decision` (step 1) | `decision_quality` | 50 |
+| `info_request` (step 2) | `decision_quality` | 50 |
+| `final_decision` (step 3) | `decision_quality` | 50 |
+| `concept_select` (step 4) | `concept_id` | 50 |
+| `reasoning` (step 5) | `reasoning_quality` | 100 |
+
+**Errors**
+
+| Status | code | When |
+|---|---|---|
+| 400 | `RLC_BAD_PHASE` | dispatch gate hit but case-resolution fails |
+| 400 | `RLC_PAYLOAD_KIND_MISMATCH` | step kind doesn't match the field provided (e.g., `selected_chip_id` for a decision step) |
+| 400 | `RLC_REASONING_TOO_SHORT` | reasoning_text shorter than the step's `min_chars` |
+| 404 | `HW_NOT_FOUND` | homework_id does not resolve |
+| 404 | `RLC_CASE_NOT_FOUND` | homework has no `real_life_challenge` content |
+| 404 | `RLC_STEP_NOT_FOUND` | step_id is not one of the case's 5 step ids |
+
+**Answer-leak protection:** the rendered runtime constant `RLC_CASE` is side-disjoint — `is_correct` flags on options + chips, per-option `consequence`, and per-step `acceptable_keywords` are stripped server-side before injection. Grading happens exclusively at this endpoint.
+
+---
+
 ### POST /api/ai/boss-turn
 
 ```json
