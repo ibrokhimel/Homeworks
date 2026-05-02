@@ -190,6 +190,30 @@ def test_sentence_fill_alone_satisfies_game_breaks_section():
     assert compute_progress(hw) == 22
 
 
+def test_tile_match_alone_satisfies_game_breaks_section():
+    """Regression for the cross-PR sweep on the tile-match arc:
+    `gb_tile_match` must be in `_GB_KEYS`, otherwise a homework whose
+    only Stage-5 content is Tile Match pairs has its progress meter
+    under-report (game_breaks section never marked complete).
+
+    Mirrors test_sentence_fill_alone_satisfies_game_breaks_section."""
+    hw = {"status": "draft", "title": "T", "content_json": {
+        "gb_tile_match": [
+            {"id": "tm_001", "left": "F = ma",   "right": "Newton's 2nd"},
+            {"id": "tm_002", "left": "F1 = -F2", "right": "Newton's 3rd"},
+            {"id": "tm_003", "left": "Inertia",  "right": "Newton's 1st"},
+            {"id": "tm_004", "left": "Mass",     "right": "kg"},
+        ],
+    }}
+    sections = filled_sections(hw)
+    assert "game_breaks" in sections, (
+        "gb_tile_match must satisfy the game_breaks section — "
+        "if this fails, _GB_KEYS in server/services/progress.py is missing "
+        "the 'gb_tile_match' entry."
+    )
+    assert compute_progress(hw) == 22
+
+
 # ---------------------------------------------------------------------------
 # generating cap
 # ---------------------------------------------------------------------------
