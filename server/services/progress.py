@@ -43,6 +43,7 @@ _GB_KEYS = (
     "gb_puzzle_lock",
     "gb_mystery_box",
     "gb_ttt",
+    "gb_sentence_fill",
 )
 
 # The 9 canonical content milestones a fully-authored homework hits.

@@ -636,7 +636,20 @@
     if (els.addItemBtn) els.addItemBtn.hidden = true;
 
     if (editor && typeof editor.render === "function") {
-      editor.render(els.editorRoot, getPhaseData(phase), (nextData) => applyPhaseChange(phase, nextData));
+      // 4th-arg context — game-break editors (Sentence Fill) use grade for
+      // mode defaults, subject for AI-grader hints, tier for premium gating.
+      const homework = window.BUILDER_STATE.homework || {};
+      const context = {
+        grade: typeof homework.grade === "number" ? homework.grade : 8,
+        subject: homework.subject || "general",
+        tier: homework.tier || (homework.mode === "hard" ? "premium" : "basic"),
+      };
+      editor.render(
+        els.editorRoot,
+        getPhaseData(phase),
+        (nextData) => applyPhaseChange(phase, nextData),
+        context
+      );
     } else {
       renderPlaceholderEditor(phase);
     }
