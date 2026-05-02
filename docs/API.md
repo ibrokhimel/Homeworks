@@ -529,7 +529,7 @@ Per-item perfect-fill bonus query. Aggregates the per-blank attempt log built up
 
 ---
 
-### POST /api/ai/check-answer  *(phase = `"real-life-challenge"`, PR #N)*
+### POST /api/ai/check-answer  *(phase = `"real-life-challenge"`, PR #143)*
 
 Per-step grading for the 5-step Real-Life Challenge mechanic. Same URL as the regular `/check-answer`; dispatch is gated on `phase="real-life-challenge"` AND `homework_id` present (legacy callers without `homework_id` fall through to the regular handler).
 
