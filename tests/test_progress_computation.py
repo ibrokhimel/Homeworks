@@ -163,6 +163,33 @@ def test_game_breaks_only_counts_once_even_if_multiple_present():
     assert compute_progress(hw) == 22
 
 
+def test_sentence_fill_alone_satisfies_game_breaks_section():
+    """Regression for the gap that shipped between #132 + #133:
+    `gb_sentence_fill` was missing from `_GB_KEYS`, so a homework whose
+    only Stage-5 content was Sentence Fill items had its progress meter
+    under-report (game_breaks section never marked complete).
+
+    A homework with title + ONLY gb_sentence_fill populated should satisfy
+    the game_breaks section, same as any other game-break list."""
+    hw = {"status": "draft", "title": "T", "content_json": {
+        "gb_sentence_fill": [{
+            "id": "sf-001",
+            "mode": "word_bank",
+            "passage": "The ___ jumped over the ___.",
+            "answers": ["fox", "fence"],
+            "word_bank": ["fox", "fence", "cat", "wall"],
+        }],
+    }}
+    sections = filled_sections(hw)
+    assert "game_breaks" in sections, (
+        "gb_sentence_fill must satisfy the game_breaks section — "
+        "if this fails, _GB_KEYS in server/services/progress.py is missing "
+        "the 'gb_sentence_fill' entry."
+    )
+    # Title + game_breaks = 2/9 → round(2/9 * 100) = 22
+    assert compute_progress(hw) == 22
+
+
 # ---------------------------------------------------------------------------
 # generating cap
 # ---------------------------------------------------------------------------

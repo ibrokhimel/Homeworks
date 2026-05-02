@@ -265,9 +265,12 @@
     `;
   }
 
-  function render(container, data, onChange) {
+  function render(container, data, onChange, context) {
     const state = normalize(data);
     let activeTab = GAME_TABS[0].id;
+    // Forward homework-level context (grade/subject/tier) to the per-game
+    // sub-editors. Sentence Fill uses it for mode defaults + recommendations.
+    const editorContext = context || {};
 
     function repaintShell() {
       const active = GAME_TABS.find((tab) => tab.id === activeTab) || GAME_TABS[0];
@@ -319,12 +322,17 @@
         return;
       }
 
-      editor.render(root, getTabData(state, active.id), (nextData) => {
-        setTabData(state, active.id, nextData);
-        emit(state, onChange);
-        const count = container.querySelector(`[data-game-tab="${active.id}"] .mini-count`);
-        if (count) count.textContent = String(getCount(state, active.id));
-      });
+      editor.render(
+        root,
+        getTabData(state, active.id),
+        (nextData) => {
+          setTabData(state, active.id, nextData);
+          emit(state, onChange);
+          const count = container.querySelector(`[data-game-tab="${active.id}"] .mini-count`);
+          if (count) count.textContent = String(getCount(state, active.id));
+        },
+        editorContext
+      );
     }
 
     container.onclick = (event) => {
