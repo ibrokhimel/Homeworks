@@ -2675,6 +2675,533 @@
                 grid-column: 1 / -1;
             }
         }
+        /* ─────────────────────────────────────────────────────────────────
+           REAL-LIFE CHALLENGE (RLC) — Apple-glass 5-step runtime
+           Mounts under #rlc-screen when RLC_CASE is non-null. Coexists with
+           legacy #screen-6 / RL_SCENARIO flow (which is left untouched).
+           ───────────────────────────────────────────────────────────────── */
+        #rlc-screen {
+            display: none;
+            position: relative;
+        }
+        #rlc-screen.active {
+            display: block;
+        }
+        .rlc-app {
+            position: relative;
+            width: min(100%, 460px);
+            margin: 0 auto;
+            min-height: 100dvh;
+            padding: 12px 12px 112px;
+        }
+        .rlc-topbar {
+            position: sticky;
+            top: 10px;
+            z-index: 30;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 14px;
+            border-radius: 999px;
+            margin-bottom: 14px;
+            background: rgba(255,255,255,.42);
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+        .rlc-top-pill {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 4px;
+        }
+        .rlc-top-pill strong {
+            font-size: 11px;
+            font-weight: 620;
+            letter-spacing: .03em;
+            color: var(--text, #262629);
+        }
+        .rlc-dots {
+            display: flex;
+            gap: 5px;
+        }
+        .rlc-dots span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(0,113,227,.18);
+            transition: .22s ease;
+        }
+        .rlc-dots span.active {
+            width: 18px;
+            border-radius: 999px;
+            background: var(--accent, #0071e3);
+            box-shadow: 0 0 0 5px rgba(0,113,227,.10);
+        }
+        .rlc-hero {
+            border-radius: 32px;
+            padding: 18px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+        .rlc-hero:after {
+            content: "";
+            position: absolute;
+            width: 210px;
+            height: 210px;
+            right: -82px;
+            bottom: -100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,113,227,.15), transparent 72%);
+            pointer-events: none;
+        }
+        .rlc-hero-meta {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        #rlc-role-badge {
+            color: var(--text-muted, #77777d);
+            font-size: 11px;
+            font-weight: 620;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+        .rlc-xp {
+            color: var(--accent, #0071e3) !important;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.32);
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.46);
+            font-size: 12px;
+            font-weight: 620;
+        }
+        #rlc-title {
+            position: relative;
+            z-index: 1;
+            margin: 0 0 8px;
+            font-size: clamp(20px, 5.7vw, 24px);
+            line-height: 1.18;
+            letter-spacing: -.02em;
+            font-weight: 590;
+            color: var(--text, #262629);
+        }
+        .rlc-subtitle {
+            position: relative;
+            z-index: 1;
+            margin: 0;
+            color: var(--text-muted, #77777d);
+            font-size: 13px;
+            line-height: 1.62;
+            font-weight: 400;
+        }
+        .rlc-step {
+            display: none;
+        }
+        .rlc-step.active {
+            display: block;
+            animation: rlcFadeUp .25s ease;
+        }
+        .rlc-step-card {
+            border-radius: 30px;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+            margin-bottom: 12px;
+        }
+        .rlc-stage-label {
+            margin: 0 0 11px;
+            color: var(--text-muted, #77777d);
+            font-size: 11px;
+            font-weight: 620;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+        .rlc-prompt {
+            margin: 0 0 8px;
+            color: var(--text, #262629);
+            font-size: 14px;
+            line-height: 1.62;
+            font-weight: 460;
+        }
+        .rlc-options {
+            display: grid;
+            gap: 9px;
+            margin-top: 13px;
+        }
+        .rlc-option {
+            width: 100%;
+            border: 1px solid rgba(255,255,255,.42);
+            border-radius: 20px;
+            background: rgba(255,255,255,.25);
+            color: var(--text, #262629);
+            padding: 13px;
+            text-align: left;
+            font-size: 13px;
+            line-height: 1.45;
+            font-weight: 480;
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.44);
+            backdrop-filter: blur(18px) saturate(170%);
+            -webkit-backdrop-filter: blur(18px) saturate(170%);
+            transition: .18s ease;
+        }
+        .rlc-option:hover:not(.locked) {
+            transform: translateY(-1px);
+            box-shadow: 0 9px 22px rgba(31,38,135,.07), inset 0 1px 0 rgba(255,255,255,.46);
+        }
+        .rlc-option.selected {
+            border-color: rgba(0,113,227,.34);
+            background: linear-gradient(135deg, rgba(0,113,227,.12), rgba(255,255,255,.22));
+            box-shadow: 0 10px 26px rgba(0,113,227,.11), inset 0 1px 0 rgba(255,255,255,.46);
+        }
+        .rlc-option.is-correct-revealed {
+            border-color: rgba(52,199,89,.34);
+            background: linear-gradient(135deg, rgba(52,199,89,.18), rgba(255,255,255,.20));
+            box-shadow: 0 10px 26px rgba(52,199,89,.14), inset 0 1px 0 rgba(255,255,255,.46);
+        }
+        .rlc-option.locked {
+            opacity: .5;
+            pointer-events: none;
+        }
+        .rlc-option-cost {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+        .rlc-option-cost .rlc-cost-pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(0,113,227,.10);
+            color: var(--accent, #0071e3);
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+        }
+        .rlc-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 13px;
+        }
+        .rlc-chip {
+            border: 1px solid rgba(255,255,255,.42);
+            border-radius: 999px;
+            background: rgba(255,255,255,.25);
+            color: var(--text, #262629);
+            padding: 10px 14px;
+            font-size: 12.5px;
+            font-weight: 530;
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.44);
+            backdrop-filter: blur(18px) saturate(170%);
+            -webkit-backdrop-filter: blur(18px) saturate(170%);
+            transition: .18s ease;
+        }
+        .rlc-chip:hover {
+            transform: translateY(-1px);
+        }
+        .rlc-chip.selected {
+            border-color: rgba(0,113,227,.34);
+            background: linear-gradient(135deg, rgba(0,113,227,.12), rgba(255,255,255,.22));
+            box-shadow: 0 10px 26px rgba(0,113,227,.11), inset 0 1px 0 rgba(255,255,255,.46);
+        }
+        .rlc-textarea {
+            width: 100%;
+            min-height: 120px;
+            resize: vertical;
+            border: 1px solid rgba(255,255,255,.38);
+            background: linear-gradient(135deg, rgba(255,255,255,.28), rgba(255,255,255,.14));
+            color: var(--text, #262629);
+            border-radius: 22px;
+            padding: 14px;
+            outline: none;
+            font: inherit;
+            font-size: 14px;
+            line-height: 1.58;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.50), 0 6px 22px rgba(31,38,135,.05);
+            backdrop-filter: blur(18px) saturate(170%);
+            -webkit-backdrop-filter: blur(18px) saturate(170%);
+            transition: .2s ease;
+        }
+        .rlc-textarea:focus {
+            border-color: rgba(0,113,227,.40);
+            box-shadow: 0 0 0 4px rgba(0,113,227,.16), 0 6px 22px rgba(0,113,227,.08);
+        }
+        .rlc-helper-row {
+            margin-top: 8px;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .rlc-charcount {
+            color: var(--text-muted, #77777d);
+            font-size: 11px;
+            font-weight: 580;
+        }
+        .rlc-consequence-reveal {
+            margin-top: 12px;
+            padding: 11px 13px;
+            border-radius: 16px;
+            background: rgba(255,159,10,.10);
+            border: 1px solid rgba(255,159,10,.30);
+            color: var(--text, #262629);
+            font-size: 12.5px;
+            line-height: 1.5;
+        }
+        .rlc-consequence-reveal[hidden] {
+            display: none;
+        }
+        .rlc-result-card {
+            display: none;
+            border-radius: 28px;
+            padding: 18px;
+            margin-top: 14px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.10), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+        .rlc-result-card.show {
+            display: block;
+            animation: rlcFadeUp .35s ease;
+        }
+        .rlc-result-title {
+            font-size: 17px;
+            font-weight: 620;
+            margin-bottom: 12px;
+            color: var(--text, #262629);
+        }
+        .rlc-rubric {
+            display: grid;
+            gap: 6px;
+        }
+        .rlc-rubric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 11px;
+            border-radius: 14px;
+            background: rgba(255,255,255,.22);
+            border: 1px solid rgba(255,255,255,.36);
+            font-size: 12.5px;
+            color: var(--text-muted, #77777d);
+        }
+        .rlc-rubric-row strong {
+            color: var(--text, #262629);
+            font-weight: 620;
+        }
+        .rlc-rubric-row[hidden] {
+            display: none;
+        }
+        .rlc-rubric-total-row {
+            background: rgba(0,113,227,.10);
+            border-color: rgba(0,113,227,.28);
+        }
+        .rlc-toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 60;
+            width: min(calc(100% - 28px), 420px);
+            padding: 13px 15px;
+            border-radius: 20px;
+            background: rgba(29,29,31,.86);
+            color: #fff;
+            box-shadow: 0 24px 70px rgba(15,23,42,.12);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: opacity .24s ease, transform .24s ease;
+            font-size: 13px;
+            font-weight: 620;
+            text-align: center;
+        }
+        .rlc-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .rlc-toast[data-kind="correct"] {
+            background: rgba(52,199,89,.92);
+        }
+        .rlc-toast[data-kind="wrong"] {
+            background: rgba(255,69,58,.92);
+        }
+        .rlc-dock {
+            position: fixed;
+            left: 50%;
+            bottom: 14px;
+            transform: translateX(-50%);
+            width: min(calc(100% - 24px), 460px);
+            z-index: 40;
+        }
+        .rlc-submit-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 22px;
+            background: var(--accent, #0071e3);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 620;
+            cursor: pointer;
+            box-shadow: 0 18px 40px rgba(0,113,227,.32);
+            transition: .18s ease;
+        }
+        .rlc-submit-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 22px 50px rgba(0,113,227,.38);
+        }
+        .rlc-submit-btn:disabled {
+            opacity: .42;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        @keyframes rlcFadeUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Optional role-tinted accent on hero (light wash, not full restyle) */
+        #rlc-screen[data-role="fire_inspector"]    .rlc-hero { box-shadow: 0 14px 44px rgba(255,159,10,.14), inset 0 1px 0 rgba(255,255,255,.50); }
+        #rlc-screen[data-role="structural_engineer"] .rlc-hero { box-shadow: 0 14px 44px rgba(70,130,180,.14), inset 0 1px 0 rgba(255,255,255,.50); }
+        #rlc-screen[data-role="business_consultant"] .rlc-hero { box-shadow: 0 14px 44px rgba(52,199,89,.14), inset 0 1px 0 rgba(255,255,255,.50); }
+        #rlc-screen[data-role="medical_diagnostician"] .rlc-hero { box-shadow: 0 14px 44px rgba(0,184,184,.14), inset 0 1px 0 rgba(255,255,255,.50); }
+        #rlc-screen[data-role="agronomist"]        .rlc-hero { box-shadow: 0 14px 44px rgba(101,163,13,.14), inset 0 1px 0 rgba(255,255,255,.50); }
+
+        /* Dark-mode parity (≥15 selectors) */
+        [data-theme="dark"] .rlc-topbar {
+            background: linear-gradient(135deg, rgba(30,41,59,.68), rgba(15,23,42,.52));
+            border-color: var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .rlc-top-pill strong {
+            color: var(--text);
+        }
+        [data-theme="dark"] .rlc-dots span {
+            background: rgba(0,111,224,.22);
+        }
+        [data-theme="dark"] .rlc-dots span.active {
+            background: var(--accent);
+        }
+        [data-theme="dark"] .rlc-hero {
+            background: linear-gradient(135deg, rgba(30,41,59,.68), rgba(15,23,42,.52));
+            border-color: var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] #rlc-title {
+            color: var(--text);
+        }
+        [data-theme="dark"] .rlc-subtitle {
+            color: var(--text-muted);
+        }
+        [data-theme="dark"] .rlc-xp {
+            background: rgba(30,41,59,.48);
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .rlc-step-card {
+            background: linear-gradient(135deg, rgba(30,41,59,.68), rgba(15,23,42,.52));
+            border-color: var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .rlc-prompt {
+            color: var(--text);
+        }
+        [data-theme="dark"] .rlc-stage-label {
+            color: var(--text-muted);
+        }
+        [data-theme="dark"] .rlc-option {
+            background: var(--surface);
+            border-color: var(--surface-border);
+            color: var(--text);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .rlc-option:hover:not(.locked) {
+            background: rgba(0,111,224,.14);
+            border-color: rgba(0,111,224,.38);
+        }
+        [data-theme="dark"] .rlc-option.selected {
+            border-color: rgba(0,111,224,.48);
+            background: linear-gradient(135deg, rgba(0,111,224,.18), rgba(30,41,59,.36));
+            box-shadow: 0 10px 26px rgba(0,111,224,.18), inset 0 1px 0 rgba(255,255,255,.08);
+        }
+        [data-theme="dark"] .rlc-option.is-correct-revealed {
+            border-color: rgba(52,199,89,.36);
+            background: linear-gradient(135deg, rgba(52,199,89,.18), rgba(15,23,42,.40));
+            color: #86efac;
+        }
+        [data-theme="dark"] .rlc-chip {
+            background: var(--surface);
+            border-color: var(--surface-border);
+            color: var(--text);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .rlc-chip.selected {
+            border-color: rgba(0,111,224,.48);
+            background: linear-gradient(135deg, rgba(0,111,224,.18), rgba(30,41,59,.36));
+        }
+        [data-theme="dark"] .rlc-textarea {
+            background: rgba(15,23,42,.40);
+            border-color: var(--surface-border);
+            color: var(--text);
+        }
+        [data-theme="dark"] .rlc-charcount {
+            color: var(--text-muted);
+        }
+        [data-theme="dark"] .rlc-consequence-reveal {
+            background: rgba(255,159,10,.14);
+            border-color: rgba(255,159,10,.34);
+            color: var(--text);
+        }
+        [data-theme="dark"] .rlc-result-card {
+            background: linear-gradient(135deg, rgba(30,41,59,.68), rgba(15,23,42,.52));
+            border-color: var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .rlc-result-title {
+            color: var(--text);
+        }
+        [data-theme="dark"] .rlc-rubric-row {
+            background: rgba(15,23,42,.48);
+            border-color: var(--surface-border);
+            color: var(--text-muted);
+        }
+        [data-theme="dark"] .rlc-rubric-row strong {
+            color: var(--text);
+        }
+        [data-theme="dark"] .rlc-rubric-total-row {
+            background: rgba(0,111,224,.18);
+            border-color: rgba(0,111,224,.40);
+        }
+        [data-theme="dark"] .rlc-toast {
+            background: rgba(15,23,42,.92);
+            box-shadow: 0 24px 70px rgba(0,0,0,.36);
+        }
+        [data-theme="dark"] #rlc-role-badge {
+            color: var(--text-muted);
+        }
+
         /* ── MEMORY MATCH (legacy classes — retained for any older homeworks) ── */
         .gb-mm-grid {
             display: grid;
@@ -6463,6 +6990,98 @@
             </div>
         </div>
 
+        <!-- Stage 6 (NEW) — Real-Life Challenge runtime (mounts when RLC_CASE non-null) -->
+        <div id="rlc-screen" class="screen">
+            <div class="rlc-app">
+                <div class="rlc-topbar">
+                    <div class="rlc-top-pill">
+                        <div id="rlc-progress-dots" class="rlc-dots">
+                            <span class="active"></span><span></span><span></span><span></span><span></span>
+                        </div>
+                        <strong id="rlc-step-counter">1/5</strong>
+                    </div>
+                </div>
+                <div class="rlc-hero">
+                    <div class="rlc-hero-meta">
+                        <span id="rlc-role-badge"></span>
+                        <span id="rlc-xp-pill" class="rlc-xp">0 XP</span>
+                    </div>
+                    <h1 id="rlc-title"></h1>
+                    <p id="rlc-subtitle" class="rlc-subtitle"></p>
+                </div>
+                <div id="rlc-step-1" class="rlc-step active">
+                    <div class="rlc-step-card">
+                        <div class="rlc-stage-label" data-rlc-stage-label></div>
+                        <p class="rlc-prompt" data-rlc-prompt></p>
+                        <div class="rlc-options" data-rlc-options></div>
+                        <div class="rlc-consequence-reveal" data-rlc-consequence hidden></div>
+                    </div>
+                </div>
+                <div id="rlc-step-2" class="rlc-step">
+                    <div class="rlc-step-card">
+                        <div class="rlc-stage-label" data-rlc-stage-label></div>
+                        <p class="rlc-prompt" data-rlc-prompt></p>
+                        <div class="rlc-options" data-rlc-options></div>
+                        <div class="rlc-consequence-reveal" data-rlc-consequence hidden></div>
+                    </div>
+                </div>
+                <div id="rlc-step-3" class="rlc-step">
+                    <div class="rlc-step-card">
+                        <div class="rlc-stage-label" data-rlc-stage-label></div>
+                        <p class="rlc-prompt" data-rlc-prompt></p>
+                        <div class="rlc-options" data-rlc-options></div>
+                        <div class="rlc-consequence-reveal" data-rlc-consequence hidden></div>
+                    </div>
+                </div>
+                <div id="rlc-step-4" class="rlc-step">
+                    <div class="rlc-step-card">
+                        <div class="rlc-stage-label" data-rlc-stage-label></div>
+                        <p class="rlc-prompt" data-rlc-prompt></p>
+                        <div class="rlc-chips" data-rlc-chips></div>
+                    </div>
+                </div>
+                <div id="rlc-step-5" class="rlc-step">
+                    <div class="rlc-step-card">
+                        <div class="rlc-stage-label" data-rlc-stage-label></div>
+                        <p class="rlc-prompt" data-rlc-prompt></p>
+                        <textarea id="rlc-reasoning-textarea" class="rlc-textarea" rows="5"></textarea>
+                        <div class="rlc-helper-row">
+                            <span id="rlc-reasoning-charcount" class="rlc-charcount">0/80</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="rlc-result-card" class="rlc-result-card">
+                    <div id="rlc-result-title" class="rlc-result-title"></div>
+                    <div class="rlc-rubric">
+                        <div class="rlc-rubric-row">
+                            <span class="rlc-rubric-label" data-rlc-i18n="rlc.step.decision"></span>
+                            <strong id="rlc-rubric-decision">0</strong>
+                        </div>
+                        <div class="rlc-rubric-row">
+                            <span class="rlc-rubric-label" data-rlc-i18n="rlc.step.reasoning"></span>
+                            <strong id="rlc-rubric-reasoning">0</strong>
+                        </div>
+                        <div class="rlc-rubric-row">
+                            <span class="rlc-rubric-label" data-rlc-i18n="rlc.step.concept"></span>
+                            <strong id="rlc-rubric-concept">0</strong>
+                        </div>
+                        <div class="rlc-rubric-row" id="rlc-rubric-bonus-row" hidden>
+                            <span class="rlc-rubric-label">Bonus</span>
+                            <strong id="rlc-rubric-bonus">0</strong>
+                        </div>
+                        <div class="rlc-rubric-row rlc-rubric-total-row">
+                            <span class="rlc-rubric-label">Total</span>
+                            <strong id="rlc-rubric-total">0</strong>
+                        </div>
+                    </div>
+                </div>
+                <div id="rlc-toast" class="rlc-toast" role="status" aria-live="polite"></div>
+                <div id="rlc-dock" class="rlc-dock">
+                    <button id="rlc-submit-btn" class="rlc-submit-btn" type="button" disabled></button>
+                </div>
+            </div>
+        </div>
+
         <!-- Stage 7 — Final Boss -->
         <div id="screen-boss" class="screen">
             <div class="boss-shell">
@@ -6821,6 +7440,43 @@
                 'sf.perfect_fill_bonus': '+100 mukammal',
                 'sf.keyboard_hint':      "Tugmalar: Tab — joy/so'z · Enter — tekshirish · Backspace — tozalash",
                 'sf.chain_label':        'Zanjir',
+                // real-life challenge (RLC) — new 5-step flow
+                'rlc.eyebrow':           'REAL-LIFE CHALLENGE',
+                'rlc.title':             'Vaziyatni hal qiling',
+                'rlc.subtitle':          "Mutaxassis sifatida tanlov qiling, tahlil yozing.",
+                'rlc.step.decision':     '1-bosqich · Tanlov',
+                'rlc.step.info':         "2-bosqich · Ma'lumot so'rash",
+                'rlc.step.final':        '3-bosqich · Yakuniy tanlov',
+                'rlc.step.concept':      '4-bosqich · Tushuncha',
+                'rlc.step.reasoning':    '5-bosqich · Tahlil',
+                'rlc.dock.continue':     'Davom etish',
+                'rlc.dock.submit':       'Tasdiqlash',
+                'rlc.dock.next':         'Keyingi qadam',
+                'rlc.dock.finish':       'Yakunlash',
+                'rlc.outcome.expert_decision': "Mutaxassis qarori \u2014 a'lo!",
+                'rlc.outcome.strong_analysis': 'Kuchli tahlil',
+                'rlc.outcome.passing':         "O'tdi",
+                'rlc.outcome.hali_emas':       'Hali emas',
+                'rlc.toast.correct':     "Zo'r! Davom etamiz.",
+                'rlc.toast.wrong':       "Mos emas. Qayta o'ylab ko'ring.",
+                'rlc.toast.try_again':   "Qayta urinib ko'ring.",
+                'rlc.toast.locked':      "Bu qadam yopildi. To'g'ri javob ko'rsatildi.",
+                'rlc.role.fire_inspector':       'Yong\u02bcin xavfsizligi nazoratchisi',
+                'rlc.role.structural_engineer':  'Konstruktor muhandis',
+                'rlc.role.business_consultant':  'Biznes maslahatchi',
+                'rlc.role.medical_diagnostician':'Tibbiy diagnostik',
+                'rlc.role.agronomist':           'Agronom',
+                'rlc.role.teacher':              "O'qituvchi",
+                'rlc.role.lawyer':               'Yurist',
+                'rlc.role.city_planner':         'Shaharsozlik mutaxassisi',
+                'rlc.role.epidemiologist':       'Epidemiolog',
+                'rlc.role.ethicist':             'Etika mutaxassisi',
+                'rlc.role.historian':            'Tarixchi',
+                'rlc.role.general':              'Mutaxassis',
+                'rlc.placeholder.reasoning': 'Fikringizni asoslang... (kamida belgilangan miqdorda)',
+                'rlc.charcount':         '{n}/{min}',
+                'rlc.consequence_reveal': 'Oqibat:',
+                'rlc.correct_was':       "To'g'ri javob:",
             },
             ru: {
                 'skip.label':            '⏭ Пропустить фазу',
@@ -7009,6 +7665,43 @@
                 'sf.perfect_fill_bonus': '+100 идеально',
                 'sf.keyboard_hint':      'Клавиши: Tab — пропуск/слово · Enter — проверить · Backspace — очистить',
                 'sf.chain_label':        'Цепочка',
+                // real-life challenge (RLC) — new 5-step flow
+                'rlc.eyebrow':           'REAL-LIFE CHALLENGE',
+                'rlc.title':             'Решите ситуацию',
+                'rlc.subtitle':          'Сделайте выбор как эксперт, напишите анализ.',
+                'rlc.step.decision':     'Шаг 1 · Решение',
+                'rlc.step.info':         'Шаг 2 · Запрос информации',
+                'rlc.step.final':        'Шаг 3 · Финальное решение',
+                'rlc.step.concept':      'Шаг 4 · Концепция',
+                'rlc.step.reasoning':    'Шаг 5 · Анализ',
+                'rlc.dock.continue':     'Продолжить',
+                'rlc.dock.submit':       'Подтвердить',
+                'rlc.dock.next':         'Следующий шаг',
+                'rlc.dock.finish':       'Завершить',
+                'rlc.outcome.expert_decision': 'Экспертное решение!',
+                'rlc.outcome.strong_analysis': 'Сильный анализ',
+                'rlc.outcome.passing':         'Зачтено',
+                'rlc.outcome.hali_emas':       'Пока нет',
+                'rlc.toast.correct':     'Отлично, идём дальше.',
+                'rlc.toast.wrong':       'Не подходит. Подумайте ещё раз.',
+                'rlc.toast.try_again':   'Попробуйте ещё раз.',
+                'rlc.toast.locked':      'Шаг закрыт. Правильный ответ показан.',
+                'rlc.role.fire_inspector':       'Инспектор пожарной безопасности',
+                'rlc.role.structural_engineer':  'Инженер-конструктор',
+                'rlc.role.business_consultant':  'Бизнес-консультант',
+                'rlc.role.medical_diagnostician':'Медицинский диагност',
+                'rlc.role.agronomist':           'Агроном',
+                'rlc.role.teacher':              'Учитель',
+                'rlc.role.lawyer':               'Юрист',
+                'rlc.role.city_planner':         'Градостроитель',
+                'rlc.role.epidemiologist':       'Эпидемиолог',
+                'rlc.role.ethicist':             'Специалист по этике',
+                'rlc.role.historian':            'Историк',
+                'rlc.role.general':              'Эксперт',
+                'rlc.placeholder.reasoning': 'Обоснуйте свою позицию... (минимум указанное число символов)',
+                'rlc.charcount':         '{n}/{min}',
+                'rlc.consequence_reveal': 'Последствие:',
+                'rlc.correct_was':       'Правильный ответ:',
             },
             en: {
                 'skip.label':            '⏭ Skip phase',
@@ -7197,6 +7890,43 @@
                 'sf.perfect_fill_bonus': '+100 perfect fill',
                 'sf.keyboard_hint':      'Keys: Tab — blanks/words · Enter — check · Backspace — clear',
                 'sf.chain_label':        'Chain',
+                // real-life challenge (RLC) — new 5-step flow
+                'rlc.eyebrow':           'REAL-LIFE CHALLENGE',
+                'rlc.title':             'Resolve the situation',
+                'rlc.subtitle':          'Make an expert call, then explain your reasoning.',
+                'rlc.step.decision':     'Step 1 · Decision',
+                'rlc.step.info':         'Step 2 · Info request',
+                'rlc.step.final':        'Step 3 · Final decision',
+                'rlc.step.concept':      'Step 4 · Concept',
+                'rlc.step.reasoning':    'Step 5 · Reasoning',
+                'rlc.dock.continue':     'Continue',
+                'rlc.dock.submit':       'Submit',
+                'rlc.dock.next':         'Next step',
+                'rlc.dock.finish':       'Finish',
+                'rlc.outcome.expert_decision': 'Expert decision!',
+                'rlc.outcome.strong_analysis': 'Strong analysis',
+                'rlc.outcome.passing':         'Passing',
+                'rlc.outcome.hali_emas':       'Not yet',
+                'rlc.toast.correct':     'Nice, moving on.',
+                'rlc.toast.wrong':       "That doesn't fit. Reconsider.",
+                'rlc.toast.try_again':   'Try again.',
+                'rlc.toast.locked':      'Step locked. Correct answer revealed.',
+                'rlc.role.fire_inspector':       'Fire-safety inspector',
+                'rlc.role.structural_engineer':  'Structural engineer',
+                'rlc.role.business_consultant':  'Business consultant',
+                'rlc.role.medical_diagnostician':'Medical diagnostician',
+                'rlc.role.agronomist':           'Agronomist',
+                'rlc.role.teacher':              'Teacher',
+                'rlc.role.lawyer':               'Lawyer',
+                'rlc.role.city_planner':         'City planner',
+                'rlc.role.epidemiologist':       'Epidemiologist',
+                'rlc.role.ethicist':             'Ethicist',
+                'rlc.role.historian':            'Historian',
+                'rlc.role.general':              'Expert',
+                'rlc.placeholder.reasoning': 'Justify your call (meet the minimum char count)...',
+                'rlc.charcount':         '{n}/{min}',
+                'rlc.consequence_reveal': 'Consequence:',
+                'rlc.correct_was':       'Correct answer:',
             },
         };
 
@@ -7825,6 +8555,7 @@
                 }
             }
             else if (state.stage === 5) gbHandleAction();
+            else if (state.stage === 6 && RLC_CASE && rlcHandleAction) rlcHandleAction();
             else if (state.stage === 6) rlHandleAction();
             else if (state.stage === 7) bossHandleAction();
             else if (state.stage === 7.5 && btn.classList.contains('state-pill')) {
@@ -11330,6 +12061,518 @@
             }
         }
 
+        /* ─────────────────────────────────────────────────────────────────
+           REAL-LIFE CHALLENGE (RLC) — 5-step state machine
+           Mounts when RLC_CASE is non-null. Otherwise legacy startStage6
+           (RL_SCENARIO) flow runs unchanged.
+           ───────────────────────────────────────────────────────────────── */
+        const rlcState = {
+            case: null,
+            stepIndex: 0,
+            sessionId: null,
+            selectedOptionId: null,
+            selectedChipId: null,
+            reasoningDraft: "",
+            stepResults: [],
+            rubric: { decision_quality: 0, reasoning_quality: 0, concept_id: 0 },
+            busy: false,
+            complete: false,
+            outcome: null,
+            totalXp: 0,
+            attemptsByStep: {},
+            _toastTimer: null,
+        };
+
+        function rlcUuidShort() {
+            return 'rlc-' + Date.now().toString(36) + '-' +
+                Math.random().toString(36).slice(2, 8);
+        }
+
+        function rlcInit() {
+            if (!RLC_CASE) return;
+            rlcState.case = RLC_CASE;
+            rlcState.sessionId = rlcUuidShort();
+            rlcState.stepIndex = 0;
+            rlcState.selectedOptionId = null;
+            rlcState.selectedChipId = null;
+            rlcState.reasoningDraft = "";
+            rlcState.stepResults = [];
+            rlcState.rubric = { decision_quality: 0, reasoning_quality: 0, concept_id: 0 };
+            rlcState.busy = false;
+            rlcState.complete = false;
+            rlcState.outcome = null;
+            rlcState.totalXp = 0;
+            rlcState.attemptsByStep = {};
+
+            // Static i18n labels in result rubric.
+            document.querySelectorAll('#rlc-screen [data-rlc-i18n]').forEach(function (el) {
+                const key = el.getAttribute('data-rlc-i18n');
+                if (key && typeof RT === 'function') el.textContent = RT(key);
+            });
+
+            // Hero copy from RLC_CASE.
+            const titleEl = document.getElementById('rlc-title');
+            const subtitleEl = document.getElementById('rlc-subtitle');
+            const roleBadge = document.getElementById('rlc-role-badge');
+            if (titleEl) titleEl.textContent = rlcState.case.title || '';
+            if (subtitleEl) subtitleEl.textContent = rlcState.case.intro || '';
+            if (roleBadge) {
+                const roleKey = 'rlc.role.' + (rlcState.case.expert_role || 'general');
+                roleBadge.textContent = (typeof RT === 'function') ? RT(roleKey) : (rlcState.case.expert_role || '');
+            }
+
+            // XP pill reset.
+            rlcUpdateXpPill();
+
+            // Hide result card on mount.
+            const card = document.getElementById('rlc-result-card');
+            if (card) card.classList.remove('show');
+
+            // Wire dock button.
+            const btn = document.getElementById('rlc-submit-btn');
+            if (btn && !btn._rlcWired) {
+                btn.addEventListener('click', rlcHandleAction);
+                btn._rlcWired = true;
+            }
+
+            rlcRenderStep(0);
+        }
+
+        function startRLCStage6() {
+            // Hide #screen-6 and activate #rlc-screen.
+            const allScreens = document.querySelectorAll('.screen');
+            allScreens.forEach(function (s) { s.classList.remove('active'); });
+            const rlcScreen = document.getElementById('rlc-screen');
+            if (rlcScreen) {
+                rlcScreen.classList.add('active');
+                if (RLC_CASE && RLC_CASE.expert_role) {
+                    rlcScreen.setAttribute('data-role', RLC_CASE.expert_role);
+                }
+            }
+            if (typeof setPhaseRequired === 'function') setPhaseRequired('realLife', 5);
+            // Match TM/RL pattern: announce phase, then init.
+            if (typeof playPhaseAnnouncement === 'function') {
+                playPhaseAnnouncement('phase.real_life', function () { rlcInit(); });
+            } else {
+                rlcInit();
+            }
+        }
+
+        function rlcRenderStep(idx) {
+            if (rlcState.complete) return;
+            if (idx < 0 || idx > 4) return;
+            rlcState.stepIndex = idx;
+            const step = (rlcState.case && rlcState.case.steps) ? rlcState.case.steps[idx] : null;
+            if (!step) return;
+
+            // Reset per-step transient inputs.
+            rlcState.selectedOptionId = null;
+            rlcState.selectedChipId = null;
+            if (step.kind === 'reasoning') {
+                rlcState.reasoningDraft = "";
+            }
+
+            // Toggle .active among the 5 step hosts.
+            for (let i = 1; i <= 5; i++) {
+                const el = document.getElementById('rlc-step-' + i);
+                if (el) el.classList.toggle('active', i === (idx + 1));
+            }
+
+            // Update progress dots + counter.
+            const dots = document.getElementById('rlc-progress-dots');
+            if (dots) {
+                const spans = dots.querySelectorAll('span');
+                spans.forEach(function (s, i) { s.classList.toggle('active', i === idx); });
+            }
+            const counter = document.getElementById('rlc-step-counter');
+            if (counter) counter.textContent = (idx + 1) + '/5';
+
+            // Stage label per kind via i18n.
+            const host = document.getElementById('rlc-step-' + (idx + 1));
+            if (host) {
+                const labelEl = host.querySelector('[data-rlc-stage-label]');
+                const promptEl = host.querySelector('[data-rlc-prompt]');
+                if (labelEl && typeof RT === 'function') {
+                    const labelKey =
+                        step.kind === 'decision' ? 'rlc.step.decision' :
+                        step.kind === 'info_request' ? 'rlc.step.info' :
+                        step.kind === 'final_decision' ? 'rlc.step.final' :
+                        step.kind === 'concept_select' ? 'rlc.step.concept' :
+                        'rlc.step.reasoning';
+                    labelEl.textContent = RT(labelKey);
+                }
+                if (promptEl) promptEl.textContent = step.prompt || step.title || '';
+                const consEl = host.querySelector('[data-rlc-consequence]');
+                if (consEl) { consEl.hidden = true; consEl.textContent = ''; }
+            }
+
+            if (step.kind === 'concept_select') {
+                rlcRenderConceptStep(step);
+            } else if (step.kind === 'reasoning') {
+                rlcRenderReasoningStep(step);
+            } else {
+                rlcRenderDecisionStep(step);
+            }
+
+            // Dock label per step kind.
+            const dockBtn = document.getElementById('rlc-submit-btn');
+            if (dockBtn && typeof RT === 'function') {
+                dockBtn.textContent = RT('rlc.dock.submit');
+                dockBtn.disabled = true;
+            }
+
+            try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
+        }
+
+        function rlcRenderDecisionStep(step) {
+            const host = document.getElementById('rlc-step-' + (rlcState.stepIndex + 1));
+            if (!host) return;
+            const optsHost = host.querySelector('[data-rlc-options]');
+            if (!optsHost) return;
+            optsHost.innerHTML = '';
+            const opts = Array.isArray(step.options) ? step.options : [];
+            opts.forEach(function (opt) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'rlc-option';
+                btn.setAttribute('data-option-id', opt.id || '');
+                const labelDiv = document.createElement('div');
+                labelDiv.textContent = opt.label || '';
+                btn.appendChild(labelDiv);
+                // Info-request cost row (time / budget / access).
+                if (step.kind === 'info_request' && opt.info_cost && typeof opt.info_cost === 'object') {
+                    const row = document.createElement('div');
+                    row.className = 'rlc-option-cost';
+                    Object.keys(opt.info_cost).forEach(function (k) {
+                        const pill = document.createElement('span');
+                        pill.className = 'rlc-cost-pill';
+                        pill.textContent = k + ': ' + opt.info_cost[k];
+                        row.appendChild(pill);
+                    });
+                    btn.appendChild(row);
+                }
+                btn.addEventListener('click', function () { rlcSelectOption(opt.id, btn); });
+                optsHost.appendChild(btn);
+            });
+        }
+
+        function rlcRenderConceptStep(step) {
+            const host = document.getElementById('rlc-step-' + (rlcState.stepIndex + 1));
+            if (!host) return;
+            const chipsHost = host.querySelector('[data-rlc-chips]');
+            if (!chipsHost) return;
+            chipsHost.innerHTML = '';
+            const chips = Array.isArray(step.concept_chips) ? step.concept_chips : [];
+            chips.forEach(function (chip) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'rlc-chip';
+                btn.setAttribute('data-chip-id', chip.id || '');
+                btn.textContent = chip.label || '';
+                btn.addEventListener('click', function () { rlcSelectChip(chip.id, btn); });
+                chipsHost.appendChild(btn);
+            });
+        }
+
+        function rlcRenderReasoningStep(step) {
+            const ta = document.getElementById('rlc-reasoning-textarea');
+            const cc = document.getElementById('rlc-reasoning-charcount');
+            if (ta) {
+                ta.value = "";
+                ta.placeholder = (typeof RT === 'function')
+                    ? RT('rlc.placeholder.reasoning')
+                    : (step.placeholder || '');
+                if (!ta._rlcWired) {
+                    ta.addEventListener('input', rlcOnReasoningInput);
+                    ta._rlcWired = true;
+                }
+                ta._rlcMinChars = (typeof step.min_chars === 'number' && step.min_chars > 0)
+                    ? step.min_chars : 80;
+            }
+            if (cc) cc.textContent = '0/' + (ta ? ta._rlcMinChars : 80);
+        }
+
+        function rlcSelectOption(optionId, el) {
+            if (rlcState.busy) return;
+            const host = document.getElementById('rlc-step-' + (rlcState.stepIndex + 1));
+            if (!host) return;
+            host.querySelectorAll('.rlc-option').forEach(function (b) { b.classList.remove('selected'); });
+            if (el) el.classList.add('selected');
+            rlcState.selectedOptionId = optionId;
+            const dockBtn = document.getElementById('rlc-submit-btn');
+            if (dockBtn) dockBtn.disabled = false;
+        }
+
+        function rlcSelectChip(chipId, el) {
+            if (rlcState.busy) return;
+            const host = document.getElementById('rlc-step-' + (rlcState.stepIndex + 1));
+            if (!host) return;
+            host.querySelectorAll('.rlc-chip').forEach(function (b) { b.classList.remove('selected'); });
+            if (el) el.classList.add('selected');
+            rlcState.selectedChipId = chipId;
+            const dockBtn = document.getElementById('rlc-submit-btn');
+            if (dockBtn) dockBtn.disabled = false;
+        }
+
+        function rlcOnReasoningInput(e) {
+            const ta = e && e.target ? e.target : document.getElementById('rlc-reasoning-textarea');
+            if (!ta) return;
+            const val = ta.value || '';
+            rlcState.reasoningDraft = val;
+            const minChars = ta._rlcMinChars || 80;
+            const cc = document.getElementById('rlc-reasoning-charcount');
+            if (cc) cc.textContent = val.length + '/' + minChars;
+            const dockBtn = document.getElementById('rlc-submit-btn');
+            if (dockBtn) dockBtn.disabled = !(val.length >= minChars);
+        }
+
+        async function rlcHandleAction() {
+            if (rlcState.busy) return;
+            if (rlcState.complete) {
+                if (typeof setStage === 'function') {
+                    setStage(6.5);
+                }
+                return;
+            }
+            const step = (rlcState.case && rlcState.case.steps) ? rlcState.case.steps[rlcState.stepIndex] : null;
+            if (!step) return;
+
+            const payload = {};
+            if (step.kind === 'concept_select') {
+                if (!rlcState.selectedChipId) return;
+                payload.selected_chip_id = rlcState.selectedChipId;
+            } else if (step.kind === 'reasoning') {
+                if (!rlcState.reasoningDraft) return;
+                payload.reasoning_text = rlcState.reasoningDraft;
+            } else {
+                if (!rlcState.selectedOptionId) return;
+                payload.selected_option_id = rlcState.selectedOptionId;
+            }
+
+            rlcState.busy = true;
+            const dockBtn = document.getElementById('rlc-submit-btn');
+            if (dockBtn) dockBtn.disabled = true;
+
+            const resp = await rlcCheckStep(step.id, payload);
+            rlcHandleResponse(resp);
+        }
+
+        async function rlcCheckStep(stepId, payload) {
+            // Single network swap point. Reads ctx.hwId FIRST per TM #140 lesson.
+            const ctx = window.NETS_CTX || {};
+            const homeworkId = ctx.hwId || ctx.homeworkId || null;
+            if (!homeworkId) {
+                console.warn('[rlcCheckStep] missing hwId; skipping check');
+                return null;
+            }
+            try {
+                const res = await fetch('/api/ai/check-answer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(Object.assign({
+                        homework_id: homeworkId,
+                        phase: 'real-life-challenge',
+                        step_id: stepId,
+                        session_id: rlcState.sessionId,
+                    }, payload)),
+                });
+                if (!res.ok) {
+                    console.error('[rlcCheckStep] HTTP ' + res.status);
+                    return null;
+                }
+                return await res.json();
+            } catch (err) {
+                console.error('[rlcCheckStep] network error', err);
+                return null;
+            }
+        }
+
+        function rlcHandleResponse(resp) {
+            if (!resp) {
+                rlcState.busy = false;
+                rlcShowToast((typeof RT === 'function') ? RT('rlc.toast.wrong') : 'Try again', 'wrong');
+                const dockBtn = document.getElementById('rlc-submit-btn');
+                if (dockBtn) dockBtn.disabled = false;
+                return;
+            }
+
+            // Accumulate rubric from server-authoritative xp deltas.
+            if (resp.xp && typeof resp.xp === 'object') {
+                if (typeof resp.xp.decision_quality === 'number') {
+                    rlcState.rubric.decision_quality += resp.xp.decision_quality;
+                }
+                if (typeof resp.xp.reasoning_quality === 'number') {
+                    rlcState.rubric.reasoning_quality += resp.xp.reasoning_quality;
+                }
+                if (typeof resp.xp.concept_id === 'number') {
+                    rlcState.rubric.concept_id += resp.xp.concept_id;
+                }
+            }
+            rlcUpdateXpPill();
+
+            const stepKind = resp.kind || (rlcState.case && rlcState.case.steps[rlcState.stepIndex] ?
+                rlcState.case.steps[rlcState.stepIndex].kind : '');
+            const stepId = resp.step_id || (rlcState.case && rlcState.case.steps[rlcState.stepIndex] ?
+                rlcState.case.steps[rlcState.stepIndex].id : '');
+            const isDecisionLike =
+                stepKind === 'decision' || stepKind === 'info_request' || stepKind === 'final_decision';
+
+            // Wrong decision: track attempts; on 2nd wrong, reveal correct option.
+            if (isDecisionLike && resp.correct === false) {
+                rlcState.attemptsByStep[stepId] = (rlcState.attemptsByStep[stepId] || 0) + 1;
+
+                // Render consequence under options if returned.
+                const host = document.getElementById('rlc-step-' + (rlcState.stepIndex + 1));
+                if (host && resp.consequence) {
+                    const consEl = host.querySelector('[data-rlc-consequence]');
+                    if (consEl) {
+                        const prefix = (typeof RT === 'function') ? RT('rlc.consequence_reveal') + ' ' : '';
+                        consEl.textContent = prefix + resp.consequence;
+                        consEl.hidden = false;
+                    }
+                }
+
+                if (rlcState.attemptsByStep[stepId] >= 2 && resp.correct_option_label) {
+                    // Pedagogical reveal — lock all options, mark the correct one, advance after delay.
+                    if (host) {
+                        const allBtns = host.querySelectorAll('.rlc-option');
+                        allBtns.forEach(function (b) {
+                            b.classList.add('locked');
+                            const labelEl = b.firstElementChild;
+                            const txt = labelEl ? labelEl.textContent : b.textContent;
+                            if ((txt || '').trim() === (resp.correct_option_label || '').trim()) {
+                                b.classList.remove('locked');
+                                b.classList.add('is-correct-revealed');
+                            }
+                        });
+                    }
+                    rlcShowToast((typeof RT === 'function') ? RT('rlc.toast.locked') : 'Locked', 'wrong');
+                    setTimeout(function () {
+                        rlcState.busy = false;
+                        if (typeof resp.step_index === 'number') {
+                            if (resp.complete === true) {
+                                rlcState.complete = true;
+                                rlcState.outcome = resp.outcome || null;
+                                rlcState.totalXp = resp.total_xp || 0;
+                                rlcRenderResult();
+                            } else {
+                                rlcRenderStep((resp.step_index || rlcState.stepIndex) + 1);
+                            }
+                        } else {
+                            rlcRenderStep(rlcState.stepIndex + 1);
+                        }
+                    }, 1500);
+                    return;
+                }
+
+                // First wrong attempt — let student retry.
+                rlcShowToast((typeof RT === 'function') ? RT('rlc.toast.try_again') : 'Try again', 'wrong');
+                rlcState.busy = false;
+                const dockBtn = document.getElementById('rlc-submit-btn');
+                if (dockBtn) dockBtn.disabled = false;
+                return;
+            }
+
+            // Correct decision / concept / reasoning response.
+            rlcState.stepResults.push(resp);
+            rlcShowToast((typeof RT === 'function') ? RT('rlc.toast.correct') : 'Nice', 'correct');
+
+            if (resp.complete === true) {
+                rlcState.busy = false;
+                rlcState.complete = true;
+                rlcState.outcome = resp.outcome || null;
+                rlcState.totalXp = resp.total_xp || 0;
+                if (resp.rubric_breakdown && typeof resp.rubric_breakdown === 'object') {
+                    rlcState.rubric.decision_quality = resp.rubric_breakdown.decision_quality || rlcState.rubric.decision_quality;
+                    rlcState.rubric.reasoning_quality = resp.rubric_breakdown.reasoning_quality || rlcState.rubric.reasoning_quality;
+                    rlcState.rubric.concept_id = resp.rubric_breakdown.concept_id || rlcState.rubric.concept_id;
+                }
+                rlcRenderResult();
+                return;
+            }
+
+            // Advance to next step.
+            const nextIdx = (typeof resp.step_index === 'number') ? resp.step_index + 1 : rlcState.stepIndex + 1;
+            setTimeout(function () {
+                rlcState.busy = false;
+                rlcRenderStep(nextIdx);
+            }, 350);
+        }
+
+        function rlcRenderResult() {
+            const card = document.getElementById('rlc-result-card');
+            const titleEl = document.getElementById('rlc-result-title');
+            const dec = document.getElementById('rlc-rubric-decision');
+            const reas = document.getElementById('rlc-rubric-reasoning');
+            const conc = document.getElementById('rlc-rubric-concept');
+            const bonusRow = document.getElementById('rlc-rubric-bonus-row');
+            const bonus = document.getElementById('rlc-rubric-bonus');
+            const total = document.getElementById('rlc-rubric-total');
+
+            if (titleEl) {
+                const key = 'rlc.outcome.' + (rlcState.outcome || 'passing');
+                titleEl.textContent = (typeof RT === 'function') ? RT(key) : (rlcState.outcome || '');
+            }
+            if (dec) dec.textContent = String(rlcState.rubric.decision_quality || 0);
+            if (reas) reas.textContent = String(rlcState.rubric.reasoning_quality || 0);
+            if (conc) conc.textContent = String(rlcState.rubric.concept_id || 0);
+
+            const lastResp = rlcState.stepResults[rlcState.stepResults.length - 1] || {};
+            const bonusXp = (lastResp.completion_bonus_xp || 0);
+            if (bonus) bonus.textContent = String(bonusXp);
+            if (bonusRow) bonusRow.hidden = !(bonusXp > 0);
+
+            if (total) total.textContent = String(rlcState.totalXp || 0);
+
+            if (card) card.classList.add('show');
+
+            if (typeof completePhase === 'function') completePhase('realLife');
+
+            if (window.__sessionLog) {
+                try {
+                    window.__sessionLog.push({
+                        phase: 'real-life-challenge',
+                        id: (rlcState.case && rlcState.case.id) ? rlcState.case.id : 'rlc',
+                        outcome: rlcState.outcome,
+                        total_xp: rlcState.totalXp,
+                    });
+                } catch (e) { /* noop */ }
+            }
+
+            const dockBtn = document.getElementById('rlc-submit-btn');
+            if (dockBtn && typeof RT === 'function') {
+                dockBtn.textContent = RT('rlc.dock.finish');
+                dockBtn.disabled = false;
+            }
+        }
+
+        function rlcShowToast(msg, kind) {
+            const el = document.getElementById('rlc-toast');
+            if (!el) return;
+            if (rlcState._toastTimer) {
+                clearTimeout(rlcState._toastTimer);
+                rlcState._toastTimer = null;
+            }
+            el.textContent = msg || '';
+            el.classList.remove('show');
+            void el.offsetWidth;
+            if (kind) el.setAttribute('data-kind', kind);
+            el.classList.add('show');
+            const t = setTimeout(function () {
+                el.classList.remove('show');
+                rlcState._toastTimer = null;
+            }, 1800);
+            rlcState._toastTimer = t;
+        }
+
+        function rlcUpdateXpPill() {
+            const pill = document.getElementById('rlc-xp-pill');
+            if (!pill) return;
+            const r = rlcState.rubric || {};
+            const cum = (r.decision_quality || 0) + (r.reasoning_quality || 0) + (r.concept_id || 0);
+            pill.textContent = cum + ' XP';
+        }
+
         function gbInitPL() {
             const pl = gbState.pl;
             const tileCount = Array.isArray(GB_PUZZLE_LOCK) ? GB_PUZZLE_LOCK.length : 0;
@@ -12119,7 +13362,9 @@
                 if (s5) { s5.classList.remove('active'); s5.style.opacity = ''; s5.style.transition = ''; }
                 setStage(6);
                 state.isAnimating = false;
-                if (typeof startStage6 === 'function') {
+                if (RLC_CASE && typeof startRLCStage6 === 'function') {
+                    startRLCStage6();
+                } else if (typeof startStage6 === 'function') {
                     startStage6();
                 } else {
                     const app = document.getElementById('app');
