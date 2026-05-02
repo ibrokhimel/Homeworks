@@ -48,6 +48,14 @@ class CheckAnswerRequest(BaseModel):
     right_id: Optional[str] = None
     session_id: Optional[str] = None
 
+    # Real-Life Challenge phase fields (only used when phase == "real-life-challenge").
+    # Per RLC plan §3b — one of selected_option_id / selected_chip_id /
+    # reasoning_text is populated depending on the step's `kind`.
+    step_id: Optional[str] = None
+    selected_option_id: Optional[str] = None
+    selected_chip_id: Optional[str] = None
+    reasoning_text: Optional[str] = None
+
 
 class FinalizeCheckAnswerRequest(BaseModel):
     phase: str
@@ -110,6 +118,7 @@ SUBPHASE_ALLOWLIST: frozenset[str] = frozenset({
     "mystery-box",
     "puzzle-lock",
     "real-life",
+    "real-life-challenge",
     "consolidation",
     "final-boss",
     "reflection",
@@ -701,6 +710,433 @@ async def _check_answer_tile_match(req: CheckAnswerRequest) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Real-Life Challenge — phase=real-life-challenge check-answer branch (Chunk B).
+#
+# Per RLC plan §3 — 5-step expert role-play case. Per-step grading at this
+# endpoint; AI grader fires only on step 5 (reasoning textarea).
+#
+# In-memory attempt tracker (parallel to _SF_ATTEMPTS / _TM_ATTEMPTS pattern).
+# Keyed by (homework_id, session_id). Survives until process restart.
+#
+# Per-session value:
+# {
+#   "step_outcomes": dict[str, str],   # step_id -> "correct"|"wrong"
+#   "step_xp": dict[str, int],         # step_id -> earned XP for that step
+#   "rubric": {                        # running 300-XP rubric (un-multiplied)
+#       "decision_quality": int,       # max 150
+#       "reasoning_quality": int,      # max 100
+#       "concept_id": int,             # max 50
+#   },
+#   "wrong_attempts": dict[str, int],  # step_id -> wrong-attempt count (decision-kind only)
+#   "started_at": datetime,
+#   "completed_at": Optional[datetime],
+#   "tier": "basic" | "premium",
+#   "grade_band": str,
+# }
+# ---------------------------------------------------------------------------
+_RLC_ATTEMPTS: dict[tuple[str, str], dict[str, Any]] = {}
+
+
+def _rlc_per_step_xp_cap(step_kind: str) -> int:
+    """Per-step XP cap, per RLC plan §3d.
+
+    decision/info_request/final_decision → 50 each (decision_quality 150 split / 3)
+    concept_select → 50 (concept_id)
+    reasoning → 100 (reasoning_quality, AI-graded 1:1 from 0-100)
+    """
+    if step_kind in ("decision", "info_request", "final_decision"):
+        return 50
+    if step_kind == "concept_select":
+        return 50
+    if step_kind == "reasoning":
+        return 100
+    return 0
+
+
+def _rlc_outcome_for(rubric: dict[str, int]) -> tuple[str, int, float]:
+    """Compute outcome tier + completion bonus + multiplier — per RLC plan §3e.
+
+    Returns (outcome_label, completion_bonus_xp, multiplier).
+      90-100% → ("expert_decision", 50, 1.0)
+      75-89%  → ("strong_analysis", 0, 1.0)
+      60-74%  → ("passing", 0, 0.8)
+      <60%    → ("hali_emas", 0, 0.4)
+    """
+    total = (
+        int(rubric.get("decision_quality", 0))
+        + int(rubric.get("reasoning_quality", 0))
+        + int(rubric.get("concept_id", 0))
+    )
+    pct = (total / 300) * 100
+    if pct >= 90:
+        return ("expert_decision", 50, 1.0)
+    if pct >= 75:
+        return ("strong_analysis", 0, 1.0)
+    if pct >= 60:
+        return ("passing", 0, 0.8)
+    return ("hali_emas", 0, 0.4)
+
+
+async def _grade_rlc_reasoning(
+    text: str,
+    step: dict,
+    case_intro: str,
+    expert_role: str,
+) -> tuple[int, str]:
+    """Grade reasoning step via the LLM. Returns (score 0-100, feedback string).
+
+    Loads the `real-life-challenge-grader` runtime prompt and calls the same
+    `gemini.generate_json` adapter used by `tutor.check_answer`. Anchors the
+    LLM on step.acceptable_keywords (server-only) + case intro context. The
+    min-char gate is enforced BEFORE this is called (cheap reject).
+
+    The student's score is mapped 1:1 onto `xp.reasoning_quality` (0-100).
+    Tests mock this function directly — they do not exercise gemini.
+    """
+    # Local imports keep the module load light when the RLC branch is unused.
+    from ..services.tutor import _load_runtime_prompt
+    import json as _json
+
+    prompt = _load_runtime_prompt("real-life-challenge-grader")
+    payload = {
+        "expert_role": expert_role or "general",
+        "case_intro": case_intro or "",
+        "step_prompt": step.get("prompt", "") if isinstance(step, dict) else "",
+        "student_text": text or "",
+        # Server-only anchor — never echoed back to client; prompt instructs
+        # the LLM to use these as a check, not to quote them.
+        "acceptable_keywords": (
+            step.get("acceptable_keywords") or []
+            if isinstance(step, dict) else []
+        ),
+    }
+    schema = {
+        "score": "integer 0..100",
+        "feedback": "1-2 sentence string in the case's language",
+    }
+    ai_response = await gemini.generate_json(
+        f"{prompt}\n\n---\n\nINPUT:\n{_json.dumps(payload, ensure_ascii=False, indent=2)}",
+        schema_hint=schema,
+        model=gemini.FAST_MODEL,
+    )
+    # Defensive parse — clamp to [0, 100], coerce to int.
+    raw_score = ai_response.get("score", 0)
+    try:
+        score = int(round(float(raw_score)))
+    except (TypeError, ValueError):
+        score = 0
+    score = max(0, min(100, score))
+    feedback = str(ai_response.get("feedback") or "")
+    return (score, feedback)
+
+
+def _resolve_rlc_case(content_json: dict) -> Optional[dict]:
+    """Locate the RLC case dict on a homework's content_json.
+
+    Returns the raw dict (server-only fields like is_correct + consequence +
+    acceptable_keywords are STILL present here — that's the whole point of the
+    side-disjoint injection: stripping happens only at the injector boundary,
+    so the endpoint can read the truth.). Returns None if missing/invalid.
+    """
+    if not isinstance(content_json, dict):
+        return None
+    case = content_json.get("real_life_challenge")
+    if not isinstance(case, dict):
+        return None
+    if not case.get("steps"):
+        return None
+    return case
+
+
+def _rlc_find_step(case: dict, step_id: str) -> Optional[dict]:
+    """Find a step by id within a case dict."""
+    if not isinstance(case, dict):
+        return None
+    for s in case.get("steps") or []:
+        if isinstance(s, dict) and s.get("id") == step_id:
+            return s
+    return None
+
+
+async def _check_answer_real_life_challenge(req: CheckAnswerRequest) -> dict:
+    """Per-step grading branch for Real-Life Challenge.
+
+    See REAL_LIFE_CHALLENGE_BACKEND_PLAN.md §3.
+
+    No-leak invariants:
+      - Response NEVER includes `is_correct` flags from other options.
+      - Response NEVER includes `consequence` text from any option except
+        the one the student picked (and only when wrong, as pedagogical reveal).
+        Per plan §3c, only on step 5 (reasoning) does the response carry feedback.
+      - Response NEVER echoes `acceptable_keywords` from any step.
+      - On a correct decision, the response is bare {correct: true, xp: ...} —
+        no consequence leak from the wrong options.
+    """
+    if not req.homework_id:
+        raise HTTPException(400, detail={
+            "error": "homework_id required for phase=real-life-challenge",
+            "code": "RLC_MISSING_HW",
+        })
+    if not req.step_id:
+        raise HTTPException(400, detail={
+            "error": "step_id required for phase=real-life-challenge",
+            "code": "RLC_MISSING_STEP_ID",
+        })
+
+    hw = await db.get_homework(req.homework_id)
+    if hw is None:
+        raise HTTPException(404, detail={
+            "error": f"homework {req.homework_id} not found",
+            "code": "HW_NOT_FOUND",
+        })
+    content = hw.get("content_json") or {}
+    case = _resolve_rlc_case(content)
+    if case is None:
+        raise HTTPException(404, detail={
+            "error": "real-life-challenge content not found on this homework",
+            "code": "RLC_NO_CONTENT",
+        })
+
+    step = _rlc_find_step(case, req.step_id)
+    if step is None:
+        raise HTTPException(404, detail={
+            "error": f"step {req.step_id} not found in this RLC case",
+            "code": "RLC_STEP_NOT_FOUND",
+        })
+
+    # Get-or-create per-session state.
+    session_id = req.session_id or "default"
+    state_key = (req.homework_id, session_id)
+    state = _RLC_ATTEMPTS.get(state_key)
+    if state is None:
+        from datetime import datetime, timezone
+        state = {
+            "step_outcomes": {},
+            "step_xp": {},
+            "rubric": {
+                "decision_quality": 0,
+                "reasoning_quality": 0,
+                "concept_id": 0,
+            },
+            "wrong_attempts": {},
+            "started_at": datetime.now(timezone.utc),
+            "completed_at": None,
+            "tier": case.get("tier", "basic"),
+            "grade_band": case.get("grade_band", "g7_9"),
+        }
+        _RLC_ATTEMPTS[state_key] = state
+
+    kind = step.get("kind")
+    steps_list = case.get("steps") or []
+    step_index = next(
+        (i for i, s in enumerate(steps_list)
+         if isinstance(s, dict) and s.get("id") == req.step_id),
+        0,
+    )
+    total_steps = len(steps_list)
+
+    # Per-step XP earned (this submission only, un-multiplied).
+    xp_decision_quality = 0
+    xp_reasoning_quality = 0
+    xp_concept_id = 0
+    is_correct = False
+    consequence_text: Optional[str] = None
+    correct_option_label: Optional[str] = None
+    reasoning_score: Optional[int] = None
+    reasoning_feedback: Optional[str] = None
+
+    # ---- Dispatch by step kind ----------------------------------------------
+    if kind in ("decision", "info_request", "final_decision"):
+        # Decision-style steps: match selected_option_id against options[].is_correct.
+        if not req.selected_option_id:
+            raise HTTPException(400, detail={
+                "error": (
+                    f"selected_option_id required for step kind={kind!r} "
+                    f"(step={req.step_id})"
+                ),
+                "code": "RLC_MISSING_OPTION_ID",
+            })
+        options = step.get("options") or []
+        picked = None
+        correct_opt = None
+        for opt in options:
+            if not isinstance(opt, dict):
+                continue
+            if opt.get("id") == req.selected_option_id:
+                picked = opt
+            if opt.get("is_correct"):
+                correct_opt = opt
+        if picked is None:
+            raise HTTPException(400, detail={
+                "error": (
+                    f"selected_option_id {req.selected_option_id!r} not found "
+                    f"in step {req.step_id} options"
+                ),
+                "code": "RLC_BAD_OPTION_ID",
+            })
+
+        is_correct = bool(picked.get("is_correct"))
+        if is_correct:
+            xp_decision_quality = _rlc_per_step_xp_cap(kind)
+            state["step_outcomes"][req.step_id] = "correct"
+            # Reset wrong counter on correct (defensive — should be 0 already).
+        else:
+            # Track wrong attempts for the pedagogical-reveal policy.
+            wrong_n = state["wrong_attempts"].get(req.step_id, 0) + 1
+            state["wrong_attempts"][req.step_id] = wrong_n
+            state["step_outcomes"][req.step_id] = "wrong"
+            # After 2 wrongs on the same step, reveal the correct option's
+            # label as a pedagogical assist (xp still 0).
+            if wrong_n >= 2 and correct_opt is not None:
+                correct_option_label = correct_opt.get("label")
+
+        # Per plan §3c — surface the picked option's `consequence` text ONLY
+        # on a wrong decision (pedagogical hint about the path NOT taken).
+        # On a correct pick, the response stays bare to avoid leaking any
+        # consequence text the student didn't earn yet.
+        if (not is_correct) and isinstance(picked.get("consequence"), str) and picked.get("consequence"):
+            consequence_text = picked.get("consequence")
+
+    elif kind == "concept_select":
+        if not req.selected_chip_id:
+            raise HTTPException(400, detail={
+                "error": (
+                    f"selected_chip_id required for step kind=concept_select "
+                    f"(step={req.step_id})"
+                ),
+                "code": "RLC_MISSING_CHIP_ID",
+            })
+        chips = step.get("concept_chips") or []
+        picked = None
+        for chip in chips:
+            if isinstance(chip, dict) and chip.get("id") == req.selected_chip_id:
+                picked = chip
+                break
+        if picked is None:
+            raise HTTPException(400, detail={
+                "error": (
+                    f"selected_chip_id {req.selected_chip_id!r} not found "
+                    f"in step {req.step_id} concept_chips"
+                ),
+                "code": "RLC_BAD_CHIP_ID",
+            })
+        is_correct = bool(picked.get("is_correct"))
+        if is_correct:
+            xp_concept_id = _rlc_per_step_xp_cap(kind)
+            state["step_outcomes"][req.step_id] = "correct"
+        else:
+            state["step_outcomes"][req.step_id] = "wrong"
+
+    elif kind == "reasoning":
+        if req.reasoning_text is None:
+            raise HTTPException(400, detail={
+                "error": (
+                    f"reasoning_text required for step kind=reasoning "
+                    f"(step={req.step_id})"
+                ),
+                "code": "RLC_MISSING_REASONING_TEXT",
+            })
+        text = (req.reasoning_text or "").strip()
+        min_chars = step.get("min_chars") or 80
+        if len(text) < int(min_chars):
+            raise HTTPException(400, detail={
+                "error": (
+                    f"reasoning_text below min_chars={min_chars} "
+                    f"(got {len(text)} chars)"
+                ),
+                "code": "RLC_REASONING_TOO_SHORT",
+                "min_chars": int(min_chars),
+            })
+        score, feedback = await _grade_rlc_reasoning(
+            text,
+            step,
+            case_intro=case.get("intro", ""),
+            expert_role=case.get("expert_role", "general"),
+        )
+        reasoning_score = int(score)
+        reasoning_feedback = feedback
+        # 1:1 map to XP per plan §3d.
+        xp_reasoning_quality = int(score)
+        # Reasoning is single-attempt — mark step outcome as correct if score
+        # is meaningful (>0) for tracking; the rubric percent decides outcome.
+        state["step_outcomes"][req.step_id] = (
+            "correct" if score > 0 else "wrong"
+        )
+        is_correct = score > 0  # advisory; outcome tier decides final tier
+
+    else:
+        raise HTTPException(400, detail={
+            "error": f"unsupported step kind {kind!r} for step {req.step_id}",
+            "code": "RLC_BAD_STEP_KIND",
+        })
+
+    # ---- Update rubric + step_xp -------------------------------------------
+    step_total_xp = xp_decision_quality + xp_concept_id + xp_reasoning_quality
+    state["step_xp"][req.step_id] = step_total_xp
+    state["rubric"]["decision_quality"] = (
+        state["rubric"].get("decision_quality", 0) + xp_decision_quality
+    )
+    state["rubric"]["concept_id"] = (
+        state["rubric"].get("concept_id", 0) + xp_concept_id
+    )
+    state["rubric"]["reasoning_quality"] = (
+        state["rubric"].get("reasoning_quality", 0) + xp_reasoning_quality
+    )
+
+    # ---- Completion + outcome ----------------------------------------------
+    complete = (kind == "reasoning")
+    outcome: Optional[str] = None
+    completion_bonus_xp = 0
+    multiplier = 1.0
+    rubric_breakdown: Optional[dict] = None
+    total_xp_field: Optional[int] = None
+
+    if complete:
+        from datetime import datetime, timezone
+        state["completed_at"] = datetime.now(timezone.utc)
+        outcome, completion_bonus_xp, multiplier = _rlc_outcome_for(state["rubric"])
+        un_multiplied_total = (
+            state["rubric"]["decision_quality"]
+            + state["rubric"]["reasoning_quality"]
+            + state["rubric"]["concept_id"]
+            + completion_bonus_xp
+        )
+        total_xp_field = int(round(un_multiplied_total * multiplier))
+        rubric_breakdown = {
+            "decision_quality": int(state["rubric"]["decision_quality"]),
+            "reasoning_quality": int(state["rubric"]["reasoning_quality"]),
+            "concept_id": int(state["rubric"]["concept_id"]),
+            "bonus": int(completion_bonus_xp),
+            "multiplier": multiplier,
+            "total": int(total_xp_field),
+        }
+
+    response: dict[str, Any] = {
+        "step_id": req.step_id,
+        "kind": kind,
+        "correct": bool(is_correct),
+        "consequence": consequence_text,
+        "correct_option_label": correct_option_label,
+        "reasoning_score": reasoning_score,
+        "reasoning_feedback": reasoning_feedback,
+        "xp": {
+            "decision_quality": int(xp_decision_quality),
+            "reasoning_quality": int(xp_reasoning_quality),
+            "concept_id": int(xp_concept_id),
+            "step_total": int(step_total_xp),
+        },
+        "step_index": int(step_index),
+        "total_steps": int(total_steps),
+        "complete": bool(complete),
+        "outcome": outcome,
+        "completion_bonus_xp": int(completion_bonus_xp),
+        "total_xp": total_xp_field,
+        "rubric_breakdown": rubric_breakdown,
+    }
+    return response
+
+
 @router.post("/ai/check-answer")
 async def check_answer(req: CheckAnswerRequest):
     # Phase dispatch — the new sentence-fill grading branch is keyed on
@@ -725,6 +1161,18 @@ async def check_answer(req: CheckAnswerRequest):
     if req.phase == "tile-match" and req.homework_id:
         try:
             return await _check_answer_tile_match(req)
+        except HTTPException:
+            raise
+        except Exception as e:
+            _handle_exc(e)
+
+    # Real-Life Challenge per-step grading branch — same back-compat gate.
+    # Legacy callers using phase="real-life-challenge" without a homework_id
+    # (none currently exist, but mirror the SF/TM pattern for forward-compat)
+    # fall through to tutor.check_answer below.
+    if req.phase == "real-life-challenge" and req.homework_id:
+        try:
+            return await _check_answer_real_life_challenge(req)
         except HTTPException:
             raise
         except Exception as e:

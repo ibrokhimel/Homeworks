@@ -375,6 +375,147 @@ class GateQuote(_Permissive):
 
 
 # --------------------------------------------------------------------------- #
+# Phase 3 (new) — Real-Life Challenge (RLC).                                  #
+# Split-and-coexist with legacy `real_life`. New mechanic: 5-step expert      #
+# role-play decision case. Legacy `real_life` field is kept unchanged.        #
+# --------------------------------------------------------------------------- #
+
+ExpertRole = Literal[
+    "fire_inspector", "structural_engineer", "business_consultant",
+    "medical_diagnostician", "agronomist", "teacher", "lawyer",
+    "city_planner", "epidemiologist", "ethicist", "historian", "general"
+]
+
+PisaLevel = Literal["L1", "L2", "L3", "L4", "L5", "L6"]
+
+
+class RLCDecisionOption(BaseModel):
+    """A single MC option on a decision step."""
+    model_config = ConfigDict(extra="allow")
+    id: str                            # stable per-option id, e.g., "a", "b", "c"
+    label: str                         # student-visible text, ≤200 chars
+    is_correct: bool = False           # SERVER-ONLY — stripped from injector
+    consequence: Optional[str] = None  # SERVER-ONLY — shown only after wrong/correct via endpoint response
+    info_cost: Optional[Dict[str, str]] = None  # for info-request steps; {time?, budget?, access?}
+
+
+class RLCConceptChip(BaseModel):
+    """A concept chip for the concept-select step."""
+    model_config = ConfigDict(extra="allow")
+    id: str
+    label: str
+    is_correct: bool = False           # SERVER-ONLY
+
+
+class RLCStep(BaseModel):
+    """One of the 5 steps in the case flow."""
+    model_config = ConfigDict(extra="allow")
+    id: str                                              # "step1" .. "step5"
+    kind: Literal["decision", "info_request", "final_decision",
+                  "concept_select", "reasoning"]
+    title: str                                           # e.g., "1-bosqich. Vaziyatni baholash"
+    prompt: str                                          # student-visible (HTML allowed; sanitized)
+    options: Optional[List[RLCDecisionOption]] = None    # for decision/info_request/final_decision
+    concept_chips: Optional[List[RLCConceptChip]] = None  # for concept_select
+    placeholder: Optional[str] = None                   # for reasoning step
+    min_chars: Optional[int] = None                     # for reasoning step (default 80)
+    acceptable_keywords: Optional[List[str]] = None     # SERVER-ONLY — for reasoning AI grading anchor
+
+
+class RLCStakeholder(BaseModel):
+    """Character in the case (deferred runtime visual; schema-ready)."""
+    model_config = ConfigDict(extra="allow")
+    id: str
+    name: str
+    role: str                           # "Bozor sotuvchisi", "Mahalla raisi", etc.
+    avatar_emoji: Optional[str] = None  # for v1; image URL fields are future
+
+
+class RLCConsequence(BaseModel):
+    """Post-decision ripple node (deferred runtime visual; schema-ready)."""
+    model_config = ConfigDict(extra="allow")
+    label: str                         # "Oilani himoya qildi" / "Qo'shni do'konlarga zarar"
+    impact: Literal["positive", "negative", "neutral"]
+    weight: Optional[int] = None       # 1-5 ripple-distance
+
+
+class RealLifeChallengeCase(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: str                                      # stable case id, e.g., "rlc_001"
+    expert_role: ExpertRole
+    title: str                                   # case title, ≤200 chars
+    intro: str                                   # 1-3 sentence scenario hook
+    pisa_level: PisaLevel = "L4"
+    tier: Literal["basic", "premium"] = "basic"
+    grade_band: Literal["g1_3", "g4_6", "g7_9", "g10_11"] = "g7_9"
+    variant: Literal["standard", "creative_thinking"] = "standard"
+
+    # Required: exactly 5 steps in spec order
+    steps: List[RLCStep]                         # length == 5
+
+    # Optional: schema-ready forward-compat
+    stakeholders: Optional[List[RLCStakeholder]] = None
+    consequences: Optional[List[RLCConsequence]] = None
+    branch_rules: Optional[List[Dict]] = None              # deferred L5 narrative branching
+    apprentice_scaffold_hints: Optional[List[str]] = None  # deferred Apprentice Mode
+    memory_palace_location: Optional[str] = None           # deferred Memory Palace
+
+    @model_validator(mode="after")
+    def _validate_structure(self):
+        if len(self.steps) != 5:
+            raise ValueError("RLC case must have exactly 5 steps per spec §1")
+
+        expected_order = ["decision", "info_request", "final_decision",
+                          "concept_select", "reasoning"]
+        actual_order = [s.kind for s in self.steps]
+        if actual_order != expected_order:
+            raise ValueError(
+                f"RLC step order must be {expected_order}; got {actual_order}"
+            )
+
+        # Correctness invariants per step
+        decision_steps = [s for s in self.steps if s.kind in
+                          ("decision", "info_request", "final_decision")]
+        for s in decision_steps:
+            if not s.options or len(s.options) < 2:
+                raise ValueError(f"Step {s.id} ({s.kind}) must have ≥2 options")
+            correct_count = sum(1 for o in s.options if o.is_correct)
+            if correct_count != 1:
+                raise ValueError(
+                    f"Step {s.id} must have exactly 1 correct option "
+                    f"(found {correct_count})"
+                )
+
+        # Concept select: exactly 1 correct chip
+        concept_step = next((s for s in self.steps if s.kind == "concept_select"), None)
+        if concept_step:
+            if not concept_step.concept_chips or len(concept_step.concept_chips) < 3:
+                raise ValueError("concept_select step must have ≥3 chips")
+            correct_chips = sum(1 for c in concept_step.concept_chips if c.is_correct)
+            if correct_chips != 1:
+                raise ValueError(
+                    f"concept_select must have exactly 1 correct chip (found {correct_chips})"
+                )
+
+        # Reasoning: min_chars sane
+        reasoning = next((s for s in self.steps if s.kind == "reasoning"), None)
+        if reasoning:
+            if reasoning.min_chars is None:
+                reasoning.min_chars = 80
+            if reasoning.min_chars < 20 or reasoning.min_chars > 1000:
+                raise ValueError("reasoning min_chars must be in [20, 1000]")
+
+        # Tier gating
+        if self.variant == "creative_thinking" and self.tier != "premium":
+            raise ValueError("creative_thinking variant is premium-only per spec §2")
+        if self.memory_palace_location is not None and self.tier != "premium":
+            raise ValueError("memory_palace_location is premium-only per spec §3")
+
+        return self
+
+
+# --------------------------------------------------------------------------- #
 # Top-level — every phase optional so partial homeworks still validate.
 # --------------------------------------------------------------------------- #
 
@@ -398,8 +539,10 @@ class ContentJSON(_Permissive):
     flashcards: Optional[List[FlashcardItem]] = None
     # Phase 2
     memory_sprint: Optional[List[MemorySprintItem]] = None
-    # Phase 3
+    # Phase 3 — legacy scenario (untouched; all existing rows use this)
     real_life: Optional[RealLifePhase] = None
+    # Phase 3 (new) — Real-Life Challenge (5-step expert role-play decision case)
+    real_life_challenge: Optional[RealLifeChallengeCase] = None
     # Phase 4
     reading: Optional[ReadingPhase] = None
     # Phase 5
@@ -443,4 +586,15 @@ class ContentJSON(_Permissive):
             raise ValueError(
                 f"gb_tile_match: at most one is_palace_tile=True per board (got {palace_count})"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_rlc_coexistence(self):
+        """Both real_life (legacy) and real_life_challenge (new) may coexist
+        on the same row — the runtime decides which to mount based on which
+        global is non-null (RLC_CASE vs RL_SCENARIO). No error raised.
+        This validator exists as a documented contract checkpoint.
+        """
+        # real_life_challenge structural validation is handled by
+        # RealLifeChallengeCase._validate_structure; nothing to cross-validate here.
         return self

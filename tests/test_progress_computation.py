@@ -214,6 +214,71 @@ def test_tile_match_alone_satisfies_game_breaks_section():
     assert compute_progress(hw) == 22
 
 
+def test_real_life_challenge_alone_satisfies_real_life_section():
+    """Regression for the cross-PR sweep on the real-life-challenge arc:
+    `_has_real_life()` must recognize new `real_life_challenge` content
+    (not only the legacy `real_life` field), otherwise a homework whose
+    only Stage-6 content is an RLC case has its progress meter
+    under-report (real_life section never marked complete).
+
+    Mirrors test_sentence_fill_alone_satisfies_game_breaks_section + #135."""
+    hw = {"status": "draft", "title": "T", "content_json": {
+        "real_life_challenge": {
+            "id": "rlc_001",
+            "expert_role": "fire_inspector",
+            "title": "Bozor xavfsizligi",
+            "intro": "Siz bozor xavfsizlik nazoratchisi sifatida...",
+            "tier": "basic",
+            "grade_band": "g7_9",
+            "pisa_level": "L4",
+            "variant": "standard",
+            "steps": [
+                {"id": "step1", "kind": "decision",
+                 "title": "1-bosqich",
+                 "prompt": "Qaysi qarorni qabul qilasiz?",
+                 "options": [
+                    {"id": "a", "label": "Stallni hozir yopish", "is_correct": True},
+                    {"id": "b", "label": "Hech narsa qilmaslik"},
+                 ]},
+                {"id": "step2", "kind": "info_request",
+                 "title": "2-bosqich",
+                 "prompt": "Qo'shimcha qaysi ma'lumotni so'raysiz?",
+                 "options": [
+                    {"id": "a", "label": "Chiqish yo'lining holati", "is_correct": True},
+                    {"id": "b", "label": "Stalldagi tovar narxi"},
+                 ]},
+                {"id": "step3", "kind": "final_decision",
+                 "title": "3-bosqich",
+                 "prompt": "Yakuniy qaror?",
+                 "options": [
+                    {"id": "a", "label": "Stallni darhol yopish + ogohlantirish", "is_correct": True},
+                    {"id": "b", "label": "Faqat ogohlantirish berish"},
+                 ]},
+                {"id": "step4", "kind": "concept_select",
+                 "title": "4-bosqich",
+                 "prompt": "Qaysi tushuncha eng muhim?",
+                 "concept_chips": [
+                    {"id": "c1", "label": "Risk baholash", "is_correct": True},
+                    {"id": "c2", "label": "Foyda hisobi"},
+                    {"id": "c3", "label": "Reklama strategiyasi"},
+                 ]},
+                {"id": "step5", "kind": "reasoning",
+                 "title": "5-bosqich",
+                 "prompt": "Qaroringizni asoslang",
+                 "min_chars": 80},
+            ],
+        },
+    }}
+    sections = filled_sections(hw)
+    assert "real_life" in sections, (
+        "real_life_challenge must satisfy the real_life section — "
+        "if this fails, _has_real_life() in server/services/progress.py "
+        "is not recognizing the new RLC content shape."
+    )
+    # Title + real_life = 2/9 → round(2/9 * 100) = 22
+    assert compute_progress(hw) == 22
+
+
 # ---------------------------------------------------------------------------
 # generating cap
 # ---------------------------------------------------------------------------

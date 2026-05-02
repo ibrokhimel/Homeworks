@@ -101,6 +101,74 @@ _TM_SERVER_ONLY = {"explanation"}
 # Fields the client should NEVER see for sentence-fill items.
 _SF_SERVER_ONLY = {"answers", "explanations"}
 
+# Fields the client should NEVER see for real-life-challenge items.
+# Stripped at every nesting level (options, concept_chips, steps).
+_RLC_SERVER_ONLY = {"is_correct", "consequence", "acceptable_keywords"}
+
+
+def _serialize_real_life_challenge(case) -> str:
+    """Build the client-side RLC_CASE JS global (side-disjoint, answer-leak prevention).
+
+    Strips from every nested level:
+      - options[].is_correct, options[].consequence  (decision answer keys)
+      - concept_chips[].is_correct                   (concept answer key)
+      - steps[].acceptable_keywords                  (AI grading anchor; server-only)
+
+    The client never sees which option is correct, which chip is correct, or what
+    keywords trigger reasoning credit. All grading goes through the
+    /api/ai/check-answer endpoint with phase=real-life-challenge.
+
+    Returns _safe_js_json output so </script> injection vectors are escaped.
+    """
+    if case is None:
+        return _safe_js_json(None)
+
+    # Normalise to dict — accept Pydantic model or raw dict from content_json.
+    if not isinstance(case, dict):
+        try:
+            case = case.model_dump()
+        except AttributeError:
+            try:
+                case = dict(case)
+            except Exception:
+                return _safe_js_json(None)
+
+    if not case:
+        return _safe_js_json(None)
+
+    # Deep-copy the top-level dict; we'll rebuild nested lists in place.
+    clean = {k: v for k, v in case.items()}
+
+    # Strip server-only fields from each step.
+    raw_steps = clean.get("steps") or []
+    clean_steps = []
+    for step in raw_steps:
+        if not isinstance(step, dict):
+            continue
+        # Strip acceptable_keywords from the step.
+        clean_step = {k: v for k, v in step.items() if k not in _RLC_SERVER_ONLY}
+
+        # Strip is_correct + consequence from each option within the step.
+        if clean_step.get("options"):
+            clean_step["options"] = [
+                {k: v for k, v in opt.items() if k not in _RLC_SERVER_ONLY}
+                for opt in clean_step["options"]
+                if isinstance(opt, dict)
+            ]
+
+        # Strip is_correct from each concept chip within the step.
+        if clean_step.get("concept_chips"):
+            clean_step["concept_chips"] = [
+                {k: v for k, v in chip.items() if k not in _RLC_SERVER_ONLY}
+                for chip in clean_step["concept_chips"]
+                if isinstance(chip, dict)
+            ]
+
+        clean_steps.append(clean_step)
+
+    clean["steps"] = clean_steps
+    return _safe_js_json(clean)
+
 
 def _serialize_sentence_fill(items: list) -> str:
     """Strip server-only fields from gb_sentence_fill items before JSON-encoding.
@@ -1064,6 +1132,15 @@ def inject(
         ),
     )
 
+    # Real-Life Challenge (new, split-and-coexist with legacy RL_SCENARIO).
+    # Side-disjoint serialization strips is_correct / consequence /
+    # acceptable_keywords — client never sees answer keys.
+    # NOTE: legacy RL_SCENARIO path above is UNTOUCHED; both globals coexist.
+    html = html.replace(
+        "__RLC_CASE__",
+        _serialize_real_life_challenge(content_json.get("real_life_challenge")),
+    )
+
     # Always inject the AI tutor runtime hook before </body>.
     ctx_json = _safe_js_json(runtime_context)
     runtime_snippet = (
@@ -1083,6 +1160,8 @@ def verify_template() -> dict:
             missing.append(const_name)
     if not re.search(r"const RL_SCENARIO\s*=\s*\{", _TEMPLATE):
         missing.append("RL_SCENARIO")
+    if "__RLC_CASE__" not in _TEMPLATE:
+        missing.append("RLC_CASE")
     for (_, const_name) in _OBJECT_CONSTANTS:
         if not re.search(rf"const {const_name}\s*=\s*\{{", _TEMPLATE):
             missing.append(const_name)
