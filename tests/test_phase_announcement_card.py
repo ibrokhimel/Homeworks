@@ -82,7 +82,7 @@ def test_each_sub_game_registry_entry_has_label_key():
     expected = [
         ("aq",  "game.aq"),
         ("wc",  "game.wc"),
-        ("mm",  "game.mm"),
+        ("tm",  "game.tm"),
         ("pl",  "game.pl"),
         ("mb",  "game.mb"),
         ("ttt", "game.ttt"),
@@ -213,7 +213,7 @@ def test_runtime_labels_carry_game_keys_in_all_three_locales():
     ru_block = TEMPLATE[ru_start:en_start]
     en_block = TEMPLATE[en_start:TEMPLATE.find("};", en_start)]
 
-    game_keys = ["game.aq", "game.wc", "game.mm", "game.pl", "game.mb", "game.ttt"]
+    game_keys = ["game.aq", "game.wc", "game.tm", "game.pl", "game.mb", "game.ttt"]
     for block_name, block in [("uz", uz_block), ("ru", ru_block), ("en", en_block)]:
         for key in game_keys:
             assert f"'{key}'" in block, (

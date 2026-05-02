@@ -2259,68 +2259,400 @@
             margin-bottom: 14px;
         }
         /* ── TILE MATCH (left ↔ right column matching) ── */
-        .gb-mm-instructions {
-            font-size: 13px;
-            color: var(--text-dim);
-            text-align: center;
+
+        /* Panel-level layout */
+        .gb-game-panel#gb-panel-tm {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 14px 14px calc(14px + var(--safe-bottom, 0px));
+        }
+
+        /* ── Topbar ── */
+        .gb-tm-topbar {
+            position: sticky;
+            top: 10px;
+            z-index: 20;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+        .gb-tm-dots {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .gb-tm-dots > span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(0, 102, 204, 0.18);
+            flex-shrink: 0;
+        }
+        .gb-tm-dots > span.gb-tm-dot-active {
+            width: 18px;
+            border-radius: 999px;
+            background: var(--accent);
+            box-shadow: 0 0 0 5px var(--accent-glow);
+        }
+        .gb-tm-top-pill {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            padding: 6px 11px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.24);
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.42);
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .02em;
+            white-space: nowrap;
+            color: var(--text);
+        }
+
+        /* ── Hero card ── */
+        .gb-tm-hero {
+            border-radius: 32px;
+            padding: 18px;
+            overflow: hidden;
+            position: relative;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+        .gb-tm-hero::after {
+            content: "";
+            position: absolute;
+            width: 210px;
+            height: 210px;
+            right: -82px;
+            bottom: -100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,102,204,.15), transparent 72%);
+            pointer-events: none;
+        }
+        .gb-tm-meta {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
             margin-bottom: 14px;
         }
+        .gb-tm-eyebrow {
+            color: var(--text-muted);
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+        .gb-tm-xp-pill {
+            color: var(--accent);
+            padding: 7px 9px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.23);
+            border: 1px solid rgba(255,255,255,.38);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.40);
+            white-space: nowrap;
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .02em;
+        }
+        .gb-tm-h1 {
+            position: relative;
+            z-index: 1;
+            margin: 0 0 8px;
+            font-size: clamp(20px, 5.7vw, 24px);
+            line-height: 1.18;
+            letter-spacing: -.02em;
+            font-weight: 590;
+            color: var(--text);
+        }
+        .gb-tm-subtitle {
+            position: relative;
+            z-index: 1;
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 12.8px;
+            line-height: 1.64;
+            font-weight: 400;
+        }
+
+        /* ── Stats row ── */
+        .gb-tm-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+        .gb-tm-stat {
+            border-radius: 20px;
+            padding: 12px;
+            background: linear-gradient(135deg, rgba(255,255,255,.28), rgba(255,255,255,.14));
+            border: 1px solid rgba(255,255,255,.38);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .gb-tm-stat-label {
+            display: block;
+            color: var(--text-muted);
+            font-size: 10.5px;
+            font-weight: 620;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: .035em;
+        }
+        .gb-tm-stat-value {
+            display: block;
+            font-size: 17px;
+            font-weight: 620;
+            letter-spacing: -.015em;
+            color: var(--text);
+        }
+
+        /* ── Board card ── */
+        .gb-tm-board-card {
+            border-radius: 30px;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+        .gb-tm-board-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-end;
+            margin-bottom: 13px;
+        }
+        .gb-tm-board-copy {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        /* ── Board grid + columns ── */
         .gb-tm-board {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            margin-bottom: 14px;
+            gap: 10px;
         }
         .gb-tm-col {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+            display: grid;
+            gap: 9px;
+            align-content: start;
         }
+        .gb-tm-col-label {
+            display: block;
+            margin: 0 0 2px;
+            color: var(--text-muted);
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+        .gb-tm-col-tiles {
+            display: grid;
+            gap: 9px;
+        }
+
+        /* ── Tiles ── */
         .gb-tm-tile {
-            background: var(--surface);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--surface-border);
-            border-radius: 14px;
-            padding: 12px 14px;
-            cursor: pointer;
-            transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, opacity 240ms ease;
-            font-size: 14px;
-            line-height: 1.45;
+            width: 100%;
+            min-height: 58px;
+            border: 1px solid rgba(255,255,255,.42);
+            border-radius: 19px;
+            background: rgba(255,255,255,.25);
             color: var(--text);
-            user-select: none;
-            min-height: 56px;
-            display: flex;
-            align-items: center;
-            box-shadow: var(--shadow-card);
+            padding: 12px 13px;
+            text-align: left;
+            font-size: 13.2px;
+            line-height: 1.35;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.44);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            transition:
+                transform .18s ease,
+                box-shadow .18s ease,
+                border-color .18s ease,
+                background .18s ease,
+                opacity .28s ease,
+                max-height .28s ease,
+                min-height .28s ease,
+                padding .28s ease,
+                margin .28s ease;
         }
-        .gb-tm-tile:hover:not(.matched):not(.locked) {
-            background: rgba(99, 184, 255, 0.16);
-            border-color: rgba(99, 184, 255, 0.55);
+        /* Left vs right — no visual split needed; layout already separates them */
+        .gb-tm-tile-left  { /* inherits base */ }
+        .gb-tm-tile-right { /* inherits base */ }
+
+        .gb-tm-tile:hover:not(.matched):not(.correct):not(.wrong) {
             transform: translateY(-1px);
+            box-shadow: 0 9px 22px rgba(31,38,135,.07), inset 0 1px 0 rgba(255,255,255,.46);
         }
         .gb-tm-tile.selected {
-            background: rgba(99, 184, 255, 0.22);
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px var(--accent-glow);
+            border-color: rgba(0,102,204,.32);
+            background: linear-gradient(135deg, rgba(0,102,204,.12), rgba(255,255,255,.22));
+            box-shadow: 0 10px 26px rgba(0,102,204,.11), inset 0 1px 0 rgba(255,255,255,.46);
+        }
+        .gb-tm-tile.correct {
+            color: #1f6f2e;
+            border-color: rgba(52,199,89,.28);
+            background: linear-gradient(135deg, rgba(52,199,89,.15), rgba(255,255,255,.18));
+        }
+        .gb-tm-tile.wrong {
+            color: #9f241d;
+            border-color: rgba(255,69,58,.25);
+            background: linear-gradient(135deg, rgba(255,69,58,.12), rgba(255,255,255,.18));
+            animation: gbTmShake .32s ease;
         }
         .gb-tm-tile.matched {
-            background: rgba(34, 197, 94, 0.18);
-            border-color: rgba(34, 197, 94, 0.65);
-            color: rgba(220, 252, 231, 0.92);
-            cursor: default;
+            opacity: 0;
+            min-height: 0;
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            border-width: 0;
+            margin: 0;
             pointer-events: none;
-            opacity: 0.85;
+            overflow: hidden;
+            position: relative;
         }
-        .gb-tm-tile.wrong-flash {
-            background: rgba(239, 68, 68, 0.22);
-            border-color: rgba(239, 68, 68, 0.7);
-            animation: gbTmShake 320ms ease;
+        .gb-tm-hint {
+            display: block;
+            margin-top: 4px;
+            color: var(--text-muted);
+            font-size: 10.5px;
+            font-weight: 500;
         }
+
+        /* ── Result card ── */
+        .gb-tm-result-card {
+            display: none;
+            border-radius: 28px;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+        .gb-tm-result-card.show {
+            display: block;
+            animation: gbTmGateIn .22s ease both;
+        }
+        .gb-tm-result-title {
+            margin: 0 0 7px;
+            font-size: 16px;
+            font-weight: 590;
+            letter-spacing: -.01em;
+            color: var(--text);
+        }
+        .gb-tm-result-text {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 12.5px;
+            line-height: 1.56;
+        }
+        .gb-tm-score-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 13px;
+            padding: 11px 12px;
+            border-radius: 18px;
+            background: rgba(255,255,255,.23);
+            border: 1px solid rgba(255,255,255,.36);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.40);
+            font-size: 11.5px;
+            font-weight: 580;
+            color: var(--text-muted);
+        }
+        .gb-tm-score-line strong {
+            font-size: 16px;
+            font-weight: 620;
+            color: var(--text);
+        }
+
+        /* ── Toast ── */
+        .gb-tm-toast {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 60;
+            width: min(calc(100% - 28px), 420px);
+            padding: 13px 15px;
+            border-radius: 20px;
+            background: rgba(29,29,31,.86);
+            color: #fff;
+            box-shadow: 0 24px 70px rgba(15,23,42,.12);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: opacity .24s ease, transform .24s ease;
+            font-size: 13px;
+            font-weight: 620;
+            text-align: center;
+        }
+        .gb-tm-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ── Keyframes ── */
         @keyframes gbTmShake {
-            0%,100% { transform: translateX(0); }
-            25%     { transform: translateX(-4px); }
-            75%     { transform: translateX(4px); }
+            0%, 100% { transform: translateX(0); }
+            25%       { transform: translateX(-4px); }
+            75%       { transform: translateX(4px); }
+        }
+        @keyframes gbTmGateIn {
+            from { opacity: 0; transform: translateY(8px) scale(.98); }
+            to   { opacity: 1; transform: none; }
+        }
+
+        /* ── 370px mobile breakpoint ── */
+        @media (max-width: 370px) {
+            .gb-game-panel#gb-panel-tm {
+                padding-inline: 10px;
+            }
+            .gb-tm-topbar {
+                grid-template-columns: 1fr;
+                border-radius: 24px;
+            }
+            .gb-tm-board {
+                gap: 8px;
+            }
+            .gb-tm-tile {
+                font-size: 12.5px;
+                padding: 11px;
+                min-height: 55px;
+            }
+            .gb-tm-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+            .gb-tm-stat:last-child {
+                grid-column: 1 / -1;
+            }
         }
         /* ── MEMORY MATCH (legacy classes — retained for any older homeworks) ── */
         .gb-mm-grid {
@@ -5399,10 +5731,93 @@
         /* ── T3 glass lift dark-mode parity (2026-05-01) ──
            Newly tokenised game-break surfaces get explicit dark overrides.
            AQ panel now uses .aq-* tokens (handled above). */
+
+        /* ── TILE MATCH — dark-mode parity ── */
+        [data-theme="dark"] .gb-tm-topbar {
+            background: linear-gradient(135deg, rgba(30,41,59,.68), rgba(15,23,42,.52));
+            border-color: var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .gb-tm-top-pill {
+            background: rgba(30,41,59,.48);
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+            color: var(--text);
+        }
+        [data-theme="dark"] .gb-tm-dots > span {
+            background: rgba(0, 111, 224, 0.22);
+        }
+        [data-theme="dark"] .gb-tm-hero {
+            background: linear-gradient(135deg, rgba(30,41,59,.68), rgba(15,23,42,.52));
+            border-color: var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .gb-tm-xp-pill {
+            background: rgba(30,41,59,.48);
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .gb-tm-stat {
+            background: linear-gradient(135deg, rgba(30,41,59,.52), rgba(15,23,42,.40));
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .gb-tm-stat-value {
+            color: var(--text);
+        }
+        [data-theme="dark"] .gb-tm-board-card {
+            background: linear-gradient(135deg, rgba(30,41,59,.68), rgba(15,23,42,.52));
+            border-color: var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.06);
+        }
         [data-theme="dark"] .gb-tm-tile {
             background: var(--surface);
             border-color: var(--surface-border);
             color: var(--text);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .gb-tm-tile:hover:not(.matched):not(.correct):not(.wrong) {
+            background: rgba(0, 111, 224, 0.14);
+            border-color: rgba(0, 111, 224, 0.38);
+        }
+        [data-theme="dark"] .gb-tm-tile.selected {
+            border-color: rgba(0,111,224,.48);
+            background: linear-gradient(135deg, rgba(0,111,224,.18), rgba(30,41,59,.36));
+            box-shadow: 0 10px 26px rgba(0,111,224,.18), inset 0 1px 0 rgba(255,255,255,.08);
+        }
+        [data-theme="dark"] .gb-tm-tile.correct {
+            color: #86efac;
+            border-color: rgba(52,199,89,.30);
+            background: linear-gradient(135deg, rgba(52,199,89,.16), rgba(15,23,42,.40));
+        }
+        [data-theme="dark"] .gb-tm-tile.wrong {
+            color: #fca5a5;
+            border-color: rgba(255,69,58,.30);
+            background: linear-gradient(135deg, rgba(255,69,58,.16), rgba(15,23,42,.40));
+        }
+        [data-theme="dark"] .gb-tm-result-card {
+            background: linear-gradient(135deg, rgba(30,41,59,.68), rgba(15,23,42,.52));
+            border-color: var(--surface-border);
+            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .gb-tm-result-title {
+            color: var(--text);
+        }
+        [data-theme="dark"] .gb-tm-result-text {
+            color: var(--text-muted);
+        }
+        [data-theme="dark"] .gb-tm-score-line {
+            background: rgba(15,23,42,.48);
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+            color: var(--text-muted);
+        }
+        [data-theme="dark"] .gb-tm-score-line strong {
+            color: var(--text);
+        }
+        [data-theme="dark"] .gb-tm-toast {
+            background: rgba(15,23,42,.92);
+            box-shadow: 0 24px 70px rgba(0,0,0,.36);
         }
         [data-theme="dark"] .gb-mb-box {
             background: var(--surface);
@@ -5795,19 +6210,62 @@
                         </div>
                         <textarea class="gb-wc-textarea" id="gb-wc-textarea" placeholder="Javobingizni yozing..."></textarea>
                     </div>
-                    <!-- Sub-game 3: Tile Match (left ↔ right column matching) -->
-                    <div class="gb-game-panel enter-right" id="gb-panel-mm">
-                        <div class="gb-section-title">O'YIN 3 — TILE MATCH</div>
-                        <div class="gb-mm-status" id="gb-mm-status">Juftlarni toping: 0 / 6</div>
-                        <div class="gb-mm-instructions" id="gb-mm-instructions">Chap ustundagi plitkani bosing, so'ng o'ng ustunda unga mos keluvchini tanlang.</div>
-                        <div class="gb-tm-board" id="gb-tm-board">
-                            <div class="gb-tm-col" id="gb-tm-left"></div>
-                            <div class="gb-tm-col" id="gb-tm-right"></div>
-                        </div>
-                        <div class="gb-mm-win-banner" id="gb-mm-win-banner">
-                            <div class="gb-mm-win-text">Barcha juftlar topildi!</div>
-                            <div class="gb-mm-win-sub">Ajoyib ish — xotirangiz ishlamoqda!</div>
-                        </div>
+                    <!-- Sub-game 3: Tile Match — concept↔definition matching (Apple-glass redesign) -->
+                    <div class="gb-game-panel enter-right" id="gb-panel-tm">
+                        <header class="gb-tm-topbar">
+                            <div class="gb-tm-dots" id="gb-tm-dots" aria-hidden="true">
+                                <span></span><span></span><span class="gb-tm-dot-active"></span>
+                            </div>
+                            <div class="gb-tm-top-pill">
+                                <strong id="gb-tm-matched-top">0</strong>/<span id="gb-tm-pairs-total">0</span>
+                            </div>
+                        </header>
+                        <article class="gb-tm-hero">
+                            <div class="gb-tm-meta">
+                                <span class="gb-tm-eyebrow" id="gb-tm-eyebrow"></span>
+                                <span class="gb-tm-xp-pill" id="gb-tm-xp-pill">0 XP</span>
+                            </div>
+                            <h1 class="gb-tm-h1" id="gb-tm-title"></h1>
+                            <p class="gb-tm-subtitle" id="gb-tm-subtitle"></p>
+                        </article>
+                        <section class="gb-tm-stats" aria-label="Tile Match stats">
+                            <div class="gb-tm-stat" id="gb-tm-stat-timer-card">
+                                <span class="gb-tm-stat-label" id="gb-tm-stat-timer-label"></span>
+                                <strong class="gb-tm-stat-value" id="gb-tm-timer">02:00</strong>
+                            </div>
+                            <div class="gb-tm-stat" id="gb-tm-stat-matched-card">
+                                <span class="gb-tm-stat-label" id="gb-tm-stat-matched-label"></span>
+                                <strong class="gb-tm-stat-value" id="gb-tm-matched-stat">0/0</strong>
+                            </div>
+                            <div class="gb-tm-stat" id="gb-tm-stat-wrong-card">
+                                <span class="gb-tm-stat-label" id="gb-tm-stat-wrong-label"></span>
+                                <strong class="gb-tm-stat-value" id="gb-tm-wrong-stat">0</strong>
+                            </div>
+                        </section>
+                        <section class="gb-tm-board-card" aria-label="Concept-definition tile board">
+                            <div class="gb-tm-board-head">
+                                <p class="gb-tm-board-copy" id="gb-tm-board-copy"></p>
+                            </div>
+                            <div class="gb-tm-board" id="gb-tm-board">
+                                <div class="gb-tm-col" id="gb-tm-col-left">
+                                    <span class="gb-tm-col-label" id="gb-tm-col-left-label"></span>
+                                    <div class="gb-tm-col-tiles" id="gb-tm-left"></div>
+                                </div>
+                                <div class="gb-tm-col" id="gb-tm-col-right">
+                                    <span class="gb-tm-col-label" id="gb-tm-col-right-label"></span>
+                                    <div class="gb-tm-col-tiles" id="gb-tm-right"></div>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="gb-tm-result-card" id="gb-tm-result-card" role="status" aria-live="polite">
+                            <h2 class="gb-tm-result-title" id="gb-tm-result-title"></h2>
+                            <p class="gb-tm-result-text" id="gb-tm-result-text"></p>
+                            <div class="gb-tm-score-line">
+                                <span id="gb-tm-score-label"></span>
+                                <strong id="gb-tm-score-value">0 XP</strong>
+                            </div>
+                        </section>
+                        <div class="gb-tm-toast" id="gb-tm-toast" role="status" aria-live="polite"></div>
                     </div>
                     <!-- Sub-game 4: Puzzle Lock (optional — only if GB_PUZZLE_LOCK has items) -->
                     <div class="gb-game-panel enter-right" id="gb-panel-pl">
@@ -6207,6 +6665,33 @@
                 'wc.right_answer':       "To'g'ri javob: ",
                 // tile match
                 'tm.pairs_status':       'Juftlarni toping:',
+                'tm.eyebrow':            "O'YIN 3 · MATCH",
+                'tm.title':              "Tushuncha va ma'noni mos qiling",
+                'tm.subtitle':           "Chapdan bitta plitkani, so'ng o'ngdan unga mos keluvchini tanlang. To'g'ri juftliklar yo'qoladi, noto'g'rilari titraydi.",
+                'tm.col_left':           'Tushuncha',
+                'tm.col_right':          "Ma'no",
+                'tm.stats_timer':        'Vaqt',
+                'tm.stats_matched':      'Topildi',
+                'tm.stats_wrong':        'Xato',
+                'tm.toast_correct':      '+100 XP. Vaqt +3s.',
+                'tm.toast_streak':       '3 ta ketma-ket! +50 XP',
+                'tm.toast_wrong':        'Mos kelmadi. Vaqt -5s.',
+                'tm.toast_pick_left':    "Avval chap plitkadan tanlang.",
+                'tm.toast_perfect_clear': "Mukammal! Birorta xato yo'q.",
+                'tm.result_perfect':     'Mukammal!',
+                'tm.result_flawless':    'Deyarli mukammal',
+                'tm.result_cleared':     'Tugadi',
+                'tm.result_not_yet':     'Hali emas',
+                'tm.result_body_perfect': "Bitta ham xato yo'q. Eslab qoling — bu sizning kuchingiz.",
+                'tm.result_body_flawless': 'Faqat bitta xato. Yaxshi natija.',
+                'tm.result_body_cleared': 'Barcha juftlar topildi.',
+                'tm.result_body_partial': "Vaqt tugadi. Qaytadan urinib ko'ring.",
+                'tm.dock_select':        'Juftlikni tanlang',
+                'tm.dock_choose_meaning': "Ma'noni tanlang",
+                'tm.dock_next_game':     "Keyingi o'yin",
+                'tm.dock_replay':        "Qayta o'ynash",
+                'tm.hint_correct':       "To'g'ri: ",
+                'tm.xp_label':           'Tile Match XP',
                 // puzzle lock
                 'pl.fit_status':         'Mos joyga:',
                 'pl.no_question':        '(savol berilmagan)',
@@ -6285,6 +6770,7 @@
                 'game.aq':               "Moslashuvchan test",
                 'game.wc':               "Gap to'ldirish",
                 'game.mm':               "Juftlik topish",
+                'game.tm':               'Tile Match',
                 'game.pl':               "Qulf ochish",
                 'game.mb':               "Sirli quti",
                 'game.ttt':              "Krestiki-Nolikar",
@@ -6373,6 +6859,33 @@
                 'wc.checking':           'Проверяем…',
                 'wc.right_answer':       'Правильный ответ: ',
                 'tm.pairs_status':       'Найдите пары:',
+                'tm.eyebrow':            'ИГРА 3 · MATCH',
+                'tm.title':              'Сопоставьте понятие и значение',
+                'tm.subtitle':           'Выберите плитку слева, затем ту, что подходит ей справа. Верные пары исчезают, неверные мягко вздрагивают.',
+                'tm.col_left':           'Понятие',
+                'tm.col_right':          'Значение',
+                'tm.stats_timer':        'Время',
+                'tm.stats_matched':      'Совпало',
+                'tm.stats_wrong':        'Ошибки',
+                'tm.toast_correct':      '+100 XP. Время +3 сек.',
+                'tm.toast_streak':       '3 подряд! +50 XP',
+                'tm.toast_wrong':        'Не совпало. Время -5 сек.',
+                'tm.toast_pick_left':    'Сначала выберите плитку слева.',
+                'tm.toast_perfect_clear': 'Идеально! Без ошибок.',
+                'tm.result_perfect':     'Идеально!',
+                'tm.result_flawless':    'Почти идеально',
+                'tm.result_cleared':     'Готово',
+                'tm.result_not_yet':     'Ещё нет',
+                'tm.result_body_perfect': 'Ни одной ошибки. Запомните — это ваша сила.',
+                'tm.result_body_flawless': 'Всего одна ошибка. Хороший результат.',
+                'tm.result_body_cleared': 'Все пары собраны.',
+                'tm.result_body_partial': 'Время вышло. Попробуйте снова.',
+                'tm.dock_select':        'Выберите пару',
+                'tm.dock_choose_meaning': 'Выберите значение',
+                'tm.dock_next_game':     'Следующая игра',
+                'tm.dock_replay':        'Сыграть заново',
+                'tm.hint_correct':       'Верно: ',
+                'tm.xp_label':           'Tile Match XP',
                 'pl.fit_status':         'На своих местах:',
                 'pl.no_question':        '(вопрос не задан)',
                 'mb.boxes_status':       'Коробки:',
@@ -6445,6 +6958,7 @@
                 'game.aq':               'Адаптивный тест',
                 'game.wc':               'Заполнение предложения',
                 'game.mm':               'Парная память',
+                'game.tm':               'Tile Match',
                 'game.pl':               'Замок-головоломка',
                 'game.mb':               'Загадочный ящик',
                 'game.ttt':              'Крестики-нолики',
@@ -6533,6 +7047,33 @@
                 'wc.checking':           'Checking…',
                 'wc.right_answer':       'Correct answer: ',
                 'tm.pairs_status':       'Find pairs:',
+                'tm.eyebrow':            'GAME 3 · MATCH',
+                'tm.title':              'Match concept to meaning.',
+                'tm.subtitle':           'Pick one tile from the left, then one from the right. Correct pairs fade away, wrong pairs gently shake.',
+                'tm.col_left':           'Concept',
+                'tm.col_right':          'Definition',
+                'tm.stats_timer':        'Timer',
+                'tm.stats_matched':      'Matched',
+                'tm.stats_wrong':        'Wrong',
+                'tm.toast_correct':      '+100 XP. Timer +3s.',
+                'tm.toast_streak':       '3-match streak! +50 XP',
+                'tm.toast_wrong':        'Not a match. Timer -5s.',
+                'tm.toast_pick_left':    'Pick a left tile first.',
+                'tm.toast_perfect_clear': 'Perfect! Zero wrong.',
+                'tm.result_perfect':     'Perfect Clear',
+                'tm.result_flawless':    'Flawless',
+                'tm.result_cleared':     'Cleared',
+                'tm.result_not_yet':     'Not yet',
+                'tm.result_body_perfect': 'Zero wrong attempts. Remember this — that focus is your edge.',
+                'tm.result_body_flawless': 'Just one wrong attempt. Strong run.',
+                'tm.result_body_cleared': 'All pairs matched.',
+                'tm.result_body_partial': 'Time ran out. Try the board again.',
+                'tm.dock_select':        'Select a pair',
+                'tm.dock_choose_meaning': 'Choose meaning',
+                'tm.dock_next_game':     'Next game',
+                'tm.dock_replay':        'Replay board',
+                'tm.hint_correct':       'Correct: ',
+                'tm.xp_label':           'Tile Match XP',
                 'pl.fit_status':         'In place:',
                 'pl.no_question':        '(no question)',
                 'mb.boxes_status':       'Boxes:',
@@ -6605,6 +7146,7 @@
                 'game.aq':               'Adaptive Quiz',
                 'game.wc':               'Sentence Fill',
                 'game.mm':               'Tile Match',
+                'game.tm':               'Tile Match',
                 'game.pl':               'Puzzle Lock',
                 'game.mb':               'Mystery Box',
                 'game.ttt':              'Tic Tac Toe',
@@ -8906,7 +9448,8 @@
             pl: { size:3, cells:[], emptyIdx:0, tiles:[], selected:null, total:0, correct:0, wrongCount:0, complete:false, busy:false },
             mb: { boxes:[], opened:[], idx:-1, phase:'select', labels:[], pickedLabel:'', idCorrect:null, ansCorrect:null, complete:false, busy:false },
             ttt: { gameIdx:0, wins:0, draws:0, losses:0, board:Array(9).fill(''), targetCell:-1, currentItem:null, itemCursor:0, phase:'await-tap', busy:false, complete:false, winLine:null },
-            sf: { idx:0, mode:'word_bank', selectedBlank:0, blanks:[], xp:0, pendingFinalize:false, complete:false, busy:false }
+            sf: { idx:0, mode:'word_bank', selectedBlank:0, blanks:[], xp:0, pendingFinalize:false, complete:false, busy:false },
+            tm: { tiles:[], pairsTotal:0, matched:0, wrong:0, streak:0, xp:0, selectedLeft:null, busy:false, complete:false, startedAt:null, outcome:null }
         };
 
         // ── Registry-driven game-break order ─────────────────────────────
@@ -8921,8 +9464,8 @@
                 list.push({ id: 'aq', sub: 0, init: gbInitAQ, panel: 'gb-panel-aq', label: 'Adaptive Quiz', labelKey: 'game.aq', setupBtn: gbSetButtonForAQ });
             if (Array.isArray(GB_WHY_CHAIN) && GB_WHY_CHAIN.length > 0)
                 list.push({ id: 'wc', sub: 1, init: gbInitWC, panel: 'gb-panel-wc', label: 'Sentence Fill', labelKey: 'game.wc', setupBtn: gbSetButtonForWC });
-            if (Array.isArray(GB_MEMORY_MATCH) && GB_MEMORY_MATCH.length > 0)
-                list.push({ id: 'mm', sub: 2, init: gbInitMM, panel: 'gb-panel-mm', label: 'Tile Match', labelKey: 'game.mm', setupBtn: null });
+            if (Array.isArray(GB_TILE_MATCH) && GB_TILE_MATCH.length > 0)
+                list.push({ id: 'tm', sub: 2, init: gbInitTM, panel: 'gb-panel-tm', label: 'Tile Match', labelKey: 'game.tm', setupBtn: null });
             if (Array.isArray(GB_PUZZLE_LOCK) && GB_PUZZLE_LOCK.length > 0)
                 list.push({ id: 'pl', sub: 3, init: gbInitPL, panel: 'gb-panel-pl', label: 'Puzzle Lock', labelKey: 'game.pl', setupBtn: null });
             if (Array.isArray(GB_MYSTERY_BOX) && GB_MYSTERY_BOX.length > 0)
@@ -9141,8 +9684,8 @@
                 return; // PL waiting for tile click
             }
             if (gbState.subGame === 2) {
-                if (gbState.mm && gbState.mm.complete) { gbAdvanceFromGame(2, 'gb-panel-mm'); return; }
-                gbMMAction(); return;
+                if (gbState.tm && gbState.tm.complete) { gbAdvanceFromGame(2, 'gb-panel-tm'); return; }
+                gbTMAction(); return;
             }
             if (gbState.subGame === 1) {
                 const inv = document.getElementById('gb-wc-invariant');
@@ -10355,6 +10898,407 @@
             }
             // Registry decides next game on click; we just label the button.
             gbSetButtonNext(gbIsLastGame(2) ? RT('btn.next_stage') : RT('btn.next_game'));
+        }
+
+        // ── TILE MATCH (gbTM*, panel: gb-panel-tm) ──
+        // Server-graded cloze-match. Single network swap-point: gbTMCheckPair.
+        // Answer-leak guard: tiles only carry data-pair-id; hint text comes from
+        // server response on wrong picks — never from a client-side lookup.
+        function gbInitTM() {
+            const tm = gbState.tm;
+            tm.tiles = [];
+            tm.pairsTotal = 0;
+            tm.matched = 0;
+            tm.wrong = 0;
+            tm.streak = 0;
+            tm.xp = 0;
+            tm.selectedLeft = null;
+            tm.busy = false;
+            tm.complete = false;
+            tm.startedAt = null;
+            tm.outcome = null;
+            tm._toastTimer = null;
+
+            const flat = Array.isArray(GB_TILE_MATCH) ? GB_TILE_MATCH : [];
+            if (!flat.length) {
+                console.warn('[gbInitTM] GB_TILE_MATCH is empty; hiding panel');
+                const panel = document.getElementById('gb-panel-tm');
+                if (panel) panel.style.display = 'none';
+                return;
+            }
+
+            const lefts = flat.filter(function (e) { return e && e.side === 'left'; });
+            const rights = flat.filter(function (e) { return e && e.side === 'right'; });
+            tm.pairsTotal = lefts.length;
+            tm.tiles = flat.slice();
+
+            const leftsShuffled = gbTMShuffle(lefts);
+            const rightsShuffled = gbTMShuffle(rights);
+
+            gbTMRenderStaticI18n();
+            gbTMRenderBoard(leftsShuffled, rightsShuffled);
+            gbTMUpdateStats();
+            gbTMUpdateXp(0);
+
+            const resultCard = document.getElementById('gb-tm-result-card');
+            if (resultCard) resultCard.classList.remove('show');
+
+            if (typeof gbSetButtonNext === 'function') {
+                gbSetButtonNext(RT('tm.dock_select'));
+            }
+
+            tm.startedAt = Date.now();
+        }
+
+        function gbTMRenderStaticI18n() {
+            const setText = function (id, key) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = RT(key);
+            };
+            setText('gb-tm-eyebrow', 'tm.eyebrow');
+            setText('gb-tm-title', 'tm.title');
+            setText('gb-tm-subtitle', 'tm.subtitle');
+            setText('gb-tm-stat-timer-label', 'tm.stats_timer');
+            setText('gb-tm-stat-matched-label', 'tm.stats_matched');
+            setText('gb-tm-stat-wrong-label', 'tm.stats_wrong');
+            setText('gb-tm-board-copy', 'tm.subtitle');
+            setText('gb-tm-col-left-label', 'tm.col_left');
+            setText('gb-tm-col-right-label', 'tm.col_right');
+            setText('gb-tm-score-label', 'tm.xp_label');
+        }
+
+        function gbTMShuffle(arr) {
+            const out = Array.isArray(arr) ? arr.slice() : [];
+            for (let i = out.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const tmp = out[i];
+                out[i] = out[j];
+                out[j] = tmp;
+            }
+            return out;
+        }
+
+        function gbTMRenderBoard(lefts, rights) {
+            const leftCol = document.getElementById('gb-tm-left');
+            const rightCol = document.getElementById('gb-tm-right');
+            if (!leftCol || !rightCol) return;
+            leftCol.innerHTML = '';
+            rightCol.innerHTML = '';
+
+            lefts.forEach(function (entry) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'gb-tm-tile gb-tm-tile-left';
+                btn.setAttribute('data-pair-id', entry.id);
+                btn.innerHTML = entry.text != null ? String(entry.text) : '';
+                btn.addEventListener('click', function () {
+                    gbTMSelectLeft(entry.id, btn);
+                });
+                leftCol.appendChild(btn);
+            });
+
+            rights.forEach(function (entry) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'gb-tm-tile gb-tm-tile-right';
+                btn.setAttribute('data-pair-id', entry.id);
+                btn.innerHTML = entry.text != null ? String(entry.text) : '';
+                btn.addEventListener('click', function () {
+                    gbTMTryMatch(entry.id, btn);
+                });
+                rightCol.appendChild(btn);
+            });
+
+            if (typeof window.__renderMath === 'function') {
+                try { window.__renderMath(); } catch (e) { /* non-fatal */ }
+            }
+        }
+
+        function gbTMSelectLeft(pairId, el) {
+            const tm = gbState.tm;
+            if (!tm || tm.busy) return;
+            if (!el || el.classList.contains('matched')) return;
+
+            // Toggle off if same tile clicked twice.
+            if (tm.selectedLeft && tm.selectedLeft.el === el) {
+                el.classList.remove('selected');
+                tm.selectedLeft = null;
+                if (typeof gbSetButtonNext === 'function') {
+                    gbSetButtonNext(RT('tm.dock_select'));
+                }
+                return;
+            }
+
+            // Clear any prior selection on the left column.
+            const leftCol = document.getElementById('gb-tm-left');
+            if (leftCol) {
+                const prior = leftCol.querySelectorAll('.gb-tm-tile-left.selected');
+                prior.forEach(function (p) { p.classList.remove('selected'); });
+            }
+
+            el.classList.add('selected');
+            tm.selectedLeft = { id: pairId, el: el };
+            if (typeof gbSetButtonNext === 'function') {
+                gbSetButtonNext(RT('tm.dock_choose_meaning'));
+            }
+        }
+
+        async function gbTMTryMatch(rightPairId, rightEl) {
+            const tm = gbState.tm;
+            if (!tm || tm.busy) return;
+            if (!rightEl || rightEl.classList.contains('matched')) return;
+
+            if (!tm.selectedLeft) {
+                rightEl.classList.add('wrong');
+                setTimeout(function () { rightEl.classList.remove('wrong'); }, 320);
+                gbTMShowToast(RT('tm.toast_pick_left'), 'wrong');
+                return;
+            }
+
+            tm.busy = true;
+            const leftEl = tm.selectedLeft.el;
+            const leftId = tm.selectedLeft.id;
+
+            const resp = await gbTMCheckPair(leftId, rightPairId);
+            gbTMHandleResponse(resp, leftEl, rightEl);
+        }
+
+        async function gbTMCheckPair(leftId, rightId) {
+            const ctx = window.NETS_CTX || {};
+            // NETS_CTX uses `hwId` per server/routes/homework_page.py runtime_ctx;
+            // also probe homework_id / homeworkId for forward-compat.
+            const homeworkId = ctx.hwId || ctx.homework_id || ctx.homeworkId || null;
+            if (!homeworkId) {
+                console.warn('[gbTMCheckPair] missing homework_id; skipping check');
+                return null;
+            }
+            try {
+                const res = await fetch('/api/ai/check-answer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        homework_id: homeworkId,
+                        phase: 'tile-match',
+                        left_id: leftId,
+                        right_id: rightId,
+                    }),
+                });
+                if (!res.ok) {
+                    console.error('[gbTMCheckPair] HTTP ' + res.status);
+                    return null;
+                }
+                return await res.json();
+            } catch (err) {
+                console.error('[gbTMCheckPair] network error', err);
+                return null;
+            }
+        }
+
+        function gbTMHandleResponse(resp, leftEl, rightEl) {
+            const tm = gbState.tm;
+            if (!resp) {
+                // Network/HTTP failure: release lock, deselect, toast wrong.
+                if (leftEl) leftEl.classList.remove('selected');
+                tm.selectedLeft = null;
+                tm.busy = false;
+                gbTMShowToast(RT('tm.toast_wrong'), 'wrong');
+                return;
+            }
+
+            // Sync timer + XP from server truth (defensive against missing fields).
+            if (resp.timer && typeof resp.timer.remaining_seconds === 'number') {
+                gbTMSetTimerDisplay(resp.timer.remaining_seconds);
+            }
+            if (resp.xp && typeof resp.xp.total === 'number') {
+                // Server returns per-attempt sum (base+bonuses on correct, 0 on
+                // wrong). Accumulate locally so the pill shows session total.
+                tm.xp = (tm.xp || 0) + resp.xp.total;
+                gbTMUpdateXp(tm.xp);
+            }
+
+            if (resp.correct === true) {
+                if (leftEl) { leftEl.classList.remove('selected'); leftEl.classList.add('correct'); }
+                if (rightEl) { rightEl.classList.add('correct'); }
+
+                if (typeof resp.matched_count === 'number') {
+                    tm.matched = resp.matched_count;
+                } else {
+                    tm.matched += 1;
+                }
+                if (typeof resp.total_pairs === 'number' && resp.total_pairs > 0) {
+                    tm.pairsTotal = resp.total_pairs;
+                }
+                tm.streak += 1;
+
+                const streakBonus = (resp.xp && typeof resp.xp.streak_bonus === 'number') ? resp.xp.streak_bonus : 0;
+                gbTMShowToast(streakBonus > 0 ? RT('tm.toast_streak') : RT('tm.toast_correct'), 'correct');
+                gbTMUpdateStats();
+
+                setTimeout(function () {
+                    if (leftEl) { leftEl.classList.remove('correct'); leftEl.classList.add('matched'); }
+                    if (rightEl) { rightEl.classList.remove('correct'); rightEl.classList.add('matched'); }
+                    tm.selectedLeft = null;
+                    tm.busy = false;
+
+                    if (resp.complete === true) {
+                        tm.outcome = resp.outcome || 'cleared';
+                        gbTMRenderResult(tm.outcome, resp.completion_bonus_xp || 0);
+                        gbTMFinish();
+                    }
+                }, 520);
+                return;
+            }
+
+            // Wrong path.
+            if (leftEl) leftEl.classList.add('wrong');
+            if (rightEl) rightEl.classList.add('wrong');
+            tm.wrong += 1;
+            tm.streak = 0;
+
+            if (resp.hint) {
+                gbTMShowHint(rightEl, resp.hint);
+            }
+
+            gbTMShowToast(RT('tm.toast_wrong'), 'wrong');
+            gbTMUpdateStats();
+
+            setTimeout(function () {
+                if (leftEl) { leftEl.classList.remove('wrong'); leftEl.classList.remove('selected'); }
+                if (rightEl) {
+                    rightEl.classList.remove('wrong');
+                    const hint = rightEl.querySelector('.gb-tm-hint');
+                    if (hint) hint.remove();
+                }
+                tm.selectedLeft = null;
+                tm.busy = false;
+                if (typeof gbSetButtonNext === 'function') {
+                    gbSetButtonNext(RT('tm.dock_select'));
+                }
+
+                if (resp.complete === true) {
+                    gbState.tm.outcome = resp.outcome || 'partial';
+                    gbTMRenderResult(gbState.tm.outcome, resp.completion_bonus_xp || 0);
+                    gbTMFinish();
+                }
+            }, 1500);
+        }
+
+        function gbTMShowHint(rightEl, hintText) {
+            if (!rightEl) return;
+            const existing = rightEl.querySelector('.gb-tm-hint');
+            if (existing) existing.remove();
+            const span = document.createElement('span');
+            span.className = 'gb-tm-hint';
+            span.textContent = RT('tm.hint_correct') + (hintText || '');
+            rightEl.appendChild(span);
+        }
+
+        function gbTMShowToast(msg, kind) {
+            const tm = gbState.tm;
+            const el = document.getElementById('gb-tm-toast');
+            if (!el) return;
+            if (tm && tm._toastTimer) {
+                clearTimeout(tm._toastTimer);
+                tm._toastTimer = null;
+            }
+            el.textContent = msg || '';
+            el.classList.remove('show');
+            // Re-trigger transition.
+            void el.offsetWidth;
+            el.classList.add('show');
+            if (kind) el.setAttribute('data-kind', kind);
+            const t = setTimeout(function () {
+                el.classList.remove('show');
+                if (tm) tm._toastTimer = null;
+            }, 2000);
+            if (tm) tm._toastTimer = t;
+        }
+
+        function gbTMUpdateStats() {
+            const tm = gbState.tm;
+            const matchedStat = document.getElementById('gb-tm-matched-stat');
+            const wrongStat = document.getElementById('gb-tm-wrong-stat');
+            const matchedTop = document.getElementById('gb-tm-matched-top');
+            const pairsTotal = document.getElementById('gb-tm-pairs-total');
+            if (matchedStat) matchedStat.textContent = tm.matched + '/' + tm.pairsTotal;
+            if (wrongStat) wrongStat.textContent = String(tm.wrong);
+            if (matchedTop) matchedTop.textContent = String(tm.matched);
+            if (pairsTotal) pairsTotal.textContent = String(tm.pairsTotal);
+        }
+
+        function gbTMUpdateXp(total) {
+            const pill = document.getElementById('gb-tm-xp-pill');
+            if (pill) pill.textContent = (total || 0) + ' XP';
+        }
+
+        function gbTMSetTimerDisplay(seconds) {
+            const el = document.getElementById('gb-tm-timer');
+            if (!el) return;
+            const s = Math.max(0, Math.floor(seconds || 0));
+            const mm = Math.floor(s / 60);
+            const ss = s % 60;
+            const pad = function (n) { return n < 10 ? '0' + n : String(n); };
+            el.textContent = pad(mm) + ':' + pad(ss);
+        }
+
+        function gbTMRenderResult(outcome, completionBonus) {
+            const titleEl = document.getElementById('gb-tm-result-title');
+            const textEl = document.getElementById('gb-tm-result-text');
+            const scoreEl = document.getElementById('gb-tm-score-value');
+            const card = document.getElementById('gb-tm-result-card');
+
+            let titleKey;
+            let bodyKey;
+            switch (outcome) {
+                case 'perfect_clear':
+                    titleKey = 'tm.result_perfect';
+                    bodyKey = 'tm.result_body_perfect';
+                    break;
+                case 'flawless':
+                    titleKey = 'tm.result_flawless';
+                    bodyKey = 'tm.result_body_flawless';
+                    break;
+                case 'cleared':
+                    titleKey = 'tm.result_cleared';
+                    bodyKey = 'tm.result_body_cleared';
+                    break;
+                case 'below_threshold':
+                case 'partial':
+                    titleKey = 'tm.result_not_yet';
+                    bodyKey = 'tm.result_body_partial';
+                    break;
+                default:
+                    titleKey = 'tm.result_cleared';
+                    bodyKey = 'tm.result_body_cleared';
+            }
+
+            if (titleEl) titleEl.textContent = RT(titleKey);
+            if (textEl) textEl.textContent = RT(bodyKey);
+            const totalXp = (gbState.tm.xp || 0) + (completionBonus || 0);
+            if (scoreEl) scoreEl.textContent = totalXp + ' XP';
+            if (card) card.classList.add('show');
+        }
+
+        function gbTMFinish() {
+            gbState.tm.complete = true;
+            if (window.__sessionLog) {
+                window.__sessionLog.push({
+                    phase: 'tile-match', id: 'tm-all',
+                    correct: (gbState.tm.outcome === 'perfect_clear' || gbState.tm.outcome === 'flawless' || gbState.tm.outcome === 'cleared'),
+                    score: gbState.tm.pairsTotal > 0 ? (gbState.tm.matched / gbState.tm.pairsTotal) : 0,
+                    outcome: gbState.tm.outcome,
+                });
+            }
+            if (typeof gbSetButtonNext === 'function') {
+                gbSetButtonNext(gbIsLastGame(2) ? RT('btn.next_stage') : RT('btn.next_game'));
+            }
+        }
+
+        function gbTMAction() {
+            // Matching is fully click-driven; the dock button only advances after completion.
+            if (gbState.tm && gbState.tm.complete) {
+                gbAdvanceFromGame(2, 'gb-panel-tm');
+            }
         }
 
         function gbInitPL() {
@@ -14227,12 +15171,13 @@ Prezident ertaga hisobot kutmoqda.`,
                 },
                 'puzzle-lock': () => get('#gb-pl-input'),
                 'tile-match': () => {
-                    const mm = (typeof gbState !== 'undefined' && gbState) ? gbState.mm : null;
-                    if (!mm) return null;
-                    // Runtime uses `selectedLeft = {pairId, el}` for the
-                    // currently-selected left tile (no pendingPair array).
-                    if (mm.selectedLeft && mm.selectedLeft.el) {
-                        const txt = mm.selectedLeft.el.textContent || '';
+                    const tm = (typeof gbState !== 'undefined' && gbState) ? gbState.tm : null;
+                    if (!tm) return null;
+                    // Runtime uses `selectedLeft = {id, el}` for the currently-
+                    // selected left tile (state machine clears it once a pair
+                    // attempt resolves, so this only fires while a left is held).
+                    if (tm.selectedLeft && tm.selectedLeft.el) {
+                        const txt = tm.selectedLeft.el.textContent || '';
                         return txt.trim() ? ('selected: ' + txt.trim().slice(0, 80)) : null;
                     }
                     return null;

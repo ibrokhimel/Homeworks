@@ -407,8 +407,8 @@ def test_extract_tile_match_reads_selected_left_tile():
     fixture = r"""
     const tileEl = new FakeElement('div', {}, ['cat'], null);
     var gbState = {
-        mm: {
-            selectedLeft: { pairId: 0, el: tileEl },
+        tm: {
+            selectedLeft: { id: 'tm_001', el: tileEl },
         },
     };
     """
