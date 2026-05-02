@@ -38,11 +38,19 @@
       description: "Cloze passage with multi-blank fill. Modes: word_bank (G2-7) | free_recall (G8+). Maps to gb_sentence_fill.",
     },
     {
-      id: "memory_match",
+      id: "tile_match",
       label: "Tile Match",
+      icon: "🔗",
+      editor: "tileMatch",
+      description: "Concept ↔ definition matching with grade-banded board sizes (G1-2:4, G3-4:5, G5-7:6, G8+:8). Maps to gb_tile_match.",
+    },
+    {
+      id: "memory_match",
+      label: "Tile Match (legacy)",
       icon: "🧠",
       editor: "tileMatch",
-      description: "Concept-definition matching game. Uses [left, right] pairs.",
+      description: "Legacy gb_memory_match rows — opens in the new tile-match editor and lazy-migrates to gb_tile_match on save.",
+      legacy: true,
     },
     {
       id: "puzzle_lock",
@@ -155,12 +163,59 @@
   }
 
   function normalizeTileMatch(items) {
+    // Legacy gb_memory_match shape: [[left, right], ...]. Pass-through for
+    // backwards-compat reads. The new editor migrates to the rich shape on
+    // first save.
     return Array.isArray(items)
       ? items.map((pair) => [
           Array.isArray(pair) ? pair[0] || "" : "",
           Array.isArray(pair) ? pair[1] || "" : "",
         ])
       : [];
+  }
+
+  function normalizeNewTileMatch(items) {
+    // New gb_tile_match shape: [{id, left, right, tier, ...}, ...]. Validates
+    // the TileMatchPair contract (Chunk A) at the editor boundary; tolerates
+    // unknown fields per Pydantic `extra="allow"`.
+    if (!Array.isArray(items)) return [];
+    const TIERS = ["basic", "premium"];
+    const SUBJECT_FAMILIES = [
+      "math", "biology", "history", "literature",
+      "physics", "chemistry", "language", "geography", "general",
+    ];
+    const PISA_LEVELS = ["L1", "L2", "L3", "L4", "L5", "L6"];
+    const DIFFICULTIES = ["easy", "medium", "hard"];
+    return items.map((raw, i) => {
+      // Legacy [left, right] tuple — preserve via in-place migration when the
+      // editor next saves. We read it to the same TileMatchPair shape here.
+      if (Array.isArray(raw)) {
+        return {
+          id: `tm_legacy_${String(i).padStart(3, "0")}`,
+          left: String(raw[0] || ""),
+          right: String(raw[1] || ""),
+          tier: "basic",
+        };
+      }
+      const item = raw && typeof raw === "object" ? raw : {};
+      const out = {
+        id: typeof item.id === "string" && item.id ? item.id : `tm_${String(i).padStart(3, "0")}`,
+        left: typeof item.left === "string" ? item.left : "",
+        right: typeof item.right === "string" ? item.right : "",
+        tier: TIERS.includes(item.tier) ? item.tier : "basic",
+      };
+      if (typeof item.concept_family === "string") out.concept_family = item.concept_family;
+      if (SUBJECT_FAMILIES.includes(item.subject_family)) out.subject_family = item.subject_family;
+      if (PISA_LEVELS.includes(item.pisa_level)) out.pisa_level = item.pisa_level;
+      if (DIFFICULTIES.includes(item.difficulty)) out.difficulty = item.difficulty;
+      if (typeof item.is_palace_tile === "boolean") out.is_palace_tile = item.is_palace_tile;
+      if (typeof item.explanation === "string") out.explanation = item.explanation;
+      // Forward-compat: pass through any other fields untouched.
+      for (const [k, v] of Object.entries(item)) {
+        if (!(k in out)) out[k] = v;
+      }
+      return out;
+    });
   }
 
   function normalizePuzzleLock(items) {
@@ -206,6 +261,10 @@
       adaptive_quiz: normalizeAdaptiveQuiz(safe.adaptive_quiz ?? safe.gb_adaptive_quiz),
       why_chain: normalizeWhyChain(safe.why_chain ?? safe.gb_why_chain),
       sentence_fill: normalizeSentenceFill(safe.sentence_fill ?? safe.gb_sentence_fill),
+      // New canonical tile_match key (gb_tile_match). The editor writes to this slot.
+      tile_match: normalizeNewTileMatch(safe.tile_match ?? safe.gb_tile_match),
+      // Legacy memory_match key (gb_memory_match) — kept alive for backwards-compat
+      // reads. The editor opens these in the new UI and lazy-migrates on save.
       memory_match: normalizeTileMatch(safe.memory_match ?? safe.gb_memory_match),
       puzzle_lock: normalizePuzzleLock(safe.puzzle_lock ?? safe.gb_puzzle_lock),
       mystery_box: normalizeMysteryBox(safe.mystery_box ?? safe.gb_mystery_box),
@@ -226,6 +285,7 @@
     if (tabId === "adaptive_quiz") return state.adaptive_quiz;
     if (tabId === "why_chain") return state.why_chain;
     if (tabId === "sentence_fill") return state.sentence_fill;
+    if (tabId === "tile_match") return state.tile_match;
     if (tabId === "memory_match") return state.memory_match;
     if (tabId === "puzzle_lock") return state.puzzle_lock;
     if (tabId === "mystery_box") return state.mystery_box;
@@ -237,22 +297,42 @@
     if (tabId === "adaptive_quiz") state.adaptive_quiz = normalizeAdaptiveQuiz(value);
     if (tabId === "why_chain") state.why_chain = normalizeWhyChain(value);
     if (tabId === "sentence_fill") state.sentence_fill = normalizeSentenceFill(value);
-    if (tabId === "memory_match") state.memory_match = normalizeTileMatch(value);
+    if (tabId === "tile_match") state.tile_match = normalizeNewTileMatch(value);
+    if (tabId === "memory_match") {
+      // Legacy tab — when the editor saves, the value is the NEW
+      // TileMatchPair shape (the editor migrated on first edit). Persist it
+      // into tile_match instead so the row writes to gb_tile_match, and
+      // clear memory_match so we don't double-render.
+      state.tile_match = normalizeNewTileMatch(value);
+      state.memory_match = [];
+    }
     if (tabId === "puzzle_lock") state.puzzle_lock = normalizePuzzleLock(value);
     if (tabId === "mystery_box") state.mystery_box = normalizeMysteryBox(value);
     if (tabId === "ttt") state.ttt = normalizeTTT(value);
   }
 
+  function visibleTabs(state) {
+    // Hide legacy tabs that have no data — the new canonical tile_match tab
+    // is the default surface; the legacy memory_match tab only appears when
+    // there's data left over from before the migration.
+    return GAME_TABS.filter((tab) => {
+      if (tab.legacy && getCount(state, tab.id) === 0) return false;
+      return true;
+    });
+  }
+
   function renderTabs(state, activeTab) {
-    return GAME_TABS.map(
-      (tab) => `
+    return visibleTabs(state)
+      .map(
+        (tab) => `
         <button class="phase-btn game-tab-btn ${tab.id === activeTab ? "active" : ""}" type="button" data-game-tab="${tab.id}">
           <span class="phase-icon" aria-hidden="true">${escapeHtml(tab.icon)}</span>
           <span>${escapeHtml(tab.label)}</span>
           <span class="mini-count">${getCount(state, tab.id)}</span>
         </button>
       `
-    ).join("");
+      )
+      .join("");
   }
 
   function renderMissingEditor(container, tab) {

@@ -43,6 +43,11 @@ class CheckAnswerRequest(BaseModel):
     student_value: Optional[str] = None
     attempt_number: Optional[int] = None
 
+    # Tile-match phase fields (only used when phase == "tile-match").
+    left_id: Optional[str] = None
+    right_id: Optional[str] = None
+    session_id: Optional[str] = None
+
 
 class FinalizeCheckAnswerRequest(BaseModel):
     phase: str
@@ -405,6 +410,297 @@ async def _check_answer_sentence_fill(req: CheckAnswerRequest) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Tile Match — phase=tile-match check-answer branch (Chunk B).
+#
+# In-memory attempt tracker (parallel to _SF_ATTEMPTS pattern).
+# Keyed by (homework_id, session_id) so multiple concurrent students keep
+# independent state. Survives until process restart; refresh-resilience is
+# best-effort (a hard refresh resets timer + streak — acceptable for v1).
+#
+# Per-session value:
+# {
+#   "matched_pair_ids": set[str],   # pairs already correctly matched
+#   "wrong_count": int,             # total mismatch attempts
+#   "streak": int,                  # current consecutive-correct count
+#   "completed_families": set[str], # concept_family ids already drained
+#   "remaining_seconds": int,       # mutable timer, clamped to >=0
+#   "tier": "basic" | "premium",
+#   "grade": int,
+#   "total_pairs": int,
+# }
+# ---------------------------------------------------------------------------
+_TM_ATTEMPTS: dict[tuple[str, str], dict[str, Any]] = {}
+
+
+def _grade_band_for(grade: int) -> tuple[int, int]:
+    """Return (total_pairs, timer_seconds) for a given grade — per spec §1."""
+    if grade is None:
+        grade = 8
+    if grade <= 2:
+        return (4, 180)
+    if grade <= 4:
+        return (5, 165)
+    if grade <= 7:
+        return (6, 150)
+    return (8, 120)
+
+
+def _speed_bonus_for(remaining_seconds: int) -> int:
+    """Return XP speed bonus for a correct match — per spec §5C."""
+    if remaining_seconds <= 0:
+        return 0
+    if remaining_seconds >= 50:
+        return 50
+    if remaining_seconds >= 30:
+        return 30
+    return 10
+
+
+def _outcome_for(
+    wrong_count: int,
+    matched_count: int,
+    total: int,
+    timer_remaining: int,
+) -> tuple[Optional[str], int]:
+    """Compute outcome tier + completion bonus XP — per spec §5A/5B.
+
+    Returns (outcome, completion_bonus_xp). outcome is None when the game is
+    still in progress.
+    """
+    if total <= 0:
+        return (None, 0)
+    ratio = matched_count / total
+    if timer_remaining <= 0 and matched_count < total:
+        if ratio < 0.6:
+            return ("below_threshold", 0)
+        # 60% <= ratio < 100%
+        return ("partial", 0)
+    if matched_count == total:
+        if wrong_count == 0:
+            return ("perfect_clear", 200)
+        if wrong_count == 1:
+            return ("flawless", 100)
+        return ("cleared", 0)
+    return (None, 0)
+
+
+def _resolve_tm_pairs(content_json: dict) -> list[dict]:
+    """Build the canonical pair list for a homework's tile-match game.
+
+    Reads `gb_tile_match` if non-empty; otherwise shims `gb_memory_match`
+    ([[a, b], ...]) into pseudo-TileMatchPair dicts. Mirrors the injector's
+    legacy_pairs logic (Chunk A `_serialize_tile_match`).
+    """
+    if not isinstance(content_json, dict):
+        return []
+    items = content_json.get("gb_tile_match")
+    pairs: list[dict] = []
+    if isinstance(items, list) and items:
+        for item in items:
+            if isinstance(item, dict):
+                pairs.append(item)
+            else:
+                # Pydantic model fallback.
+                try:
+                    pairs.append(dict(item))
+                except Exception:
+                    continue
+        return pairs
+    legacy = content_json.get("gb_memory_match")
+    if isinstance(legacy, list):
+        for i, pair in enumerate(legacy):
+            if not (isinstance(pair, (list, tuple)) and len(pair) >= 2):
+                continue
+            pairs.append({
+                "id": f"tm_legacy_{i:03d}",
+                "left": str(pair[0]),
+                "right": str(pair[1]),
+                "tier": "basic",
+            })
+    return pairs
+
+
+async def _check_answer_tile_match(req: CheckAnswerRequest) -> dict:
+    """Per-pair grading branch for Tile Match.
+
+    See TILE_MATCH_BACKEND_PLAN.md §3 + tile-match-concept-definition.md §1, §5.
+
+    No-leak invariants:
+      - Response on a CORRECT match returns `explanation` only when
+        `tier == "premium"` (and the field is authored). Never echoes any
+        other pair's right-side text.
+      - Response on a WRONG match returns `hint` = the LEFT-side concept text
+        of the wrongly-picked right_id's TRUE partner. The student already
+        sees that left tile in the DOM, so this is not a new leak surface.
+    """
+    if not req.homework_id:
+        raise HTTPException(400, detail={
+            "error": "homework_id required for phase=tile-match",
+            "code": "TM_MISSING_HW",
+        })
+    if not req.left_id or not req.right_id:
+        raise HTTPException(400, detail={
+            "error": "left_id and right_id required for phase=tile-match",
+            "code": "TM_MISSING_IDS",
+        })
+
+    hw = await db.get_homework(req.homework_id)
+    if hw is None:
+        raise HTTPException(404, detail={
+            "error": f"homework {req.homework_id} not found",
+            "code": "HW_NOT_FOUND",
+        })
+    content = hw.get("content_json") or {}
+    pairs = _resolve_tm_pairs(content)
+    if not pairs:
+        raise HTTPException(404, detail={
+            "error": "tile-match content not found on this homework",
+            "code": "TM_NO_CONTENT",
+        })
+
+    # Build id-keyed lookups. The student picked left_id + right_id; we need
+    # to (a) verify left_id maps to right_id (correct match) and (b) on wrong,
+    # return the LEFT text of right_id's TRUE partner.
+    by_left_id = {p.get("id"): p for p in pairs if p.get("id")}
+    by_right_id_true_left_text = {
+        p.get("id"): p.get("left", "") for p in pairs if p.get("id")
+    }
+
+    pair = by_left_id.get(req.left_id)
+    if pair is None:
+        raise HTTPException(400, detail={
+            "error": f"left_id {req.left_id} not found in this tile-match board",
+            "code": "TM_BAD_LEFT_ID",
+        })
+    if req.right_id not in by_right_id_true_left_text:
+        raise HTTPException(400, detail={
+            "error": f"right_id {req.right_id} not found in this tile-match board",
+            "code": "TM_BAD_RIGHT_ID",
+        })
+
+    # Get-or-create per-session state.
+    session_id = req.session_id or "default"
+    grade = int(hw.get("grade") or req.grade or 8)
+    total_pairs_band, timer_seconds = _grade_band_for(grade)
+    # Use the actual board size when smaller than the band default — the
+    # outcome is computed against authored pairs, not the band size.
+    total_pairs = len(pairs)
+
+    state_key = (req.homework_id, session_id)
+    state = _TM_ATTEMPTS.get(state_key)
+    if state is None:
+        state = {
+            "matched_pair_ids": set(),
+            "wrong_count": 0,
+            "streak": 0,
+            "completed_families": set(),
+            "remaining_seconds": timer_seconds,
+            "tier": (pair.get("tier") if isinstance(pair, dict) else "basic") or "basic",
+            "grade": grade,
+            "total_pairs": total_pairs,
+        }
+        _TM_ATTEMPTS[state_key] = state
+
+    # If this pair has already been matched, treat it as a no-op (defensive).
+    already_matched = req.left_id in state["matched_pair_ids"]
+
+    is_correct = (req.left_id == req.right_id) and not already_matched
+
+    # Initialize XP components.
+    xp_base = 0
+    xp_speed = 0
+    xp_streak = 0
+    xp_palace = 0
+    xp_branch = 0
+    delta = 0
+    hint: Optional[str] = None
+    explanation: Optional[str] = None
+
+    if is_correct:
+        # Apply timer +3, then compute speed bonus from POST-delta remaining,
+        # per plan §3c. Clamp at >=0 (timer can't go negative).
+        delta = 3
+        state["remaining_seconds"] = max(0, state["remaining_seconds"] + delta)
+        state["matched_pair_ids"].add(req.left_id)
+        state["streak"] += 1
+        state["wrong_count"] = state["wrong_count"]  # no change
+        xp_base = 100
+        xp_speed = _speed_bonus_for(state["remaining_seconds"])
+
+        # Streak bonus: every 3rd consecutive correct.
+        if state["streak"] > 0 and state["streak"] % 3 == 0:
+            tier = (pair.get("tier") or "basic") if isinstance(pair, dict) else "basic"
+            xp_streak = 75 if tier == "premium" else 50
+
+        # Memory Palace bonus.
+        if isinstance(pair, dict) and pair.get("is_palace_tile"):
+            xp_palace = 50
+
+        # Branch-complete bonus: this match drains the concept_family.
+        family = pair.get("concept_family") if isinstance(pair, dict) else None
+        if family and family not in state["completed_families"]:
+            family_pair_ids = {
+                p.get("id") for p in pairs
+                if isinstance(p, dict) and p.get("concept_family") == family and p.get("id")
+            }
+            if family_pair_ids and family_pair_ids.issubset(state["matched_pair_ids"]):
+                xp_branch = 100
+                state["completed_families"].add(family)
+
+        # Premium tier — surface the authored explanation, if any.
+        if isinstance(pair, dict):
+            pair_tier = pair.get("tier") or "basic"
+            if pair_tier == "premium" and pair.get("explanation"):
+                explanation = pair.get("explanation")
+    elif already_matched:
+        # No-op: the same pair was claimed twice. Return zeros + correct=False
+        # but DON'T penalize timer/streak (defensive against double-clicks).
+        delta = 0
+    else:
+        # Wrong match: -5s timer, reset streak, increment wrong_count.
+        delta = -5
+        state["remaining_seconds"] = max(0, state["remaining_seconds"] + delta)
+        state["streak"] = 0
+        state["wrong_count"] += 1
+        # Hint = the LEFT-side concept text of the right-tile's true partner.
+        hint = by_right_id_true_left_text.get(req.right_id) or None
+
+    xp_total = xp_base + xp_speed + xp_streak + xp_palace + xp_branch
+
+    matched_count = len(state["matched_pair_ids"])
+    outcome, completion_bonus = _outcome_for(
+        state["wrong_count"],
+        matched_count,
+        total_pairs,
+        state["remaining_seconds"],
+    )
+    complete = outcome is not None
+
+    return {
+        "correct": is_correct,
+        "hint": hint,
+        "explanation": explanation,
+        "xp": {
+            "base": xp_base,
+            "speed_bonus": xp_speed,
+            "streak_bonus": xp_streak,
+            "palace_bonus": xp_palace,
+            "branch_bonus": xp_branch,
+            "total": xp_total,
+        },
+        "timer": {
+            "remaining_seconds": state["remaining_seconds"],
+            "delta_seconds": delta,
+        },
+        "matched_count": matched_count,
+        "total_pairs": total_pairs,
+        "complete": complete,
+        "outcome": outcome,
+        "completion_bonus_xp": completion_bonus,
+    }
+
+
 @router.post("/ai/check-answer")
 async def check_answer(req: CheckAnswerRequest):
     # Phase dispatch — the new sentence-fill grading branch is keyed on
@@ -418,6 +714,17 @@ async def check_answer(req: CheckAnswerRequest):
     if req.phase == "sentence-fill" and req.homework_id:
         try:
             return await _check_answer_sentence_fill(req)
+        except HTTPException:
+            raise
+        except Exception as e:
+            _handle_exc(e)
+
+    # Tile Match per-pair grading branch — same back-compat gate (require
+    # homework_id) so legacy AMR-shape callers passing phase="tile-match"
+    # without an HW id continue to flow through tutor.check_answer below.
+    if req.phase == "tile-match" and req.homework_id:
+        try:
+            return await _check_answer_tile_match(req)
         except HTTPException:
             raise
         except Exception as e:

@@ -27,6 +27,10 @@ GAME_KEYS = [
     ("gb_mystery_box",   "GB_MYSTERY_BOX"),
     ("gb_ttt",           "GB_TTT"),
     ("gb_sentence_fill", "GB_SENTENCE_FILL"),
+    # NOTE: gb_tile_match landing in this PR's schema/injector/endpoint, but
+    # gbActiveGameOrder runtime registration ships in the frontend redesign
+    # PR. Adding it here would fail test_registry_lists_all_games until the
+    # runtime panel + init function exist. Add this row in the runtime PR.
 ]
 
 
