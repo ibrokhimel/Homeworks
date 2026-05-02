@@ -2829,6 +2829,432 @@
             color: var(--text-muted);
         }
 
+        /* ── STAGE 5 · SENTENCE FILL (gb-panel-sf, .gb-sf-*) ──── */
+        .gb-sf-topbar {
+            position: sticky;
+            top: 10px;
+            z-index: 20;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            border-radius: 999px;
+            margin-bottom: 14px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+
+        .gb-sf-top-pill {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 8px 11px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.24);
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.42);
+        }
+
+        .gb-sf-top-pill strong {
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .gb-sf-dots {
+            display: flex;
+            gap: 5px;
+        }
+
+        .gb-sf-dots span {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(0,113,227,.18);
+            transition: width .2s ease, border-radius .2s ease, background .2s ease;
+        }
+
+        .gb-sf-dots span.active {
+            width: 18px;
+            border-radius: 999px;
+            background: var(--accent);
+            box-shadow: 0 0 0 5px rgba(0,113,227,.10);
+        }
+
+        .gb-sf-main-card {
+            border-radius: 32px;
+            padding: 18px;
+            overflow: hidden;
+            position: relative;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+
+        .gb-sf-main-card:after {
+            content: "";
+            position: absolute;
+            width: 210px;
+            height: 210px;
+            right: -82px;
+            bottom: -100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,113,227,.15), transparent 72%);
+            pointer-events: none;
+        }
+
+        .gb-sf-meta {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .gb-sf-meta span {
+            color: var(--text-muted);
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .gb-sf-xp-pill {
+            color: var(--accent) !important;
+            padding: 7px 9px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.23);
+            border: 1px solid rgba(255,255,255,.38);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.40);
+            white-space: nowrap;
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .gb-sf-h1 {
+            position: relative;
+            z-index: 1;
+            margin: 0 0 8px;
+            font-size: clamp(20px, 5.7vw, 24px);
+            line-height: 1.18;
+            letter-spacing: -.02em;
+            font-weight: 590;
+            color: var(--text);
+        }
+
+        .gb-sf-subtitle {
+            position: relative;
+            z-index: 1;
+            margin: 0 0 16px;
+            color: var(--text-muted);
+            font-size: 12.8px;
+            line-height: 1.64;
+            font-weight: 400;
+        }
+
+        .gb-sf-passage {
+            position: relative;
+            z-index: 1;
+            border-radius: 26px;
+            padding: 17px;
+            background: linear-gradient(135deg, rgba(255,255,255,.28), rgba(255,255,255,.14));
+            border: 1px solid rgba(255,255,255,.38);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.48), 0 6px 24px rgba(31,38,135,.05);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+        }
+
+        .gb-sf-passage-label {
+            margin: 0 0 11px;
+            color: var(--text-muted);
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .gb-sf-cloze-text {
+            margin: 0;
+            font-size: clamp(15.5px, 4.2vw, 17px);
+            line-height: 1.86;
+            font-weight: 430;
+            letter-spacing: 0;
+            color: var(--text);
+        }
+
+        .gb-sf-blank {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 86px;
+            min-height: 33px;
+            padding: 5px 11px;
+            margin: 0 2px;
+            vertical-align: middle;
+            border-radius: 999px;
+            color: var(--accent);
+            background: rgba(255,255,255,.27);
+            border: 1px solid rgba(255,255,255,.48);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.46);
+            cursor: pointer;
+            transition: .2s ease;
+            font-size: 13.5px;
+            font-weight: 540;
+            line-height: 1.2;
+        }
+
+        .gb-sf-blank:hover,
+        .gb-sf-blank.active {
+            transform: translateY(-1px);
+            border-color: rgba(0,113,227,.26);
+            box-shadow: 0 9px 24px rgba(0,113,227,.10), inset 0 1px 0 rgba(255,255,255,.48);
+        }
+
+        .gb-sf-blank.empty:before {
+            content: attr(data-number);
+            color: rgba(0,113,227,.78);
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .gb-sf-blank.correct {
+            color: #1f6f2e;
+            border-color: rgba(52,199,89,.25);
+            background: linear-gradient(135deg, rgba(52,199,89,.14), rgba(255,255,255,.18));
+        }
+
+        .gb-sf-blank.wrong {
+            color: #9f241d;
+            border-color: rgba(255,69,58,.24);
+            background: linear-gradient(135deg, rgba(255,69,58,.11), rgba(255,255,255,.18));
+        }
+
+        .gb-sf-blank.locked {
+            color: #9f241d;
+            border-color: rgba(255,69,58,.24);
+            background: linear-gradient(135deg, rgba(255,69,58,.11), rgba(255,255,255,.18));
+            pointer-events: none;
+            opacity: 0.95;
+        }
+
+        .gb-sf-control-card {
+            margin-top: 12px;
+            border-radius: 28px;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+        }
+
+        /* Mode chip — read-only, mirrors AQ tier-eyebrow pattern.
+           The mode is author-set in the builder (per-item in content_json),
+           NOT a runtime toggle. Student sees what mode this item is. */
+        .gb-sf-mode-chip {
+            color: var(--accent);
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: rgba(0,113,227,.08);
+            border: 1px solid rgba(0,113,227,.18);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.40);
+            white-space: nowrap;
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .gb-sf-microcopy {
+            margin: 0 0 12px;
+            color: var(--text-muted);
+            font-size: 12px;
+            line-height: 1.58;
+        }
+
+        .gb-sf-word-bank {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .gb-sf-word {
+            border: 1px solid rgba(255,255,255,.42);
+            border-radius: 999px;
+            background: rgba(255,255,255,.25);
+            color: var(--text);
+            padding: 10px 12px;
+            font-size: 12.5px;
+            font-weight: 530;
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.44);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            transition: .18s ease;
+        }
+
+        .gb-sf-word:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 9px 22px rgba(31,38,135,.07), inset 0 1px 0 rgba(255,255,255,.46);
+        }
+
+        .gb-sf-word.used {
+            opacity: .42;
+            transform: scale(.97);
+            pointer-events: none;
+        }
+
+        .gb-sf-recall-grid {
+            display: none;
+            gap: 9px;
+        }
+
+        .gb-sf-recall-grid.show {
+            display: grid;
+        }
+
+        .gb-sf-recall-input {
+            width: 100%;
+            min-height: 45px;
+            border: 1px solid rgba(255,255,255,.38);
+            background: linear-gradient(135deg, rgba(255,255,255,.28), rgba(255,255,255,.14));
+            color: var(--text);
+            border-radius: 17px;
+            padding: 0 13px;
+            outline: none;
+            font-size: 14px;
+            line-height: 1.45;
+            font-weight: 420;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.50), 0 6px 22px rgba(31,38,135,.05);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            transition: .2s ease;
+        }
+
+        .gb-sf-recall-input:focus {
+            border-color: rgba(255,255,255,.52);
+            box-shadow: 0 0 0 4px rgba(255,255,255,.22), 0 6px 22px rgba(0,113,227,.08);
+        }
+
+        .gb-sf-keyboard-hint {
+            margin: 10px 2px 0;
+            color: var(--text-muted);
+            font-size: 10.5px;
+            line-height: 1.5;
+            text-align: center;
+        }
+
+        .gb-sf-result-card {
+            margin-top: 12px;
+            border-radius: 28px;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(28px) saturate(170%);
+            -webkit-backdrop-filter: blur(28px) saturate(170%);
+            display: none;
+        }
+
+        .gb-sf-result-card.show {
+            display: block;
+            animation: gbSfGateIn 0.22s ease both;
+        }
+
+        .gb-sf-result-title {
+            margin: 0 0 7px;
+            font-size: 16px;
+            font-weight: 590;
+            letter-spacing: -.01em;
+            color: var(--text);
+        }
+
+        .gb-sf-result-text {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 12.5px;
+            line-height: 1.56;
+        }
+
+        .gb-sf-score-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 13px;
+            padding: 11px 12px;
+            border-radius: 18px;
+            background: rgba(255,255,255,.23);
+            border: 1px solid rgba(255,255,255,.36);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.40);
+        }
+
+        .gb-sf-score-line span {
+            color: var(--text-muted);
+            font-size: 11.5px;
+            font-weight: 580;
+        }
+
+        .gb-sf-score-line strong {
+            font-size: 16px;
+            font-weight: 620;
+            color: var(--text);
+        }
+
+        .gb-sf-toast {
+            position: absolute;
+            left: 50%;
+            bottom: 86px;
+            transform: translateX(-50%) translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 60;
+            width: min(calc(100% - 28px), 420px);
+            padding: 13px 15px;
+            border-radius: 20px;
+            background: rgba(29,29,31,.86);
+            color: #fff;
+            box-shadow: 0 24px 70px rgba(15,23,42,.12);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: .24s ease;
+            font-size: 13px;
+            font-weight: 620;
+            text-align: center;
+        }
+
+        .gb-sf-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        @keyframes gbSfGateIn {
+            from { opacity: 0; transform: translateY(8px) scale(.98); }
+            to   { opacity: 1; transform: none; }
+        }
+
+        @media (max-width: 370px) {
+            .gb-game-panel#gb-panel-sf { padding-inline: 9px; }
+            .gb-sf-topbar { grid-template-columns: 1fr; }
+            .gb-sf-word { padding: 9px 11px; }
+            .gb-sf-blank { min-width: 80px; }
+        }
+
         /* ── STAGE 6 · REAL-LIFE CHALLENGE ────────────────────────────── */
         #screen-6 {
             text-align: left;
@@ -4791,6 +5217,128 @@
             border-color: #5bb85d;
         }
 
+        /* Sentence Fill (gb-sf-*) ───────────────────────────────── */
+        [data-theme="dark"] .gb-sf-topbar {
+            background: linear-gradient(135deg, rgba(15,23,42,.82), rgba(15,23,42,.64));
+            border-color: var(--surface-border);
+            box-shadow: 0 14px 44px rgba(0,0,0,.38), inset 0 1px 0 rgba(148,163,184,.12);
+        }
+
+        [data-theme="dark"] .gb-sf-top-pill {
+            background: rgba(15,23,42,.58);
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(148,163,184,.10);
+        }
+
+        [data-theme="dark"] .gb-sf-main-card {
+            background: var(--surface);
+            border-color: var(--surface-border);
+            box-shadow: 0 20px 48px rgba(0,0,0,.48), inset 0 1px 0 rgba(148,163,184,.10);
+        }
+
+        [data-theme="dark"] .gb-sf-main-card:after {
+            background: radial-gradient(circle, rgba(0,111,224,.22), transparent 72%);
+        }
+
+        [data-theme="dark"] .gb-sf-xp-pill {
+            background: rgba(15,23,42,.58);
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(148,163,184,.10);
+        }
+
+        [data-theme="dark"] .gb-sf-passage {
+            background: rgba(30,41,59,.72);
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(148,163,184,.08), 0 6px 24px rgba(0,0,0,.22);
+        }
+
+        [data-theme="dark"] .gb-sf-blank {
+            background: rgba(15,23,42,.52);
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(148,163,184,.10);
+            color: var(--accent);
+        }
+
+        [data-theme="dark"] .gb-sf-blank:hover,
+        [data-theme="dark"] .gb-sf-blank.active {
+            border-color: rgba(0,111,224,.40);
+            box-shadow: 0 9px 24px rgba(0,111,224,.18), inset 0 1px 0 rgba(148,163,184,.12);
+        }
+
+        [data-theme="dark"] .gb-sf-blank.correct {
+            color: #4ade80;
+            border-color: rgba(52,199,89,.35);
+            background: linear-gradient(135deg, rgba(52,199,89,.22), rgba(15,23,42,.40));
+        }
+
+        [data-theme="dark"] .gb-sf-blank.wrong {
+            color: #f87171;
+            border-color: rgba(255,69,58,.34);
+            background: linear-gradient(135deg, rgba(255,69,58,.20), rgba(15,23,42,.40));
+        }
+
+        [data-theme="dark"] .gb-sf-blank.locked {
+            color: #f87171;
+            border-color: rgba(255,69,58,.34);
+            background: linear-gradient(135deg, rgba(255,69,58,.20), rgba(15,23,42,.40));
+            pointer-events: none;
+            opacity: 0.95;
+        }
+
+        [data-theme="dark"] .gb-sf-control-card {
+            background: var(--surface);
+            border-color: var(--surface-border);
+            box-shadow: 0 20px 48px rgba(0,0,0,.48), inset 0 1px 0 rgba(148,163,184,.10);
+        }
+
+        [data-theme="dark"] .gb-sf-mode-chip {
+            background: rgba(0,111,224,.18);
+            border-color: rgba(0,111,224,.36);
+            box-shadow: inset 0 1px 0 rgba(148,163,184,.10);
+        }
+
+        [data-theme="dark"] .gb-sf-word {
+            background: rgba(15,23,42,.52);
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(148,163,184,.08);
+            color: var(--text);
+        }
+
+        [data-theme="dark"] .gb-sf-word:hover {
+            box-shadow: 0 9px 22px rgba(0,0,0,.28), inset 0 1px 0 rgba(148,163,184,.12);
+        }
+
+        [data-theme="dark"] .gb-sf-recall-input {
+            background: rgba(15,23,42,.58);
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(148,163,184,.08), 0 6px 22px rgba(0,0,0,.18);
+            color: var(--text);
+        }
+
+        [data-theme="dark"] .gb-sf-recall-input:focus {
+            border-color: rgba(0,111,224,.48);
+            box-shadow: 0 0 0 4px rgba(0,111,224,.18), 0 6px 22px rgba(0,111,224,.12);
+        }
+
+        [data-theme="dark"] .gb-sf-result-card {
+            background: var(--surface);
+            border-color: var(--surface-border);
+            box-shadow: 0 20px 48px rgba(0,0,0,.48), inset 0 1px 0 rgba(148,163,184,.10);
+        }
+
+        [data-theme="dark"] .gb-sf-score-line {
+            background: rgba(15,23,42,.64);
+            border-color: var(--surface-border);
+            box-shadow: inset 0 1px 0 rgba(148,163,184,.08);
+        }
+
+        [data-theme="dark"] .gb-sf-toast {
+            background: rgba(15,23,42,.92);
+            box-shadow: 0 24px 70px rgba(0,0,0,.48);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+        }
+
         /* Real Life screen ----------------------------------------- */
         [data-theme="dark"] .rl-capture-btn {
             background: rgba(15, 23, 42, 0.50);
@@ -5312,13 +5860,46 @@
                             <div class="gb-ttt-result-sub" id="gb-ttt-session-summary"></div>
                         </div>
                     </div>
-
-                    <!-- Sub-game 7: Sentence Fill (backend placeholder — frontend agent fills in) -->
-                    <div class="gb-game-panel" id="gb-panel-sf" style="display: none;">
-                        <div class="gb-section-title">SENTENCE FILL — PLACEHOLDER</div>
-                        <div class="gb-sf-placeholder" style="padding: 20px; text-align: center; color: #666;">
-                            Sentence Fill panel — frontend implementation pending
-                        </div>
+                    <!-- Sub-game 7: Sentence Fill (Stage-5 game; data via GB_SENTENCE_FILL constant) -->
+                    <div class="gb-game-panel enter-right" id="gb-panel-sf">
+                        <div class="gb-section-title" id="gb-sf-eyebrow"></div>
+                        <header class="gb-sf-topbar">
+                            <div class="gb-sf-top-pill">
+                                <div class="gb-sf-dots" id="gb-sf-dots" aria-hidden="true"></div>
+                                <strong id="gb-sf-progress-label"></strong>
+                            </div>
+                            <div class="gb-sf-top-pill">
+                                <strong id="gb-sf-chain-label"></strong>
+                            </div>
+                        </header>
+                        <article class="gb-sf-main-card">
+                            <div class="gb-sf-meta">
+                                <span id="gb-sf-eyebrow-meta"></span>
+                                <span class="gb-sf-mode-chip" id="gb-sf-mode-chip"></span>
+                                <span class="gb-sf-xp-pill" id="gb-sf-xp-pill">0 XP</span>
+                            </div>
+                            <h1 class="gb-sf-h1" id="gb-sf-title"></h1>
+                            <p class="gb-sf-subtitle" id="gb-sf-subtitle"></p>
+                            <section class="gb-sf-passage" aria-label="Cloze passage">
+                                <h2 class="gb-sf-passage-label" id="gb-sf-passage-label"></h2>
+                                <p class="gb-sf-cloze-text" id="gb-sf-cloze-text"></p>
+                            </section>
+                        </article>
+                        <section class="gb-sf-control-card" aria-label="Sentence Fill controls">
+                            <p class="gb-sf-microcopy" id="gb-sf-microcopy"></p>
+                            <div class="gb-sf-word-bank" id="gb-sf-word-bank"></div>
+                            <div class="gb-sf-recall-grid" id="gb-sf-recall-grid"></div>
+                            <p class="gb-sf-keyboard-hint" id="gb-sf-keyboard-hint"></p>
+                        </section>
+                        <section class="gb-sf-result-card" id="gb-sf-result-card" aria-live="polite">
+                            <h2 class="gb-sf-result-title" id="gb-sf-result-title"></h2>
+                            <p class="gb-sf-result-text" id="gb-sf-result-text"></p>
+                            <div class="gb-sf-score-line">
+                                <span id="gb-sf-score-label"></span>
+                                <strong id="gb-sf-score-value">0 XP</strong>
+                            </div>
+                        </section>
+                        <div class="gb-sf-toast" id="gb-sf-toast" role="status" aria-live="polite"></div>
                     </div>
                 </div>
             </div>
@@ -5702,6 +6283,27 @@
                 'game.pl':               "Qulf ochish",
                 'game.mb':               "Sirli quti",
                 'game.ttt':              "Krestiki-Nolikar",
+                'game.sf':               "Gap to'ldirish",
+                // Sentence Fill (sf.*) — new Stage-5 game (panel: gb-panel-sf)
+                'sf.title':              "Gap to'ldirish",
+                'sf.eyebrow':            "O'yin · Cloze",
+                'sf.passage_label':      'Matn',
+                'sf.mode_word_bank':     "So'z banki",
+                'sf.mode_free_recall':   'Esdan yozish',
+                'sf.subtitle_bank':      "Joyni tanlang, so'ng so'zni tanlang.",
+                'sf.subtitle_recall':    "Har bir so'zni eslab yozing.",
+                'sf.btn_check':          'Tekshirish',
+                'sf.btn_next':           'Keyingi savol',
+                'sf.result_perfect':     'Mukammal',
+                'sf.result_partial':     'Hali emas',
+                'sf.toast_perfect':      'Mukammal! Bonus XP.',
+                'sf.toast_partial':      "Tekshirildi. To'g'ri javoblar ko'rsatildi.",
+                'sf.toast_locked':       'Bu joy yopildi.',
+                'sf.score_label':        'Sentence Fill XP',
+                'sf.first_attempt_bonus':'+25 (birinchi urinish)',
+                'sf.perfect_fill_bonus': '+100 mukammal',
+                'sf.keyboard_hint':      "Tugmalar: Tab — joy/so'z · Enter — tekshirish · Backspace — tozalash",
+                'sf.chain_label':        'Zanjir',
             },
             ru: {
                 'skip.label':            '⏭ Пропустить фазу',
@@ -5841,6 +6443,27 @@
                 'game.pl':               'Замок-головоломка',
                 'game.mb':               'Загадочный ящик',
                 'game.ttt':              'Крестики-нолики',
+                'game.sf':               'Заполнение предложения',
+                // Sentence Fill (sf.*)
+                'sf.title':              'Заполни пропуск',
+                'sf.eyebrow':            'Игра · Cloze',
+                'sf.passage_label':      'Текст',
+                'sf.mode_word_bank':     'Из списка',
+                'sf.mode_free_recall':   'По памяти',
+                'sf.subtitle_bank':      'Выберите пропуск, затем слово.',
+                'sf.subtitle_recall':    'Введите слова по памяти.',
+                'sf.btn_check':          'Проверить',
+                'sf.btn_next':           'Дальше',
+                'sf.result_perfect':     'Идеально',
+                'sf.result_partial':     'Не совсем',
+                'sf.toast_perfect':      'Идеально! Бонус XP.',
+                'sf.toast_partial':      'Проверено. Ответы показаны.',
+                'sf.toast_locked':       'Пропуск заблокирован.',
+                'sf.score_label':        'XP',
+                'sf.first_attempt_bonus':'+25 (с первого раза)',
+                'sf.perfect_fill_bonus': '+100 идеально',
+                'sf.keyboard_hint':      'Клавиши: Tab — пропуск/слово · Enter — проверить · Backspace — очистить',
+                'sf.chain_label':        'Цепочка',
             },
             en: {
                 'skip.label':            '⏭ Skip phase',
@@ -5980,6 +6603,27 @@
                 'game.pl':               'Puzzle Lock',
                 'game.mb':               'Mystery Box',
                 'game.ttt':              'Tic Tac Toe',
+                'game.sf':               'Sentence Fill',
+                // Sentence Fill (sf.*)
+                'sf.title':              'Sentence Fill',
+                'sf.eyebrow':            'Game · Cloze',
+                'sf.passage_label':      'Passage',
+                'sf.mode_word_bank':     'Word bank',
+                'sf.mode_free_recall':   'Free recall',
+                'sf.subtitle_bank':      'Tap a blank, then pick a word.',
+                'sf.subtitle_recall':    'Type each word from memory.',
+                'sf.btn_check':          'Check',
+                'sf.btn_next':           'Next',
+                'sf.result_perfect':     'Perfect Fill',
+                'sf.result_partial':     'Not quite',
+                'sf.toast_perfect':      'Perfect. Bonus XP.',
+                'sf.toast_partial':      'Checked. Corrections revealed.',
+                'sf.toast_locked':       'Blank locked.',
+                'sf.score_label':        'Sentence Fill XP',
+                'sf.first_attempt_bonus':'+25 (first try)',
+                'sf.perfect_fill_bonus': '+100 perfect fill',
+                'sf.keyboard_hint':      'Keys: Tab — blanks/words · Enter — check · Backspace — clear',
+                'sf.chain_label':        'Chain',
             },
         };
 
@@ -8254,7 +8898,8 @@
             mm: { tiles:[], flipped:[], matched:0, pendingPair:null, busy:false, complete:false },
             pl: { size:3, cells:[], emptyIdx:0, tiles:[], selected:null, total:0, correct:0, wrongCount:0, complete:false, busy:false },
             mb: { boxes:[], opened:[], idx:-1, phase:'select', labels:[], pickedLabel:'', idCorrect:null, ansCorrect:null, complete:false, busy:false },
-            ttt: { gameIdx:0, wins:0, draws:0, losses:0, board:Array(9).fill(''), targetCell:-1, currentItem:null, itemCursor:0, phase:'await-tap', busy:false, complete:false, winLine:null }
+            ttt: { gameIdx:0, wins:0, draws:0, losses:0, board:Array(9).fill(''), targetCell:-1, currentItem:null, itemCursor:0, phase:'await-tap', busy:false, complete:false, winLine:null },
+            sf: { idx:0, mode:'word_bank', selectedBlank:0, blanks:[], xp:0, pendingFinalize:false, complete:false, busy:false }
         };
 
         // ── Registry-driven game-break order ─────────────────────────────
@@ -8277,6 +8922,8 @@
                 list.push({ id: 'mb', sub: 4, init: gbInitMB, panel: 'gb-panel-mb', label: 'Mystery Box', labelKey: 'game.mb', setupBtn: null });
             if (Array.isArray(GB_TTT) && GB_TTT.length > 0)
                 list.push({ id: 'ttt', sub: 5, init: gbInitTTT, panel: 'gb-panel-ttt', label: 'Tic Tac Toe', labelKey: 'game.ttt', setupBtn: null });
+            if (Array.isArray(GB_SENTENCE_FILL) && GB_SENTENCE_FILL.length > 0)
+                list.push({ id: 'sf', sub: 6, init: gbInitSF, panel: 'gb-panel-sf', label: 'Sentence Fill', labelKey: 'game.sf', setupBtn: gbSetButtonForSF });
             return list;
         }
 
@@ -8295,7 +8942,8 @@
             const idx = order.findIndex(g => g.sub === currentSub);
             if (idx < 0 || idx >= order.length - 1) {
                 // No more games in the registry — exit Stage 5.
-                gbState.subGame = 6;
+                // Sentinel 99 (not 6) — slot 6 is now Sentence Fill (gb-panel-sf).
+                gbState.subGame = 99;
                 gbExitToStage6();
                 return;
             }
@@ -8467,7 +9115,11 @@
 
         function gbHandleAction() {
             if (state.isAnimating) return;
-            if (gbState.subGame === 6) { gbExitToStage6(); return; }
+            if (gbState.subGame === 99) { gbExitToStage6(); return; }
+            if (gbState.subGame === 6) {
+                if (gbState.sf && gbState.sf.complete) { gbAdvanceFromGame(6, 'gb-panel-sf'); return; }
+                gbSFAction(); return;
+            }
             if (gbState.subGame === 5) {
                 if (gbState.ttt && gbState.ttt.complete) { gbAdvanceFromGame(5, 'gb-panel-ttt'); return; }
                 gbTTTAction(); return;
@@ -9032,6 +9684,522 @@
         function gbWCFinish() {
             // Registry-driven: walk to next active game, or exit Stage 5.
             gbAdvanceFromGame(1, 'gb-panel-wc');
+        }
+
+        // ── Sentence Fill (Stage-5 sub-game 6) ──────────────────────────
+        // Cloze-style fill-in-the-blank with two modes: word_bank (pick chips)
+        // and free_recall (type into inputs). Each blank is graded independently
+        // via /api/ai/check-answer with phase='sentence-fill'. After 2 wrong
+        // attempts, the blank locks and the correct answer is revealed only via
+        // result.correct_answer from the backend (never embedded in client data).
+        let _gbSFListenersBound = false;
+        let _gbSFToastTimer = null;
+
+        function gbSetButtonForSF() {
+            btn.classList.remove('pulse','state-pill','state-line');
+            btn.classList.add('state-pill');
+            setBtnText(RT('sf.btn_check'));
+            btn.classList.add('pulse');
+        }
+
+        async function gbSFGradeBlank(itemId, blankIdx, studentValue, attemptNumber) {
+            try {
+                const ctx = window.NETS_CTX || {};
+                const resp = await fetch('/api/ai/check-answer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phase: 'sentence-fill',
+                        homework_id: ctx.homework_id || ctx.homeworkId || null,
+                        question_id: itemId,
+                        student_answer: studentValue,
+                        // Forward-compat fields:
+                        blank_idx: blankIdx,
+                        attempt_number: attemptNumber,
+                        item_id: itemId,
+                        student_value: studentValue,
+                        subject: ctx.subject || 'general',
+                        grade: ctx.grade || 8,
+                        expected_answers: [],
+                        answer_spec: {
+                            type: 'semantic',
+                            expected: '',
+                            canonical_display: '',
+                            allow_ai_fallback: true,
+                            amr: false
+                        },
+                        allow_ai_fallback: true
+                    })
+                });
+                if (!resp.ok) {
+                    return {
+                        correct: false,
+                        lock: attemptNumber >= 2,
+                        correct_answer: null,
+                        explanation: null,
+                        xp: { base: 0, first_attempt_bonus: 0, total: 0 },
+                        error: 'http ' + resp.status
+                    };
+                }
+                const data = await resp.json();
+                const isCorrect = !!(data.is_correct === true || data.correct === true);
+                const lock = isCorrect || attemptNumber >= 2;
+                const revealedAnswer = (!isCorrect && attemptNumber >= 2)
+                    ? (data.expected || data.canonical_display || data.correct_answer || null)
+                    : null;
+                return {
+                    correct: isCorrect,
+                    lock: lock,
+                    correct_answer: revealedAnswer,
+                    explanation: data.explanation || null,
+                    xp: {
+                        base: isCorrect ? 100 : 0,
+                        first_attempt_bonus: (isCorrect && attemptNumber === 1) ? 25 : 0,
+                        total: isCorrect ? (attemptNumber === 1 ? 125 : 100) : 0
+                    }
+                };
+            } catch (e) {
+                return {
+                    correct: false,
+                    lock: attemptNumber >= 2,
+                    correct_answer: null,
+                    explanation: null,
+                    xp: { base: 0, first_attempt_bonus: 0, total: 0 },
+                    error: String(e)
+                };
+            }
+        }
+
+        function gbInitSF() {
+            // Reset state for slot 6.
+            gbState.sf = { idx:0, mode:(gbState.sf && gbState.sf.mode) || 'word_bank', selectedBlank:0, blanks:[], xp:0, pendingFinalize:false, complete:false, busy:false };
+            // Eyebrow + chain label + dots (one per item).
+            const eyebrow = document.getElementById('gb-sf-eyebrow');
+            if (eyebrow) eyebrow.textContent = (RT('sf.eyebrow') || '').toUpperCase();
+            const dots = document.getElementById('gb-sf-dots');
+            if (dots) {
+                dots.innerHTML = '';
+                const total = Array.isArray(GB_SENTENCE_FILL) ? GB_SENTENCE_FILL.length : 0;
+                for (let i = 0; i < total; i++) {
+                    const d = document.createElement('span');
+                    if (i === 0) d.classList.add('active');
+                    dots.appendChild(d);
+                }
+            }
+            const progressLabel = document.getElementById('gb-sf-progress-label');
+            if (progressLabel) {
+                const total = Array.isArray(GB_SENTENCE_FILL) ? GB_SENTENCE_FILL.length : 0;
+                progressLabel.textContent = (gbState.sf.idx + 1) + '/' + total + ' ' + RT('sf.title');
+            }
+            const chainLabel = document.getElementById('gb-sf-chain-label');
+            if (chainLabel) {
+                const total = Array.isArray(GB_SENTENCE_FILL) ? GB_SENTENCE_FILL.length : 0;
+                chainLabel.textContent = RT('sf.chain_label') + ' ' + (gbState.sf.idx + 1) + '/' + total;
+            }
+            // Keyboard listener — bind once. Mode is author-set in the
+            // builder per content_json item; there is no runtime mode toggle.
+            if (!_gbSFListenersBound) {
+                document.addEventListener('keydown', (e) => {
+                    if (gbState.subGame !== 6) return;
+                    const sfPanel = document.getElementById('gb-panel-sf');
+                    if (!sfPanel || !sfPanel.classList.contains('active')) return;
+                    if (gbState.sf.complete || gbState.sf.busy) return;
+                    const focused = document.activeElement;
+                    const isInput = focused && focused.classList && focused.classList.contains('gb-sf-recall-input');
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        gbSFAction();
+                        return;
+                    }
+                    if (e.key === 'Backspace' && !isInput) {
+                        const idx = gbState.sf.selectedBlank;
+                        const blank = gbState.sf.blanks[idx];
+                        if (blank && !blank.locked && blank.value) {
+                            e.preventDefault();
+                            blank.value = '';
+                            const blankEl = document.querySelector('.gb-sf-blank[data-index="' + idx + '"]');
+                            if (blankEl) {
+                                blankEl.removeAttribute('data-value');
+                                blankEl.textContent = '';
+                                blankEl.classList.add('empty');
+                            }
+                            gbSFSyncUsedWords();
+                        }
+                    }
+                });
+                _gbSFListenersBound = true;
+            }
+            // Hide result card from any prior render.
+            const resultCard = document.getElementById('gb-sf-result-card');
+            if (resultCard) resultCard.classList.remove('show');
+            gbSFRenderItem();
+        }
+
+        function gbSFRenderItem() {
+            const items = Array.isArray(GB_SENTENCE_FILL) ? GB_SENTENCE_FILL : [];
+            const item = items[gbState.sf.idx];
+            if (!item) { gbSFFinish(); return; }
+            // Default mode if missing on item.
+            const mode = item.mode || gbState.sf.mode || 'word_bank';
+            // Init blanks array based on '___' count.
+            const blankCount = (item.passage || '').split('___').length - 1;
+            gbState.sf.blanks = [];
+            for (let i = 0; i < blankCount; i++) {
+                gbState.sf.blanks.push({ value:'', attempts:0, locked:false, correct:false, revealed:null });
+            }
+            gbState.sf.selectedBlank = 0;
+            // Reset XP pill + score line.
+            const xpPill = document.getElementById('gb-sf-xp-pill');
+            if (xpPill) xpPill.textContent = '0 XP';
+            const scoreLabel = document.getElementById('gb-sf-score-label');
+            if (scoreLabel) scoreLabel.textContent = RT('sf.score_label');
+            const scoreValue = document.getElementById('gb-sf-score-value');
+            if (scoreValue) scoreValue.textContent = '0 XP';
+            // Title + meta.
+            const titleEl = document.getElementById('gb-sf-title');
+            if (titleEl) titleEl.textContent = RT('sf.title');
+            const metaEl = document.getElementById('gb-sf-eyebrow-meta');
+            if (metaEl) metaEl.textContent = item.tags || '';
+            // Update progress dots + label.
+            const dots = document.getElementById('gb-sf-dots');
+            if (dots) {
+                const spans = dots.querySelectorAll('span');
+                spans.forEach((s, i) => { s.classList.toggle('active', i === gbState.sf.idx); });
+            }
+            const progressLabel = document.getElementById('gb-sf-progress-label');
+            if (progressLabel) progressLabel.textContent = (gbState.sf.idx + 1) + '/' + items.length + ' ' + RT('sf.title');
+            const chainLabel = document.getElementById('gb-sf-chain-label');
+            if (chainLabel) chainLabel.textContent = RT('sf.chain_label') + ' ' + (gbState.sf.idx + 1) + '/' + items.length;
+            // Hide result card.
+            const resultCard = document.getElementById('gb-sf-result-card');
+            if (resultCard) resultCard.classList.remove('show');
+            // Render passage + apply mode + select first blank.
+            gbSFRenderPassage(item);
+            gbSFApplyMode(mode);
+            gbSFSelectBlank(0);
+            // Reset action button.
+            setBtnText(RT('sf.btn_check'));
+        }
+
+        function gbSFRenderPassage(item) {
+            const cloze = document.getElementById('gb-sf-cloze-text');
+            if (!cloze) return;
+            cloze.innerHTML = '';
+            const passage = item.passage || '';
+            const segments = passage.split('___');
+            const blankIcons = Array.isArray(item.blank_icons) ? item.blank_icons : [];
+            const colorHints = (item.color_hints && typeof item.color_hints === 'object') ? item.color_hints : {};
+            const iconMap = { lightbulb: '💡', star: '⭐' };
+            const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const appendTextSeg = (text) => {
+                if (!text) return;
+                let html = text;
+                try {
+                    const words = Object.keys(colorHints);
+                    if (words.length) {
+                        html = html.replace(/[<>&]/g, (c) => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[c]));
+                        words.forEach((w) => {
+                            if (!w) return;
+                            const re = new RegExp('\\b(' + escapeRe(w) + ')\\b', 'g');
+                            html = html.replace(re, '<span class="gb-sf-color-hint" style="color: var(--accent)">$1</span>');
+                        });
+                        const span = document.createElement('span');
+                        span.innerHTML = html;
+                        cloze.appendChild(span);
+                        return;
+                    }
+                } catch (_) { /* fall through to plain text */ }
+                cloze.appendChild(document.createTextNode(text));
+            };
+            for (let i = 0; i < segments.length; i++) {
+                appendTextSeg(segments[i]);
+                if (i < segments.length - 1) {
+                    const blankBtn = document.createElement('button');
+                    blankBtn.type = 'button';
+                    blankBtn.className = 'gb-sf-blank empty';
+                    blankBtn.setAttribute('data-index', String(i));
+                    blankBtn.setAttribute('data-number', String(i + 1));
+                    const iconKey = blankIcons[i];
+                    const iconChar = iconKey && iconMap[iconKey] ? iconMap[iconKey] + ' ' : '';
+                    if (iconChar) blankBtn.textContent = iconChar;
+                    const idxLocal = i;
+                    blankBtn.addEventListener('click', () => gbSFSelectBlank(idxLocal));
+                    cloze.appendChild(blankBtn);
+                }
+            }
+            const passageLabel = document.getElementById('gb-sf-passage-label');
+            if (passageLabel) {
+                passageLabel.textContent = RT('sf.passage_label') + (item.tags ? ' · ' + item.tags : '');
+            }
+        }
+
+        function gbSFApplyMode(mode) {
+            // Mode is author-set per item in the builder (content_json).
+            // Runtime renders the chosen mode only — no student toggle.
+            gbState.sf.mode = mode;
+            const chip = document.getElementById('gb-sf-mode-chip');
+            if (chip) {
+                chip.textContent = mode === 'word_bank' ? RT('sf.mode_word_bank') : RT('sf.mode_free_recall');
+                chip.setAttribute('data-mode', mode);
+            }
+            const microcopy = document.getElementById('gb-sf-microcopy');
+            if (microcopy) {
+                microcopy.textContent = mode === 'word_bank' ? RT('sf.subtitle_bank') : RT('sf.subtitle_recall');
+            }
+            const subtitle = document.getElementById('gb-sf-subtitle');
+            if (subtitle) {
+                subtitle.textContent = mode === 'word_bank' ? RT('sf.subtitle_bank') : RT('sf.subtitle_recall');
+            }
+            const wordBank = document.getElementById('gb-sf-word-bank');
+            const recallGrid = document.getElementById('gb-sf-recall-grid');
+            const items = Array.isArray(GB_SENTENCE_FILL) ? GB_SENTENCE_FILL : [];
+            const item = items[gbState.sf.idx] || {};
+            if (mode === 'word_bank') {
+                if (wordBank) {
+                    wordBank.style.display = 'flex';
+                    wordBank.innerHTML = '';
+                    const bank = Array.isArray(item.word_bank) ? item.word_bank : [];
+                    bank.forEach((word) => {
+                        const chip = document.createElement('button');
+                        chip.type = 'button';
+                        chip.className = 'gb-sf-word';
+                        chip.setAttribute('data-word', String(word));
+                        chip.textContent = String(word);
+                        chip.addEventListener('click', () => gbSFPickWord(String(word)));
+                        wordBank.appendChild(chip);
+                    });
+                }
+                if (recallGrid) {
+                    recallGrid.classList.remove('show');
+                    recallGrid.innerHTML = '';
+                }
+                gbSFSyncUsedWords();
+            } else {
+                if (wordBank) {
+                    wordBank.style.display = 'none';
+                }
+                if (recallGrid) {
+                    recallGrid.classList.add('show');
+                    recallGrid.innerHTML = '';
+                    gbState.sf.blanks.forEach((blank, idx) => {
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.className = 'gb-sf-recall-input';
+                        input.id = 'gb-sf-recall-' + idx;
+                        input.setAttribute('data-index', String(idx));
+                        input.setAttribute('autocomplete', 'off');
+                        input.placeholder = 'Blank ' + (idx + 1);
+                        input.value = blank.value || '';
+                        if (blank.locked) input.disabled = true;
+                        input.addEventListener('input', (e) => {
+                            const i = parseInt(e.target.getAttribute('data-index'), 10);
+                            if (gbState.sf.blanks[i] && !gbState.sf.blanks[i].locked) {
+                                gbState.sf.blanks[i].value = e.target.value;
+                                // Reflect into the cloze blank as well so sync visuals stay coherent.
+                                const blankEl = document.querySelector('.gb-sf-blank[data-index="' + i + '"]');
+                                if (blankEl) {
+                                    if (e.target.value) {
+                                        blankEl.setAttribute('data-value', e.target.value);
+                                        blankEl.textContent = e.target.value;
+                                        blankEl.classList.remove('empty');
+                                    } else {
+                                        blankEl.removeAttribute('data-value');
+                                        blankEl.textContent = '';
+                                        blankEl.classList.add('empty');
+                                    }
+                                }
+                            }
+                        });
+                        recallGrid.appendChild(input);
+                    });
+                }
+            }
+            const kbHint = document.getElementById('gb-sf-keyboard-hint');
+            if (kbHint) kbHint.textContent = RT('sf.keyboard_hint');
+        }
+
+        function gbSFSelectBlank(idx) {
+            const blanks = gbState.sf.blanks || [];
+            if (!blanks.length) return;
+            // If target blank is locked, advance to first non-locked.
+            let target = idx;
+            if (blanks[target] && blanks[target].locked) {
+                let scan = -1;
+                for (let i = 0; i < blanks.length; i++) {
+                    if (!blanks[i].locked) { scan = i; break; }
+                }
+                if (scan === -1) return;
+                target = scan;
+            }
+            gbState.sf.selectedBlank = target;
+            const all = document.querySelectorAll('.gb-sf-blank');
+            all.forEach((el) => {
+                const i = parseInt(el.getAttribute('data-index'), 10);
+                const isLocked = blanks[i] && blanks[i].locked;
+                if (!isLocked) el.classList.toggle('active', i === target);
+                else el.classList.remove('active');
+            });
+        }
+
+        function gbSFPickWord(word) {
+            if (gbState.sf.mode !== 'word_bank') return;
+            const idx = gbState.sf.selectedBlank;
+            const blank = gbState.sf.blanks[idx];
+            if (!blank || blank.locked) return;
+            blank.value = word;
+            const blankEl = document.querySelector('.gb-sf-blank[data-index="' + idx + '"]');
+            if (blankEl) {
+                blankEl.setAttribute('data-value', word);
+                blankEl.textContent = word;
+                blankEl.classList.remove('empty');
+            }
+            gbSFSyncUsedWords();
+            // Auto-advance to next non-locked, non-filled blank.
+            const blanks = gbState.sf.blanks;
+            for (let step = 1; step <= blanks.length; step++) {
+                const nxt = (idx + step) % blanks.length;
+                const b = blanks[nxt];
+                if (b && !b.locked && !b.value) {
+                    gbSFSelectBlank(nxt);
+                    return;
+                }
+            }
+        }
+
+        function gbSFSyncUsedWords() {
+            const used = new Set();
+            (gbState.sf.blanks || []).forEach((b) => {
+                if (b && b.value) used.add(String(b.value));
+            });
+            const chips = document.querySelectorAll('.gb-sf-word');
+            chips.forEach((chip) => {
+                const w = chip.getAttribute('data-word');
+                chip.classList.toggle('used', used.has(w));
+            });
+        }
+
+        async function gbSFAction() {
+            if (gbState.sf.busy) return;
+            const items = Array.isArray(GB_SENTENCE_FILL) ? GB_SENTENCE_FILL : [];
+            const item = items[gbState.sf.idx];
+            if (!item) { gbSFFinish(); return; }
+            const resultCard = document.getElementById('gb-sf-result-card');
+            // If result card is showing, this click means "next".
+            if (resultCard && resultCard.classList.contains('show')) {
+                if (gbState.sf.idx < items.length - 1) {
+                    gbState.sf.idx += 1;
+                    gbSFRenderItem();
+                    setBtnText(RT('sf.btn_check'));
+                } else {
+                    gbSFFinish();
+                }
+                return;
+            }
+            // Free-recall mode: pull current values from inputs (defensive sync).
+            if (gbState.sf.mode === 'free_recall') {
+                (gbState.sf.blanks || []).forEach((b, i) => {
+                    if (!b.locked) {
+                        const input = document.getElementById('gb-sf-recall-' + i);
+                        if (input) b.value = (input.value || '').trim();
+                    }
+                });
+            }
+            // Validate: every non-locked blank must have a value.
+            const missing = (gbState.sf.blanks || []).some((b) => !b.locked && !String(b.value || '').trim());
+            if (missing) {
+                gbSFShowToast(RT('sf.subtitle_recall'));
+                return;
+            }
+            gbState.sf.busy = true;
+            let totalXp = 0;
+            const blanks = gbState.sf.blanks;
+            for (let i = 0; i < blanks.length; i++) {
+                const b = blanks[i];
+                if (b.locked) continue;
+                const attemptNumber = b.attempts + 1;
+                const result = await gbSFGradeBlank(item.id, i, b.value, attemptNumber);
+                b.attempts = attemptNumber;
+                const blankEl = document.querySelector('.gb-sf-blank[data-index="' + i + '"]');
+                if (result.correct) {
+                    b.correct = true;
+                    b.locked = true;
+                    if (blankEl) {
+                        blankEl.classList.remove('wrong','active','empty');
+                        blankEl.classList.add('correct','locked');
+                    }
+                } else {
+                    if (blankEl) {
+                        blankEl.classList.remove('correct','active');
+                        blankEl.classList.add('wrong');
+                    }
+                    if (result.lock) {
+                        b.locked = true;
+                        if (result.correct_answer) {
+                            b.revealed = result.correct_answer;
+                            b.value = result.correct_answer;
+                            if (blankEl) {
+                                blankEl.setAttribute('data-value', result.correct_answer);
+                                blankEl.textContent = result.correct_answer;
+                                blankEl.classList.remove('empty','wrong');
+                                blankEl.classList.add('locked');
+                            }
+                            // Reflect reveal into recall input if shown.
+                            const input = document.getElementById('gb-sf-recall-' + i);
+                            if (input) { input.value = result.correct_answer; input.disabled = true; }
+                        }
+                    }
+                }
+                totalXp += (result.xp && typeof result.xp.total === 'number') ? result.xp.total : 0;
+            }
+            // Compute perfect fill: all correct AND every attempts === 1.
+            const perfect = blanks.every((b) => b.correct === true && b.attempts === 1);
+            if (perfect) totalXp += 100;
+            gbState.sf.xp = totalXp;
+            // Update XP pill + score line.
+            const xpPill = document.getElementById('gb-sf-xp-pill');
+            if (xpPill) xpPill.textContent = totalXp + ' XP';
+            const scoreValue = document.getElementById('gb-sf-score-value');
+            if (scoreValue) scoreValue.textContent = totalXp + ' XP';
+            // Toast + result card.
+            gbSFShowToast(perfect ? RT('sf.toast_perfect') : RT('sf.toast_partial'));
+            const resultTitle = document.getElementById('gb-sf-result-title');
+            const resultText = document.getElementById('gb-sf-result-text');
+            if (resultTitle) resultTitle.textContent = perfect ? RT('sf.result_perfect') : RT('sf.result_partial');
+            if (resultText) resultText.textContent = perfect ? RT('sf.perfect_fill_bonus') : RT('sf.first_attempt_bonus');
+            if (resultCard) resultCard.classList.add('show');
+            // Set button to Next.
+            setBtnText(RT('sf.btn_next'));
+            // Session log.
+            if (window.__sessionLog) {
+                const correctCount = blanks.filter((b) => b.correct).length;
+                window.__sessionLog.push({
+                    phase: 'sentence-fill',
+                    id: item.id || ('sf-' + (gbState.sf.idx + 1)),
+                    correct: correctCount === blanks.length,
+                    score: blanks.length ? (correctCount / blanks.length) : 0,
+                    first_try: perfect,
+                    closed: true,
+                    xp: totalXp
+                });
+            }
+            gbState.sf.busy = false;
+        }
+
+        function gbSFShowToast(text) {
+            const toast = document.getElementById('gb-sf-toast');
+            if (!toast) return;
+            toast.textContent = text || '';
+            toast.classList.add('show');
+            if (_gbSFToastTimer) clearTimeout(_gbSFToastTimer);
+            _gbSFToastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+                _gbSFToastTimer = null;
+            }, 2000);
+        }
+
+        function gbSFFinish() {
+            gbState.sf.complete = true;
+            gbAdvanceFromGame(6, 'gb-panel-sf');
         }
 
         // Tile Match — left/right column matching.
@@ -12935,11 +14103,12 @@ Prezident ertaga hisobot kutmoqda.`,
         // gbActiveGameOrder() at ~line 7019).
         const GB_SUBGAME_TO_SUBPHASE = {
             0: 'adaptive-quiz',
-            1: 'sentence-fill',
+            1: 'sentence-fill', // legacy mislabel — Why Chain panel still subscribes to 'sentence-fill' tutor context until renamed
             2: 'tile-match',
             3: 'puzzle-lock',
             4: 'mystery-box',
             5: 'tile-match', // ttt has no listed subphase; degrade to nearest game.
+            6: 'sentence-fill', // new Sentence Fill panel (gb-panel-sf)
         };
 
         function deriveSubphase(detail) {
@@ -13008,7 +14177,25 @@ Prezident ertaga hisobot kutmoqda.`,
                     return inputs.length ? (inputs[0].value || null) : null;
                 },
                 'adaptive-quiz': () => get('#gb-aq-textarea'),
-                'sentence-fill': () => get('#gb-wc-textarea'),
+                'sentence-fill': () => {
+                    // Slot 6 (new Sentence Fill panel) takes precedence when active.
+                    // Slot 1 (legacy Why Chain) still subscribes to 'sentence-fill'
+                    // until the WC subphase rename ships separately.
+                    const sfPanel = document.getElementById('gb-panel-sf');
+                    if (sfPanel && sfPanel.classList.contains('active')) {
+                        const focused = document.activeElement;
+                        if (focused && focused.classList && focused.classList.contains('gb-sf-recall-input')) {
+                            return focused.value || null;
+                        }
+                        const filled = sfPanel.querySelectorAll('.gb-sf-blank[data-value]:not([data-value=""])');
+                        if (filled.length) {
+                            const last = filled[filled.length - 1];
+                            return last.getAttribute('data-value') || null;
+                        }
+                        return null;
+                    }
+                    return get('#gb-wc-textarea');
+                },
                 'mystery-box': () => {
                     const v = get('#gb-mb-solve-input');
                     if (v) return v;
