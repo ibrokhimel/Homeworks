@@ -587,3 +587,14 @@ class ContentJSON(_Permissive):
                 f"gb_tile_match: at most one is_palace_tile=True per board (got {palace_count})"
             )
         return self
+
+    @model_validator(mode="after")
+    def _validate_rlc_coexistence(self):
+        """Both real_life (legacy) and real_life_challenge (new) may coexist
+        on the same row — the runtime decides which to mount based on which
+        global is non-null (RLC_CASE vs RL_SCENARIO). No error raised.
+        This validator exists as a documented contract checkpoint.
+        """
+        # real_life_challenge structural validation is handled by
+        # RealLifeChallengeCase._validate_structure; nothing to cross-validate here.
+        return self
