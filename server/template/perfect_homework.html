@@ -4601,29 +4601,24 @@
         /* ── FB REDESIGN: particles + flash overlays + low-HP pulse + result card ── */
         .boss-shell { position: relative; }
         .boss-particles-layer {
-            position: absolute; inset: 0; pointer-events: none; overflow: hidden;
-            z-index: 0; opacity: 0.55;
+            position: fixed; inset: 0; pointer-events: none; overflow: hidden;
+            z-index: 1;
         }
-        .boss-particles-layer::before,
-        .boss-particles-layer::after {
-            content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%;
-            background: rgba(255,255,255,0.55); filter: blur(0.5px);
-            box-shadow:
-                40px 60px rgba(255,255,255,0.45),
-                120px 180px rgba(255,255,255,0.30),
-                220px 90px rgba(255,255,255,0.40),
-                300px 240px rgba(255,255,255,0.25),
-                70px 320px rgba(255,255,255,0.35),
-                260px 360px rgba(255,255,255,0.30);
-            animation: bossParticleFloat 14s linear infinite;
+        /* Only show particles when the boss screen is active. */
+        #screen-boss:not(.active) .boss-particles-layer { display: none; }
+        .boss-particle {
+            position: absolute; width: 4px; height: 4px; border-radius: 50%;
+            background: rgba(255,255,255,0.32);
+            box-shadow: 0 0 18px 2px currentColor;
+            animation: bossParticleFloatUp linear infinite;
         }
-        .boss-particles-layer::after {
-            animation-delay: -7s; animation-duration: 18s; opacity: 0.7;
-        }
-        @keyframes bossParticleFloat {
-            0%   { transform: translate3d(0, 0, 0); }
-            50%  { transform: translate3d(8px, -14px, 0); }
-            100% { transform: translate3d(0, 0, 0); }
+        .boss-particle.red   { color: rgba(255,69,58,0.65); }
+        .boss-particle.blue  { color: rgba(10,132,255,0.65); }
+        .boss-particle.amber { color: rgba(255,179,64,0.60); }
+        @keyframes bossParticleFloatUp {
+            from { transform: translateY(20px) scale(0.9); opacity: 0; }
+            15%  { opacity: 0.9; }
+            to   { transform: translateY(-110vh) scale(1.2); opacity: 0; }
         }
         .boss-impact-flash, .boss-heal-flash {
             position: absolute; inset: 0; pointer-events: none; opacity: 0;
@@ -6028,10 +6023,12 @@
         [data-theme="dark"] #boss-shell {
             color: var(--text);
         }
-        [data-theme="dark"] .boss-particles-layer::before,
-        [data-theme="dark"] .boss-particles-layer::after {
-            background: rgba(147, 197, 253, 0.55);
+        [data-theme="dark"] .boss-particle {
+            background: rgba(220, 235, 255, 0.22);
         }
+        [data-theme="dark"] .boss-particle.red   { color: rgba(255,99,89,0.55); }
+        [data-theme="dark"] .boss-particle.blue  { color: rgba(99,165,255,0.55); }
+        [data-theme="dark"] .boss-particle.amber { color: rgba(255,194,99,0.50); }
         [data-theme="dark"] .boss-impact-flash {
             background: radial-gradient(circle at 50% 50%,
                 rgba(248,113,113,0.65) 0%, rgba(248,113,113,0.22) 60%, transparent 100%);
@@ -7237,7 +7234,15 @@
         <div id="screen-boss" class="screen">
             <div class="boss-shell" id="boss-shell">
                 <!-- FB redesign: decorative particles layer (CSS-driven, no JS). -->
-                <div id="boss-particles-layer" class="boss-particles-layer" aria-hidden="true"></div>
+                <div id="boss-particles-layer" class="boss-particles-layer" aria-hidden="true">
+                    <span class="boss-particle red"   style="left:8%;  bottom:-6%;  animation-duration:12s; animation-delay:-2s;"></span>
+                    <span class="boss-particle blue"  style="left:16%; bottom:-10%; animation-duration:16s; animation-delay:-7s;"></span>
+                    <span class="boss-particle amber" style="left:28%; bottom:-12%; animation-duration:14s; animation-delay:-4s;"></span>
+                    <span class="boss-particle red"   style="left:42%; bottom:-8%;  animation-duration:18s; animation-delay:-9s;"></span>
+                    <span class="boss-particle blue"  style="left:58%; bottom:-7%;  animation-duration:15s; animation-delay:-1s;"></span>
+                    <span class="boss-particle amber" style="left:72%; bottom:-10%; animation-duration:13s; animation-delay:-8s;"></span>
+                    <span class="boss-particle red"   style="left:84%; bottom:-12%; animation-duration:17s; animation-delay:-5s;"></span>
+                </div>
                 <!-- FB redesign: full-screen flash overlays for impact / heal feedback. -->
                 <div id="boss-impact-flash" class="boss-impact-flash" aria-hidden="true"></div>
                 <div id="boss-heal-flash" class="boss-heal-flash" aria-hidden="true"></div>
