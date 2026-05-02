@@ -93,6 +93,11 @@ def _safe_js_json(value) -> str:
     )
 
 
+# Fields the client should NEVER see for tile-match items.
+# `explanation` is premium server-only; it travels only in the check-answer
+# endpoint response (Chunk B), never in the injected JS global.
+_TM_SERVER_ONLY = {"explanation"}
+
 # Fields the client should NEVER see for sentence-fill items.
 _SF_SERVER_ONLY = {"answers", "explanations"}
 
@@ -117,6 +122,58 @@ def _serialize_sentence_fill(items: list) -> str:
             clean_item.pop("word_bank", None)
         cleaned.append(clean_item)
     return _safe_js_json(cleaned)
+
+
+def _serialize_tile_match(
+    items: "list | None",
+    legacy_pairs: "list | None" = None,
+) -> str:
+    """Build the client-side GB_TILE_MATCH flat array.
+
+    Priority: `items` (gb_tile_match) wins over `legacy_pairs` (gb_memory_match).
+
+    Output shape — SIDE-DISJOINT (answer-leak prevention).  Each pair
+    contributes exactly TWO entries; left entries never carry the right text
+    and vice versa.  The runtime sends both IDs to the server check-answer
+    endpoint and receives ``correct: bool`` back — the client never holds
+    both sides of a pair simultaneously.
+
+    [
+        {"id": "tm_001", "side": "left",  "text": "F = ma"},
+        {"id": "tm_001", "side": "right", "text": "Newton's 2nd"},
+        ...
+    ]
+
+    Legacy shim: ``gb_memory_match`` rows (list of [a, b] 2-tuples) are
+    converted on-the-fly to the new shape so old DB records render correctly
+    without a schema migration.
+    """
+    source: list = []
+
+    if items:
+        # New gb_tile_match — strip server-only fields, then split sides.
+        for item in items:
+            if not isinstance(item, dict):
+                # Accept Pydantic models too (model_dump via dict protocol).
+                try:
+                    item = dict(item)
+                except Exception:
+                    continue
+            pair_id = item.get("id", "tm_unknown")
+            source.append({"id": pair_id, "side": "left",  "text": item.get("left", "")})
+            source.append({"id": pair_id, "side": "right", "text": item.get("right", "")})
+            # NOTE: _TM_SERVER_ONLY fields (e.g. `explanation`) are intentionally
+            # omitted — they travel only in the check-answer endpoint response.
+    elif legacy_pairs:
+        # Legacy shim — [[a, b], ...] → new side-disjoint shape.
+        for i, pair in enumerate(legacy_pairs):
+            if not (isinstance(pair, (list, tuple)) and len(pair) >= 2):
+                continue
+            pair_id = f"tm_legacy_{i:03d}"
+            source.append({"id": pair_id, "side": "left",  "text": str(pair[0])})
+            source.append({"id": pair_id, "side": "right", "text": str(pair[1])})
+
+    return _safe_js_json(source)
 
 
 def _find_js_const_statement_end(src: str, literal_start: int) -> int:
@@ -995,6 +1052,16 @@ def inject(
     html = html.replace(
         "__GB_SENTENCE_FILL__",
         _serialize_sentence_fill(content_json.get("gb_sentence_fill")),
+    )
+
+    # Tile Match — side-disjoint serialization (answer-leak prevention).
+    # Prefers gb_tile_match; falls back to legacy gb_memory_match shim.
+    html = html.replace(
+        "__GB_TILE_MATCH__",
+        _serialize_tile_match(
+            content_json.get("gb_tile_match"),
+            content_json.get("gb_memory_match"),
+        ),
     )
 
     # Always inject the AI tutor runtime hook before </body>.

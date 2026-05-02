@@ -243,6 +243,52 @@ class TttItem(_Permissive):
     distractors: Optional[List[str]] = None
 
 
+# --------------------------------------------------------------------------- #
+# Tile Match — new structured pair model (replaces raw gb_memory_match tuples).
+# --------------------------------------------------------------------------- #
+
+SubjectFamily = Literal[
+    "math", "biology", "history", "literature", "physics",
+    "chemistry", "language", "geography", "general",
+]
+
+
+class TileMatchPair(BaseModel):
+    """gb_tile_match — structured pair for the Tile Match game.
+
+    Each instance represents one left/right concept pair. The injector splits
+    these into a side-disjoint flat array so the client never sees both sides
+    of a pair in the same JS object (answer-leak prevention).
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str                                                     # stable per-pair id, e.g. "tm_001"
+    left: str                                                   # concept side (formula / term / symbol)
+    right: str                                                  # definition side (description / example)
+    tier: Literal["basic", "premium"] = "basic"
+    concept_family: Optional[str] = None                        # branch-complete grouping
+    subject_family: Optional[SubjectFamily] = None              # Buzan color hook
+    pisa_level: Optional[Literal["L1", "L2", "L3", "L4", "L5", "L6"]] = None
+    difficulty: Optional[Literal["easy", "medium", "hard"]] = None
+    is_palace_tile: bool = False                                # Memory Palace tile (premium-only)
+    explanation: Optional[str] = None                          # premium "why this is wrong" note
+
+    @model_validator(mode="after")
+    def _validate_pair(self):
+        if not self.left.strip():
+            raise ValueError("left must be non-empty")
+        if not self.right.strip():
+            raise ValueError("right must be non-empty")
+        if len(self.left) > 300:
+            raise ValueError("left must be ≤ 300 chars")
+        if len(self.right) > 300:
+            raise ValueError("right must be ≤ 300 chars")
+        if self.is_palace_tile and self.tier != "premium":
+            raise ValueError("Memory Palace tiles are premium-only (per spec §3)")
+        return self
+
+
 class SentenceFillItem(BaseModel):
     """gb_sentence_fill — cloze passage with per-blank answers + optional word bank."""
 
@@ -367,5 +413,34 @@ class ContentJSON(_Permissive):
     gb_mystery_box: Optional[List[MysteryBoxItem]] = None
     gb_ttt: Optional[List[TttItem]] = None
     gb_sentence_fill: Optional[List[SentenceFillItem]] = None
+    # Tile Match — new structured pairs (replaces gb_memory_match for new content)
+    gb_tile_match: Optional[List[TileMatchPair]] = None
+
     # Phase 7
     reflection: Optional[ReflectionPhase] = None
+
+    @model_validator(mode="after")
+    def _validate_tile_match_collection(self):
+        pairs = self.gb_tile_match
+        if pairs is None:
+            return self
+        if not (1 <= len(pairs) <= 8):
+            raise ValueError(
+                f"gb_tile_match must have 1–8 pairs (got {len(pairs)}); "
+                "spec board sizes: G1-2:4, G3-4:5, G5-7:6, G8-11:8"
+            )
+        ids = [p.id for p in pairs]
+        if len(ids) != len(set(ids)):
+            raise ValueError("gb_tile_match: all pair id values must be unique")
+        lefts = [p.left for p in pairs]
+        if len(lefts) != len(set(lefts)):
+            raise ValueError("gb_tile_match: all left strings must be unique (distractor rule)")
+        rights = [p.right for p in pairs]
+        if len(rights) != len(set(rights)):
+            raise ValueError("gb_tile_match: all right strings must be unique (distractor rule)")
+        palace_count = sum(1 for p in pairs if p.is_palace_tile)
+        if palace_count > 1:
+            raise ValueError(
+                f"gb_tile_match: at most one is_palace_tile=True per board (got {palace_count})"
+            )
+        return self
