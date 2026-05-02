@@ -46,6 +46,13 @@ notes/
 # Claude Code local state (worktrees, agents, plans)
 .claude/
 
+# Hybrid task memory (local session log + permanent task index + per-task detail)
+MASTER_MEMORY.md
+MEMORY.md
+tasks/
+homework-content/
+Images/
+
 # Build / cache
 .pytest_cache/
 .mypy_cache/
