@@ -32,6 +32,7 @@
       "memory_sprint",
       "game_breaks",
       "real_life",
+      "real_life_challenge",
       "consolidation",
       "final_challenge",
       "reflection",
@@ -43,6 +44,7 @@
       "memory_sprint",
       "game_breaks",
       "real_life",
+      "real_life_challenge",
       "consolidation",
       "final_challenge",
       "reflection",
@@ -54,6 +56,7 @@
       "reading",
       "game_breaks",
       "real_life",
+      "real_life_challenge",
       "consolidation",
       "final_challenge",
       "reflection",
@@ -76,6 +79,7 @@
     reading: "O'qish",
     game_breaks: "O'yin tanaffus",
     real_life: "Hayotiy vazifa",
+    real_life_challenge: "Hayotiy chaqiruv",
     consolidation: "Mustahkamlash",
     final_challenge: "Yakuniy jang",
     reflection: "Xulosa",
@@ -88,6 +92,7 @@
     reading: "📖",
     game_breaks: "🎮",
     real_life: "🌍",
+    real_life_challenge: "🧭",
     consolidation: "🧠",
     final_challenge: "👾",
     reflection: "💭",
@@ -100,6 +105,7 @@
     reading: "reading",
     game_breaks: "gameBreaks",
     real_life: "realLife",
+    real_life_challenge: "realLifeChallenge",
     consolidation: "consolidation",
     final_challenge: "boss",
     reflection: "reflection",
@@ -118,6 +124,7 @@
     "gb_mystery_box",
     "gb_ttt",
     "real_life",
+    "real_life_challenge",
     "boss_questions",
     "reflection",
   ];
@@ -259,7 +266,7 @@
     for (const key of CONTRACT_KEYS) {
       if (key === "meta") continue;
 
-      if (["real_life", "reflection"].includes(key)) {
+      if (["real_life", "real_life_challenge", "reflection"].includes(key)) {
         safe[key] = safe[key] ?? null;
       } else {
         safe[key] = Array.isArray(safe[key]) ? safe[key] : [];
@@ -481,6 +488,7 @@
     }
 
     if (phase === "real_life") return clone(content.real_life);
+    if (phase === "real_life_challenge") return clone(content.real_life_challenge);
     if (phase === "consolidation") return clone(content.consolidation);
     if (phase === "reading") return clone(content.reading);
     if (phase === "final_challenge") return clone(content.boss_questions);
@@ -509,6 +517,8 @@
       content.gb_ttt = Array.isArray(nextData?.ttt) ? nextData.ttt : [];
     } else if (phase === "real_life") {
       content.real_life = nextData || null;
+    } else if (phase === "real_life_challenge") {
+      content.real_life_challenge = nextData || null;
     } else if (phase === "consolidation") {
       content.consolidation = nextData || null;
     } else if (phase === "reading") {
