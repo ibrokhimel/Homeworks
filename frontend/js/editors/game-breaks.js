@@ -73,6 +73,13 @@
       editor: "ttt",
       description: "Knowledge-gated 3×3 grid vs minimax AI. Each item is a MC question (q + correct + 3 distractors) consumed per cell tap. 3 games per session.",
     },
+    {
+      id: "memory_palace",
+      label: "Memory Palace",
+      icon: "🕌",
+      editor: "memoryPalace",
+      description: "Method of Loci 4-step flow — pick palace, place 5 concepts, walk, recall.",
+    },
   ];
 
   function escapeHtml(value) {
@@ -261,6 +268,23 @@
       : [];
   }
 
+  function normalizeMemoryPalace(value) {
+    // Ensures value is { palaces: [], concepts: [] } shape.
+    // Auto-fills concept ids inline if MemoryPalaceHelpers isn't loaded yet.
+    const safe = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const palaces = Array.isArray(safe.palaces) ? safe.palaces : [];
+    const rawConcepts = Array.isArray(safe.concepts) ? safe.concepts : [];
+    const concepts = rawConcepts.map(function (c, i) {
+      const concept = c && typeof c === "object" ? c : {};
+      const id =
+        window.MemoryPalaceHelpers
+          ? window.MemoryPalaceHelpers.ensureConceptId(concept, i)
+          : (typeof concept.id === "string" && concept.id.trim() ? concept.id : "mp-c" + (i + 1));
+      return Object.assign({}, concept, { id: id });
+    });
+    return { palaces: palaces, concepts: concepts };
+  }
+
   function normalize(data) {
     const safe = data && typeof data === "object" ? data : {};
 
@@ -278,6 +302,7 @@
       puzzle_lock: normalizePuzzleLock(safe.puzzle_lock ?? safe.gb_puzzle_lock),
       mystery_box: normalizeMysteryBox(safe.mystery_box ?? safe.gb_mystery_box),
       ttt: normalizeTTT(safe.ttt ?? safe.gb_ttt),
+      memory_palace: normalizeMemoryPalace(safe.memory_palace ?? safe.gb_memory_palace),
     };
   }
 
@@ -286,6 +311,11 @@
   }
 
   function getCount(state, tabId) {
+    if (tabId === "memory_palace") {
+      // Object shape — return concept count as the summary number shown in the tab badge.
+      const mp = state.memory_palace;
+      return mp && Array.isArray(mp.concepts) ? mp.concepts.length : 0;
+    }
     const value = state[tabId];
     return Array.isArray(value) ? value.length : 0;
   }
@@ -299,6 +329,7 @@
     if (tabId === "puzzle_lock") return state.puzzle_lock;
     if (tabId === "mystery_box") return state.mystery_box;
     if (tabId === "ttt") return state.ttt;
+    if (tabId === "memory_palace") return state.memory_palace;
     return [];
   }
 
@@ -318,6 +349,7 @@
     if (tabId === "puzzle_lock") state.puzzle_lock = normalizePuzzleLock(value);
     if (tabId === "mystery_box") state.mystery_box = normalizeMysteryBox(value);
     if (tabId === "ttt") state.ttt = normalizeTTT(value);
+    if (tabId === "memory_palace") state.memory_palace = normalizeMemoryPalace(value);
   }
 
   function visibleTabs(state) {
@@ -374,7 +406,7 @@
               </div>
             </div>
             <p class="muted-text">
-              Split by production game: Adaptive Quiz, Why Chain, Sentence Fill, Tile Match, Puzzle Lock, Mystery Box, and Tic Tac Toe. Each game owns its own JS editor.
+              Split by production game: Adaptive Quiz, Why Chain, Sentence Fill, Tile Match, Puzzle Lock, Mystery Box, Tic Tac Toe, and Memory Palace. Each game owns its own JS editor.
             </p>
           </section>
 

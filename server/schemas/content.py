@@ -580,6 +580,108 @@ class RealLifeChallengeCase(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# Memory Palace — Method-of-Loci game-break mechanic.                         #
+#                                                                               #
+# NAMESPACE NOTE: `gb_memory_palace` is the standalone Method-of-Loci         #
+# mechanic added in this PR. NOT to be confused with:                          #
+#   - `RealLifeChallengeCase.memory_palace_location` (sub-field on a different #
+#     mechanic — premium RLC location annotation)                               #
+#   - `TileMatchPair.is_palace_tile` (premium flag on a different mechanic —   #
+#     marks one tile per Tile Match board as a "palace tile" visual bonus)      #
+# --------------------------------------------------------------------------- #
+
+MPSubjectFamily = Literal[
+    "bio", "chem", "phys", "math", "history", "lang", "art", "universal"
+]
+
+PalaceTier = Literal["basic", "premium"]
+
+
+class MemoryPalaceLocation(_Permissive):
+    """A single station inside a Memory Palace route."""
+
+    name: str = ""
+    sensory_cue: Optional[str] = None
+    icon: Optional[str] = None  # optional emoji
+
+
+class MemoryPalaceConcept(_Permissive):
+    """One concept to be encoded and recalled via the palace route."""
+
+    id: Optional[str] = None             # auto-filled "mp-c{idx+1}" if missing
+    term: str = ""
+    description: Optional[str] = None
+    image_cue: Optional[str] = None      # exaggerated imagery hint
+
+
+class MemoryPalace(_Permissive):
+    """A single palace (route) that students can walk during encoding."""
+
+    key: str = ""
+    name: str = ""
+    icon: Optional[str] = None
+    description: Optional[str] = None
+    subject_family: Optional[MPSubjectFamily] = None  # MAY be omitted (defaults handled at builder/runtime layer)
+    tier: PalaceTier = "basic"
+    locations: List[MemoryPalaceLocation] = Field(default_factory=list)
+
+
+class MemoryPalaceGame(_Permissive):
+    """Top-level container stored in content_json.gb_memory_palace.
+
+    Holds the authored palace routes + concepts for the game-break.
+    Validators enforce structural integrity when content is present;
+    empty arrays are allowed during builder authoring.
+    """
+
+    palaces: List[MemoryPalace] = Field(default_factory=list)
+    concepts: List[MemoryPalaceConcept] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_memory_palace_game(self):
+        # Palace key uniqueness
+        if self.palaces:
+            keys = [p.key for p in self.palaces]
+            if len(keys) != len(set(keys)):
+                raise ValueError("MemoryPalaceGame: all palace key values must be unique")
+
+            # Each palace must have 3–7 locations (accommodates grade overrides 3/5/7)
+            for p in self.palaces:
+                n = len(p.locations)
+                if not (3 <= n <= 7):
+                    raise ValueError(
+                        f"Palace '{p.key}' has {n} locations; spec allows 3–7 "
+                        "(3 for grades 1-4, 5 default, 7 for grades 8-11 premium)"
+                    )
+
+        # Concept id auto-fill + uniqueness
+        if self.concepts:
+            for idx, concept in enumerate(self.concepts):
+                if not concept.id:
+                    concept.id = f"mp-c{idx + 1}"
+            ids = [c.id for c in self.concepts]
+            if len(ids) != len(set(ids)):
+                raise ValueError(
+                    "MemoryPalaceGame: all concept id values must be unique after auto-fill"
+                )
+
+        return self
+
+
+class MemoryPalaceConfig(_Permissive):
+    """Authored config overrides for the Memory Palace game-break.
+
+    All fields are optional; server-side defaults fill any omitted keys.
+    See _MP_DEFAULTS in server/services/injector.py.
+    """
+
+    concept_count: Optional[int] = None             # default 5 server-side
+    min_palace_options: Optional[int] = None         # default 4 server-side
+    enable_reverse_recall: Optional[bool] = None     # default False; reserved for future
+    concept_count_grade_overrides: Optional[Dict[str, int]] = None  # {"low": 3, "high": 7}
+
+
+# --------------------------------------------------------------------------- #
 # Top-level — every phase optional so partial homeworks still validate.
 # --------------------------------------------------------------------------- #
 
@@ -624,6 +726,10 @@ class ContentJSON(_Permissive):
     gb_sentence_fill: Optional[List[SentenceFillItem]] = None
     # Tile Match — new structured pairs (replaces gb_memory_match for new content)
     gb_tile_match: Optional[List[TileMatchPair]] = None
+    # Memory Palace — standalone Method-of-Loci game-break mechanic.
+    # See MemoryPalaceGame / MemoryPalaceConfig docstrings + NAMESPACE NOTE above.
+    gb_memory_palace: Optional[MemoryPalaceGame] = None
+    gb_memory_palace_config: Optional[MemoryPalaceConfig] = None
 
     # Phase 7
     reflection: Optional[ReflectionPhase] = None

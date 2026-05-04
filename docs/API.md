@@ -868,6 +868,78 @@ Tallies session XP at end of 3 games. Per-correct XP already paid out via `phase
 
 ---
 
+### POST /api/ai/check-answer  *(phase = `"memory-palace"`)*
+
+Tallies a Memory Palace session at the end of the recall test. Server **recomputes `is_correct` server-side** by walking the submitted `placements` map (the "answer key" here is student-generated, not author-supplied — see plan §1.3 for rationale; tampering defense rather than side-disjoint pattern). Returns outcome label, accuracy, average recall speed, and a cosmetic `session_xp_display` (XP economy is aesthetic-only in v1; not persisted).
+
+**Request**
+```json
+{
+  "phase": "memory-palace",
+  "homework_id": "string",
+  "palace_key": "string",
+  "placements": [
+    { "location_idx": 0, "concept_id": "concept-abc" }
+  ],
+  "recall_results": [
+    { "location_idx": 0, "picked_concept_id": "concept-abc", "is_correct": true, "elapsed_ms": 1200 }
+  ],
+  "mp_hints_used": 0
+}
+```
+
+- `palace_key`: identifies which palace route the student walked (must be a key in `gb_memory_palace.palaces`).
+- `placements`: the Step-2 location-to-concept bindings the student authored. Server uses these as the answer key to recompute `is_correct`.
+- `recall_results`: the Step-4 picks. `is_correct` values from the client are **ignored** — server recomputes from `placements`. `elapsed_ms` is trusted.
+- `mp_hints_used`: optional, default `0`. Reserved for future XP shaping; cosmetic only in v1.
+
+**200**
+```json
+{
+  "outcome": "perfect"|"yaxshi"|"hali_emas_partial"|"hali_emas_fail",
+  "outcome_title": "string",
+  "outcome_text": "string",
+  "accuracy_pct": 100,
+  "correct_count": 5,
+  "total_count": 5,
+  "recall_speed_avg_s": 1.2,
+  "level_label": "string",
+  "session_xp_display": 450,
+  "retry_offered": false,
+  "missed_location_indices": []
+}
+```
+
+- **`outcome`**: one of four result buckets (see threshold table below).
+- **`outcome_title` / `outcome_text`**: Uzbek-localised display strings.
+- **`accuracy_pct`**: `round(correct_count / total_count * 100)`.
+- **`recall_speed_avg_s`**: average `elapsed_ms / 1000` across all recall picks (1 decimal place).
+- **`level_label`**: cosmetic mastery label based on outcome.
+- **`session_xp_display`**: `correct_count × 50` + outcome bonus (`+200` perfect, `+100` yaxshi, `+0` otherwise). **Not persisted.**
+- **`retry_offered`**: `true` unless outcome is `"perfect"`.
+- **`missed_location_indices`**: sorted list of `location_idx` values where recall was wrong.
+
+**Outcome thresholds**
+
+| correct / total | outcome | level_label |
+|---|---|---|
+| 5/5 (all correct) | `perfect` | Proficient |
+| 4/5 (one miss) | `yaxshi` | Apprentice ↗ |
+| 3/5 (≥ 60 %) | `hali_emas_partial` | Apprentice |
+| ≤ 2/5 | `hali_emas_fail` | Pending |
+
+**Errors**
+
+| Status | code | When |
+|---|---|---|
+| 400 | `MP_MISSING_HW` | `homework_id` missing on a `phase=memory-palace` request |
+| 400 | `MP_MISSING_PALACE_KEY` | `palace_key` missing or empty |
+| 400 | `MP_MISSING_PLACEMENTS` | `placements` absent or empty list |
+| 400 | `MP_MISSING_RECALL` | `recall_results` absent or empty list |
+| 404 | `homework_not_found` | `homework_id` does not resolve |
+
+---
+
 ### POST /api/ai/boss-turn
 
 Legacy canonical endpoint for the Final Boss mechanic. The `phase=final-boss` branch on `/api/ai/check-answer` (above) adapts to this same grading path; both endpoints coexist.

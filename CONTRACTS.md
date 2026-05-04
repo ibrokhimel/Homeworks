@@ -105,6 +105,29 @@ The single source of truth for a homework's content. Stored as JSON in SQLite `h
     "session_games": 3, "xp_correct": 50, "xp_draw": 200, "xp_win": 300,
     "xp_strong_session": 100, "xp_mercy": 10, "mercy_chance": 0.002
   },
+  "gb_memory_palace": {
+    "palaces": [
+      {
+        "key": "school-corridor",
+        "label": "Maktab yo'lagi",
+        "locations": [
+          { "idx": 0, "label": "Eshik" },
+          { "idx": 1, "label": "Devor" },
+          { "idx": 2, "label": "Stol" },
+          { "idx": 3, "label": "Deraza" },
+          { "idx": 4, "label": "Shkaf" }
+        ]
+      }
+    ],
+    "concepts": [
+      { "id": "concept-1", "term": "Kvadrat tenglamasining discriminanti", "short": "D = b²−4ac" },
+      { "id": "concept-2", "term": "Ildizlar formulasi", "short": "x = (−b ± √D) / 2a" }
+    ],
+    "config": {}
+  },
+  "gb_memory_palace_config": {
+    "concepts_low": 3, "concepts_default": 5, "concepts_high": 7
+  },
   "real_life": {
     "badge": "VAZIFA · Scenario name",
     "story": "multi-line story text",
@@ -377,6 +400,7 @@ Frontend uses `EventSource` to consume. Each `phase` event with `status: "done"`
 | `GB_PUZZLE_LOCK` | `gb_puzzle_lock` | array |
 | `GB_MYSTERY_BOX` | `gb_mystery_box` | array (adapter stamps shared `labels` per item) |
 | `GB_TTT` | `gb_ttt` | array of side-disjoint MC items: `{id, q, options[]}` — `correct` + `distractors` stripped server-side; client never sees them. Server keeps key map in `_TTT_ANSWER_KEY[hw_id]` for `/api/ai/check-answer?phase=ttt` validation. |
+| `GB_MEMORY_PALACE` | `gb_memory_palace` | object: `{palaces: [], concepts: [], config: {}}` — full author content shipped to client (NOT side-disjoint; see plan §1.3 — student creates answer themselves via Step 2 placements, server-recomputes `is_correct` from submitted placement map for tampering defense). Server slices `concepts[]` per grade band (low=3 / default=5 / high=7) and filters premium-tier palaces for basic-tier homeworks. |
 | `RL_SCENARIO` | `real_life` | object |
 | `BOSS_QUESTIONS` | `boss_questions` | array |
 
@@ -388,6 +412,7 @@ These keys are not injected as runtime JS constants. They are read server-side a
 |---|---|---|
 | `gb_ttt_config` | `POST /api/ai/check-answer` (`phase=ttt` + `phase=ttt-session`) | `{ session_games: 3, xp_correct: 50, xp_draw: 200, xp_win: 300, xp_strong_session: 100, xp_mercy: 10, mercy_chance: 0.002 }` — any subset may be provided; missing keys fall back to defaults. Explicit `0` values are valid overrides; `null` values are ignored. |
 | `boss_meta` | `POST /api/ai/check-answer` (`phase=final-boss`) | `{ boss_type, grade_band, attempts_max, anti_cheat, starting_hp_override }` — injected into runtime as `BOSS_META` (or `null` if absent). Existing rows without this key render unchanged. |
+| `gb_memory_palace_config` | `POST /api/ai/check-answer` (`phase=memory-palace`) + injector | `{ concepts_low: 3, concepts_default: 5, concepts_high: 7 }` — controls how many concepts are sliced per grade band at inject time. Any subset may be provided; missing keys fall back to defaults. |
 
 **Regex patterns (use these exactly):**
 ```python
