@@ -99,8 +99,12 @@ The single source of truth for a homework's content. Stored as JSON in SQLite `h
     { "category": "Algebra", "q": "Solve 3x+5=14", "a": "3" }
   ],
   "gb_ttt": [
-    { "q": "What is 7 x 8?", "correct": "56", "distractors": ["54", "48", "63"] }
+    { "id": "ttt-1", "q": "What is 7 x 8?", "correct": "56", "distractors": ["54", "48", "63"] }
   ],
+  "gb_ttt_config": {
+    "session_games": 3, "xp_correct": 50, "xp_draw": 200, "xp_win": 300,
+    "xp_strong_session": 100, "xp_mercy": 10, "mercy_chance": 0.002
+  },
   "real_life": {
     "badge": "VAZIFA · Scenario name",
     "story": "multi-line story text",
@@ -372,9 +376,18 @@ Frontend uses `EventSource` to consume. Each `phase` event with `status: "done"`
 | `GB_MEMORY_MATCH` | `gb_memory_match` | array |
 | `GB_PUZZLE_LOCK` | `gb_puzzle_lock` | array |
 | `GB_MYSTERY_BOX` | `gb_mystery_box` | array (adapter stamps shared `labels` per item) |
-| `GB_TTT` | `gb_ttt` | array (flat MC items: `{q, correct, distractors[3]}` — runtime cycles items per cell tap) |
+| `GB_TTT` | `gb_ttt` | array of side-disjoint MC items: `{id, q, options[]}` — `correct` + `distractors` stripped server-side; client never sees them. Server keeps key map in `_TTT_ANSWER_KEY[hw_id]` for `/api/ai/check-answer?phase=ttt` validation. |
 | `RL_SCENARIO` | `real_life` | object |
 | `BOSS_QUESTIONS` | `boss_questions` | array |
+
+#### Optional config keys
+
+These keys are not injected as runtime JS constants. They are read server-side at request time to override default behaviour for their respective mechanic.
+
+| `content_json` key | Consumed by | Shape / defaults |
+|---|---|---|
+| `gb_ttt_config` | `POST /api/ai/check-answer` (`phase=ttt` + `phase=ttt-session`) | `{ session_games: 3, xp_correct: 50, xp_draw: 200, xp_win: 300, xp_strong_session: 100, xp_mercy: 10, mercy_chance: 0.002 }` — any subset may be provided; missing keys fall back to defaults. Explicit `0` values are valid overrides; `null` values are ignored. |
+| `boss_meta` | `POST /api/ai/check-answer` (`phase=final-boss`) | `{ boss_type, grade_band, attempts_max, anti_cheat, starting_hp_override }` — injected into runtime as `BOSS_META` (or `null` if absent). Existing rows without this key render unchanged. |
 
 **Regex patterns (use these exactly):**
 ```python

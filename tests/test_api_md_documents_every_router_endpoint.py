@@ -106,6 +106,42 @@ def test_api_md_documents_every_router_endpoint():
     )
 
 
+_CHECK_ANSWER_PHASES: tuple[str, ...] = (
+    "tile-match",
+    "real-life-challenge",
+    "final-boss",
+    "ttt",
+    "ttt-session",
+)
+
+
+def test_api_md_documents_check_answer_phases():
+    """Sigma drift fence: every `phase=<name>` sub-variant of POST /api/ai/check-answer
+    must be documented in docs/API.md as a `*(phase = "...")*` heading marker.
+
+    Background: check-answer sub-phases share a single route decorator, so
+    `test_api_md_documents_every_router_endpoint` (which walks decorators) won't
+    catch missing per-phase docs. This test fences that gap explicitly.
+
+    Each entry in `_CHECK_ANSWER_PHASES` must appear in a heading that contains
+    the literal string  phase = "<name>"  inside the heading line — matching the
+    pattern used for tile-match, real-life-challenge, final-boss, ttt, ttt-session.
+    """
+    text = DOCS_API.read_text(encoding="utf-8")
+    missing = []
+    for phase in _CHECK_ANSWER_PHASES:
+        # Match the heading pattern: phase = `"<name>"`  (backtick-wrapped in MD)
+        if f'phase = `"{phase}"`' not in text:
+            missing.append(phase)
+    assert not missing, (
+        "\n\nThe following check-answer phase sub-variants are not documented in "
+        "docs/API.md.\nAdd a `### POST /api/ai/check-answer  *(phase = \"<name>\")*` "
+        "section for each:\n"
+        + "\n".join(f"  - phase={p}" for p in missing)
+        + "\n"
+    )
+
+
 def test_api_md_does_not_document_phantom_endpoints():
     """Catch the inverse drift: a docs heading for an endpoint that no longer exists in code."""
     routed = _routed_endpoints()
