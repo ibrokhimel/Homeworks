@@ -120,6 +120,150 @@ _BOSS_SERVER_ONLY = {"accepted", "ans", "accepted_answers", "answer_spec"}
 # When True: keep accepted[] so test/replay paths that depend on the old shape still work.
 _BOSS_LEGACY_CLIENT_MATCH = False
 
+# Memory Palace — server-side defaults. Applied when gb_memory_palace_config omits
+# a key or when gb_memory_palace_config is absent entirely.
+_MP_DEFAULTS = {
+    "concept_count": 5,
+    "min_palace_options": 4,
+    "enable_reverse_recall": False,
+    "concept_count_grade_overrides": {"low": 3, "high": 7},
+}
+
+
+def _serialize_memory_palace(game, config, grade, tier) -> str:
+    """Build the client-side GB_MEMORY_PALACE JS global.
+
+    No side-disjoint stripping applies (per plan §2.2). Author content (palace
+    locations, concept terms, imagery cues) is pedagogical hint material, not
+    an author-supplied answer key. The "answer" for the recall test is the
+    student's own placement map, submitted in the POST body and validated
+    server-side.
+
+    Args:
+        game:   content_json["gb_memory_palace"] — raw dict or Pydantic model.
+                May be None (mechanic not authored).
+        config: content_json["gb_memory_palace_config"] — raw dict or None.
+        grade:  hw grade (int or str, e.g. 7). None → default band.
+        tier:   hw tier ("basic" | "premium"). Default "basic".
+
+    Returns _safe_js_json(None) when the game is absent or has no palaces.
+    Returns _safe_js_json({palaces, concepts, config}) otherwise.
+    """
+    # Normalise game to dict.
+    if game is None:
+        return _safe_js_json(None)
+    if not isinstance(game, dict):
+        try:
+            game = game.model_dump()
+        except AttributeError:
+            try:
+                game = dict(game)
+            except Exception:
+                return _safe_js_json(None)
+    if not game:
+        return _safe_js_json(None)
+
+    palaces_raw = game.get("palaces") or []
+    concepts_raw = game.get("concepts") or []
+
+    # Empty palaces → signal "not authored" to runtime.
+    if not palaces_raw:
+        return _safe_js_json(None)
+
+    # Normalise config to dict.
+    if config is not None and not isinstance(config, dict):
+        try:
+            config = config.model_dump()
+        except AttributeError:
+            try:
+                config = dict(config)
+            except Exception:
+                config = {}
+    config_in = config or {}
+
+    # Resolve effective config: defaults + authored overrides (None values skipped).
+    cfg = dict(_MP_DEFAULTS)
+    for k, v in config_in.items():
+        if v is not None:
+            cfg[k] = v
+
+    # Resolve grade band → concept_count.
+    hw_tier = (tier or "basic").strip().lower()
+    try:
+        grade_int = int(grade)
+    except (TypeError, ValueError):
+        grade_int = None
+
+    overrides = cfg.get("concept_count_grade_overrides") or {}
+    if grade_int is not None and 1 <= grade_int <= 4:
+        concept_count = int(overrides.get("low", cfg["concept_count"]))
+    elif grade_int is not None and 8 <= grade_int <= 11 and hw_tier == "premium":
+        concept_count = int(overrides.get("high", cfg["concept_count"]))
+    else:
+        concept_count = int(cfg["concept_count"])
+
+    # Slice concepts (front-load — author writes 7, basic G6 sees first 5).
+    concepts_out = []
+    for idx, c in enumerate(concepts_raw[:concept_count]):
+        if not isinstance(c, dict):
+            try:
+                c = dict(c)
+            except Exception:
+                continue
+        # Defensive auto-fill of id (schema validator already does this,
+        # but raw dict payloads from legacy routes may skip validation).
+        cid = c.get("id") or f"mp-c{idx + 1}"
+        concepts_out.append({
+            "id":          cid,
+            "term":        c.get("term", ""),
+            "description": c.get("description"),
+            "image_cue":   c.get("image_cue"),
+        })
+
+    # Filter palaces: skip premium palaces when homework tier is basic.
+    palaces_out = []
+    for p in palaces_raw:
+        if not isinstance(p, dict):
+            try:
+                p = dict(p)
+            except Exception:
+                continue
+        palace_tier = (p.get("tier") or "basic").strip().lower()
+        if palace_tier == "premium" and hw_tier != "premium":
+            continue
+        locations_out = []
+        for loc in (p.get("locations") or []):
+            if not isinstance(loc, dict):
+                try:
+                    loc = dict(loc)
+                except Exception:
+                    continue
+            locations_out.append({
+                "name":        loc.get("name", ""),
+                "sensory_cue": loc.get("sensory_cue"),
+                "icon":        loc.get("icon"),
+            })
+        palaces_out.append({
+            "key":            p.get("key", ""),
+            "name":           p.get("name", ""),
+            "icon":           p.get("icon"),
+            "description":    p.get("description"),
+            "subject_family": p.get("subject_family"),
+            "tier":           palace_tier,
+            "locations":      locations_out,
+        })
+
+    wire = {
+        "palaces":  palaces_out,
+        "concepts": concepts_out,
+        "config": {
+            "concept_count":       concept_count,
+            "min_palace_options":  int(cfg["min_palace_options"]),
+            "enable_reverse_recall": bool(cfg["enable_reverse_recall"]),
+        },
+    }
+    return _safe_js_json(wire)
+
 
 def _serialize_boss_questions(items, boss_meta=None) -> str:
     """Build the client-side BOSS_QUESTIONS array (side-disjoint, answer-leak prevention).
@@ -1335,6 +1479,21 @@ def inject(
     html = html.replace(
         "__RLC_CASE__",
         _serialize_real_life_challenge(content_json.get("real_life_challenge")),
+    )
+
+    # Memory Palace — full author content (no side-disjoint stripping; the
+    # "answer" is student-generated placement state, not an author key).
+    # Ships null when gb_memory_palace is absent or has no palaces so the
+    # runtime can detect "not authored" and skip the panel.
+    # grade + hw_tier come from runtime_context; tier defaults "basic" when absent.
+    html = html.replace(
+        "__GB_MEMORY_PALACE__",
+        _serialize_memory_palace(
+            content_json.get("gb_memory_palace"),
+            content_json.get("gb_memory_palace_config"),
+            (runtime_context or {}).get("grade"),
+            (runtime_context or {}).get("tier", "basic"),
+        ),
     )
 
     # Final Boss — side-disjoint serialization (answer-leak prevention).
