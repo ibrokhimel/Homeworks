@@ -3566,147 +3566,500 @@
             color: var(--text-muted);
         }
 
-        /* ── PHASE 3 · TIC TAC TOE vs AI ──────────────────────────────── */
-        .gb-ttt-counter {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--accent);
-            text-align: center;
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
+        /* ── PHASE 3 · TIC TAC TOE vs AI — Apple-glass minimal cells ─── */
+        .gb-ttt-hero {
+            border-radius: 32px;
+            padding: 18px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(24px) saturate(170%);
+            -webkit-backdrop-filter: blur(24px) saturate(170%);
         }
-        .gb-ttt-status {
-            font-size: 16px;
-            font-weight: 600;
-            text-align: center;
+        .gb-ttt-hero::after {
+            content: "";
+            position: absolute;
+            width: 210px;
+            height: 210px;
+            right: -82px;
+            bottom: -100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,113,227,.15), transparent 72%);
+            pointer-events: none;
+        }
+        .gb-ttt-hero-meta {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
             margin-bottom: 14px;
+        }
+        .gb-ttt-hero-meta span {
+            color: var(--text-muted);
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+        .gb-ttt-game-pill {
+            color: var(--accent) !important;
+            padding: 7px 9px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.23);
+            border: 1px solid rgba(255,255,255,.38);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.40);
+            white-space: nowrap;
+        }
+        .gb-ttt-hero-title {
+            position: relative;
+            z-index: 1;
+            margin: 0 0 8px;
+            font-size: clamp(20px, 5.7vw, 24px);
+            line-height: 1.18;
+            letter-spacing: -.02em;
+            font-weight: 590;
             color: var(--text-primary);
-            min-height: 22px;
+        }
+        .gb-ttt-hero-subtitle {
+            position: relative;
+            z-index: 1;
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 12.8px;
+            line-height: 1.64;
+            font-weight: 400;
+        }
+        .gb-ttt-stats-card {
+            border-radius: 30px;
+            padding: 16px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(24px) saturate(170%);
+            -webkit-backdrop-filter: blur(24px) saturate(170%);
+        }
+        .gb-ttt-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+        .gb-ttt-stat {
+            border-radius: 18px;
+            padding: 11px;
+            background: linear-gradient(135deg, rgba(255,255,255,.28), rgba(255,255,255,.14));
+            border: 1px solid rgba(255,255,255,.38);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.42);
+        }
+        .gb-ttt-stat span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 10.5px;
+            font-weight: 620;
+            text-transform: uppercase;
+            letter-spacing: .035em;
+            margin-bottom: 4px;
+        }
+        .gb-ttt-stat strong {
+            display: block;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: -.01em;
+            color: var(--text-primary);
+        }
+        .gb-ttt-board-card {
+            border-radius: 30px;
+            padding: 16px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(24px) saturate(170%);
+            -webkit-backdrop-filter: blur(24px) saturate(170%);
+        }
+        .gb-ttt-board-head {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .gb-ttt-board-title {
+            margin: 0 0 4px;
+            font-size: 16px;
+            font-weight: 590;
+            letter-spacing: -.01em;
+            color: var(--text-primary);
+        }
+        .gb-ttt-board-copy {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 12.5px;
+            line-height: 1.55;
+        }
+        .gb-ttt-turn-pill {
+            flex: 0 0 auto;
+            color: var(--accent);
+            background: rgba(255,255,255,.24);
+            border: 1px solid rgba(255,255,255,.38);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.42);
+            padding: 8px 10px;
+            border-radius: 999px;
+            font-size: 11.5px;
+            font-weight: 620;
         }
         .gb-ttt-board {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            gap: 8px;
-            width: min(360px, 80vw);
-            aspect-ratio: 1 / 1;
-            margin: 0 auto 18px;
+            gap: 11px;
         }
         .gb-ttt-cell {
-            background: var(--surface);
-            backdrop-filter: var(--glass-blur);
-            -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--surface-border);
-            border-radius: 22px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 56px;
-            font-weight: 700;
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            aspect-ratio: 1;
+            border: 1px solid rgba(255,255,255,.46);
+            border-radius: 28px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,.34), rgba(255,255,255,.18)),
+                linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,.06));
+            color: var(--text-primary);
+            display: grid;
+            place-items: center;
             cursor: pointer;
-            transition: background 180ms ease, transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-            user-select: none;
-            box-shadow: var(--shadow-card);
+            box-shadow:
+                0 10px 24px rgba(31,38,135,.06),
+                inset 0 1px 0 rgba(255,255,255,.56),
+                inset 0 -12px 24px rgba(255,255,255,.06);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+            font-family: inherit;
+            padding: 0;
+        }
+        .gb-ttt-cell::before {
+            content: "";
+            position: absolute;
+            inset: 8px;
+            border-radius: 22px;
+            border: 1px solid rgba(255,255,255,.28);
+            background:
+                radial-gradient(circle at 50% 38%, rgba(255,255,255,.18), transparent 42%),
+                linear-gradient(180deg, rgba(255,255,255,.10), transparent 48%);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.22);
+            z-index: 0;
         }
         .gb-ttt-cell:hover:not(.filled):not(.locked) {
-            background: var(--surface-strong);
-            border-color: var(--accent);
-            transform: scale(1.03);
-            box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-card);
+            transform: translateY(-2px) scale(1.01);
+            box-shadow:
+                0 14px 30px rgba(31,38,135,.09),
+                inset 0 1px 0 rgba(255,255,255,.58),
+                inset 0 -12px 24px rgba(255,255,255,.08);
         }
-        .gb-ttt-cell.filled { cursor: default; }
-        .gb-ttt-cell.locked { cursor: not-allowed; opacity: 0.85; }
-        .gb-ttt-cell.x { color: #2d7ad4; }
-        .gb-ttt-cell.o { color: #888; }
+        .gb-ttt-cell.pending {
+            border-color: rgba(0,113,227,.42);
+            background:
+                linear-gradient(180deg, rgba(195,225,255,.52), rgba(230,241,255,.22)),
+                linear-gradient(135deg, rgba(0,113,227,.16), rgba(255,255,255,.08));
+            box-shadow:
+                0 0 0 4px rgba(0,113,227,.08),
+                0 18px 34px rgba(0,113,227,.12),
+                inset 0 1px 0 rgba(255,255,255,.60);
+        }
+        .gb-ttt-cell.pending::before { border-color: rgba(0,113,227,.22); }
         .gb-ttt-cell.win {
-            background: rgba(91,184,93,0.22);
-            border-color: #5bb85d;
-            animation: gb-ttt-win-pulse 0.5s ease;
+            border-color: rgba(52,199,89,.42);
+            background:
+                linear-gradient(180deg, rgba(224,249,231,.56), rgba(239,252,243,.22)),
+                linear-gradient(135deg, rgba(52,199,89,.18), rgba(255,255,255,.08));
+            box-shadow:
+                0 0 0 4px rgba(52,199,89,.08),
+                0 0 28px rgba(52,199,89,.18),
+                inset 0 1px 0 rgba(255,255,255,.60);
         }
-        .gb-ttt-cell.scattered {
-            animation: gb-ttt-scatter 0.45s ease;
+        .gb-ttt-cell.win::before { border-color: rgba(52,199,89,.22); }
+        .gb-ttt-cell.filled { cursor: default; }
+        .gb-ttt-cell.locked { cursor: not-allowed; }
+        .gb-ttt-cell .gb-ttt-mark {
+            position: relative;
+            z-index: 1;
+            font-size: clamp(32px, 10vw, 50px);
+            line-height: 1;
+            font-weight: 500;
+            letter-spacing: -.05em;
+            opacity: 0;
+            transform: scale(.72);
+            animation: gbTTTMarkIn .24s ease forwards;
         }
-        @keyframes gb-ttt-win-pulse {
-            0%   { transform: scale(1); }
-            50%  { transform: scale(1.12); }
-            100% { transform: scale(1); }
-        }
-        @keyframes gb-ttt-scatter {
-            0%   { transform: scale(0.3) rotate(-12deg); opacity: 0; }
-            100% { transform: scale(1)   rotate(0);     opacity: 1; }
-        }
-        .gb-ttt-question-box {
+        .gb-ttt-cell .gb-ttt-mark.x { color: var(--accent); text-shadow: 0 0 18px rgba(0,113,227,.20); }
+        .gb-ttt-cell .gb-ttt-mark.o { color: #8b95a7; text-shadow: 0 0 18px rgba(139,149,167,.18); }
+        @keyframes gbTTTMarkIn { to { opacity: 1; transform: scale(1); } }
+        .gb-ttt-question-card {
             display: none;
-            background: rgba(212,175,55,0.07);
-            border: 1.5px solid rgba(212,175,55,0.3);
-            border-radius: 16px;
-            padding: 16px 18px;
-            margin-bottom: 14px;
-        }
-        .gb-ttt-question-box.show { display: block; }
-        .gb-ttt-question {
-            font-size: 17px;
-            font-weight: 600;
+            border-radius: 30px;
+            padding: 16px;
             margin-bottom: 12px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(24px) saturate(170%);
+            -webkit-backdrop-filter: blur(24px) saturate(170%);
+            animation: gbTTTFadeUp .24s ease;
+        }
+        .gb-ttt-question-card.show { display: block; }
+        .gb-ttt-stage-label {
+            margin: 0 0 11px;
+            color: var(--text-muted);
+            font-size: 10.5px;
+            font-weight: 620;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+        .gb-ttt-question {
+            margin: 0;
+            font-size: clamp(16px, 4.5vw, 18px);
+            line-height: 1.54;
+            font-weight: 540;
+            letter-spacing: -.01em;
             color: var(--text-primary);
         }
         .gb-ttt-options {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            margin-bottom: 8px;
+            gap: 9px;
+            margin-top: 13px;
         }
         .gb-ttt-option {
-            padding: 12px 14px;
-            border: 1.5px solid rgba(212,175,55,0.35);
-            border-radius: 10px;
-            background: var(--surface);
+            width: 100%;
+            border: 1px solid rgba(255,255,255,.42);
+            border-radius: 20px;
+            background: rgba(255,255,255,.25);
             color: var(--text-primary);
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 150ms ease, border-color 150ms ease;
+            padding: 13px;
             text-align: left;
+            font-size: 13px;
+            line-height: 1.45;
+            font-weight: 480;
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.44);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            transition: .18s ease;
+            font-family: inherit;
         }
         .gb-ttt-option:hover:not([disabled]) {
-            background: rgba(212,175,55,0.10);
-            border-color: var(--accent);
+            transform: translateY(-1px);
+            box-shadow: 0 9px 22px rgba(31,38,135,.07), inset 0 1px 0 rgba(255,255,255,.46);
         }
-        .gb-ttt-option.correct { background: rgba(91,184,93,0.18); border-color: #5bb85d; }
-        .gb-ttt-option.wrong   { background: rgba(212,76,76,0.16); border-color: #d44c4c; }
+        .gb-ttt-option.correct {
+            color: #1f6f2e;
+            border-color: rgba(52,199,89,.28);
+            background: linear-gradient(135deg, rgba(52,199,89,.15), rgba(255,255,255,.18));
+        }
+        .gb-ttt-option.wrong {
+            color: #9f241d;
+            border-color: rgba(255,69,58,.25);
+            background: linear-gradient(135deg, rgba(255,69,58,.12), rgba(255,255,255,.18));
+        }
         .gb-ttt-option[disabled] { cursor: default; opacity: 0.85; }
         .gb-ttt-feedback {
-            font-size: 13px;
-            color: var(--text-muted);
-            text-align: center;
-            min-height: 18px;
-        }
-        .gb-ttt-feedback.correct { color: #2d7a2f; }
-        .gb-ttt-feedback.wrong   { color: #c43a3a; }
-        .gb-ttt-result-banner, .gb-ttt-session-banner {
-            background: linear-gradient(135deg,rgba(91,184,93,0.16),rgba(212,175,55,0.12));
-            border: 1.5px solid #5bb85d;
-            border-radius: 18px;
-            padding: 18px 20px;
-            text-align: center;
             display: none;
-            margin-bottom: 12px;
-        }
-        .gb-ttt-result-banner.show, .gb-ttt-session-banner.show { display: block; }
-        .gb-ttt-result-banner.lost {
-            background: linear-gradient(135deg,rgba(120,120,120,0.16),rgba(212,175,55,0.10));
-            border-color: #888;
-        }
-        .gb-ttt-result-text {
-            font-size: 20px;
-            font-weight: 700;
-            color: #2d7a2f;
-            margin-bottom: 6px;
-        }
-        .gb-ttt-result-banner.lost .gb-ttt-result-text { color: #555; }
-        .gb-ttt-result-sub {
-            font-size: 14px;
+            margin-top: 12px;
+            border-radius: 20px;
+            padding: 13px;
+            background: linear-gradient(135deg, rgba(255,255,255,.28), rgba(255,255,255,.14));
+            border: 1px solid rgba(255,255,255,.38);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.42);
+            font-size: 12.5px;
+            line-height: 1.56;
             color: var(--text-muted);
+        }
+        .gb-ttt-feedback.show { display: block; animation: gbTTTFadeUp .22s ease; }
+        .gb-ttt-feedback.good {
+            color: #1f6f2e;
+            background: linear-gradient(135deg, rgba(52,199,89,.13), rgba(255,255,255,.18));
+        }
+        .gb-ttt-feedback.bad {
+            color: #9f241d;
+            background: linear-gradient(135deg, rgba(255,69,58,.10), rgba(255,255,255,.18));
+        }
+        .gb-ttt-result-card, .gb-ttt-session-card {
+            display: none;
+            border-radius: 30px;
+            padding: 16px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
+            border: 1px solid rgba(255,255,255,.42);
+            box-shadow: 0 14px 44px rgba(31,38,135,.08), inset 0 1px 0 rgba(255,255,255,.50);
+            backdrop-filter: blur(24px) saturate(170%);
+            -webkit-backdrop-filter: blur(24px) saturate(170%);
+        }
+        .gb-ttt-result-card.show, .gb-ttt-session-card.show {
+            display: block;
+            animation: gbTTTFadeUp .22s ease;
+        }
+        .gb-ttt-result-title, .gb-ttt-session-title {
+            margin: 0 0 7px;
+            font-size: 16px;
+            font-weight: 590;
+            letter-spacing: -.01em;
+            color: var(--text-primary);
+        }
+        .gb-ttt-result-text, .gb-ttt-session-text {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 12.5px;
+            line-height: 1.56;
+        }
+        .gb-ttt-score-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 13px;
+            padding: 11px 12px;
+            border-radius: 18px;
+            background: rgba(255,255,255,.23);
+            border: 1px solid rgba(255,255,255,.36);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.40);
+        }
+        .gb-ttt-score-line span {
+            color: var(--text-muted);
+            font-size: 11.5px;
+            font-weight: 580;
+        }
+        .gb-ttt-score-line strong {
+            font-size: 16px;
+            font-weight: 620;
+            color: var(--text-primary);
+        }
+        .gb-ttt-mastery-pill {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 6px 11px;
+            border-radius: 999px;
+            background: rgba(0,113,227,.10);
+            border: 1px solid rgba(0,113,227,.22);
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 620;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+        }
+        .gb-ttt-duolingo-toast {
+            display: none;
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 16px;
+            background: rgba(255,159,10,.10);
+            border: 1px solid rgba(255,159,10,.28);
+            color: #a05a00;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .gb-ttt-duolingo-toast.show { display: block; }
+        @keyframes gbTTTFadeUp {
+            from { opacity: 0; transform: translateY(8px) scale(.98); }
+            to { opacity: 1; transform: none; }
+        }
+        /* Counter back-compat — kept hidden but in DOM for legacy tests / a11y. */
+        .gb-ttt-counter {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-align: center;
+            margin: 0 0 6px;
+            letter-spacing: 0.4px;
+            opacity: 0;
+            height: 0;
+            overflow: hidden;
+        }
+        /* Dark-mode parity (≥10 selectors) */
+        [data-theme="dark"] .gb-ttt-hero,
+        [data-theme="dark"] .gb-ttt-stats-card,
+        [data-theme="dark"] .gb-ttt-board-card,
+        [data-theme="dark"] .gb-ttt-question-card,
+        [data-theme="dark"] .gb-ttt-result-card,
+        [data-theme="dark"] .gb-ttt-session-card {
+            background: linear-gradient(135deg, rgba(36,40,52,.72), rgba(28,30,40,.55));
+            border-color: rgba(255,255,255,.10);
+            box-shadow: 0 14px 44px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.06);
+        }
+        [data-theme="dark"] .gb-ttt-stat {
+            background: linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+            border-color: rgba(255,255,255,.08);
+        }
+        [data-theme="dark"] .gb-ttt-cell {
+            background:
+                linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)),
+                linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+            border-color: rgba(255,255,255,.10);
+            color: var(--text-primary);
+        }
+        [data-theme="dark"] .gb-ttt-cell.pending {
+            background:
+                linear-gradient(180deg, rgba(0,113,227,.30), rgba(0,113,227,.10)),
+                linear-gradient(135deg, rgba(0,113,227,.18), rgba(255,255,255,.04));
+            border-color: rgba(0,113,227,.55);
+        }
+        [data-theme="dark"] .gb-ttt-cell.win {
+            background:
+                linear-gradient(180deg, rgba(52,199,89,.30), rgba(52,199,89,.10)),
+                linear-gradient(135deg, rgba(52,199,89,.20), rgba(255,255,255,.04));
+            border-color: rgba(52,199,89,.55);
+        }
+        [data-theme="dark"] .gb-ttt-option {
+            background: rgba(255,255,255,.06);
+            border-color: rgba(255,255,255,.10);
+            color: var(--text-primary);
+        }
+        [data-theme="dark"] .gb-ttt-option.correct {
+            color: #6ee398;
+            background: linear-gradient(135deg, rgba(52,199,89,.20), rgba(255,255,255,.04));
+            border-color: rgba(52,199,89,.45);
+        }
+        [data-theme="dark"] .gb-ttt-option.wrong {
+            color: #ff8a82;
+            background: linear-gradient(135deg, rgba(255,69,58,.20), rgba(255,255,255,.04));
+            border-color: rgba(255,69,58,.45);
+        }
+        [data-theme="dark"] .gb-ttt-feedback {
+            background: rgba(255,255,255,.04);
+            border-color: rgba(255,255,255,.08);
+            color: var(--text-muted);
+        }
+        [data-theme="dark"] .gb-ttt-feedback.good {
+            color: #6ee398;
+            background: linear-gradient(135deg, rgba(52,199,89,.16), rgba(255,255,255,.04));
+        }
+        [data-theme="dark"] .gb-ttt-feedback.bad {
+            color: #ff8a82;
+            background: linear-gradient(135deg, rgba(255,69,58,.14), rgba(255,255,255,.04));
+        }
+        [data-theme="dark"] .gb-ttt-turn-pill {
+            background: rgba(0,113,227,.18);
+            border-color: rgba(0,113,227,.35);
+        }
+        [data-theme="dark"] .gb-ttt-game-pill {
+            background: rgba(0,113,227,.18);
+            border-color: rgba(0,113,227,.35);
+        }
+        [data-theme="dark"] .gb-ttt-score-line {
+            background: rgba(255,255,255,.04);
+            border-color: rgba(255,255,255,.08);
+        }
+        [data-theme="dark"] .gb-ttt-mastery-pill {
+            background: rgba(0,113,227,.20);
+            border-color: rgba(0,113,227,.45);
+        }
+        [data-theme="dark"] .gb-ttt-duolingo-toast {
+            background: rgba(255,159,10,.18);
+            border-color: rgba(255,159,10,.40);
+            color: #ffc56b;
         }
 
         /* ── STAGE 5 · SENTENCE FILL (gb-panel-sf, .gb-sf-*) ──── */
@@ -7008,22 +7361,53 @@
                     <!-- Sub-game 6: Tic Tac Toe vs AI (optional — only if GB_TTT has items) -->
                     <div class="gb-game-panel enter-right" id="gb-panel-ttt">
                         <div class="gb-section-title">O'YIN — TIC TAC TOE</div>
-                        <div class="gb-ttt-counter" id="gb-ttt-counter">O'yin 1 / 3 · 0Y - 0D - 0M</div>
-                        <div class="gb-ttt-status" id="gb-ttt-status">Hujayrani tanlang</div>
-                        <div class="gb-ttt-board" id="gb-ttt-board"></div>
-                        <div class="gb-ttt-question-box" id="gb-ttt-question-box">
-                            <div class="gb-ttt-question" id="gb-ttt-question"></div>
+                        <!-- Legacy back-compat counter (visually hidden via CSS) -->
+                        <div class="gb-ttt-counter" id="gb-ttt-counter" aria-hidden="true">O'yin 1 / 3</div>
+                        <article class="gb-ttt-hero" id="gb-ttt-hero">
+                            <div class="gb-ttt-hero-meta">
+                                <span data-i18n="ttt.heroEyebrow">Student vs AI</span>
+                                <span class="gb-ttt-game-pill" id="gb-ttt-game-pill">Game 1/3</span>
+                            </div>
+                            <h1 class="gb-ttt-hero-title" id="gb-ttt-hero-title" data-i18n="ttt.heroTitle">Your knowledge controls the board.</h1>
+                            <p class="gb-ttt-hero-subtitle" id="gb-ttt-hero-subtitle" data-i18n="ttt.subtitle">Tap your target cell first. Correct answer lands your X there. Wrong answer scatters it to a random empty cell.</p>
+                        </article>
+                        <section class="gb-ttt-stats-card" id="gb-ttt-stats">
+                            <div class="gb-ttt-stats">
+                                <div class="gb-ttt-stat"><span data-i18n="ttt.draws">Draws</span><strong id="gb-ttt-draws">0</strong></div>
+                                <div class="gb-ttt-stat"><span data-i18n="ttt.losses">Losses</span><strong id="gb-ttt-losses">0</strong></div>
+                                <div class="gb-ttt-stat"><span data-i18n="ttt.correct">Correct</span><strong id="gb-ttt-correct">0</strong></div>
+                            </div>
+                        </section>
+                        <section class="gb-ttt-board-card">
+                            <div class="gb-ttt-board-head">
+                                <div>
+                                    <h2 class="gb-ttt-board-title" data-i18n="ttt.boardTitle">Tactical Board</h2>
+                                    <p class="gb-ttt-board-copy" id="gb-ttt-board-copy" data-i18n="ttt.boardCopy">Tap a cell to challenge the AI.</p>
+                                </div>
+                                <div class="gb-ttt-turn-pill" id="gb-ttt-turn-pill" data-i18n="ttt.turnYour">Your move</div>
+                            </div>
+                            <div class="gb-ttt-board" id="gb-ttt-board" role="grid" aria-label="Tic Tac Toe board"></div>
+                        </section>
+                        <section class="gb-ttt-question-card" id="gb-ttt-question-card">
+                            <p class="gb-ttt-stage-label" data-i18n="ttt.stageLabel">Answer to claim cell</p>
+                            <p class="gb-ttt-question" id="gb-ttt-question"></p>
                             <div class="gb-ttt-options" id="gb-ttt-options"></div>
                             <div class="gb-ttt-feedback" id="gb-ttt-feedback"></div>
-                        </div>
-                        <div class="gb-ttt-result-banner" id="gb-ttt-result-banner">
-                            <div class="gb-ttt-result-text" id="gb-ttt-result-text"></div>
-                            <div class="gb-ttt-result-sub" id="gb-ttt-result-sub"></div>
-                        </div>
-                        <div class="gb-ttt-session-banner" id="gb-ttt-session-banner">
-                            <div class="gb-ttt-result-text">3 ta o'yin yakunlandi!</div>
-                            <div class="gb-ttt-result-sub" id="gb-ttt-session-summary"></div>
-                        </div>
+                        </section>
+                        <section class="gb-ttt-result-card" id="gb-ttt-result-card" aria-live="polite">
+                            <h2 class="gb-ttt-result-title" id="gb-ttt-result-title">Game result</h2>
+                            <p class="gb-ttt-result-text" id="gb-ttt-result-text">Result appears here.</p>
+                        </section>
+                        <section class="gb-ttt-session-card" id="gb-ttt-session-card" aria-live="polite">
+                            <h2 class="gb-ttt-session-title" id="gb-ttt-session-title">Session result</h2>
+                            <p class="gb-ttt-session-text" id="gb-ttt-session-text"></p>
+                            <div class="gb-ttt-score-line">
+                                <span data-i18n="ttt.sessionXP">Session XP</span>
+                                <strong id="gb-ttt-session-xp">0 XP</strong>
+                            </div>
+                            <div class="gb-ttt-mastery-pill" id="gb-ttt-mastery-pill"></div>
+                            <div class="gb-ttt-duolingo-toast" id="gb-ttt-duolingo-toast" data-i18n="ttt.duolingoToast">Mashqlarni takrorlash kerak.</div>
+                        </section>
                     </div>
                     <!-- Sub-game 7: Sentence Fill (Stage-5 game; data via GB_SENTENCE_FILL constant) -->
                     <div class="gb-game-panel enter-right" id="gb-panel-sf">
@@ -7670,6 +8054,43 @@
                 'rlc.charcount':         '{n}/{min}',
                 'rlc.consequence_reveal': 'Oqibat:',
                 'rlc.correct_was':       "To'g'ri javob:",
+                // tic tac toe (Apple-glass redesign)
+                'ttt.heroEyebrow':       'Talaba va AI',
+                'ttt.heroTitle':         "Bilimingiz taxtani boshqaradi.",
+                'ttt.subtitle':          "Avval xohlagan hujayrangizni bosing. To'g'ri javob X ni shu joyga qo'yadi. Noto'g'ri javob — boshqa bo'sh hujayraga uchadi.",
+                'ttt.draws':             'Duranglar',
+                'ttt.losses':            "Mag'lubiyat",
+                'ttt.correct':           "To'g'ri",
+                'ttt.boardTitle':        'Taktik taxta',
+                'ttt.boardCopy':         "AI bilan o'ynash uchun hujayrani tanlang.",
+                'ttt.boardCopyAnswer':   "To'g'ri javob — belgi siz tanlagan joyga tushadi. Noto'g'ri — tasodifiy joyga.",
+                'ttt.boardCopyAI':       "AI optimal o'ynaydi. Eng yaxshi natija — durang.",
+                'ttt.turnYour':          'Sizning yurishingiz',
+                'ttt.turnAI':            "AI o'ylamoqda",
+                'ttt.turnAnswer':        'Avval javob bering',
+                'ttt.stageLabel':        'Hujayrani egallash uchun javob',
+                'ttt.feedbackCorrect':   "To'g'ri. X siz tanlagan joyga tushdi. +50 XP.",
+                'ttt.feedbackWrong':     "Noto'g'ri. X tasodifiy bo'sh hujayraga uchdi.",
+                'ttt.feedbackMercy':     "Noto'g'ri, lekin omadli sakrash. X siz tanlagan joyga qoldi.",
+                'ttt.resultWinTitle':    "Imkonsiz yuz berdi",
+                'ttt.resultWinText':     "Optimal AI ni yengdingiz. Standart rejimda bu deyarli imkonsiz.",
+                'ttt.resultDrawTitle':   "Chiziqni tutdingiz",
+                'ttt.resultDrawText':    "Durang qayd etildi. Optimal AI ga qarshi bu eng yaxshi haqiqiy natija.",
+                'ttt.resultLossTitle':   'Hali emas',
+                'ttt.resultLossText':    "AI yutdi. Bu sharm emas — diagnostika. Noto'g'ri javoblar nazoratni qaytib oladi.",
+                'ttt.sessionStrongTitle': "Kuchli sessiya",
+                'ttt.sessionStrongText': "2+ durang. Taktik bonus qo'shildi.",
+                'ttt.sessionSolidTitle': "Mustahkam sessiya",
+                'ttt.sessionSolidText':  "Bitta durang va to'g'ri javoblardan davomiy XP. Taxta nazoratini sayqallashda davom eting.",
+                'ttt.sessionFailedTitle': "Vazifa bajarilmadi",
+                'ttt.sessionFailedText': "0 durang. Mashqlarni qayta ko'rib chiqish kerak.",
+                'ttt.sessionXP':         'Sessiya XP',
+                'ttt.dockTap':           'Hujayrani bosing',
+                'ttt.dockAnswer':        'Savolga javob bering',
+                'ttt.dockNext':          "Keyingi o'yin",
+                'ttt.dockResult':        'Sessiya natijasi',
+                'ttt.dockComplete':      'Sessiya tugadi',
+                'ttt.duolingoToast':     "Mashqlarni takrorlash kerak — qisqa mashqlardan boshlaymiz.",
             },
             ru: {
                 'skip.label':            '⏭ Пропустить фазу',
@@ -7914,6 +8335,43 @@
                 'rlc.charcount':         '{n}/{min}',
                 'rlc.consequence_reveal': 'Последствие:',
                 'rlc.correct_was':       'Правильный ответ:',
+                // tic tac toe
+                'ttt.heroEyebrow':       'Студент против AI',
+                'ttt.heroTitle':         'Ваши знания управляют доской.',
+                'ttt.subtitle':          'Сначала выберите целевую клетку. Правильный ответ ставит X туда. Неправильный — рассеивает в случайную пустую клетку.',
+                'ttt.draws':             'Ничьи',
+                'ttt.losses':            'Поражения',
+                'ttt.correct':           'Правильно',
+                'ttt.boardTitle':        'Тактическая доска',
+                'ttt.boardCopy':         'Выберите клетку, чтобы бросить вызов AI.',
+                'ttt.boardCopyAnswer':   'Правильный ответ — X идёт в выбранную клетку. Неправильный — в случайную.',
+                'ttt.boardCopyAI':       'AI играет оптимально. Лучший реалистичный исход — ничья.',
+                'ttt.turnYour':          'Ваш ход',
+                'ttt.turnAI':            'AI думает',
+                'ttt.turnAnswer':        'Сначала ответьте',
+                'ttt.stageLabel':        'Ответьте, чтобы занять клетку',
+                'ttt.feedbackCorrect':   'Правильно. X встал ровно в нужную клетку. +50 XP.',
+                'ttt.feedbackWrong':     'Неправильно. X улетел в случайную пустую клетку.',
+                'ttt.feedbackMercy':     'Неправильно, но повезло. X всё-таки встал в нужную клетку.',
+                'ttt.resultWinTitle':    'Невозможное случилось',
+                'ttt.resultWinText':     'Вы обыграли оптимальный AI. В стандартном режиме это почти невозможно.',
+                'ttt.resultDrawTitle':   'Удержали линию',
+                'ttt.resultDrawText':    'Ничья достигнута. Против оптимального AI это и есть лучший реалистичный исход.',
+                'ttt.resultLossTitle':   'Hali emas',
+                'ttt.resultLossText':    'AI выиграл. Это диагностика, не повод стыдиться. Неправильные ответы обычно и стоят контроля над доской.',
+                'ttt.sessionStrongTitle': 'Сильная сессия',
+                'ttt.sessionStrongText': '2+ ничьи. Тактический бонус начислен.',
+                'ttt.sessionSolidTitle': 'Хорошая сессия',
+                'ttt.sessionSolidText':  'Одна ничья и стабильный XP за правильные ответы. Продолжайте оттачивать контроль доски.',
+                'ttt.sessionFailedTitle': 'Задача не решена',
+                'ttt.sessionFailedText': '0 ничьих. Нужно повторить материал.',
+                'ttt.sessionXP':         'Сессия XP',
+                'ttt.dockTap':           'Нажмите клетку',
+                'ttt.dockAnswer':        'Ответьте на вопрос',
+                'ttt.dockNext':          'Следующая игра',
+                'ttt.dockResult':        'Итог сессии',
+                'ttt.dockComplete':      'Сессия завершена',
+                'ttt.duolingoToast':     'Нужно повторить упражнения — начнём с коротких.',
             },
             en: {
                 'skip.label':            '⏭ Skip phase',
@@ -8158,6 +8616,43 @@
                 'rlc.charcount':         '{n}/{min}',
                 'rlc.consequence_reveal': 'Consequence:',
                 'rlc.correct_was':       'Correct answer:',
+                // tic tac toe
+                'ttt.heroEyebrow':       'Student vs AI',
+                'ttt.heroTitle':         'Your knowledge controls the board.',
+                'ttt.subtitle':          'Tap your target cell first. Correct answer lands your X there. Wrong answer scatters it to a random empty cell.',
+                'ttt.draws':             'Draws',
+                'ttt.losses':            'Losses',
+                'ttt.correct':           'Correct',
+                'ttt.boardTitle':        'Tactical Board',
+                'ttt.boardCopy':         'Tap a cell to challenge the AI.',
+                'ttt.boardCopyAnswer':   'Correct answer claims your intended cell. Wrong answer scatters your move.',
+                'ttt.boardCopyAI':       'The AI plays optimally. Your best realistic outcome is a draw.',
+                'ttt.turnYour':          'Your move',
+                'ttt.turnAI':            'AI thinking',
+                'ttt.turnAnswer':        'Answer first',
+                'ttt.stageLabel':        'Answer to claim cell',
+                'ttt.feedbackCorrect':   'Correct. Your X lands exactly where you intended. +50 XP.',
+                'ttt.feedbackWrong':     'Wrong. Your X scattered to a random empty cell.',
+                'ttt.feedbackMercy':     'Wrong, but lucky bounce. Your X still landed on the intended cell.',
+                'ttt.resultWinTitle':    'Impossible Happened',
+                'ttt.resultWinText':     'You beat optimal AI. This should be almost impossible in standard mode.',
+                'ttt.resultDrawTitle':   'Held the Line',
+                'ttt.resultDrawText':    'Draw achieved. Against optimal AI, this is the realistic best outcome.',
+                'ttt.resultLossTitle':   'Hali emas',
+                'ttt.resultLossText':    'AI won. This is diagnostic, not shame. Wrong-answer scatter moves are what usually cost control.',
+                'ttt.sessionStrongTitle': 'Strong Session',
+                'ttt.sessionStrongText': '2+ draws achieved. Tactician bonus added.',
+                'ttt.sessionSolidTitle': 'Solid Session',
+                'ttt.sessionSolidText':  'One draw and continued XP from correct answers. Keep sharpening board control.',
+                'ttt.sessionFailedTitle': 'Task Failed',
+                'ttt.sessionFailedText': '0 draws. Time to re-serve micro-drills before advancing.',
+                'ttt.sessionXP':         'Session XP',
+                'ttt.dockTap':           'Tap a cell',
+                'ttt.dockAnswer':        'Answer question',
+                'ttt.dockNext':          'Next game',
+                'ttt.dockResult':        'Session result',
+                'ttt.dockComplete':      'Session complete',
+                'ttt.duolingoToast':     'Time to revisit fundamentals — micro-drills coming up.',
             },
         };
 
@@ -10435,7 +10930,7 @@
             mm: { tiles:[], flipped:[], matched:0, pendingPair:null, busy:false, complete:false },
             pl: { size:3, cells:[], emptyIdx:0, tiles:[], selected:null, total:0, correct:0, wrongCount:0, complete:false, busy:false },
             mb: { boxes:[], opened:[], idx:-1, phase:'select', labels:[], pickedLabel:'', idCorrect:null, ansCorrect:null, complete:false, busy:false },
-            ttt: { gameIdx:0, wins:0, draws:0, losses:0, board:Array(9).fill(''), targetCell:-1, currentItem:null, itemCursor:0, phase:'await-tap', busy:false, complete:false, winLine:null },
+            ttt: { sessionId:null, board:Array(9).fill(''), games:[], gameNum:0, draws:0, losses:0, correct:0, pendingCellIdx:-1, currentItemIdx:0, currentItemId:null, phase:'await-tap', busy:false, complete:false, winLine:null },
             sf: { idx:0, mode:'word_bank', selectedBlank:0, blanks:[], xp:0, pendingFinalize:false, complete:false, busy:false },
             tm: { tiles:[], pairsTotal:0, matched:0, wrong:0, streak:0, xp:0, selectedLeft:null, busy:false, complete:false, startedAt:null, outcome:null }
         };
@@ -13261,6 +13756,7 @@
 
         const GB_TTT_LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
+        // Pure logic helpers — preserved from previous TTT runtime.
         function gbTTTWinner(board) {
             for (const line of GB_TTT_LINES) {
                 const [a,b,c] = line;
@@ -13304,13 +13800,77 @@
             return bestMove;
         }
 
+        // Sequential picker — items already shuffled side-disjoint server-side.
         function gbTTTPickItem() {
             const items = Array.isArray(GB_TTT) ? GB_TTT : [];
             if (items.length === 0) return null;
             const ttt = gbState.ttt;
-            const item = items[ttt.itemCursor % items.length];
-            ttt.itemCursor++;
+            const item = items[ttt.currentItemIdx % items.length];
+            ttt.currentItemIdx++;
+            ttt.currentItemId = (item && item.id) || null;
             return item;
+        }
+
+        // Single network swap-point #1 — per-pick grading.
+        // Mirrors gbTMCheckPair (PR #140); uses canonical 3-key chain for hwId.
+        async function gbTTTCheckAnswer(itemId, picked) {
+            const ctx = window.NETS_CTX || {};
+            const homeworkId = ctx.hwId || ctx.homework_id || ctx.homeworkId || null;
+            if (!homeworkId) {
+                console.warn('[gbTTTCheckAnswer] missing homework_id; soft-fail');
+                return { is_correct: false, mercy: false, xp_delta: 0, correct_value: null };
+            }
+            try {
+                const res = await fetch('/api/ai/check-answer?phase=ttt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phase: 'ttt',
+                        homework_id: homeworkId,
+                        item_id: itemId,
+                        picked: picked,
+                    }),
+                });
+                if (!res.ok) {
+                    console.error('[gbTTTCheckAnswer] HTTP ' + res.status);
+                    return { is_correct: false, mercy: false, xp_delta: 0, correct_value: null };
+                }
+                return await res.json();
+            } catch (err) {
+                console.error('[gbTTTCheckAnswer] network error', err);
+                return { is_correct: false, mercy: false, xp_delta: 0, correct_value: null };
+            }
+        }
+
+        // Single network swap-point #2 — end-of-session tally.
+        async function gbTTTSessionFinalize() {
+            const ctx = window.NETS_CTX || {};
+            const homeworkId = ctx.hwId || ctx.homework_id || ctx.homeworkId || null;
+            const ttt = gbState.ttt;
+            const results = (ttt.games || []).map(o => ({ outcome: o }));
+            if (!homeworkId) {
+                console.warn('[gbTTTSessionFinalize] missing homework_id; soft-fail');
+                return { session_xp: 0, strong_session_bonus: 0, mastery_tier: 'Working Toward Holding Ground', duolingo_remediation: false };
+            }
+            try {
+                const res = await fetch('/api/ai/check-answer?phase=ttt-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phase: 'ttt-session',
+                        homework_id: homeworkId,
+                        results: results,
+                    }),
+                });
+                if (!res.ok) {
+                    console.error('[gbTTTSessionFinalize] HTTP ' + res.status);
+                    return { session_xp: 0, strong_session_bonus: 0, mastery_tier: 'Working Toward Holding Ground', duolingo_remediation: false };
+                }
+                return await res.json();
+            } catch (err) {
+                console.error('[gbTTTSessionFinalize] network error', err);
+                return { session_xp: 0, strong_session_bonus: 0, mastery_tier: 'Working Toward Holding Ground', duolingo_remediation: false };
+            }
         }
 
         function gbTTTRender() {
@@ -13320,49 +13880,86 @@
             const winSet = ttt.winLine ? new Set(ttt.winLine) : null;
             board.innerHTML = '';
             for (let i = 0; i < 9; i++) {
-                const cell = document.createElement('div');
+                const cell = document.createElement('button');
                 cell.className = 'gb-ttt-cell';
+                cell.type = 'button';
+                cell.setAttribute('data-cell-idx', String(i));
+                cell.setAttribute('role', 'gridcell');
                 const mark = ttt.board[i];
                 if (mark) {
                     cell.classList.add('filled');
                     cell.classList.add(mark === 'X' ? 'x' : 'o');
-                    cell.textContent = mark;
+                    const span = document.createElement('span');
+                    span.className = 'gb-ttt-mark ' + (mark === 'X' ? 'x' : 'o');
+                    span.textContent = mark;
+                    cell.appendChild(span);
                 }
                 if (winSet && winSet.has(i)) cell.classList.add('win');
+                if (i === ttt.pendingCellIdx && !mark) cell.classList.add('pending');
                 if (ttt.phase !== 'await-tap' || ttt.busy) cell.classList.add('locked');
                 if (!mark && ttt.phase === 'await-tap' && !ttt.busy) {
                     cell.addEventListener('click', () => gbTTTCellClick(i));
                 }
                 board.appendChild(cell);
             }
+            // Hero / stats / pills.
             const counter = document.getElementById('gb-ttt-counter');
-            if (counter) counter.textContent = "O'yin " + (ttt.gameIdx + 1) + " / 3 · " + ttt.wins + "Y - " + ttt.draws + "D - " + ttt.losses + "M";
-        }
-
-        function gbTTTSetStatus(text) {
-            const el = document.getElementById('gb-ttt-status');
-            if (el) el.textContent = text;
+            if (counter) counter.textContent = "O'yin " + (ttt.gameNum + 1) + " / 3";
+            const gamePill = document.getElementById('gb-ttt-game-pill');
+            if (gamePill) gamePill.textContent = 'Game ' + (ttt.gameNum + 1) + '/3';
+            const drawsEl = document.getElementById('gb-ttt-draws');
+            if (drawsEl) drawsEl.textContent = String(ttt.draws);
+            const lossesEl = document.getElementById('gb-ttt-losses');
+            if (lossesEl) lossesEl.textContent = String(ttt.losses);
+            const correctEl = document.getElementById('gb-ttt-correct');
+            if (correctEl) correctEl.textContent = String(ttt.correct);
+            const turnPill = document.getElementById('gb-ttt-turn-pill');
+            const boardCopy = document.getElementById('gb-ttt-board-copy');
+            if (turnPill && boardCopy) {
+                if (ttt.phase === 'await-tap') {
+                    turnPill.textContent = RT('ttt.turnYour');
+                    boardCopy.textContent = RT('ttt.boardCopy');
+                } else if (ttt.phase === 'awaiting-answer') {
+                    turnPill.textContent = RT('ttt.turnAnswer');
+                    boardCopy.textContent = RT('ttt.boardCopyAnswer');
+                } else if (ttt.phase === 'ai-thinking') {
+                    turnPill.textContent = RT('ttt.turnAI');
+                    boardCopy.textContent = RT('ttt.boardCopyAI');
+                } else if (ttt.phase === 'game-over') {
+                    turnPill.textContent = 'Game ' + (ttt.gameNum + 1);
+                }
+            }
         }
 
         function gbInitTTT() {
-            const ttt = gbState.ttt;
-            ttt.gameIdx = 0;
-            ttt.wins = 0; ttt.draws = 0; ttt.losses = 0;
-            ttt.board = Array(9).fill('');
-            ttt.targetCell = -1;
-            ttt.currentItem = null;
-            ttt.itemCursor = 0;
-            ttt.phase = 'await-tap';
-            ttt.busy = false;
-            ttt.complete = false;
-            ttt.winLine = null;
-            const qbox = document.getElementById('gb-ttt-question-box');
-            if (qbox) qbox.classList.remove('show');
-            const rb = document.getElementById('gb-ttt-result-banner');
-            if (rb) { rb.classList.remove('show', 'lost'); }
-            const sb = document.getElementById('gb-ttt-session-banner');
-            if (sb) sb.classList.remove('show');
-            gbTTTSetStatus("Hujayrani tanlang");
+            // Generate a short uuid-ish session id.
+            const sessionId = 'ttt-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+            gbState.ttt = {
+                sessionId: sessionId,
+                board: Array(9).fill(''),
+                games: [],
+                gameNum: 0,
+                draws: 0,
+                losses: 0,
+                correct: 0,
+                pendingCellIdx: -1,
+                currentItemIdx: 0,
+                currentItemId: null,
+                phase: 'await-tap',
+                busy: false,
+                complete: false,
+                winLine: null,
+                lastResolveTimer: null,
+            };
+            // Hide stage-only sections.
+            const qcard = document.getElementById('gb-ttt-question-card');
+            if (qcard) qcard.classList.remove('show');
+            const rcard = document.getElementById('gb-ttt-result-card');
+            if (rcard) rcard.classList.remove('show');
+            const scard = document.getElementById('gb-ttt-session-card');
+            if (scard) scard.classList.remove('show');
+            const fbEl = document.getElementById('gb-ttt-feedback');
+            if (fbEl) { fbEl.className = 'gb-ttt-feedback'; fbEl.textContent = ''; }
             gbTTTRender();
         }
 
@@ -13370,7 +13967,7 @@
             const ttt = gbState.ttt;
             if (ttt.busy || ttt.phase !== 'await-tap') return;
             if (ttt.board[idx]) return;
-            ttt.targetCell = idx;
+            ttt.pendingCellIdx = idx;
             ttt.phase = 'awaiting-answer';
             ttt.busy = true;
             gbTTTRender();
@@ -13380,68 +13977,115 @@
         function gbTTTShowQuestion() {
             const ttt = gbState.ttt;
             const item = gbTTTPickItem();
-            ttt.currentItem = item;
-            const qbox = document.getElementById('gb-ttt-question-box');
+            if (!item) {
+                // No items — back-out gracefully.
+                ttt.phase = 'await-tap';
+                ttt.busy = false;
+                ttt.pendingCellIdx = -1;
+                gbTTTRender();
+                return;
+            }
+            const qcard = document.getElementById('gb-ttt-question-card');
             const qEl = document.getElementById('gb-ttt-question');
             const optsEl = document.getElementById('gb-ttt-options');
             const fbEl = document.getElementById('gb-ttt-feedback');
-            if (!qbox || !qEl || !optsEl) return;
+            if (!qcard || !qEl || !optsEl) return;
             qEl.textContent = item.q || '';
-            const correct = String(item.correct ?? item.a ?? '');
-            const distractors = Array.isArray(item.distractors) ? item.distractors.map(String) : [];
-            const opts = [correct, ...distractors];
-            // Fisher-Yates shuffle.
-            for (let i = opts.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [opts[i], opts[j]] = [opts[j], opts[i]];
-            }
+            // Server-shuffled options array — render as-is. NO client-side correct/distractors logic.
+            const opts = Array.isArray(item.options) ? item.options : [];
             optsEl.innerHTML = '';
             opts.forEach((text) => {
                 const b = document.createElement('button');
                 b.className = 'gb-ttt-option';
                 b.type = 'button';
-                b.textContent = text;
-                b.addEventListener('click', () => gbTTTAnswer(text, correct, b));
+                b.setAttribute('data-option-value', String(text));
+                b.textContent = String(text);
+                b.addEventListener('click', () => gbTTTOptionClick(String(text), b));
                 optsEl.appendChild(b);
             });
-            if (fbEl) { fbEl.textContent = ''; fbEl.className = 'gb-ttt-feedback'; }
-            qbox.classList.add('show');
-            gbTTTSetStatus("Savolga javob bering");
+            if (fbEl) { fbEl.className = 'gb-ttt-feedback'; fbEl.textContent = ''; }
+            qcard.classList.add('show');
+            setTimeout(() => {
+                try { qcard.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+            }, 80);
+            gbTTTRender();
         }
 
-        function gbTTTAnswer(picked, correct, btnEl) {
+        async function gbTTTOptionClick(picked, btnEl) {
             const ttt = gbState.ttt;
+            if (ttt.busy && ttt.phase !== 'awaiting-answer') return;
             if (ttt.phase !== 'awaiting-answer') return;
+            // Lock all options to prevent double-submit.
             const optsEl = document.getElementById('gb-ttt-options');
             if (optsEl) {
-                Array.from(optsEl.children).forEach(c => { c.setAttribute('disabled', 'disabled'); });
+                Array.from(optsEl.children).forEach(c => c.setAttribute('disabled', 'disabled'));
             }
-            const isCorrect = picked === correct;
+            ttt.busy = true;
+            const itemId = ttt.currentItemId;
+            const resp = await gbTTTCheckAnswer(itemId, picked);
+            gbTTTHandleResolve(resp, btnEl, picked);
+        }
+
+        function gbTTTHandleResolve(resp, btnEl, picked) {
+            const ttt = gbState.ttt;
             const fbEl = document.getElementById('gb-ttt-feedback');
+            const optsEl = document.getElementById('gb-ttt-options');
+            const isCorrect = !!(resp && resp.is_correct);
+            const isMercy = !!(resp && resp.mercy);
+            const correctValue = (resp && resp.correct_value) || null;
+            // Mark the picked option green/red.
             if (btnEl) btnEl.classList.add(isCorrect ? 'correct' : 'wrong');
+            // Highlight the actual correct option (only after resolve).
+            if (correctValue && optsEl) {
+                Array.from(optsEl.children).forEach(c => {
+                    if (c.getAttribute('data-option-value') === correctValue) {
+                        c.classList.add('correct');
+                    }
+                });
+            }
+            // Feedback text.
             if (fbEl) {
-                fbEl.textContent = isCorrect ? "To'g'ri — belgi siz tanlagan joyga tushdi." : "Noto'g'ri — belgi tasodifiy joyga tushdi.";
-                fbEl.classList.add(isCorrect ? 'correct' : 'wrong');
-            }
-            // Place player mark.
-            let placedAt;
-            if (isCorrect) {
-                placedAt = ttt.targetCell;
-            } else {
-                const empties = [];
-                for (let i = 0; i < 9; i++) if (!ttt.board[i]) empties.push(i);
-                placedAt = empties[Math.floor(Math.random() * empties.length)];
-            }
-            setTimeout(() => {
-                ttt.board[placedAt] = 'X';
-                const qbox = document.getElementById('gb-ttt-question-box');
-                if (qbox) qbox.classList.remove('show');
-                gbTTTRender();
-                // Highlight scattered placement when wrong.
-                if (!isCorrect) {
-                    const cellEl = document.querySelectorAll('.gb-ttt-cell')[placedAt];
-                    if (cellEl) cellEl.classList.add('scattered');
+                fbEl.classList.remove('good', 'bad');
+                if (isCorrect) {
+                    fbEl.classList.add('show', 'good');
+                    fbEl.textContent = RT('ttt.feedbackCorrect');
+                } else if (isMercy) {
+                    fbEl.classList.add('show', 'good');
+                    fbEl.textContent = RT('ttt.feedbackMercy');
+                } else {
+                    fbEl.classList.add('show', 'bad');
+                    fbEl.textContent = RT('ttt.feedbackWrong');
                 }
+            }
+            // Decide placement.
+            // - is_correct → land on intended cell (pendingCellIdx)
+            // - mercy bounce → also land on intended cell (lucky)
+            // - wrong + no mercy → scatter to random empty cell
+            let placedAt;
+            if (isCorrect || isMercy) {
+                placedAt = ttt.pendingCellIdx;
+                if (isCorrect) {
+                    ttt.correct = (ttt.correct || 0) + 1;
+                }
+            } else {
+                // Random empty (wrong-no-mercy scatter)
+                const emptyIndices = [];
+                for (let i = 0; i < 9; i++) {
+                    if (!ttt.board[i]) emptyIndices.push(i);
+                }
+                placedAt = emptyIndices.length > 0
+                    ? emptyIndices[Math.floor(Math.random() * emptyIndices.length)]
+                    : ttt.pendingCellIdx;
+            }
+            // Defer the actual placement so user can read feedback.
+            ttt.lastResolveTimer = setTimeout(() => {
+                if (placedAt >= 0 && placedAt < 9 && !ttt.board[placedAt]) {
+                    ttt.board[placedAt] = 'X';
+                }
+                ttt.pendingCellIdx = -1;
+                const qcard = document.getElementById('gb-ttt-question-card');
+                if (qcard) qcard.classList.remove('show');
+                gbTTTRender();
                 gbTTTAfterPlayerMove();
             }, 700);
         }
@@ -13459,9 +14103,8 @@
                 gbTTTEndGame('draw');
                 return;
             }
-            // AI's turn.
             ttt.phase = 'ai-thinking';
-            gbTTTSetStatus("AI o'ylamoqda...");
+            gbTTTRender();
             setTimeout(() => gbTTTAIMove(), 600);
         }
 
@@ -13469,7 +14112,6 @@
             const ttt = gbState.ttt;
             const move = gbTTTBestMove(ttt.board.slice(), 'O');
             if (move >= 0) ttt.board[move] = 'O';
-            gbTTTRender();
             const w = gbTTTWinner(ttt.board);
             if (w) {
                 ttt.winLine = w.line;
@@ -13478,12 +14120,12 @@
                 return;
             }
             if (gbTTTBoardFull(ttt.board)) {
+                gbTTTRender();
                 gbTTTEndGame('draw');
                 return;
             }
             ttt.phase = 'await-tap';
             ttt.busy = false;
-            gbTTTSetStatus("Hujayrani tanlang");
             gbTTTRender();
         }
 
@@ -13491,79 +14133,122 @@
             const ttt = gbState.ttt;
             ttt.phase = 'game-over';
             ttt.busy = true;
-            if (result === 'win') ttt.wins++;
-            else if (result === 'draw') ttt.draws++;
-            else ttt.losses++;
-            const banner = document.getElementById('gb-ttt-result-banner');
-            const txt = document.getElementById('gb-ttt-result-text');
-            const sub = document.getElementById('gb-ttt-result-sub');
-            if (banner && txt && sub) {
-                banner.classList.remove('lost');
+            ttt.games[ttt.gameNum] = result;
+            if (result === 'draw') ttt.draws++;
+            else if (result === 'loss') ttt.losses++;
+            // Note: 'win' counter is implicit (impossible vs optimal AI); not displayed in stat grid.
+            // Result card.
+            const card = document.getElementById('gb-ttt-result-card');
+            const titleEl = document.getElementById('gb-ttt-result-title');
+            const textEl = document.getElementById('gb-ttt-result-text');
+            if (card && titleEl && textEl) {
                 if (result === 'win') {
-                    txt.textContent = "Yutdingiz!";
-                    sub.textContent = "Mumkin bo'lmagan natija — AI shubhali yurish qildi.";
+                    titleEl.textContent = RT('ttt.resultWinTitle');
+                    textEl.textContent = RT('ttt.resultWinText');
                 } else if (result === 'draw') {
-                    txt.textContent = "Durang — chiziqni tutdingiz.";
-                    sub.textContent = "Optimal AI bilan eng yaxshi natija shu.";
+                    titleEl.textContent = RT('ttt.resultDrawTitle');
+                    textEl.textContent = RT('ttt.resultDrawText');
                 } else {
-                    txt.textContent = "Hali emas";
-                    sub.textContent = "Bilim bo'shliqlari belgini tasodifiy joyga tushirdi. Keyingi safar.";
-                    banner.classList.add('lost');
+                    titleEl.textContent = RT('ttt.resultLossTitle');
+                    textEl.textContent = RT('ttt.resultLossText');
                 }
-                banner.classList.add('show');
+                card.classList.add('show');
+                setTimeout(() => {
+                    try { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+                }, 80);
             }
-            const isLastGame = ttt.gameIdx >= 2;
+            gbTTTRender();
+            const isLastGame = ttt.gameNum >= 2;
             if (isLastGame) {
                 gbTTTSessionEnd();
             } else {
-                gbTTTSetStatus("Keyingi o'yin uchun davom eting");
-                gbSetButtonForTTT(RT('btn.continue'));
+                gbSetButtonForTTT(RT('ttt.dockNext'));
             }
         }
 
         function gbTTTNextGame() {
             const ttt = gbState.ttt;
-            ttt.gameIdx++;
+            ttt.gameNum++;
             ttt.board = Array(9).fill('');
-            ttt.targetCell = -1;
-            ttt.currentItem = null;
+            ttt.pendingCellIdx = -1;
+            ttt.currentItemId = null;
             ttt.phase = 'await-tap';
             ttt.busy = false;
             ttt.winLine = null;
-            const banner = document.getElementById('gb-ttt-result-banner');
-            if (banner) banner.classList.remove('show', 'lost');
-            const qbox = document.getElementById('gb-ttt-question-box');
-            if (qbox) qbox.classList.remove('show');
-            gbTTTSetStatus("Hujayrani tanlang");
+            const card = document.getElementById('gb-ttt-result-card');
+            if (card) card.classList.remove('show');
+            const qcard = document.getElementById('gb-ttt-question-card');
+            if (qcard) qcard.classList.remove('show');
+            const fbEl = document.getElementById('gb-ttt-feedback');
+            if (fbEl) { fbEl.className = 'gb-ttt-feedback'; fbEl.textContent = ''; }
             gbTTTRender();
-            // Reset button to inert.
-            btn.classList.remove('pulse','state-pill','state-line');
-            btn.classList.add('state-line');
-            if (btnText) btnText.style.opacity = '0';
+            // Reset dock button to inert.
+            if (typeof btn !== 'undefined' && btn) {
+                btn.classList.remove('pulse', 'state-pill');
+                btn.classList.add('state-line');
+                if (typeof btnText !== 'undefined' && btnText) btnText.style.opacity = '0';
+            }
         }
 
-        function gbTTTSessionEnd() {
+        async function gbTTTSessionEnd() {
             const ttt = gbState.ttt;
+            // Hide per-game result card; show session card.
+            const rcard = document.getElementById('gb-ttt-result-card');
+            if (rcard) rcard.classList.remove('show');
+            const summary = await gbTTTSessionFinalize();
+            const card = document.getElementById('gb-ttt-session-card');
+            const titleEl = document.getElementById('gb-ttt-session-title');
+            const textEl = document.getElementById('gb-ttt-session-text');
+            const xpEl = document.getElementById('gb-ttt-session-xp');
+            const masteryEl = document.getElementById('gb-ttt-mastery-pill');
+            const duolingoEl = document.getElementById('gb-ttt-duolingo-toast');
+            const sessionXp = (summary && typeof summary.session_xp === 'number') ? summary.session_xp : 0;
+            const bonus = (summary && typeof summary.strong_session_bonus === 'number') ? summary.strong_session_bonus : 0;
+            const masteryTier = (summary && summary.mastery_tier) || '';
+            const remediation = !!(summary && summary.duolingo_remediation);
+            if (titleEl && textEl) {
+                if (ttt.draws >= 2) {
+                    titleEl.textContent = RT('ttt.sessionStrongTitle');
+                    textEl.textContent = RT('ttt.sessionStrongText');
+                } else if (ttt.draws === 1) {
+                    titleEl.textContent = RT('ttt.sessionSolidTitle');
+                    textEl.textContent = RT('ttt.sessionSolidText');
+                } else {
+                    titleEl.textContent = RT('ttt.sessionFailedTitle');
+                    textEl.textContent = RT('ttt.sessionFailedText');
+                }
+            }
+            if (xpEl) xpEl.textContent = sessionXp + ' XP' + (bonus > 0 ? ' (+' + bonus + ' bonus)' : '');
+            if (masteryEl) {
+                masteryEl.textContent = masteryTier;
+                masteryEl.style.display = masteryTier ? 'inline-block' : 'none';
+            }
+            if (duolingoEl) {
+                if (remediation) duolingoEl.classList.add('show');
+                else duolingoEl.classList.remove('show');
+            }
+            if (card) {
+                card.classList.add('show');
+                setTimeout(() => {
+                    try { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+                }, 80);
+            }
             ttt.complete = true;
-            const banner = document.getElementById('gb-ttt-result-banner');
-            if (banner) banner.classList.remove('show', 'lost');
-            const sb = document.getElementById('gb-ttt-session-banner');
-            const ssum = document.getElementById('gb-ttt-session-summary');
-            if (ssum) ssum.textContent = "Yutuq: " + ttt.wins + " · Durang: " + ttt.draws + " · Mag'lubiyat: " + ttt.losses;
-            if (sb) sb.classList.add('show');
             if (window.__sessionLog) {
                 window.__sessionLog.push({
                     phase: 'tic-tac-toe', id: 'ttt-session',
-                    correct: ttt.draws + ttt.wins >= 2,
-                    score: (ttt.wins + ttt.draws * 0.5) / 3,
+                    correct: ttt.draws + (ttt.games || []).filter(g => g === 'win').length >= 2,
+                    score: sessionXp,
+                    sessionId: ttt.sessionId,
+                    mastery: masteryTier,
                 });
             }
-            // Registry decides exit on click; just label the button.
             gbSetButtonNext(gbIsLastGame(5) ? RT('btn.next_stage') : RT('btn.continue'));
         }
 
         function gbSetButtonForTTT(text) {
-            btn.classList.remove('pulse','state-pill','state-line');
+            if (typeof btn === 'undefined' || !btn) return;
+            btn.classList.remove('pulse', 'state-line');
             btn.classList.add('state-pill');
             setBtnText(text || RT('btn.continue'));
             btn.classList.add('pulse');
@@ -13571,11 +14256,17 @@
 
         function gbTTTAction() {
             const ttt = gbState.ttt;
-            if (ttt.phase === 'game-over' && !ttt.complete) {
+            if (!ttt) return;
+            if (ttt.complete) {
+                // Game-break registry hook — DO NOT change signature.
+                gbAdvanceFromGame(5, 'gb-panel-ttt');
+                return;
+            }
+            if (ttt.phase === 'game-over') {
                 gbTTTNextGame();
                 return;
             }
-            // 'await-tap', 'awaiting-answer', 'ai-thinking' — button is inert; clicks come from cells / options.
+            // 'await-tap' / 'awaiting-answer' / 'ai-thinking' — button is inert; clicks come from cells / options.
         }
 
         function gbExitToStage6() {
