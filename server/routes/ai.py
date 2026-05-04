@@ -73,6 +73,20 @@ class CheckAnswerRequest(BaseModel):
     picked: Optional[str] = None
     results: Optional[list[dict[str, Any]]] = None
 
+    # Memory Palace phase fields (only used when phase == "memory-palace").
+    # Per MEMORY_PALACE_BACKEND_PLAN.md §1.3, §1.4 — the route grades a single
+    # encode→walk→recall session in one shot. `palace_key` identifies the route
+    # the student walked; `placements` is the Step-2 location-concept binding
+    # the student authored; `recall_results` is the Step-4 picks. Server
+    # recomputes `is_correct` from `placements` to defend against tampered
+    # POST bodies. `mp_hints_used` is reserved for future XP shaping (cosmetic
+    # only in v1) — distinct from the Final Boss `hints_used` which lives on
+    # `BossTurnRequest`, so we namespace this one to avoid model collisions.
+    palace_key: Optional[str] = None
+    placements: Optional[list[dict[str, Any]]] = None
+    recall_results: Optional[list[dict[str, Any]]] = None
+    mp_hints_used: Optional[int] = 0
+
 
 class FinalizeCheckAnswerRequest(BaseModel):
     phase: str
@@ -1724,6 +1738,206 @@ async def _check_answer_ttt_session(req: CheckAnswerRequest) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Memory Palace — phase=memory-palace check-answer branch (T2).
+#
+# Per MEMORY_PALACE_BACKEND_PLAN.md §1.3, §1.4, §2.1, §5, §7. Stateless,
+# session-scoped: the entire encode→walk→recall arc lives in one POST body.
+# The author's `gb_memory_palace.concepts` describe content for hint material;
+# the recall test grades the student against THEIR OWN Step-2 placements,
+# which travel with the recall picks in the same payload.
+#
+# Server recomputes `is_correct` from the submitted placement_map to defend
+# against trivial XP forge by tampered POST. This is NOT as strong as
+# side-disjoint validation (the validation key travels with the picks) but is
+# acceptable for a low-stakes practice mechanic where consistent tampering
+# yields no real XP edge — and v1 XP is aesthetic-only anyway (see
+# `_mp_session_xp_display` docstring).
+# ---------------------------------------------------------------------------
+
+
+def _mp_outcome(correct_count: int, total: int) -> str:
+    """Map a (correct_count, total) recall tally to one of four outcome buckets.
+
+    Per plan §1.4:
+      perfect             — every location recalled
+      yaxshi              — exactly one missed (e.g., 4/5)
+      hali_emas_partial   — >=60% recalled (e.g., 3/5)
+      hali_emas_fail      — below 60% (e.g., <=2/5)
+    """
+    if total <= 0:
+        return "hali_emas_fail"
+    if correct_count == total:
+        return "perfect"
+    if correct_count == total - 1:
+        return "yaxshi"
+    if correct_count >= total * 0.6:
+        return "hali_emas_partial"
+    return "hali_emas_fail"
+
+
+def _mp_outcome_text(outcome: str, lang: str = "uz") -> tuple[str, str]:
+    """Return the (title, body) outcome strings.
+
+    `lang` is reserved for future i18n; v1 always returns Uzbek titles +
+    English body text per spec §1.4.
+    """
+    table = {
+        "perfect": (
+            "Ajoyib!",
+            "Perfect recall. Your palace glows because every location-concept bond survived the walkthrough.",
+        ),
+        "yaxshi": (
+            "Yaxshi!",
+            "4 of 5 locations recalled. One missed location should pulse softly for a second walkthrough.",
+        ),
+        "hali_emas_partial": (
+            "Hali emas",
+            "Partial palace built. Offer a second walkthrough for the missed locations.",
+        ),
+        "hali_emas_fail": (
+            "Hali emas",
+            "The palace turns grayscale in the full app, then reveals all correct pairs and offers retry.",
+        ),
+    }
+    return table.get(outcome, table["hali_emas_fail"])
+
+
+def _mp_level_label(outcome: str) -> str:
+    """Map an outcome to a tier label.
+
+    Mastery ("Mastered") is deferred per plan §7 #8 — it requires cross-session
+    persistence (3+ perfect runs of the same palace). v1 surfaces only the
+    in-session ladder.
+    """
+    return {
+        "perfect": "Proficient",
+        "yaxshi": "Apprentice ↗",
+        "hali_emas_partial": "Apprentice",
+        "hali_emas_fail": "Pending",
+    }.get(outcome, "Pending")
+
+
+def _mp_session_xp_display(correct_count: int, total: int) -> int:
+    """COSMETIC display-only XP for v1 per plan §7 #9.
+
+    Not persisted. Not summed into any user-visible XP wallet. The frontend
+    flashes this on the outcome card to give the session a payoff feel; once
+    cross-session persistence lands, this helper will be replaced by an
+    authoritative XP ledger write.
+
+    Formula: `correct_count * 50` plus an outcome bonus
+      perfect → +200, yaxshi → +100, others → +0
+    """
+    outcome = _mp_outcome(correct_count, total)
+    bonus = 200 if outcome == "perfect" else (100 if outcome == "yaxshi" else 0)
+    return int(correct_count) * 50 + bonus
+
+
+async def _check_answer_memory_palace(req: CheckAnswerRequest) -> dict:
+    """Per-session grading branch for Memory Palace.
+
+    See MEMORY_PALACE_BACKEND_PLAN.md §1.3, §1.4, §2.1.
+
+    Server-recompute rationale (NOT side-disjoint): The author content is hint
+    material; the recall test grades the student against THEIR OWN Step 2
+    placements, which travel with the recall picks in the same POST body.
+    Server recomputes `is_correct` from the submitted placement map to defend
+    against trivial XP forge by tampered POST. Not as strong as side-disjoint
+    (validation key travels with the picks) but acceptable for a low-stakes
+    practice mechanic where consistent tampering yields no real XP edge —
+    and v1 XP is aesthetic-only anyway.
+    """
+    if not req.homework_id:
+        raise HTTPException(400, detail={
+            "error": "homework_id required for phase=memory-palace",
+            "code": "MP_MISSING_HW",
+        })
+    if not req.palace_key:
+        raise HTTPException(400, detail={
+            "error": "palace_key required for phase=memory-palace",
+            "code": "MP_MISSING_PALACE_KEY",
+        })
+    if not isinstance(req.placements, list) or not req.placements:
+        raise HTTPException(400, detail={
+            "error": "placements required for phase=memory-palace",
+            "code": "MP_MISSING_PLACEMENTS",
+        })
+    if not isinstance(req.recall_results, list) or not req.recall_results:
+        raise HTTPException(400, detail={
+            "error": "recall_results required for phase=memory-palace",
+            "code": "MP_MISSING_RECALL",
+        })
+
+    hw = await db.get_homework(req.homework_id)
+    if hw is None:
+        raise HTTPException(404, detail={
+            "error": f"homework {req.homework_id} not found",
+            "code": "homework_not_found",
+        })
+
+    # Server recompute: build {location_idx -> concept_id} from Step 2
+    # placements, then walk recall_results and OVERWRITE each `is_correct`
+    # field. We trust the client only on `picked_concept_id` and `elapsed_ms`.
+    placement_map: dict[Any, Any] = {}
+    for p in req.placements:
+        if not isinstance(p, dict):
+            continue
+        loc_idx = p.get("location_idx")
+        concept_id = p.get("concept_id")
+        if loc_idx is None or concept_id is None:
+            continue
+        placement_map[loc_idx] = concept_id
+
+    recomputed: list[dict[str, Any]] = []
+    for rr in req.recall_results:
+        if not isinstance(rr, dict):
+            continue
+        loc_idx = rr.get("location_idx")
+        picked = rr.get("picked_concept_id")
+        elapsed_ms = rr.get("elapsed_ms", 0) or 0
+        is_correct = (placement_map.get(loc_idx) == picked) and (picked is not None)
+        recomputed.append({
+            "location_idx": loc_idx,
+            "picked_concept_id": picked,
+            "elapsed_ms": elapsed_ms,
+            "is_correct": bool(is_correct),
+        })
+
+    total_count = len(recomputed)
+    correct_count = sum(1 for rr in recomputed if rr["is_correct"])
+
+    outcome = _mp_outcome(correct_count, total_count)
+    outcome_title, outcome_text = _mp_outcome_text(outcome)
+    level_label = _mp_level_label(outcome)
+    session_xp_display = _mp_session_xp_display(correct_count, total_count)
+
+    accuracy_pct = round((correct_count / total_count) * 100) if total_count > 0 else 0
+    recall_speed_avg_s = (
+        round(sum(int(rr.get("elapsed_ms") or 0) for rr in recomputed) / total_count / 1000, 1)
+        if total_count > 0 else 0
+    )
+    missed_location_indices = sorted([
+        rr["location_idx"] for rr in recomputed
+        if not rr["is_correct"] and rr["location_idx"] is not None
+    ])
+    retry_offered = (outcome != "perfect")
+
+    return {
+        "outcome": outcome,
+        "outcome_title": outcome_title,
+        "outcome_text": outcome_text,
+        "accuracy_pct": accuracy_pct,
+        "correct_count": correct_count,
+        "total_count": total_count,
+        "recall_speed_avg_s": recall_speed_avg_s,
+        "level_label": level_label,
+        "session_xp_display": session_xp_display,  # COSMETIC, not persisted
+        "retry_offered": retry_offered,
+        "missed_location_indices": missed_location_indices,
+    }
+
+
 @router.post("/ai/check-answer")
 async def check_answer(req: CheckAnswerRequest):
     # Phase dispatch — the new sentence-fill grading branch is keyed on
@@ -1788,6 +2002,16 @@ async def check_answer(req: CheckAnswerRequest):
     if req.phase == "ttt-session" and req.homework_id:
         try:
             return await _check_answer_ttt_session(req)
+        except HTTPException:
+            raise
+        except Exception as e:
+            _handle_exc(e)
+
+    # Memory Palace per-session grading branch — same back-compat gate.
+    # Stateless: the entire encode→walk→recall arc rides in one POST.
+    if req.phase == "memory-palace" and req.homework_id:
+        try:
+            return await _check_answer_memory_palace(req)
         except HTTPException:
             raise
         except Exception as e:
