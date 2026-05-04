@@ -4598,6 +4598,113 @@
         .boss-v-stats, .boss-d-sub, .boss-d-tip {
             font-size: 14px; color: var(--text-muted); line-height: 1.5; max-width: 340px;
         }
+        /* ── FB REDESIGN: particles + flash overlays + low-HP pulse + result card ── */
+        .boss-shell { position: relative; }
+        .boss-particles-layer {
+            position: fixed; inset: 0; pointer-events: none; overflow: hidden;
+            z-index: 1;
+        }
+        /* Only show particles when the boss screen is active. */
+        #screen-boss:not(.active) .boss-particles-layer { display: none; }
+        .boss-particle {
+            position: absolute; width: 4px; height: 4px; border-radius: 50%;
+            background: rgba(255,255,255,0.32);
+            box-shadow: 0 0 18px 2px currentColor;
+            animation: bossParticleFloatUp linear infinite;
+        }
+        .boss-particle.red   { color: rgba(255,69,58,0.65); }
+        .boss-particle.blue  { color: rgba(10,132,255,0.65); }
+        .boss-particle.amber { color: rgba(255,179,64,0.60); }
+        @keyframes bossParticleFloatUp {
+            from { transform: translateY(20px) scale(0.9); opacity: 0; }
+            15%  { opacity: 0.9; }
+            to   { transform: translateY(-110vh) scale(1.2); opacity: 0; }
+        }
+        .boss-impact-flash, .boss-heal-flash {
+            position: absolute; inset: 0; pointer-events: none; opacity: 0;
+            z-index: 5; border-radius: inherit;
+        }
+        .boss-impact-flash {
+            background: radial-gradient(circle at 50% 50%,
+                rgba(239,68,68,0.55) 0%, rgba(239,68,68,0.20) 60%, transparent 100%);
+        }
+        .boss-heal-flash {
+            background: radial-gradient(circle at 50% 50%,
+                rgba(252,211,77,0.55) 0%, rgba(252,211,77,0.20) 60%, transparent 100%);
+        }
+        .boss-impact-flash.show { animation: bossImpactFlash 350ms ease-out; }
+        .boss-heal-flash.show { animation: bossHealFlash 350ms ease-out; }
+        @keyframes bossImpactFlash {
+            0%   { opacity: 0; }
+            40%  { opacity: 0.6; }
+            100% { opacity: 0; }
+        }
+        @keyframes bossHealFlash {
+            0%   { opacity: 0; }
+            40%  { opacity: 0.6; }
+            100% { opacity: 0; }
+        }
+        .boss-card {
+            position: relative; transition: box-shadow 220ms ease, transform 220ms ease;
+            display: flex; flex-direction: column; gap: 18px;
+        }
+        .boss-card.shake { animation: hpShake 420ms ease; }
+        .boss-card.low-hp {
+            animation: bossLowHpPulse 1.2s ease-in-out infinite;
+        }
+        @keyframes bossLowHpPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.0); }
+            50%      { box-shadow: 0 0 18px 2px rgba(239,68,68,0.55); }
+        }
+        /* HP bar gradient — green → amber → red. Width is JS-driven via inline style. */
+        .boss-hp-bar {
+            background: linear-gradient(90deg,
+                #d33c46 0%,
+                #f59e0b 50%,
+                #35c66f 100%) !important;
+            background-size: 200% 100% !important;
+            background-position: right center !important;
+            transition: width 380ms ease, background-position 380ms ease !important;
+        }
+        .boss-hp-bar[data-hp-pct="low"] { background-position: left center !important; }
+        .boss-hp-bar[data-hp-pct="mid"] { background-position: center center !important; }
+        .boss-attempt-pill {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            z-index: 6; padding: 6px 14px; border-radius: 999px;
+            background: rgba(255,255,255,0.10); backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.18);
+            color: var(--text); font-size: 13px; font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        .boss-result-card {
+            display: flex; flex-direction: column; align-items: center; gap: 14px;
+            padding: 28px 24px; max-width: 360px; margin: 0 auto;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.08); backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(255,255,255,0.18);
+            opacity: 0; transform: translateY(12px);
+            transition: opacity 480ms ease, transform 480ms ease;
+        }
+        .boss-result-card.show { opacity: 1; transform: translateY(0); }
+        .boss-result-title {
+            font-size: 22px; font-weight: 800; color: var(--accent);
+            text-shadow: 0 0 16px var(--accent-glow); text-align: center;
+        }
+        .boss-result-stars {
+            display: flex; gap: 8px; font-size: 36px; letter-spacing: 4px;
+        }
+        .boss-star { display: inline-block; transition: transform 220ms ease; }
+        .boss-star.earned { color: #fbbf24; text-shadow: 0 0 12px rgba(251,191,36,0.65); }
+        .boss-star.dim { color: rgba(120,120,120,0.4); }
+        .boss-result-xp {
+            font-size: 18px; font-weight: 700; color: var(--accent-good, #35c66f);
+        }
+        .boss-result-summary {
+            font-size: 13px; color: var(--text-muted); line-height: 1.5;
+            text-align: center; max-width: 320px;
+        }
         /* ── BABYLONIAN DIAGRAM ─────────────────────────────── */
         .babyl-diagram {
             display: flex; align-items: flex-start; gap: 6px;
@@ -5913,6 +6020,48 @@
         [data-theme="dark"] .boss-q-card {
             border-color: rgba(96, 165, 250, 0.30);
         }
+        /* FB redesign — dark-mode parity for new structural / visual surfaces. */
+        [data-theme="dark"] #boss-shell {
+            color: var(--text);
+        }
+        [data-theme="dark"] .boss-particle {
+            background: rgba(220, 235, 255, 0.22);
+        }
+        [data-theme="dark"] .boss-particle.red   { color: rgba(255,99,89,0.55); }
+        [data-theme="dark"] .boss-particle.blue  { color: rgba(99,165,255,0.55); }
+        [data-theme="dark"] .boss-particle.amber { color: rgba(255,194,99,0.50); }
+        [data-theme="dark"] .boss-impact-flash {
+            background: radial-gradient(circle at 50% 50%,
+                rgba(248,113,113,0.65) 0%, rgba(248,113,113,0.22) 60%, transparent 100%);
+        }
+        [data-theme="dark"] .boss-heal-flash {
+            background: radial-gradient(circle at 50% 50%,
+                rgba(252,211,77,0.65) 0%, rgba(252,211,77,0.22) 60%, transparent 100%);
+        }
+        [data-theme="dark"] .boss-card.low-hp {
+            box-shadow: 0 0 18px 2px rgba(248,113,113,0.55);
+        }
+        [data-theme="dark"] #boss-attempt-pill,
+        [data-theme="dark"] .boss-attempt-pill {
+            background: rgba(15, 23, 42, 0.55);
+            border-color: rgba(147, 197, 253, 0.32);
+            color: #e0e7ff;
+        }
+        [data-theme="dark"] .boss-result-card {
+            background: rgba(15, 23, 42, 0.55);
+            border-color: rgba(147, 197, 253, 0.30);
+        }
+        [data-theme="dark"] .boss-result-title {
+            color: #93c5fd;
+            text-shadow: 0 0 16px rgba(96,165,250,0.55);
+        }
+        [data-theme="dark"] .boss-result-xp { color: #6ee7b7; }
+        [data-theme="dark"] .boss-result-summary { color: #cbd5e1; }
+        [data-theme="dark"] .boss-star.earned { color: #fbbf24; }
+        [data-theme="dark"] .boss-star.dim { color: rgba(148,163,184,0.45); }
+        [data-theme="dark"] .boss-hp-bar {
+            background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #34d399 100%) !important;
+        }
 
         /* Reading checkpoints -------------------------------------- */
         [data-theme="dark"] .screen-reading-input {
@@ -7084,7 +7233,22 @@
 
         <!-- Stage 7 — Final Boss -->
         <div id="screen-boss" class="screen">
-            <div class="boss-shell">
+            <div class="boss-shell" id="boss-shell">
+                <!-- FB redesign: decorative particles layer (CSS-driven, no JS). -->
+                <div id="boss-particles-layer" class="boss-particles-layer" aria-hidden="true">
+                    <span class="boss-particle red"   style="left:8%;  bottom:-6%;  animation-duration:12s; animation-delay:-2s;"></span>
+                    <span class="boss-particle blue"  style="left:16%; bottom:-10%; animation-duration:16s; animation-delay:-7s;"></span>
+                    <span class="boss-particle amber" style="left:28%; bottom:-12%; animation-duration:14s; animation-delay:-4s;"></span>
+                    <span class="boss-particle red"   style="left:42%; bottom:-8%;  animation-duration:18s; animation-delay:-9s;"></span>
+                    <span class="boss-particle blue"  style="left:58%; bottom:-7%;  animation-duration:15s; animation-delay:-1s;"></span>
+                    <span class="boss-particle amber" style="left:72%; bottom:-10%; animation-duration:13s; animation-delay:-8s;"></span>
+                    <span class="boss-particle red"   style="left:84%; bottom:-12%; animation-duration:17s; animation-delay:-5s;"></span>
+                </div>
+                <!-- FB redesign: full-screen flash overlays for impact / heal feedback. -->
+                <div id="boss-impact-flash" class="boss-impact-flash" aria-hidden="true"></div>
+                <div id="boss-heal-flash" class="boss-heal-flash" aria-hidden="true"></div>
+                <!-- FB redesign: sticky attempt pill — only visible for boss_type=sub w/ attempts_max set. -->
+                <div id="boss-attempt-pill" class="boss-attempt-pill" style="display:none;" aria-live="polite"></div>
                 <div id="boss-intro-card" class="boss-intro-card">
                     <div class="boss-intro-label">Phase 5 · Final Boss · Sub Boss</div>
                     <div class="boss-intro-art">⚔️</div>
@@ -7092,6 +7256,7 @@
                     <div class="boss-intro-sub">§22 · Kvadrat Tenglama · 100 HP</div>
                 </div>
                 <div id="boss-battle" class="boss-battle" style="display:none;">
+                    <div class="boss-card" id="boss-card">
                     <div class="boss-hp-section">
                         <div class="boss-name-row">
                             <span class="boss-name-label" data-boss-name-label>⚔️ Algebra Boshlig'i</span>
@@ -7120,6 +7285,15 @@
                         </div>
                     </div>
                     <div class="boss-feedback" id="boss-feedback" role="status" aria-live="polite" aria-atomic="true"></div>
+                    </div>
+                </div>
+                <!-- FB redesign: result card replaces legacy victory/defeat splashes; -->
+                <!-- legacy nodes kept hidden + intact for back-compat with any external readers. -->
+                <div id="boss-result-card" class="boss-result-card" style="display:none;" role="status" aria-live="polite">
+                    <div id="boss-result-title" class="boss-result-title"></div>
+                    <div id="boss-result-stars" class="boss-result-stars" aria-label="stars earned"></div>
+                    <div id="boss-result-xp" class="boss-result-xp"></div>
+                    <div id="boss-result-summary" class="boss-result-summary"></div>
                 </div>
                 <div id="boss-victory" class="boss-victory" style="display:none;">
                     <div class="boss-v-title">⚔️ Boss mag'lub bo'ldi!</div>
@@ -7382,6 +7556,25 @@
                 'boss.defeat_hp':        'Boss qolgan HP:',
                 'boss.defeat_correct':   "To'g'ri:",
                 'boss.defeat_tip':       "Zaif savollarni qayta ko'rib chiqing va qayta urinib ko'ring.",
+                // FB redesign (Final Boss runtime polish) — additive keys.
+                'boss.attempt_of':              'Urinish {n}/{max}',
+                'boss.full_damage':             "To'liq zarba",
+                'boss.half_damage':             'Yarim zarba',
+                'boss.no_damage':               "Zarba yo'q",
+                'boss.combo_x2_activated':      '🔥 Combo ×2 yondi!',
+                'boss.low_hp_warning':          'Boss zaiflashdi — yakuniy zarba!',
+                'boss.outcome.expert':          'Mutaxassis darajasi',
+                'boss.outcome.strong':          'Kuchli mahorat',
+                'boss.outcome.passing':         "O'tdingiz",
+                'boss.outcome.hali_emas':       'Hali emas',
+                'boss.stars.1':                 "1 yulduz — ortda qoldi, lekin o'tdingiz",
+                'boss.stars.2':                 "2 yulduz — yaxshi mahorat",
+                'boss.stars.3':                 "3 yulduz — Ajoyib mahorat!",
+                'boss.hint_used_amber':         "💡 Maslahat ishlatildi · +{n} HP boss'ga",
+                'boss.toast.wrong':             "Noto'g'ri — qayta urinib ko'ring",
+                'boss.toast.try_again':         "Qayta urinish",
+                'boss.result.xp':               '+{n} XP',
+                'boss.result.summary':          "{correct}/{total} to'g'ri · {damage} HP zarar · {hints} maslahat",
                 // results
                 'res.headline_prefix':   'Sizning umumiy natijangiz:',
                 'res.correct_suffix':    "to'g'ri",
@@ -7609,6 +7802,25 @@
                 'boss.defeat_hp':        'У босса осталось HP:',
                 'boss.defeat_correct':   'Верно:',
                 'boss.defeat_tip':       'Пересмотрите слабые вопросы и попробуйте снова.',
+                // FB redesign (Final Boss runtime polish) — additive keys.
+                'boss.attempt_of':              'Попытка {n}/{max}',
+                'boss.full_damage':             'Полный удар',
+                'boss.half_damage':             'Половина урона',
+                'boss.no_damage':               'Без урона',
+                'boss.combo_x2_activated':      '🔥 Комбо ×2 активировано!',
+                'boss.low_hp_warning':          'Босс ослаб — финальный удар!',
+                'boss.outcome.expert':          'Уровень эксперта',
+                'boss.outcome.strong':          'Сильный анализ',
+                'boss.outcome.passing':         'Зачёт',
+                'boss.outcome.hali_emas':       'Пока нет',
+                'boss.stars.1':                 '1 звезда — едва прошли',
+                'boss.stars.2':                 '2 звезды — хорошее мастерство',
+                'boss.stars.3':                 '3 звезды — Отличное мастерство!',
+                'boss.hint_used_amber':         '💡 Подсказка использована · +{n} HP боссу',
+                'boss.toast.wrong':             'Неверно — попробуйте ещё раз',
+                'boss.toast.try_again':         'Ещё попытка',
+                'boss.result.xp':               '+{n} XP',
+                'boss.result.summary':          '{correct}/{total} верно · {damage} HP урона · {hints} подсказок',
                 'res.headline_prefix':   'Ваш общий результат:',
                 'res.correct_suffix':    'верно',
                 'res.phase_done':        'Завершено',
@@ -7834,6 +8046,25 @@
                 'boss.defeat_hp':        'Boss HP remaining:',
                 'boss.defeat_correct':   'Correct:',
                 'boss.defeat_tip':       'Review the weak questions and try again.',
+                // FB redesign (Final Boss runtime polish) — additive keys.
+                'boss.attempt_of':              'Attempt {n}/{max}',
+                'boss.full_damage':             'Full damage',
+                'boss.half_damage':             'Half damage',
+                'boss.no_damage':               'No damage',
+                'boss.combo_x2_activated':      '🔥 Combo ×2 activated!',
+                'boss.low_hp_warning':          'Boss weakened — finishing blow!',
+                'boss.outcome.expert':          'Expert level',
+                'boss.outcome.strong':          'Strong mastery',
+                'boss.outcome.passing':         'Passing',
+                'boss.outcome.hali_emas':       'Not yet',
+                'boss.stars.1':                 '1 star — barely through, but through',
+                'boss.stars.2':                 '2 stars — solid mastery',
+                'boss.stars.3':                 '3 stars — Outstanding mastery!',
+                'boss.hint_used_amber':         '💡 Hint used · +{n} HP to boss',
+                'boss.toast.wrong':             'Wrong — try again',
+                'boss.toast.try_again':         'Try again',
+                'boss.result.xp':               '+{n} XP',
+                'boss.result.summary':          '{correct}/{total} correct · {damage} HP damage · {hints} hints',
                 'res.headline_prefix':   'Your overall score:',
                 'res.correct_suffix':    'correct',
                 'res.phase_done':        'Done',
@@ -14127,6 +14358,15 @@ Prezident ertaga hisobot kutmoqda.`,
             hp:100, maxHp:100, qIndex:0, combo:0,
             hintsUsed:0, hintStep:0, correct:0, answered:false, done:false,
             persona_traits: ['mentor'], // Wave F3: set by initBossPlan()
+            // FB redesign — additive runtime fields (Chunk B contract).
+            sessionId: null,        // minted by bossInit()
+            attemptsUsed: 0,        // increments per wrong submit (server-mirrored)
+            outcome: null,          // 'expert' | 'strong' | 'passing' | 'hali_emas'
+            stars: 0,               // 0–3 (server returns on done)
+            outcomeXp: 0,           // total XP awarded on done
+            busy: false,            // gates concurrent submits (TM/RLC pattern)
+            lastDamage: 0,          // damage dealt last turn (for visual flash)
+            damageDealt: 0,         // running total — for result summary
         };
 
         // Wave F3 — load personalised boss plan (ordering + framing + persona).
@@ -14209,6 +14449,9 @@ Prezident ertaga hisobot kutmoqda.`,
 
             Object.assign(bossState, {hp:100,maxHp:100,qIndex:0,combo:0,hintsUsed:0,hintStep:0,correct:0,answered:false,done:false});
             // persona_traits intentionally NOT reset here — initBossPlan sets it once.
+            // FB redesign — mint sessionId, reset attempts/outcome/stars/etc, apply
+            // BOSS_META overrides (starting_hp_override, boss_type → data attribute).
+            try { bossInit(); } catch (e) { console.warn('[FB] bossInit failed:', e); }
 
             btn.classList.remove('pulse','state-pill');
             btn.classList.add('state-line');
@@ -14260,9 +14503,250 @@ Prezident ertaga hisobot kutmoqda.`,
                 .replace(/x[₁₂12]/g,'x').replace(/haqiqiy/g,'haqiqiy');
         }
 
-        function bossMatch(val, acceptable) {
-            const nv = bossNorm(val);
-            return acceptable.some(a => { const na = bossNorm(a); return na === nv || nv.includes(na) || na.includes(nv); });
+        // FB redesign — bossMatch removed. Server-only grading via bossSubmitAnswer.
+        // BOSS_QUESTIONS no longer carries `acceptable[]` so a deterministic client
+        // match would be impossible anyway. See _serialize_boss_questions in injector.
+
+        // FB redesign — mint a session id for the boss arc + reset per-arc fields.
+        // Called once on stage activation (start of boss). Idempotent.
+        function bossInit() {
+            const ctx = window.NETS_CTX || {};
+            // Mint sessionId — random suffix + timestamp.
+            const rand = Math.random().toString(36).slice(2, 10);
+            bossState.sessionId = 'fb_' + Date.now() + '_' + rand;
+            bossState.attemptsUsed = 0;
+            bossState.outcome = null;
+            bossState.stars = 0;
+            bossState.outcomeXp = 0;
+            bossState.busy = false;
+            bossState.lastDamage = 0;
+            bossState.damageDealt = 0;
+            // BOSS_META override hooks.
+            const meta = (typeof BOSS_META !== 'undefined' && BOSS_META) ? BOSS_META : null;
+            if (meta && typeof meta.starting_hp_override === 'number' && meta.starting_hp_override >= 10) {
+                bossState.maxHp = meta.starting_hp_override;
+                bossState.hp = meta.starting_hp_override;
+            }
+            // Apply data-boss-type attribute for CSS hooks.
+            const shell = document.getElementById('boss-shell');
+            if (shell) {
+                shell.setAttribute('data-boss-type', (meta && meta.boss_type) || 'sub');
+            }
+            bossUpdateAttemptPill();
+            bossUpdateLowHpPulse();
+        }
+
+        // FB redesign — single network swap-point. Mirrors gbTMCheckPair / rlcCheckStep.
+        // Reads ctx.hwId FIRST per TM #140 / SF lesson, then snake_case alternates.
+        async function bossSubmitAnswer(questionId, studentAnswer, attemptNumber) {
+            const ctx = window.NETS_CTX || {};
+            const meta = (typeof BOSS_META !== 'undefined' && BOSS_META) ? BOSS_META : null;
+            try {
+                const res = await fetch('/api/ai/check-answer', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        phase: 'final-boss',
+                        homework_id: ctx.hwId || ctx.homework_id || ctx.homeworkId || null,
+                        question_id: questionId,
+                        student_answer: studentAnswer,
+                        attempt_number: attemptNumber,
+                        session_id: bossState.sessionId,
+                        boss_type: (meta && meta.boss_type) || 'sub',
+                        grade_band: (meta && meta.grade_band) || null,
+                        hp_remaining: bossState.hp,
+                        attempts_used: bossState.attemptsUsed || 0,
+                    }),
+                });
+                if (!res.ok) return null;
+                return await res.json();
+            } catch (err) {
+                console.warn('[FB] bossSubmitAnswer failed:', err);
+                return null;
+            }
+        }
+
+        // FB redesign — server-driven response handler. Replaces local match logic.
+        function bossHandleResponse(resp, q, fbEl) {
+            if (!resp) {
+                if (fbEl) { fbEl.className = 'boss-feedback wrong'; fbEl.textContent = RT('boss.toast.wrong'); }
+                bossImpactFlash();
+                return;
+            }
+            const isCorrect = resp.correct === true;
+            // Mirror server-side counters when present.
+            if (typeof resp.attempts_used === 'number') {
+                bossState.attemptsUsed = resp.attempts_used;
+            }
+            if (isCorrect) {
+                // Use server values for damage + HP (no client recompute).
+                const serverDamage = (typeof resp.damage_dealt === 'number') ? resp.damage_dealt : null;
+                const serverHp = (typeof resp.hp_remaining === 'number') ? resp.hp_remaining : null;
+                bossApplyCorrect(q, fbEl, {
+                    aiGraded: true,
+                    axis_1: resp.axis_1,
+                    axis_2: resp.axis_2,
+                });
+                // If server overrides damage/HP, mirror them back onto bossState.
+                if (serverDamage !== null) {
+                    bossState.lastDamage = serverDamage;
+                    bossState.damageDealt += serverDamage;
+                }
+                if (serverHp !== null) {
+                    bossState.hp = Math.max(0, serverHp);
+                    bossUpdateHP(bossState.hp, true);
+                }
+                bossUpdateLowHpPulse();
+            } else {
+                bossState.combo = 0;
+                bossUpdateCombo();
+                bossState.attemptsUsed = (bossState.attemptsUsed || 0) + 1;
+                bossImpactFlash();
+                if (fbEl) {
+                    fbEl.className = 'boss-feedback wrong';
+                    const aiMsg = resp.boss_response || resp.feedback || RT('boss.toast.wrong');
+                    fbEl.innerHTML = aiMsg + ' <span class="screen-reading-ai-badge">AI baho</span>';
+                }
+                bossUpdateAttemptPill();
+                // Log incorrect attempt to AMR session log (mirrors legacy nets:result handler shape).
+                if (window.__sessionLog) {
+                    window.__sessionLog.push({
+                        phase: 'final-boss', id: q.id || ('boss-' + (bossState.qIndex + 1)),
+                        correct: false, score: typeof resp.score === 'number' ? resp.score : 0,
+                        axis_1: resp.axis_1 || 1, axis_2: resp.axis_2 || 1,
+                        first_try: false, damage: 0,
+                    });
+                }
+            }
+            // Done branch — server signals end-of-boss.
+            if (resp.done === true) {
+                bossRenderResult(resp);
+            }
+        }
+
+        // FB redesign — red impact flash overlay + screen shake on wrong submit.
+        function bossImpactFlash() {
+            const flash = document.getElementById('boss-impact-flash');
+            if (flash) {
+                flash.classList.remove('show');
+                void flash.offsetHeight;
+                flash.classList.add('show');
+                setTimeout(() => { flash.classList.remove('show'); }, 380);
+            }
+            const card = document.getElementById('boss-card');
+            if (card) {
+                card.classList.remove('shake');
+                void card.offsetHeight;
+                card.classList.add('shake');
+                setTimeout(() => { card.classList.remove('shake'); }, 460);
+            }
+        }
+
+        // FB redesign — amber heal flash overlay on hint use (server returns hp cost).
+        function bossHealFlash(hpRegainedAmount) {
+            const flash = document.getElementById('boss-heal-flash');
+            if (flash) {
+                flash.classList.remove('show');
+                void flash.offsetHeight;
+                flash.classList.add('show');
+                setTimeout(() => { flash.classList.remove('show'); }, 380);
+            }
+            const fb = document.getElementById('boss-feedback');
+            if (fb && typeof hpRegainedAmount === 'number') {
+                const msg = RT('boss.hint_used_amber').replace('{n}', String(hpRegainedAmount));
+                fb.className = 'boss-feedback';
+                fb.textContent = msg;
+                setTimeout(() => { if (fb && fb.textContent === msg) fb.textContent = ''; }, 1800);
+            }
+        }
+
+        // FB redesign — toggle .low-hp on .boss-card when HP <= 25%.
+        function bossUpdateLowHpPulse() {
+            const card = document.getElementById('boss-card');
+            if (!card) return;
+            const ratio = bossState.maxHp > 0 ? (bossState.hp / bossState.maxHp) : 0;
+            if (ratio <= 0.25 && ratio > 0) {
+                card.classList.add('low-hp');
+            } else {
+                card.classList.remove('low-hp');
+            }
+            // Also annotate the HP bar for gradient bias.
+            const bar = document.getElementById('boss-hp-bar');
+            if (bar) {
+                if (ratio <= 0.25) bar.setAttribute('data-hp-pct', 'low');
+                else if (ratio <= 0.55) bar.setAttribute('data-hp-pct', 'mid');
+                else bar.removeAttribute('data-hp-pct');
+            }
+        }
+
+        // FB redesign — sticky attempt pill ("Urinish 1/2") for boss_type=sub w/ attempts_max set.
+        function bossUpdateAttemptPill() {
+            const pill = document.getElementById('boss-attempt-pill');
+            if (!pill) return;
+            const meta = (typeof BOSS_META !== 'undefined' && BOSS_META) ? BOSS_META : null;
+            const bossType = (meta && meta.boss_type) || 'sub';
+            const attemptsMax = meta ? meta.attempts_max : null;
+            // Mythical: forced attempts_max=1 per spec §3 — pill HIDDEN (single-shot, no UI affordance for "retry").
+            if (bossType === 'mythical') {
+                pill.style.display = 'none';
+                return;
+            }
+            // Big or premium-unlimited: hide unless explicit cap.
+            if (!attemptsMax || attemptsMax < 2) {
+                pill.style.display = 'none';
+                return;
+            }
+            const used = (bossState.attemptsUsed || 0);
+            const current = Math.min(used + 1, attemptsMax);
+            pill.style.display = '';
+            pill.textContent = RT('boss.attempt_of')
+                .replace('{n}', String(current))
+                .replace('{max}', String(attemptsMax));
+        }
+
+        // FB redesign — render result card on server-signaled `done`. Calls completePhase('boss').
+        function bossRenderResult(resp) {
+            bossState.outcome = resp && resp.outcome ? resp.outcome : 'passing';
+            bossState.stars = (resp && typeof resp.stars === 'number') ? resp.stars : 0;
+            bossState.outcomeXp = (resp && typeof resp.outcome_xp === 'number') ? resp.outcome_xp : 0;
+            const card = document.getElementById('boss-result-card');
+            if (!card) {
+                // Fallback: just continue to existing flow.
+                completePhase('boss');
+                return;
+            }
+            const titleEl = document.getElementById('boss-result-title');
+            const starsEl = document.getElementById('boss-result-stars');
+            const xpEl = document.getElementById('boss-result-xp');
+            const sumEl = document.getElementById('boss-result-summary');
+            if (titleEl) titleEl.textContent = RT('boss.outcome.' + bossState.outcome);
+            if (starsEl) {
+                starsEl.innerHTML = '';
+                for (let i = 1; i <= 3; i++) {
+                    const span = document.createElement('span');
+                    span.className = 'boss-star ' + (i <= bossState.stars ? 'earned' : 'dim');
+                    span.textContent = '★';
+                    starsEl.appendChild(span);
+                }
+            }
+            if (xpEl) {
+                xpEl.textContent = RT('boss.result.xp').replace('{n}', String(bossState.outcomeXp));
+            }
+            if (sumEl) {
+                const total = (typeof BOSS_QUESTIONS !== 'undefined' && Array.isArray(BOSS_QUESTIONS))
+                    ? BOSS_QUESTIONS.length : 0;
+                sumEl.textContent = RT('boss.result.summary')
+                    .replace('{correct}', String(bossState.correct || 0))
+                    .replace('{total}', String(total))
+                    .replace('{damage}', String(bossState.damageDealt || 0))
+                    .replace('{hints}', String(bossState.hintsUsed || 0));
+            }
+            card.style.display = '';
+            // Force reflow then add .show for transition.
+            void card.offsetHeight;
+            card.classList.add('show');
+            // Mark phase complete (replaces direct bossEnd path on done).
+            try { completePhase('boss'); } catch (e) {}
         }
 
         function bossRenderQuestion(idx) {
@@ -14305,8 +14789,12 @@ Prezident ertaga hisobot kutmoqda.`,
             const doubled = bossState.combo >= 3;
             const dmg = doubled ? q.damage * 2 : q.damage;
             bossState.hp = Math.max(0, bossState.hp - dmg);
+            bossState.lastDamage = dmg;
+            bossState.damageDealt = (bossState.damageDealt || 0) + dmg;
             bossUpdateHP(bossState.hp, true);
             bossUpdateCombo();
+            // FB redesign — refresh low-HP pulse on every HP delta.
+            try { bossUpdateLowHpPulse(); } catch (e) {}
             if (fbEl) {
                 fbEl.className = 'boss-feedback correct';
                 const baseMsg = doubled ? (RT('boss.combo_hp') + dmg + ' HP') : (RT('boss.correct_hp') + dmg + ' HP');
@@ -14338,7 +14826,8 @@ Prezident ertaga hisobot kutmoqda.`,
             if (bossState.hp <= 0) { setTimeout(() => bossEnd(true), 900); }
         }
 
-        function bossHandleAction() {
+        // FB redesign — async + server-only grading via bossSubmitAnswer.
+        async function bossHandleAction() {
             if (state.isAnimating || bossState.done) return;
 
             if (bossState.answered) {
@@ -14359,97 +14848,31 @@ Prezident ertaga hisobot kutmoqda.`,
                 if (inp) { inp.style.borderColor = '#d9534f'; setTimeout(() => { inp.style.borderColor = ''; }, 1200); }
                 return;
             }
+            if (bossState.busy) return; // Concurrency gate (mirrors TM/RLC).
 
             const q = BOSS_QUESTIONS[bossState.qIndex];
-            const isCorrect = bossMatch(val, q.acceptable);
             const fb = document.getElementById('boss-feedback');
             if (inp) inp.disabled = true;
-            bossState.answered = true;
+            // Tentative "thinking..." UI while we await the server.
+            if (fb) { fb.className = 'boss-feedback wrong'; fb.textContent = RT('boss.wrong_ai'); }
 
-            if (isCorrect) {
-                bossApplyCorrect(q, fb, { aiGraded: false });
-                if (bossState.hp <= 0) { return; /* bossEnd already scheduled */ }
-            } else {
-                bossState.combo = 0;
-                bossUpdateCombo();
-                if (fb) { fb.className = 'boss-feedback wrong'; fb.textContent = RT('boss.wrong_ai'); }
+            bossState.busy = true;
+            const attemptNumber = (bossState.attemptsUsed || 0) + 1;
+            const resp = await bossSubmitAnswer(q.id, val, attemptNumber);
+            bossState.busy = false;
 
-                // Local match said "incorrect" — ask the AI tutor for a nuanced grade.
-                // The runtime.js bridge handles `kind:'boss'` → POST /api/ai/boss-turn
-                // and re-emits the result via `nets:result`.
-                const ticket = { qIndex: bossState.qIndex, qId: q.id };
-                bossPendingAi = ticket;
-                try {
-                    document.dispatchEvent(new CustomEvent('nets:submit', { detail: {
-                        kind: 'boss',
-                        payload: {
-                            bossQuestion: q.prompt || '',
-                            studentAnswer: val,
-                            expectedAnswers: q.acceptable || [],
-                            damageValue: q.damage || 10,
-                            hpRemaining: bossState.hp,
-                            attemptNumber: 1,
-                            // Wave F3 — forward persona_traits so boss-tutor adapts tone.
-                            persona_traits: bossState.persona_traits,
-                        },
-                    }}));
-                } catch (e) {
-                    if (fb) { fb.className = 'boss-feedback wrong'; fb.textContent = RT('boss.wrong_next'); }
-                    bossPendingAi = null;
-                }
+            // Fail-soft: null response means network/HTTP error — keep wrong state, allow retry.
+            if (!resp) {
+                if (fb) { fb.className = 'boss-feedback wrong'; fb.textContent = RT('boss.toast.wrong'); }
+                if (inp) inp.disabled = false;
+                bossImpactFlash();
+                return;
             }
+            bossState.answered = true;
+            bossHandleResponse(resp, q, fb);
 
             setBtnText(RT('btn.next_question'));
         }
-
-        // Listen for AI grading results — only act if the answer is still on screen
-        // for the same question we asked about (prevents late responses from
-        // mutating a later question).
-        document.addEventListener('nets:result', (ev) => {
-            const detail = ev.detail || {};
-            if (detail.kind !== 'boss') return;
-            const ticket = bossPendingAi;
-            if (!ticket) return;
-            // Has the user already moved on?
-            if (ticket.qIndex !== bossState.qIndex) { bossPendingAi = null; return; }
-            const result = detail.result || {};
-            const fb = document.getElementById('boss-feedback');
-            // Graceful degrade — keep local "incorrect" state on _fallback / _error.
-            if (result._fallback || result._error || result._offline) {
-                if (fb && fb.classList.contains('wrong')) {
-                    fb.textContent = RT('boss.wrong_next');
-                }
-                bossPendingAi = null;
-                return;
-            }
-            const aiCorrect = result.correct === true && (typeof result.score !== 'number' || result.score > 0.8);
-            if (aiCorrect) {
-                const q = BOSS_QUESTIONS[bossState.qIndex];
-                bossApplyCorrect(q, fb, {
-                    aiGraded: true,
-                    axis_1: result.axis_1, axis_2: result.axis_2,
-                });
-            } else {
-                if (fb) {
-                    fb.className = 'boss-feedback wrong';
-                    const aiMsg = result.boss_response || result.feedback || RT('boss.wrong_next');
-                    fb.innerHTML = aiMsg + ' <span class="screen-reading-ai-badge">AI baho</span>';
-                }
-                // Log incorrect boss attack so it appears on the AMR card
-                // with low axes — the student loses 0 HP but their attempt
-                // still informs the rubric.
-                if (window.__sessionLog) {
-                    const q = BOSS_QUESTIONS[bossState.qIndex];
-                    window.__sessionLog.push({
-                        phase: 'final-boss', id: q.id || ('boss-' + (bossState.qIndex + 1)),
-                        correct: false, score: typeof result.score === 'number' ? result.score : 0,
-                        axis_1: result.axis_1 || 1, axis_2: result.axis_2 || 1,
-                        first_try: false, damage: 0,
-                    });
-                }
-            }
-            bossPendingAi = null;
-        });
 
         function bossUseHint() {
             if (bossState.answered) return;
@@ -14459,8 +14882,13 @@ Prezident ertaga hisobot kutmoqda.`,
             bossState.hintsUsed++;
             bossState.combo = 0;
             bossUpdateCombo();
+            const hpBefore = bossState.hp;
             bossState.hp = Math.min(bossState.maxHp, bossState.hp + 10);
             bossUpdateHP(bossState.hp, false);
+            try { bossUpdateLowHpPulse(); } catch (e) {}
+            // FB redesign — visual heal flash + amber message (server-driven cost
+            // wired in bossHandleResponse for the new path; this legacy path keeps +10).
+            try { bossHealFlash(bossState.hp - hpBefore); } catch (e) {}
             const ht = document.getElementById('boss-hint-text');
             const hb = document.getElementById('boss-hint-btn');
             if (ht) ht.textContent = '💡 ' + hint;
