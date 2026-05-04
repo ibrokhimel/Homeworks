@@ -5,6 +5,7 @@ cached in memory. See CONTRACTS.md §5 for the injector contract.
 """
 
 import json
+import random
 import re
 from typing import Optional
 
@@ -371,6 +372,60 @@ def _serialize_tile_match(
             source.append({"id": pair_id, "side": "right", "text": str(pair[1])})
 
     return _safe_js_json(source)
+
+
+# --------------------------------------------------------------------------- #
+# TTT — side-disjoint serialization (answer-leak prevention).
+# --------------------------------------------------------------------------- #
+
+# In-memory answer key: {hw_id: {item_id: correct_str}}.
+# Populated each time inject() processes a gb_ttt array.
+# Same in-memory scar-tissue pattern as _TM_ATTEMPTS / _RLC_ATTEMPTS.
+_TTT_ANSWER_KEY: dict = {}
+
+
+def _serialize_ttt(items: list, config: dict) -> tuple:
+    """Build the client-side GB_TTT wire format (side-disjoint, answer-leak prevention).
+
+    Returns (wire_items, answer_key):
+      - wire_items: list of {id, q, options[]} — client-visible; correct+distractors stripped.
+      - answer_key: {item_id: correct_str} — server-only; stashed in _TTT_ANSWER_KEY[hw_id].
+
+    Options are deterministically shuffled by item_id seed so re-renders are stable
+    (random.Random(item_id).shuffle is deterministic across processes for the same seed).
+
+    Items with empty q or empty correct are silently dropped.
+    Auto-assigns id = "ttt-{idx}" (1-based) when item.id is absent.
+    """
+    wire: list = []
+    answer_key: dict = {}
+    for idx, raw in enumerate(items or []):
+        if not isinstance(raw, dict):
+            continue
+        item_id = (raw.get("id") or "").strip() or f"ttt-{idx + 1}"
+        q = (raw.get("q") or "").strip()
+        correct = (raw.get("correct") or "").strip()
+        if not q or not correct:
+            continue
+        distractors = [
+            d for d in (raw.get("distractors") or [])
+            if isinstance(d, str) and d.strip()
+        ]
+        opts = [correct, *distractors]
+        rng = random.Random(item_id)
+        rng.shuffle(opts)
+        wire.append({"id": item_id, "q": q, "options": opts})
+        answer_key[item_id] = correct
+    return wire, answer_key
+
+
+def get_ttt_answer_key(hw_id: str) -> dict:
+    """Return the answer key for a previously injected homework.
+
+    Returns {item_id: correct_str} or {} if the homework has not been rendered.
+    Called by the /api/ai/check-answer?phase=ttt route handler.
+    """
+    return _TTT_ANSWER_KEY.get(hw_id) or {}
 
 
 def _find_js_const_statement_end(src: str, literal_start: int) -> int:
@@ -1095,6 +1150,18 @@ def inject(
                     "acceptable": ["ok"],
                     "hints":      ["Builder'dan savollarni qo'shing.", "Savollar shu yerda paydo bo'ladi.", "Kontent tayyorlanishi kutilmoqda."],
                 }]
+        # TTT — side-disjoint serialization (answer-leak prevention).
+        # Strips correct/distractors from the wire format; stashes answer key
+        # in _TTT_ANSWER_KEY[hw_id] for the /api/ai/check-answer?phase=ttt handler.
+        if key == "gb_ttt":
+            hw_id = (runtime_context or {}).get("hwId") or (runtime_context or {}).get("hw_id") or ""
+            wire, key_map = _serialize_ttt(data, content_json.get("gb_ttt_config") or {})
+            if hw_id:
+                _TTT_ANSWER_KEY[hw_id] = key_map
+            replacement = f"const {const_name} = {_safe_js_json(wire)};"
+            html = _replace_js_const(html, const_name, replacement)
+            continue
+
         replacement = f"const {const_name} = {_safe_js_json(data)};"
         html = _replace_js_const(html, const_name, replacement)
 
