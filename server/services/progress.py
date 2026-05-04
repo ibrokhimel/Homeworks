@@ -122,6 +122,28 @@ def _has_real_life(content: dict) -> bool:
     return False
 
 
+def _has_ttt(content: dict) -> bool:
+    """Return True if content carries at least one authored TTT item.
+
+    A TTT item is considered authored when it is a dict with a non-empty `q`
+    field.  This mirrors the shape check used by `_has_real_life` and
+    `_has_final_boss` — the list must exist AND contain at least one meaningful
+    entry so that callers can test for TTT presence independently of the
+    broader `_has_game_breaks` gate.
+
+    Note: `_has_game_breaks` already counts `gb_ttt` via `_GB_KEYS` — do not
+    modify that function.  `_has_ttt` is an explicit, per-mechanic accessor for
+    future per-mechanic readiness gates.
+    """
+    ttt = content.get("gb_ttt")
+    if not isinstance(ttt, list) or not ttt:
+        return False
+    for item in ttt:
+        if isinstance(item, dict) and (item.get("q") or "").strip():
+            return True
+    return False
+
+
 def _has_game_breaks(content: dict) -> bool:
     return any(_nonempty_list(content, k) for k in _GB_KEYS)
 

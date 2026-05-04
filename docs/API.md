@@ -767,6 +767,107 @@ The optional sibling field `content_json.boss_meta` carries phase-level metadata
 
 ---
 
+### POST /api/ai/check-answer  *(phase = `"ttt"`)*
+
+Resolves a single TTT cell-claim attempt. Server holds the answer key (side-disjoint injector pattern); client never sees `correct` until after resolve.
+
+**Request**
+```json
+{
+  "phase": "ttt",
+  "homework_id": "string",
+  "item_id": "ttt-1",
+  "picked": "56"
+}
+```
+
+- `item_id` references one of the homework's `gb_ttt[].id` values as populated by `injector._serialize_ttt` at render time.
+- `picked` is the option string the student tapped. Falls back to `student_answer` if `picked` is omitted (legacy compatibility).
+
+**200**
+```json
+{
+  "is_correct": bool,
+  "mercy": bool,
+  "xp_delta": int,
+  "correct_value": "string"
+}
+```
+
+- **`is_correct`**: `true` when `picked` exactly matches the server-held correct value.
+- **`mercy`**: server-rolled lucky bounce (0.2% chance, i.e. `mercy_chance=0.002`). When `true`, the student receives `xp_mercy` XP even on a wrong pick. `gb_ttt_config.mercy_chance` overrides the default.
+- **`xp_delta`**: XP awarded for this pick. Default rules: +50 correct (`xp_correct`), +10 mercy bounce (`xp_mercy`), 0 wrong. `gb_ttt_config` overrides any of these per homework.
+- **`correct_value`**: the answer the server holds for this item. Returned only after resolution (client-side cell already consumed by this point; max 9 probes per game).
+
+**Errors**
+
+| Status | code | When |
+|---|---|---|
+| 400 | `TTT_MISSING_HW` | `homework_id` missing on a `phase=ttt` request |
+| 400 | `TTT_MISSING_ITEM_ID` | `item_id` missing or empty |
+| 404 | `HW_NOT_FOUND` | homework_id does not resolve |
+| 404 | `ttt_item_not_found` | `item_id` not in this homework's answer key (homework not yet rendered, or unknown id) |
+
+**Answer-leak protection**: the rendered runtime constant `GB_TTT` is stripped server-side of `correct` and `distractors`; client only receives `{id, q, options[]}` where `options` is the shuffled choice list. The correct answer lives exclusively in `_TTT_ANSWER_KEY[hw_id][item_id]` (populated by `injector._serialize_ttt`) and is validated only at this endpoint.
+
+---
+
+### POST /api/ai/check-answer  *(phase = `"ttt-session"`)*
+
+Tallies session XP at end of 3 games. Per-correct XP already paid out via `phase=ttt`; this route adds outcome XP (+200/draw, +300/win) plus the strong-session bonus (+100 if ≥2 draws). Returns mastery tier label and Duolingo-remediation flag (true if 0 wins + 0 draws).
+
+**Request**
+```json
+{
+  "phase": "ttt-session",
+  "homework_id": "string",
+  "results": [
+    { "outcome": "win" },
+    { "outcome": "draw" },
+    { "outcome": "loss" }
+  ]
+}
+```
+
+- `results` is a list of `{"outcome": "win"|"draw"|"loss"}` dicts, one per completed game. Length 1 to `session_games` (default 3); longer lists are silently truncated to `session_games`.
+- Per-correct-pick XP (+50 each) was already paid out during `phase=ttt` calls; this route accounts for outcome-level XP and the strong-session bonus only.
+
+**200**
+```json
+{
+  "session_xp": int,
+  "strong_session_bonus": int,
+  "mastery_tier": "string",
+  "duolingo_remediation": bool,
+  "wins": int,
+  "draws": int,
+  "losses": int
+}
+```
+
+- **`session_xp`**: total outcome XP for the session (`wins × xp_win + draws × xp_draw + strong_session_bonus`). Does not include per-pick XP from `phase=ttt` calls.
+- **`strong_session_bonus`**: flat bonus added when `draws >= 2`. Default +100 (`xp_strong_session`). 0 otherwise.
+- **`mastery_tier`**: label derived from `(wins + draws) / total_games`:
+
+| % wins + draws | tier |
+|---|---|
+| 0–<20% | Learning the Board |
+| 20–<40% | Holding Ground |
+| 40–<60% | Formidable Opponent |
+| ≥60% | Unbreakable |
+
+- **`duolingo_remediation`**: `true` when `wins == 0 AND draws == 0` — signals the runtime to surface remediation content.
+
+**Errors**
+
+| Status | code | When |
+|---|---|---|
+| 400 | `TTT_MISSING_HW` | `homework_id` missing on a `phase=ttt-session` request |
+| 400 | `TTT_MISSING_RESULTS` | `results` field absent or not a list |
+| 404 | `HW_NOT_FOUND` | homework_id does not resolve |
+
+---
+
 ### POST /api/ai/boss-turn
 
 Legacy canonical endpoint for the Final Boss mechanic. The `phase=final-boss` branch on `/api/ai/check-answer` (above) adapts to this same grading path; both endpoints coexist.

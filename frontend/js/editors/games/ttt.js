@@ -1,11 +1,18 @@
 // frontend/js/editors/games/ttt.js
 // Tic Tac Toe vs AI editor — knowledge-gated 3x3 grid mechanic.
-// Contract storage: content_json.gb_ttt: [{ q, correct, distractors: [d1, d2, d3] }]
+// Contract storage: content_json.gb_ttt: [{ id?, q, correct, distractors: [d1, d2, d3] }]
+//   - id: optional stable identifier (auto-assigned via TTTHelpers.ensureItemId on emit)
 //   - q: question shown when student taps a cell (HTML, supports formulas + images)
 //   - correct: the right answer (string, exact match against picked option)
 //   - distractors: 3 plausible-but-wrong options
 // Runtime cycles through items as the student takes turns. ~12-15 items covers
 // a 3-game session safely (each game = 3-5 student moves on average).
+//
+// Mounting:
+//   window.GameBreakEditors.ttt.render(container, data, onChange, context)
+//     where context = { grade, subject, tier } (defaults used if omitted).
+//     When data is empty and context.grade is a number, grade-band scaffolds
+//     are injected automatically and emitted immediately via onChange.
 
 (function () {
   "use strict";
@@ -31,10 +38,11 @@
 
   function normalize(items) {
     return Array.isArray(items)
-      ? items.map((item) => {
+      ? items.map((item, idx) => {
           const distractors = Array.isArray(item?.distractors) ? item.distractors.slice(0, 3) : [];
           while (distractors.length < 3) distractors.push("");
           return {
+            id: typeof item?.id === "string" ? item.id : "",
             q: typeof item?.q === "string" ? item.q : "",
             correct: typeof item?.correct === "string" ? item.correct : "",
             distractors: distractors.map((d) => (typeof d === "string" ? d : "")),
@@ -44,11 +52,26 @@
   }
 
   function makeItem() {
-    return { q: "", correct: "", distractors: ["", "", ""] };
+    return { id: "", q: "", correct: "", distractors: ["", "", ""] };
+  }
+
+  // Walk items and ensure every item.id is populated before emitting.
+  function toEmit(state) {
+    return state.map((item, idx) => {
+      const id = window.TTTHelpers
+        ? window.TTTHelpers.ensureItemId(item, idx)
+        : (item.id || ("ttt-" + (idx + 1)));
+      return {
+        id,
+        q: item.q,
+        correct: item.correct,
+        distractors: item.distractors.slice(),
+      };
+    });
   }
 
   function emit(state, onChange) {
-    onChange(clone(state));
+    onChange(clone(toEmit(state)));
   }
 
   function summary(value) {
@@ -57,14 +80,65 @@
   }
 
   function countHint(state) {
-    if (!state.length) return "Add 12-15 questions for a full 3-game session";
-    if (state.length < 6) return `${state.length} question${state.length === 1 ? "" : "s"} — too few; runtime will cycle through this list as the student plays`;
-    if (state.length < 12) return `${state.length} questions — ok, but runtime will start cycling on long games`;
+    if (!state.length) return "Add 12–15 questions for a full 3-game session";
+    if (state.length < 6)
+      return `${state.length} question${state.length === 1 ? "" : "s"} — too few; runtime will cycle through this list as the student plays`;
+    if (state.length < 12)
+      return `${state.length} questions — ok, but runtime will start cycling on long games`;
     return `${state.length} questions — comfortable for a 3-game session`;
   }
 
-  function render(container, data, onChange) {
-    const state = normalize(data);
+  // Derive grade band from context (falls back gracefully when TTTHelpers
+  // isn't loaded yet — this should never happen in production since
+  // _ttt-helpers.js loads before this file).
+  function bandFromContext(ctx) {
+    if (!window.TTTHelpers) return "L3-L4";
+    return window.TTTHelpers.gradeBandFor(ctx.grade);
+  }
+
+  // Render per-item validation errors as inline messages.
+  function renderItemErrors(item) {
+    if (!window.TTTHelpers) return "";
+    const result = window.TTTHelpers.validateItem(item);
+    if (result.ok) return "";
+    return result.errors
+      .map((e) => `<p class="sf-hint sf-hint-warning ttt-validation-error">${escapeHtml(e)}</p>`)
+      .join("");
+  }
+
+  function render(container, data, onChange, context) {
+    if (!container) return;
+
+    const ctx =
+      context && typeof context === "object"
+        ? { grade: context.grade, subject: context.subject, tier: context.tier }
+        : {};
+
+    let state = normalize(data);
+
+    // -------------------------------------------------------------------------
+    // Grade-band scaffold injection
+    // If the list is empty AND we have a numeric grade, seed with 3 starters.
+    // -------------------------------------------------------------------------
+    let scaffoldBadge = "";
+    if (
+      state.length === 0 &&
+      ctx.grade != null &&
+      Number.isFinite(Number(ctx.grade)) &&
+      window.TTTHelpers
+    ) {
+      const band = bandFromContext(ctx);
+      const scaffolded = window.TTTHelpers.scaffoldForBand(band);
+      state = normalize(scaffolded);
+      scaffoldBadge = `<p class="ttt-scaffold-badge muted-text" style="font-style:italic;">
+        Suggested for Grade ${Number(ctx.grade)} · ${escapeHtml(window.TTTHelpers.pisaHintForBand(band))}
+      </p>`;
+      // Emit immediately so the homework saves with scaffolds.
+      emit(state, onChange);
+    }
+
+    const band = bandFromContext(ctx);
+    const pisaHint = window.TTTHelpers ? window.TTTHelpers.pisaHintForBand(band) : "";
 
     function repaint() {
       container.innerHTML = `
@@ -81,6 +155,8 @@
               Knowledge-gated 3×3 grid. Student taps a cell, answers the next question — correct answer lands the X on their cell, wrong answer scatters it to a random empty cell. AI plays optimally (minimax). 3 games per session.
             </p>
             <p class="muted-text" style="font-style:italic;">${escapeHtml(countHint(state))}</p>
+            ${scaffoldBadge}
+            ${pisaHint ? `<p class="ttt-band-badge muted-text" style="font-style:italic;">${escapeHtml(pisaHint)}</p>` : ""}
           </section>
 
           ${
@@ -91,11 +167,13 @@
                       <section class="editor-card nested-card" data-index="${index}">
                         <div class="editor-header compact-header">
                           <div>
-                            <p class="eyebrow">Question ${index + 1}</p>
+                            <p class="eyebrow">Question ${index + 1}${item.id ? ` · <code>${escapeHtml(item.id)}</code>` : ""}</p>
                             <h3>${escapeHtml(summary(item.q))}</h3>
                           </div>
                           <button class="btn btn-danger js-remove-item" type="button">Remove</button>
                         </div>
+
+                        ${renderItemErrors(item)}
 
                         <div class="editor-grid">
                           <div class="field full-span">
@@ -105,20 +183,20 @@
 
                           <div class="field full-span">
                             <span>Correct answer</span>
-                            <input class="js-field" data-key="correct" type="text" value="${escapeHtml(item.correct)}" placeholder="The right option" />
+                            <input class="js-field ttt-correct-field ${renderCorrectFieldClass(item)}" data-key="correct" type="text" value="${escapeHtml(item.correct)}" placeholder="The right option" />
                           </div>
 
                           <div class="field">
                             <span>Distractor 1</span>
-                            <input class="js-distractor" data-d="0" type="text" value="${escapeHtml(item.distractors[0])}" placeholder="Plausible wrong answer" />
+                            <input class="js-distractor ttt-distractor-field ${renderDistractorClass(item, 0)}" data-d="0" type="text" value="${escapeHtml(item.distractors[0])}" placeholder="Plausible wrong answer" />
                           </div>
                           <div class="field">
                             <span>Distractor 2</span>
-                            <input class="js-distractor" data-d="1" type="text" value="${escapeHtml(item.distractors[1])}" placeholder="Plausible wrong answer" />
+                            <input class="js-distractor ttt-distractor-field ${renderDistractorClass(item, 1)}" data-d="1" type="text" value="${escapeHtml(item.distractors[1])}" placeholder="Plausible wrong answer" />
                           </div>
                           <div class="field">
                             <span>Distractor 3</span>
-                            <input class="js-distractor" data-d="2" type="text" value="${escapeHtml(item.distractors[2])}" placeholder="Plausible wrong answer" />
+                            <input class="js-distractor ttt-distractor-field ${renderDistractorClass(item, 2)}" data-d="2" type="text" value="${escapeHtml(item.distractors[2])}" placeholder="Plausible wrong answer" />
                           </div>
                         </div>
                       </section>
@@ -154,6 +232,25 @@
           host.appendChild(editor);
         });
       }
+    }
+
+    // Returns "ttt-field-error" CSS class when the correct field has a validation problem.
+    function renderCorrectFieldClass(item) {
+      if (!window.TTTHelpers) return "";
+      const result = window.TTTHelpers.validateItem(item);
+      if (result.ok) return "";
+      const hasCorrectError = result.errors.some((e) => e.toLowerCase().includes("correct"));
+      return hasCorrectError ? "ttt-field-error" : "";
+    }
+
+    // Returns "ttt-field-error" class when a specific distractor slot is invalid.
+    function renderDistractorClass(item, dIdx) {
+      if (!window.TTTHelpers) return "";
+      const result = window.TTTHelpers.validateItem(item);
+      if (result.ok) return "";
+      const label = `Distractor ${dIdx + 1}`;
+      const hasDError = result.errors.some((e) => e.includes(label));
+      return hasDError ? "ttt-field-error" : "";
     }
 
     container.oninput = (event) => {

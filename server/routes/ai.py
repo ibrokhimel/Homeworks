@@ -5,11 +5,12 @@ Called by the homework playback frontend during student sessions.
 All stateless. Request/response JSON, no SSE.
 """
 import logging
+import random
 from fastapi import APIRouter, HTTPException, Path as PathParam, Query
 from pydantic import BaseModel, Field
 from typing import Optional, Any
 
-from ..services import tutor, gemini
+from ..services import tutor, gemini, injector
 from ..services.slur_filter import classify, detect_slurs
 from ..services import warnings as warnings_svc
 from .. import db
@@ -64,6 +65,13 @@ class CheckAnswerRequest(BaseModel):
     grade_band: Optional[str] = None      # "g1_4" | "g5" | "g6_8" | "g9_11"
     attempts_used: Optional[int] = 0
     hp_remaining: Optional[int] = None    # client's current HP cursor for outcome computation
+
+    # Tic Tac Toe phase fields (only used when phase == "ttt" or "ttt-session").
+    # Per TIC_TAC_TOE_BACKEND_PLAN.md §1.3, §1.4 — `picked` carries the option
+    # string the student tapped (matched against the server-side answer key),
+    # `results` carries the end-of-session outcome list for the tally route.
+    picked: Optional[str] = None
+    results: Optional[list[dict[str, Any]]] = None
 
 
 class FinalizeCheckAnswerRequest(BaseModel):
@@ -1513,6 +1521,209 @@ async def _check_answer_final_boss(req: CheckAnswerRequest) -> dict:
     return response
 
 
+# ---------------------------------------------------------------------------
+# Tic Tac Toe (TTT) — per-question + per-session grading
+# ---------------------------------------------------------------------------
+#
+# Two phases live on the same /api/ai/check-answer route:
+#
+#   phase="ttt"          → _check_answer_ttt:         single option pick
+#                                                     resolves to {is_correct,
+#                                                     mercy, xp_delta,
+#                                                     correct_value}
+#   phase="ttt-session"  → _check_answer_ttt_session: end-of-session tally
+#                                                     across N games, returns
+#                                                     {session_xp, strong_session_bonus,
+#                                                     mastery_tier, duolingo_remediation,
+#                                                     wins, draws, losses}
+#
+# The route reads `_TTT_ANSWER_KEY[hw_id][item_id]` populated by
+# `injector._serialize_ttt` at render time. If the homework hasn't been
+# rendered yet (key map missing), the route returns 404 with
+# `detail="ttt_item_not_found"` — matches the side-disjoint pattern from
+# TM/RLC/FB. See TIC_TAC_TOE_BACKEND_PLAN.md §1.3, §1.4, §2.3.
+# ---------------------------------------------------------------------------
+_TTT_DEFAULTS = {
+    "session_games": 3,
+    "xp_correct": 50,
+    "xp_draw": 200,
+    "xp_win": 300,
+    "xp_strong_session": 100,
+    "xp_mercy": 10,
+    "mercy_chance": 0.002,
+}
+
+
+def _ttt_config_for(hw: dict) -> dict:
+    """Merge `_TTT_DEFAULTS` with the homework's `gb_ttt_config` overrides.
+
+    None values in the override are filtered before merge so partial overrides
+    work — i.e. setting only `xp_draw` doesn't null out the other defaults.
+    Explicit zero values are preserved (they ARE meaningful overrides).
+    """
+    content = hw.get("content_json") if isinstance(hw, dict) else None
+    raw = (content or {}).get("gb_ttt_config") if isinstance(content, dict) else None
+    override: dict = {}
+    if isinstance(raw, dict):
+        override = {k: v for k, v in raw.items() if v is not None}
+    return {**_TTT_DEFAULTS, **override}
+
+
+def _ttt_mastery_tier(draws_plus_wins: int, total_games: int) -> str:
+    """Return the mastery-tier label for a session's draw+win ratio.
+
+    Bands per TIC_TAC_TOE_BACKEND_PLAN.md §1.4:
+      0–<20%   → "Learning the Board"
+      20–<40%  → "Holding Ground"
+      40–<60%  → "Formidable Opponent"
+      ≥60%     → "Unbreakable"
+
+    Lower-inclusive boundaries; "≥60%" is taken from §1.4 explicitly.
+    """
+    pct = (draws_plus_wins / max(total_games, 1)) * 100
+    if pct < 20:
+        return "Learning the Board"
+    if pct < 40:
+        return "Holding Ground"
+    if pct < 60:
+        return "Formidable Opponent"
+    return "Unbreakable"
+
+
+async def _check_answer_ttt(req: CheckAnswerRequest) -> dict:
+    """Per-pick grading branch for Tic Tac Toe.
+
+    See TIC_TAC_TOE_BACKEND_PLAN.md §1.3.
+
+    No-leak invariants:
+      - Server-only `correct` field is fetched from `_TTT_ANSWER_KEY` (populated
+        by the injector at render time); never echoed during the question
+        prompt.
+      - `correct_value` IS returned in the response, but only AFTER the student
+        has resolved the pick — wrong picks still consume a board cell, so
+        probing is bounded (max 9 picks per game).
+    """
+    if not req.homework_id:
+        raise HTTPException(400, detail={
+            "error": "homework_id required for phase=ttt",
+            "code": "TTT_MISSING_HW",
+        })
+
+    hw = await db.get_homework(req.homework_id)
+    if hw is None:
+        raise HTTPException(404, detail={
+            "error": f"homework {req.homework_id} not found",
+            "code": "HW_NOT_FOUND",
+        })
+
+    # The TTT request fields ride as flat top-level keys on CheckAnswerRequest
+    # (matching the SF/TM/RLC/FB precedent): `item_id` + `picked`. We also
+    # tolerate the legacy `student_answer` slot as a fallback for `picked` so
+    # browsers / scripts that re-use the legacy free-form body still work.
+    item_id = req.item_id
+    picked = req.picked if req.picked is not None else req.student_answer
+    if not item_id:
+        raise HTTPException(400, detail={
+            "error": "item_id required for phase=ttt",
+            "code": "TTT_MISSING_ITEM_ID",
+        })
+
+    answer_key = injector.get_ttt_answer_key(req.homework_id) or {}
+    correct = answer_key.get(item_id)
+    if not correct:
+        raise HTTPException(404, detail="ttt_item_not_found")
+
+    cfg = _ttt_config_for(hw)
+    picked_norm = (picked or "").strip()
+    correct_norm = (correct or "").strip()
+    is_correct = bool(picked_norm) and (picked_norm == correct_norm)
+
+    mercy = False
+    xp_delta = 0
+    if is_correct:
+        xp_delta = int(cfg["xp_correct"])
+    else:
+        # Server-decided mercy roll. Hidden from the student during play; the
+        # response narrates "lucky bounce" only after resolution.
+        mercy = random.random() < float(cfg["mercy_chance"])
+        xp_delta = int(cfg["xp_mercy"]) if mercy else 0
+
+    return {
+        "is_correct": is_correct,
+        "mercy": mercy,
+        "xp_delta": xp_delta,
+        "correct_value": correct,
+    }
+
+
+async def _check_answer_ttt_session(req: CheckAnswerRequest) -> dict:
+    """End-of-session tally for Tic Tac Toe.
+
+    See TIC_TAC_TOE_BACKEND_PLAN.md §1.4.
+
+    Input: `payload.results` — a list of {"outcome": "win"|"draw"|"loss"} dicts.
+    Length is tolerated 1..session_games (default 3); longer lists are silently
+    truncated. Per-correct-pick XP (+50 each) was already paid out during
+    `phase=ttt` calls — this route only accounts for outcome-level XP plus the
+    strong-session bonus.
+    """
+    if not req.homework_id:
+        raise HTTPException(400, detail={
+            "error": "homework_id required for phase=ttt-session",
+            "code": "TTT_MISSING_HW",
+        })
+
+    hw = await db.get_homework(req.homework_id)
+    if hw is None:
+        raise HTTPException(404, detail={
+            "error": f"homework {req.homework_id} not found",
+            "code": "HW_NOT_FOUND",
+        })
+
+    cfg = _ttt_config_for(hw)
+    session_games = int(cfg["session_games"])
+
+    raw_results = req.results
+    if not isinstance(raw_results, list):
+        raise HTTPException(400, detail={
+            "error": "results required for phase=ttt-session",
+            "code": "TTT_MISSING_RESULTS",
+        })
+
+    # Validate + normalize — must be a list of dicts. Tolerate length 1..N;
+    # silently truncate when longer than session_games so a runaway client
+    # can't inflate the tally.
+    cleaned: list[dict] = []
+    for item in raw_results[:session_games]:
+        if not isinstance(item, dict):
+            continue
+        outcome = item.get("outcome")
+        if outcome in ("win", "draw", "loss"):
+            cleaned.append({"outcome": outcome})
+
+    wins = sum(1 for r in cleaned if r["outcome"] == "win")
+    draws = sum(1 for r in cleaned if r["outcome"] == "draw")
+    losses = sum(1 for r in cleaned if r["outcome"] == "loss")
+
+    per_outcome_xp = wins * int(cfg["xp_win"]) + draws * int(cfg["xp_draw"])
+    strong_bonus = int(cfg["xp_strong_session"]) if draws >= 2 else 0
+    session_xp = per_outcome_xp + strong_bonus
+
+    total_games = len(cleaned)
+    mastery_tier = _ttt_mastery_tier(wins + draws, total_games)
+    duolingo_remediation = (wins == 0 and draws == 0)
+
+    return {
+        "session_xp": int(session_xp),
+        "strong_session_bonus": int(strong_bonus),
+        "mastery_tier": mastery_tier,
+        "duolingo_remediation": bool(duolingo_remediation),
+        "wins": wins,
+        "draws": draws,
+        "losses": losses,
+    }
+
+
 @router.post("/ai/check-answer")
 async def check_answer(req: CheckAnswerRequest):
     # Phase dispatch — the new sentence-fill grading branch is keyed on
@@ -1559,6 +1770,24 @@ async def check_answer(req: CheckAnswerRequest):
     if req.phase == "final-boss" and req.homework_id:
         try:
             return await _check_answer_final_boss(req)
+        except HTTPException:
+            raise
+        except Exception as e:
+            _handle_exc(e)
+
+    # Tic Tac Toe per-pick grading branch — same back-compat gate.
+    if req.phase == "ttt" and req.homework_id:
+        try:
+            return await _check_answer_ttt(req)
+        except HTTPException:
+            raise
+        except Exception as e:
+            _handle_exc(e)
+
+    # Tic Tac Toe end-of-session tally branch — same back-compat gate.
+    if req.phase == "ttt-session" and req.homework_id:
+        try:
+            return await _check_answer_ttt_session(req)
         except HTTPException:
             raise
         except Exception as e:

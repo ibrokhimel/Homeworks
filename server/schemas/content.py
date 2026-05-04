@@ -277,11 +277,34 @@ class MysteryBoxItem(_Permissive):
 
 
 class TttItem(_Permissive):
-    """gb_ttt — tic-tac-toe quiz with {q, correct, distractors[]} (3 distractors)."""
+    """gb_ttt — tic-tac-toe quiz with {id, q, correct, distractors[]} (3 distractors).
 
+    `id` is optional (auto-assigned by the injector as "ttt-1", "ttt-2", ... if absent).
+    `correct` and `distractors` are server-only — stripped by the injector before the
+    wire format is sent to the client (side-disjoint, answer-leak prevention).
+    """
+
+    id: Optional[str] = None
     q: Optional[str] = None
     correct: Optional[str] = None
     distractors: Optional[List[str]] = None
+
+
+class TttConfig(_Permissive):
+    """gb_ttt_config — optional XP and session overrides for the TTT game.
+
+    All fields are optional; the injector applies spec defaults when absent:
+      session_games=3, xp_correct=50, xp_draw=200, xp_win=300,
+      xp_strong_session=100, xp_mercy=10, mercy_chance=0.002.
+    """
+
+    session_games: Optional[int] = None       # default 3
+    xp_correct: Optional[int] = None          # default 50
+    xp_draw: Optional[int] = None             # default 200
+    xp_win: Optional[int] = None              # default 300
+    xp_strong_session: Optional[int] = None   # default 100
+    xp_mercy: Optional[int] = None            # default 10
+    mercy_chance: Optional[float] = None      # default 0.002
 
 
 # --------------------------------------------------------------------------- #
@@ -597,6 +620,7 @@ class ContentJSON(_Permissive):
     gb_puzzle_lock: Optional[List[PuzzleLockItem]] = None
     gb_mystery_box: Optional[List[MysteryBoxItem]] = None
     gb_ttt: Optional[List[TttItem]] = None
+    gb_ttt_config: Optional[TttConfig] = None
     gb_sentence_fill: Optional[List[SentenceFillItem]] = None
     # Tile Match — new structured pairs (replaces gb_memory_match for new content)
     gb_tile_match: Optional[List[TileMatchPair]] = None
