@@ -240,10 +240,19 @@
 
   function normalizeTTT(items) {
     return Array.isArray(items)
-      ? items.map((item) => {
+      ? items.map((item, idx) => {
           const distractors = Array.isArray(item?.distractors) ? item.distractors.slice(0, 3) : [];
           while (distractors.length < 3) distractors.push("");
+          // Preserve existing id; auto-fill via TTTHelpers when available,
+          // otherwise fall back to the simple "ttt-N" pattern.
+          const existingId = typeof item?.id === "string" ? item.id : "";
+          const id = existingId
+            ? existingId
+            : window.TTTHelpers
+              ? window.TTTHelpers.ensureItemId(item, idx)
+              : "ttt-" + (idx + 1);
           return {
+            id,
             q: typeof item?.q === "string" ? item.q : "",
             correct: typeof item?.correct === "string" ? item.correct : "",
             distractors: distractors.map((d) => (typeof d === "string" ? d : "")),
