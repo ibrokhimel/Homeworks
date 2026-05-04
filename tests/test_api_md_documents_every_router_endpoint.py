@@ -112,6 +112,7 @@ _CHECK_ANSWER_PHASES: tuple[str, ...] = (
     "final-boss",
     "ttt",
     "ttt-session",
+    "memory-palace",
 )
 
 

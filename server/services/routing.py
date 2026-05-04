@@ -132,6 +132,7 @@ def empty_content_scaffold(title: str, subject_display: str) -> dict:
         "gb_puzzle_lock": [],
         "gb_mystery_box": [],
         "gb_ttt": [],
+        "gb_memory_palace": {},
         "real_life": None,
         "boss_questions": [],
         "reflection": None,

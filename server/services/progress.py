@@ -144,8 +144,41 @@ def _has_ttt(content: dict) -> bool:
     return False
 
 
+def _has_memory_palace(content: dict) -> bool:
+    """Return True if content carries a non-trivially authored Memory Palace game.
+
+    `gb_memory_palace` is an OBJECT (not a list), so `_nonempty_list` would
+    always return False for it.  We check the object directly: it must be a
+    non-empty dict whose `palaces` list contains at least one entry with a
+    non-empty `key` AND whose `concepts` list contains at least one entry with
+    a non-empty `term`.
+
+    Note: `_has_game_breaks` calls this explicitly alongside `_GB_KEYS` so that
+    the list-typed and object-typed game-break shapes are handled correctly.
+    """
+    mp = content.get("gb_memory_palace")
+    if not isinstance(mp, dict) or not mp:
+        return False
+    palaces = mp.get("palaces")
+    if not isinstance(palaces, list) or not palaces:
+        return False
+    has_valid_palace = any(
+        isinstance(p, dict) and (p.get("key") or "").strip()
+        for p in palaces
+    )
+    if not has_valid_palace:
+        return False
+    concepts = mp.get("concepts")
+    if not isinstance(concepts, list) or not concepts:
+        return False
+    return any(
+        isinstance(c, dict) and (c.get("term") or "").strip()
+        for c in concepts
+    )
+
+
 def _has_game_breaks(content: dict) -> bool:
-    return any(_nonempty_list(content, k) for k in _GB_KEYS)
+    return any(_nonempty_list(content, k) for k in _GB_KEYS) or _has_memory_palace(content)
 
 
 def _has_reflection(content: dict) -> bool:
