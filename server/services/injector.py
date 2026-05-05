@@ -820,6 +820,41 @@ def _strip_text_tags_keep_media(s) -> str:
     return text
 
 
+def _normalize_reading_checkpoint(cp) -> dict:
+    """Normalize a reading checkpoint to the runtime's
+    {prompt, ans, acceptable[], fb} shape.
+
+    Accepts both:
+      - top-level checkpoints[] entries (canonical {prompt, ans, fb} or
+        legacy {q, ans, fb})
+      - segment-nested s["checkpoint"] entries ({q, ans[], tags?, fb?})
+
+    `ans` may be a string (legacy fixtures) or a list (segment-aware
+    adapter output). When it's a list, the head is the canonical answer
+    and the tail goes into `acceptable[]` for the runtime's multi-answer
+    matcher (cp.ans + cp.acceptable[] is the existing contract). Authors
+    can also supply `acceptable[]` explicitly.
+    """
+    if not isinstance(cp, dict):
+        return {"prompt": "", "ans": "", "acceptable": [], "fb": ""}
+    raw_ans = cp.get("ans")
+    if isinstance(raw_ans, list):
+        ans_str = str(raw_ans[0]) if raw_ans else ""
+        acceptable = [str(a) for a in raw_ans[1:]]
+    else:
+        ans_str = str(raw_ans or "")
+        acceptable = []
+    extra_acc = cp.get("acceptable")
+    if isinstance(extra_acc, list):
+        acceptable = acceptable + [str(a) for a in extra_acc]
+    return {
+        "prompt":     str(cp.get("prompt") or cp.get("q") or ""),
+        "ans":        ans_str,
+        "acceptable": acceptable,
+        "fb":         str(cp.get("fb") or ""),
+    }
+
+
 def inject(
     content_json: dict,
     meta_override: dict | None = None,
@@ -874,6 +909,29 @@ def inject(
         html,
         count=1,
     )
+
+    # 1b. Bug #3: Replace browser <title> tag inside <head> so the tab text
+    # tracks the homework's meta.title (with row-level fallback already
+    # applied by render_homework). The template ships with a literal
+    # default ("NETS · Kvadrat tenglama") that otherwise stays stale across
+    # all rendered homeworks.
+    #
+    # Scope to the <head>...</head> window so we don't accidentally rewrite
+    # any inline <title> element inside an SVG glyph that may live in body
+    # markup. The replacement is idempotent — running it again on the
+    # already-rendered HTML yields the same string.
+    head_match = re.search(r"<head\b[^>]*>.*?</head>", html, flags=re.DOTALL | re.IGNORECASE)
+    if head_match:
+        head_block = head_match.group(0)
+        new_head = re.sub(
+            r"<title>.*?</title>",
+            f"<title>NETS · {_esc(title)}</title>",
+            head_block,
+            count=1,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+        if new_head != head_block:
+            html = html[:head_match.start()] + new_head + html[head_match.end():]
 
     # 2. Replace caption div (first occurrence — the one at top of homework)
     if subject_display or section:
@@ -1343,53 +1401,54 @@ def inject(
             obj = {}
         # Normalize per-phase known fields (strings → strings; lists → lists).
         if key == "reading":
-            checkpoints = obj.get("checkpoints") or []
-            if not isinstance(checkpoints, list):
-                checkpoints = []
-            out_cps = []
-            for cp in checkpoints:
-                if not isinstance(cp, dict):
-                    out_cps.append({"prompt": "", "ans": "", "acceptable": [], "fb": ""})
-                    continue
-                # `ans` may be a string (legacy fixtures) or a list (segment-aware
-                # adapter output). When it's a list, the head is the canonical
-                # answer and the tail goes into `acceptable[]` for the runtime's
-                # multi-answer matcher (cp.ans + cp.acceptable[] is the existing
-                # contract). Authors can also supply `acceptable[]` explicitly.
-                raw_ans = cp.get("ans")
-                if isinstance(raw_ans, list):
-                    ans_str = str(raw_ans[0]) if raw_ans else ""
-                    acceptable = [str(a) for a in raw_ans[1:]]
-                else:
-                    ans_str = str(raw_ans or "")
-                    acceptable = []
-                extra_acc = cp.get("acceptable")
-                if isinstance(extra_acc, list):
-                    acceptable = acceptable + [str(a) for a in extra_acc]
-                out_cps.append({
-                    "prompt":     str(cp.get("prompt") or cp.get("q") or ""),
-                    "ans":        ans_str,
-                    "acceptable": acceptable,
-                    "fb":         str(cp.get("fb") or ""),
-                })
+            top_checkpoints = obj.get("checkpoints") or []
+            if not isinstance(top_checkpoints, list):
+                top_checkpoints = []
+            top_out_cps = [_normalize_reading_checkpoint(cp) for cp in top_checkpoints]
+
+            # Pass through segment-aware reading fields. When `segments` is
+            # present, the runtime renders an interleaved text→question stream
+            # via these objects (see perfect_homework.html::readingBuildPages).
+            # Legacy fixtures (no segments key) keep the chunker fallback path.
+            #
+            # Bug #1: when each segment carries a nested `checkpoint` dict and
+            # the top-level `checkpoints[]` array is empty, auto-populate the
+            # flat checkpoints[] from the per-segment ones (preserving order).
+            # We ALSO keep the nested `checkpoint` on each segment in the
+            # output, so the runtime's _buildReadingCheckpointBlock can read
+            # either source.
+            raw_segments = obj.get("segments")
+            segments_out = None
+            seg_derived_cps: list = []
+            if isinstance(raw_segments, list):
+                segments_out = []
+                for s in raw_segments:
+                    if not isinstance(s, dict):
+                        continue
+                    seg_entry = {"text": str(s.get("text") or s.get("html") or "")}
+                    seg_cp_raw = s.get("checkpoint")
+                    if isinstance(seg_cp_raw, dict):
+                        seg_cp_norm = _normalize_reading_checkpoint(seg_cp_raw)
+                        seg_entry["checkpoint"] = seg_cp_norm
+                        seg_derived_cps.append(seg_cp_norm)
+                    segments_out.append(seg_entry)
+
+            # Author-supplied top-level checkpoints take precedence over
+            # segment-derived ones. Only fall back to segment-derived when
+            # top-level is empty/missing — that way explicit authoring isn't
+            # silently overwritten by segment metadata.
+            if top_out_cps:
+                out_cps = top_out_cps
+            else:
+                out_cps = seg_derived_cps
+
             normalized = {
                 "title":       str(obj.get("title") or ""),
                 "passage":     str(obj.get("passage") or ""),
                 "checkpoints": out_cps,
             }
-            # Pass through segment-aware reading fields. When `segments` is
-            # present, the runtime renders an interleaved text→question stream
-            # via these objects (see perfect_homework.html::readingBuildPages).
-            # Legacy fixtures (no segments key) keep the chunker fallback path.
-            raw_segments = obj.get("segments")
-            if isinstance(raw_segments, list):
-                segments_out = [
-                    {"text": str(s.get("text") or s.get("html") or "")}
-                    for s in raw_segments
-                    if isinstance(s, dict)
-                ]
-                if segments_out:
-                    normalized["segments"] = segments_out
+            if segments_out:
+                normalized["segments"] = segments_out
             media = obj.get("media")
             if isinstance(media, dict):
                 normalized["media"] = {

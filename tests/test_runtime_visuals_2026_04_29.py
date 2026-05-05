@@ -329,3 +329,165 @@ def test_rendered_preview_contains_new_affordances(client, sample_homework):
     assert "function msPositionsFor" in body
     # Glyph rules survive
     assert "\\2713" in body and "\\2717" in body
+
+
+# ---------------------------------------------------------------------------
+# 7. Bug #4 — Preview pagination drops metadata-only sub-pages
+# ---------------------------------------------------------------------------
+
+
+def test_preview_pagination_drops_metadata_only_pages():
+    """`_previewChunkPageBlocks` must run a post-pass that merges
+    metadata-only or too-short sub-pages into the previous page so the
+    student never lands on a panel containing just `[Bloom: L3 | PISA: L3]`
+    or a similar tag-line."""
+    html = _runtime()
+    # The post-pass helper must exist and the chunker must call into it.
+    assert "_previewMergeMetadataOnlyPages" in html, (
+        "missing _previewMergeMetadataOnlyPages — Bug #4 post-pass merge "
+        "logic is gone"
+    )
+    # The merge logic must inspect tag-line metadata patterns. Pin the
+    # canonical regex sentinel so a refactor can't silently drop the merge.
+    assert re.search(
+        r"\\\[\(\?:Bloom\|PISA\|Damage\|Tag\|Tags\)",
+        html,
+    ), (
+        "the metadata-only regex (Bloom/PISA/Damage/Tags) must be present "
+        "in the preview pagination post-pass"
+    )
+    # The threshold pin: a too-short page is ~80 chars or less. Either the
+    # literal 80 or the SHORT_PAGE_THRESHOLD constant must appear so the
+    # regression test catches a future tightening of the threshold.
+    assert "SHORT_PAGE_THRESHOLD" in html, (
+        "SHORT_PAGE_THRESHOLD constant for too-short page detection is "
+        "missing — Bug #4 fix incomplete"
+    )
+
+
+def test_preview_pagination_post_pass_keeps_first_page():
+    """The first page of a panel must not be merged into nothing — even
+    if it's metadata-only, it stays its own page so the panel always has
+    at least one rendered page."""
+    html = _runtime()
+    # The post-pass loop must start at i = 1 so pages[0] is always kept.
+    body_match = re.search(
+        r"function _previewMergeMetadataOnlyPages\([^)]*\)\s*\{[\s\S]*?\n\s{8}\}",
+        html,
+    )
+    assert body_match, "_previewMergeMetadataOnlyPages function body not found"
+    body = body_match.group(0)
+    assert re.search(r"merged\s*=\s*\[\s*pages\[0\]\s*\]", body), (
+        "the post-pass must seed `merged` with pages[0] so the first page "
+        "is never merged away"
+    )
+    assert re.search(r"for\s*\(\s*let\s+i\s*=\s*1\s*;", body), (
+        "the merge loop must start at i = 1 so pages[0] stays untouched"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 8. Bug #5 — Preview Panel dark fade readability
+# ---------------------------------------------------------------------------
+
+
+def test_preview_dark_fade_panel_readable():
+    """The dark-mode override for `.panel-card::after` must use a softer
+    gradient (max alpha <= 0.5) AND/OR a shorter fade height (<= 24px)
+    so Panel 5's bottom-most line of text remains readable through the
+    fade. Pin both — either condition alone is acceptable but together
+    they guarantee a comfortable margin."""
+    html = _runtime()
+    # The dark-theme override block must exist.
+    block = re.search(
+        r'\[data-theme="dark"\]\s*\.panel-card::after\s*\{([^}]+)\}',
+        html,
+    )
+    assert block, (
+        "missing [data-theme=\"dark\"] .panel-card::after override — "
+        "Bug #5 dark fade readability fix is gone"
+    )
+    body = block.group(1)
+    # Height bound: <= 24px. The default light-mode height is 28px.
+    height_match = re.search(r"height\s*:\s*(\d+)\s*px", body)
+    assert height_match, "dark .panel-card::after must define a height"
+    assert int(height_match.group(1)) <= 24, (
+        f"dark fade height is {height_match.group(1)}px — must be <= 24px "
+        "so the fade only covers the very last line, not the full bottom margin"
+    )
+    # Alpha bound: every rgba(...) alpha stop must be <= 0.5 so text
+    # stays at >=70% readable through the gradient.
+    alphas = re.findall(r"rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([0-9.]+)\s*\)", body)
+    assert alphas, "dark .panel-card::after must use rgba() so we can bound the alpha"
+    assert max(float(a) for a in alphas) <= 0.5, (
+        f"dark fade max alpha is {max(float(a) for a in alphas)} — must be "
+        "<= 0.5 so the bottom line of text remains readable"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 9. Bug #6 — Flashcard carousel rapid-click animation guard
+# ---------------------------------------------------------------------------
+
+
+def test_flashcard_switch_has_animation_guard():
+    """`switchCard` must early-return when a horizontal switch is already
+    in flight. Pre-fix: rapid arrow / next-side-card clicks during the
+    transition could leave the center face hidden because a second
+    switch fired before the first cleared its inline opacity:0."""
+    html = _runtime()
+    # The guard variable must exist.
+    assert "state.cardSwitching" in html, (
+        "the state.cardSwitching guard for in-flight horizontal switches "
+        "is missing — Bug #6 fix is gone"
+    )
+    # switchCard must early-return on the guard at entry.
+    switch_card = re.search(
+        r"function switchCard\(newIdx,\s*dir\)\s*\{([\s\S]*?)\n\s{8}\}",
+        html,
+    )
+    assert switch_card, "switchCard function body not found"
+    fn_body = switch_card.group(1)
+    assert re.search(
+        r"if\s*\(\s*state\.cardSwitching\s*\)\s*return",
+        fn_body,
+    ), (
+        "switchCard must early-return on state.cardSwitching at entry so "
+        "rapid clicks queue at most one switch in flight"
+    )
+    # Side-card click handlers must check the guard too.
+    setup = re.search(
+        r"function setupFlashcardCarouselControls\(\)\s*\{([\s\S]*?)\n\s{8}\}",
+        html,
+    )
+    assert setup, "setupFlashcardCarouselControls function body not found"
+    setup_body = setup.group(1)
+    assert "state.cardSwitching" in setup_body, (
+        "setupFlashcardCarouselControls click handlers must consult "
+        "state.cardSwitching so side-card taps respect the guard"
+    )
+
+
+def test_flashcard_switch_releases_guard_via_transitionend_or_timeout():
+    """The guard must be cleared by EITHER a transitionend handler OR a
+    safety setTimeout fallback — never just one (the user's tab might
+    lose focus and skip transitionend)."""
+    html = _runtime()
+    switch_card = re.search(
+        r"function switchCard\(newIdx,\s*dir\)\s*\{([\s\S]*?)\n\s{8}\}",
+        html,
+    )
+    assert switch_card
+    fn_body = switch_card.group(1)
+    # Two release paths: transitionend listener AND a setTimeout fallback.
+    assert "transitionend" in fn_body, (
+        "switchCard must wire a transitionend listener for the guard release"
+    )
+    # The safety fallback is a setTimeout that calls releaseGuard or directly
+    # clears state.cardSwitching. Pin "releaseGuard" so the two paths share
+    # one idempotent clear.
+    assert "releaseGuard" in fn_body, (
+        "switchCard must define a releaseGuard helper that both the "
+        "transitionend handler and the safety setTimeout call into"
+    )
+
