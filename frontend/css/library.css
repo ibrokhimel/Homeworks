@@ -246,7 +246,14 @@ body[data-page="library"] h3 { letter-spacing: -.02em; font-size: 18px; }
     gap: 14px;
 }
 
-/* ---------- Subject tile (compact + expanded states share this) ---------- */
+/* ---------- Subject tile (compact + expanded states share this) ----------
+   Tile is an <article role="button" tabindex="0"> — not a real <button> —
+   because expanded markup nests <button>s (close, grade chips) and <a>s
+   (homework cards), which would be invalid inside a real <button>. The
+   rules below ensure the article still feels like a button: pointer
+   cursor, left-aligned text, full-width block, inherited font, and a
+   :focus-visible outline. Without these, the article would default to
+   text-cursor + block layout with no focus ring. */
 .subject-tile {
     position: relative;
     min-height: 150px;

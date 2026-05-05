@@ -278,9 +278,15 @@
     const name = subjectDisplayName(subjectId);
     const ariaLabel = t("library.subject_open_label", "Open {name}").replace("{name}", name);
 
-    const tile = document.createElement("button");
-    tile.type = "button";
+    // The tile uses <article role="button"> instead of <button> because
+    // the expanded state nests <button> (close, grade chips) and <a>
+    // (homework cards) inside it — a real <button> would produce invalid
+    // HTML5 (interactive content inside interactive content), which
+    // misroutes screen reader focus and breaks keyboard nav.
+    const tile = document.createElement("article");
     tile.className = "subject-tile";
+    tile.setAttribute("role", "button");
+    tile.setAttribute("tabindex", "0");
     tile.style.setProperty("--accent", accent);
     tile.style.setProperty("--accent-hover", shade(accent, -12));
     tile.style.setProperty("--accent-glow", hexToRgba(accent, 0.28));
@@ -302,6 +308,17 @@
       ev.stopPropagation();
       expandSubject(tile, subjectId);
     };
+    // Manual keyboard activation — <article role="button"> doesn't get
+    // Enter/Space activation for free the way <button> does.
+    tile.addEventListener("keydown", (ev) => {
+      if (tile.classList.contains("is-expanded")) return;
+      if (ev.key === "Enter" || ev.key === " ") {
+        // preventDefault on Space stops the page from scrolling.
+        ev.preventDefault();
+        ev.stopPropagation();
+        expandSubject(tile, subjectId);
+      }
+    });
   }
 
   function renderTiles(groups) {
@@ -684,12 +701,40 @@
   }
 
   if (searchInput) {
-    searchInput.addEventListener("input", () => onFilterChange(true));
+    searchInput.addEventListener("input", () => {
+      // LIB-3: Treat an empty input value as an implicit "clear filters"
+      // signal so the inline X (data-search-clear, dispatched by
+      // search-box.js) has the same semantics as the page-level Clear
+      // button — otherwise users would see language/grade chips stay
+      // active even though the search query was cleared.
+      if (searchInput.value === "") {
+        if (state.language || Object.keys(state.gradeBySubject).length) {
+          state.language = "";
+          state.gradeBySubject = {};
+          persist();
+          syncLangChipUi();
+        }
+      }
+      onFilterChange(true);
+    });
   }
 
   if (clearBtn) {
     clearBtn.addEventListener("click", () => {
-      if (searchInput) searchInput.value = "";
+      if (searchInput) {
+        searchInput.value = "";
+        // LIB-2: Dispatch a synthetic input event so search-box.js's
+        // syncFilled re-runs and removes the .is-filled class (the X
+        // icon would otherwise stay visible after the clear). The
+        // empty-value branch in our own input listener is a no-op
+        // here because we reset language/gradeBySubject just below
+        // anyway.
+        searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+        // Belt-and-suspenders: strip .is-filled directly from the
+        // wrapper in case search-box.js failed to load.
+        const box = searchInput.closest(".search-box");
+        if (box) box.classList.remove("is-filled");
+      }
       state.language = "";
       state.gradeBySubject = {};
       persist();
