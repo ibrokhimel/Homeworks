@@ -64,6 +64,7 @@ Every question tagged: `[Bloom: LX | PISA: LX | Damage: -XX HP]`
 
 ## Rules
 
+- Numbering: questions are pre-numbered 1–6 by the system. Do not renumber mid-stream.
 - 4-6 questions, 40/40/20 distribution
 - THIS chapter content only
 - Every question tagged Bloom + PISA + Damage

@@ -124,6 +124,7 @@ If student HP reaches 0 before all questions correct:
 
 ## Rules
 
+- **Numbering:** questions are pre-numbered 1–6 by the system. Do not renumber mid-stream.
 - **Exactly 5 questions** with 40/40/20 distribution (2 Easy + 2 Medium + 1 Hard).
 - **G5–G11: no multiple choice.** Open response only.
 - **≥1 primary source analysis question** required for History.

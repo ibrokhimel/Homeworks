@@ -129,6 +129,10 @@ End with BOST goal prompt: "Bugun [actual topic name] haqida nimani bilmoqchisiz
   - BAD: a generic schoolroom SVG dropped into a Word→Structure panel about past simple.
   - GOOD: a timeline SVG with a single tick on the past axis labeled "yesterday" and an arrow to "She went" beneath it, paired to the past-simple panel.
 
+### Diagrams & numbering rules
+- For diagrams, use a `{type: "svg", html: ...}` block — never put SVG markup inside a `p` block.
+- Never emit prose like `[SVG: description]` — only real `<svg>...</svg>` markup.
+- Numbering lock: panels are numbered 1–N by the system. Do not renumber. Reorder content via titles, not IDs.
 
 ---
 
@@ -144,7 +148,9 @@ Return valid JSON matching this exact schema:
       "pages": [
         {
           "blocks": [
-            { "type": "p|h2|quote|ul|ol", "text": "string (optional)", "items": ["string (optional)"] }
+            { "type": "p|h2|quote|ul|ol", "text": "string (optional)", "items": ["string (optional)"] },
+            { "type": "svg",   "html": "string (raw <svg>...</svg> markup)" },
+            { "type": "image", "src":  "string (URL or images/img-N.png)", "alt": "string" }
           ]
         }
       ]

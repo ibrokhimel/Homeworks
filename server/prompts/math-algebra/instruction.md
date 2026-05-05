@@ -43,5 +43,5 @@ Before outputting, check:
 - [ ] No magic moves — every step explained
 - [ ] Origin credits the actual inventor
 - [ ] No bazaar/village/shopkeeper cliches
-- [ ] Visuals described in brackets where needed
+- [ ] Visuals are actual SVG markup, never prose placeholders like [SVG: ...].
 - [ ] HARD mode: Panel 5 (Word→Formula) teaches extraction, not just shows examples

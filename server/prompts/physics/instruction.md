@@ -43,5 +43,5 @@ Before outputting, check:
 - [ ] No magic moves — every derivation step explained
 - [ ] Origin credits the actual discoverer honestly
 - [ ] No bazaar/village/shopkeeper cliches
-- [ ] Visuals described in brackets where needed
+- [ ] Visuals are actual SVG markup, never prose placeholders like [SVG: ...].
 - [ ] HARD mode: Panel 5 (Phenomenon→Formula) teaches how to extract physics data from real situations
