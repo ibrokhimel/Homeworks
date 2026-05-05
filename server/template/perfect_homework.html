@@ -904,6 +904,19 @@
         }
         .panel-card.has-overflow::after { opacity: 0.85; }
 
+        /* Bug #5 — Preview panel dark fade readability fix.
+           In dark mode the default `linear-gradient(transparent, var(--surface))`
+           uses the opaque dark slate (`rgba(15,23,42,0.78)`) and swallows the
+           bottom line of text into an unreadable smudge on long Panel 5
+           content. Soften it here: a shorter (16px) fade with a low max alpha
+           (0.45) keeps the "more below" hint visible while letting the
+           bottom-most line render at >=70% opacity through the gradient. */
+        [data-theme="dark"] .panel-card::after {
+            height: 16px;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.45) 100%);
+        }
+        [data-theme="dark"] .panel-card.has-overflow::after { opacity: 0.7; }
+
         .page {
             position: absolute;
             top: 0;
@@ -9829,7 +9842,61 @@
                 acc += h;
             }
             if (current.length) out.push(current);
-            return out.length ? out : [[]];
+            // Bug #4 post-pass: merge metadata-only sub-page or too-short
+            // trailing chunks into the previous page so the student never
+            // lands on a panel containing just `[Bloom: L3 | PISA: L3]` or
+            // a similarly tiny tag-line. Only the FIRST page is exempt
+            // (no previous page to merge into).
+            return _previewMergeMetadataOnlyPages(out.length ? out : [[]]);
+        }
+
+        // Post-pass for the preview chunker — merge metadata-only sub-page
+        // and too-short pages into their predecessor. "Metadata-only" means
+        // a page whose visible text matches a tag-line regex like
+        // `[Bloom: L3 | PISA: L3]`. "Too-short" means the page renders fewer
+        // than ~80 visible characters and is not the first page of the panel.
+        function _previewMergeMetadataOnlyPages(pages) {
+            if (!Array.isArray(pages) || pages.length <= 1) return pages;
+            const TAG_LINE_RE = /^\[(?:Bloom|PISA|Damage|Tag|Tags)\b[^\]]*\]\s*$/i;
+            const SHORT_PAGE_THRESHOLD = 80;
+            const visibleText = (block) => {
+                if (!block || !block.type) return '';
+                if (block.type === 'ul' || block.type === 'ol') {
+                    return (Array.isArray(block.items) ? block.items : [])
+                        .map(it => String(it || '').replace(/<[^>]+>/g, '').trim())
+                        .join(' ').trim();
+                }
+                if (block.type === 'image' || block.type === 'svg' || block.type === 'diagram') {
+                    // Visual blocks aren't metadata-only — keep them on their own page.
+                    return 'X'.repeat(SHORT_PAGE_THRESHOLD + 1);
+                }
+                return String(block.text || '').replace(/<[^>]+>/g, '').trim();
+            };
+            const pageText = (blocks) => (blocks || [])
+                .map(visibleText).join(' ').trim();
+            const isMetadataOnly = (blocks) => {
+                if (!Array.isArray(blocks) || blocks.length === 0) return true;
+                // All non-empty blocks must be tag-line text.
+                const lines = blocks
+                    .map(visibleText)
+                    .filter(s => s.length > 0);
+                if (lines.length === 0) return true;
+                return lines.every(line => TAG_LINE_RE.test(line));
+            };
+            const merged = [pages[0]];
+            for (let i = 1; i < pages.length; i++) {
+                const prev = merged[merged.length - 1];
+                const curBlocks = pages[i] || [];
+                const visibleLen = pageText(curBlocks).length;
+                if (isMetadataOnly(curBlocks) || visibleLen < SHORT_PAGE_THRESHOLD) {
+                    // Merge into previous page (mutate prev in place to keep
+                    // the same array identity, since callers iterate it).
+                    for (const blk of curBlocks) prev.push(blk);
+                } else {
+                    merged.push(curBlocks);
+                }
+            }
+            return merged;
         }
         function _previewExpandPanelPages(panel, budget) {
             const expanded = [];
@@ -9977,6 +10044,10 @@
             cardFlipped: false,
             hintShown: false,
             isAnimating: false,
+            // Bug #6: in-flight flashcard horizontal-switch guard. switchCard
+            // sets this to true on entry and clears it after the transition
+            // settles (transitionend OR 420ms safety fallback).
+            cardSwitching: false,
             touchStart: null
         };
 
@@ -10738,6 +10809,9 @@
         function handleSwipe(dir) {
             if (state.isAnimating) return;
             if (state.stage === 3) {
+                // Bug #6: also early-return on cardSwitching guard so rapid
+                // horizontal swipes can't queue a second switch mid-transition.
+                if (state.cardSwitching) return;
                 if (dir === 'left') switchCard(getWrappedCardIndex(state.cardIndex + 1), 1);
                 else if (dir === 'right') switchCard(getWrappedCardIndex(state.cardIndex - 1), -1);
                 return;
@@ -10932,7 +11006,15 @@
             document.getElementById('fc-counter-back').textContent = counterText;
             renderFlashcardSides();
 
+            // Bug #6 defensive reset: rapid horizontal switches can leave
+            // inline transform/opacity on fcInner if a previous transition
+            // was interrupted. Clearing them here guarantees the freshly
+            // rendered card paints at its rest position even when the
+            // carousel guard didn't get a clean release.
             fcInner.style.transition = 'none';
+            fcInner.style.transform = '';
+            fcInner.style.opacity = '';
+            fcInner.style.filter = '';
             fcInner.classList.remove('flipped');
             state.cardFlipped = false;
 
@@ -10998,12 +11080,16 @@
         function setupFlashcardCarouselControls() {
             const prevEl = document.getElementById('fc-prev-card');
             const nextEl = document.getElementById('fc-next-card');
+            // Bug #6 guard: state.cardSwitching is the in-flight horizontal
+            // transition guard set inside switchCard. While it's true every
+            // entry point (side-card click, keyboard arrow, swipe) early-
+            // returns so a second switch can't hide the center face mid-fade.
             const rotateToPrev = () => {
-                if (state.stage !== 3 || state.isAnimating) return;
+                if (state.stage !== 3 || state.isAnimating || state.cardSwitching) return;
                 switchCard(getWrappedCardIndex(state.cardIndex - 1), -1);
             };
             const rotateToNext = () => {
-                if (state.stage !== 3 || state.isAnimating) return;
+                if (state.stage !== 3 || state.isAnimating || state.cardSwitching) return;
                 switchCard(getWrappedCardIndex(state.cardIndex + 1), 1);
             };
             if (prevEl) {
@@ -11051,6 +11137,14 @@
         }
 
         function switchCard(newIdx, dir) {
+            // Bug #6: rapid right-arrow / right-side-card clicks during the
+            // transition could leave the center face hidden because a second
+            // switch fired before the first cleared its inline opacity:0.
+            // The state.cardSwitching guard short-circuits any re-entry while
+            // a horizontal switch is in flight; setupFlashcardCarouselControls,
+            // handleSwipe, and dot handlers all early-return when it's true.
+            if (state.cardSwitching) return;
+            state.cardSwitching = true;
             state.isAnimating = true;
             const scene = document.querySelector('.fc-scene');
             if (scene) {
@@ -11065,6 +11159,29 @@
             fcInner.style.transform = `translateX(${dir * -80}px)`;
             fcInner.style.filter = 'blur(10px)';
             fcInner.style.opacity = '0';
+
+            // Two paths to release the guard so it never hangs: (1) a real
+            // transitionend event on fcInner, (2) a 420ms safety timeout
+            // covering the case where transitionend doesn't fire (background
+            // tab, transition cancelled by another inline-style write, etc.).
+            // releaseGuard() is idempotent — both paths can fire safely.
+            let guardReleased = false;
+            const releaseGuard = () => {
+                if (guardReleased) return;
+                guardReleased = true;
+                fcInner.style.transition = '';
+                fcInner.style.transform = '';
+                fcInner.style.filter = '';
+                fcInner.style.opacity = '';
+                // Re-assert flipped face cleared (defensive for the case
+                // where renderFlashcard's reset was skipped or interrupted).
+                fcInner.classList.remove('flipped');
+                state.cardFlipped = false;
+                fcInner.addEventListener('click', handleCardTap, { once: false });
+                if (scene) scene.classList.remove('is-rotating-left', 'is-rotating-right');
+                state.isAnimating = false;
+                state.cardSwitching = false;
+            };
 
             setTimeout(() => {
                 state.cardIndex = newIdx;
@@ -11097,15 +11214,20 @@
                     fcInner.style.opacity = '1';
                 });
 
+                // Listen for the in-transition transitionend; first opacity
+                // event after the slide-in is enough. Then a 420ms fallback
+                // (slightly longer than the 380ms transform duration) covers
+                // the case where transitionend never fires.
+                const onEnd = (e) => {
+                    if (e && e.target !== fcInner) return;
+                    fcInner.removeEventListener('transitionend', onEnd);
+                    releaseGuard();
+                };
+                fcInner.addEventListener('transitionend', onEnd);
                 setTimeout(() => {
-                    fcInner.style.transition = '';
-                    fcInner.style.transform = '';
-                    fcInner.style.filter = '';
-                    fcInner.style.opacity = '';
-                    fcInner.addEventListener('click', handleCardTap, { once: false });
-                    if (scene) scene.classList.remove('is-rotating-left', 'is-rotating-right');
-                    state.isAnimating = false;
-                }, 380);
+                    fcInner.removeEventListener('transitionend', onEnd);
+                    releaseGuard();
+                }, 420);
             }, 360);
         }
 
@@ -17239,14 +17361,20 @@ Prezident ertaga hisobot kutmoqda.`,
 
         function readingBuildPages(rawPassage, segments) {
             // New segment-aware path: explicit segments[] from content_json.
-            // Each segment becomes two pages — the text segment, then its checkpoint.
-            // Total page count = 2 * segments.length, alternating text → question.
+            // When a segment carries a checkpoint, emit ONE combined page that
+            // shows the passage text on top with the question + input + check
+            // button + feedback area directly below it. When the segment has
+            // no checkpoint, emit a text-only page (legacy behavior).
             if (Array.isArray(segments) && segments.length) {
                 const pages = [];
                 segments.forEach((seg, i) => {
                     const segText = (seg && (seg.text || seg.html)) ? String(seg.text || seg.html) : '';
-                    pages.push({ kind: 'text', html: segText });
-                    pages.push({ kind: 'question', cpIndex: i });
+                    const hasCheckpoint = !!(seg && seg.checkpoint);
+                    if (hasCheckpoint) {
+                        pages.push({ kind: 'segment_with_question', html: segText, cpIndex: i });
+                    } else {
+                        pages.push({ kind: 'text', html: segText });
+                    }
                 });
                 return pages;
             }
@@ -17304,7 +17432,8 @@ Prezident ertaga hisobot kutmoqda.`,
             // pages show it when the page has any unanswered geometric checkpoint.
             let pageNeedsAnswer = false;
             const currentPage = readingState.pages[readingState.page] || { kind: 'text' };
-            if (currentPage.kind === 'question' && typeof currentPage.cpIndex === 'number') {
+            if ((currentPage.kind === 'question' || currentPage.kind === 'segment_with_question')
+                && typeof currentPage.cpIndex === 'number') {
                 pageNeedsAnswer = !readingState.answered[currentPage.cpIndex];
             } else if (currentPage.kind === 'legacy') {
                 const idxs = checkpoints
@@ -17538,6 +17667,17 @@ Prezident ertaga hisobot kutmoqda.`,
                     passage.className = 'screen-reading-passage';
                     passage.innerHTML = page.html || '';
                     panelEl.appendChild(passage);
+                } else if (page.kind === 'segment_with_question') {
+                    // Combined page: passage text on top, checkpoint UI below
+                    // — same .wave2-slide-page wraps both. Calls into the
+                    // existing _buildReadingCheckpointBlock to avoid duplicating
+                    // the question/input/feedback logic.
+                    const cpIdx = page.cpIndex;
+                    const passage = document.createElement('div');
+                    passage.className = 'screen-reading-passage';
+                    passage.innerHTML = page.html || '';
+                    panelEl.appendChild(passage);
+                    panelEl.appendChild(_buildReadingCheckpointBlock(cpIdx, checkpoints[cpIdx], 'segment', readingPassage));
                 } else if (page.kind === 'question') {
                     const cpIdx = page.cpIndex;
                     panelEl.appendChild(_buildReadingCheckpointBlock(cpIdx, checkpoints[cpIdx], 'segment', readingPassage));
@@ -17565,7 +17705,8 @@ Prezident ertaga hisobot kutmoqda.`,
                     // Back-swipe always allowed.
                     if (toIdx < fromIdx) return true;
                     const fromPage = readingState.pages[fromIdx] || { kind: 'text' };
-                    if (fromPage.kind === 'question' && typeof fromPage.cpIndex === 'number') {
+                    if ((fromPage.kind === 'question' || fromPage.kind === 'segment_with_question')
+                        && typeof fromPage.cpIndex === 'number') {
                         if (!readingState.answered[fromPage.cpIndex]) {
                             updateReadingContinueState();
                             return false;

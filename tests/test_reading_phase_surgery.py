@@ -65,11 +65,23 @@ def test_reading_build_pages_accepts_segments_argument():
 
 
 def test_reading_build_pages_emits_alternating_text_question_pages_for_segments():
-    """N segments produce 2N pages alternating kind:'text' → kind:'question'."""
+    """Per Bug #2 — segments with a checkpoint now emit ONE combined
+    `kind:'segment_with_question'` page (passage on top, question below
+    in the same panel) instead of two separate pages.
+
+    Segments without a checkpoint still emit a plain `kind:'text'` page.
+    Either way the cpIndex must be explicit on the page object so the
+    renderer can grab the right checkpoint."""
     body = _slice_function("readingBuildPages")
     assert "Array.isArray(segments) && segments.length" in body
     assert "kind: 'text'" in body
-    assert "kind: 'question', cpIndex: i" in body, (
+    # Combined page kind for segment-with-checkpoint, with an explicit
+    # cpIndex so the renderer knows which checkpoint belongs to which page.
+    assert "kind: 'segment_with_question'" in body, (
+        "segments with a checkpoint must emit a combined "
+        "kind:'segment_with_question' page (Bug #2 fix)"
+    )
+    assert "cpIndex: i" in body, (
         "each segment's checkpoint panel must reference its index explicitly so "
         "the renderer knows which checkpoint goes on which page"
     )
