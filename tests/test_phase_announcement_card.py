@@ -116,6 +116,137 @@ def test_gb_advance_from_game_plays_announcement_before_transition():
     )
 
 
+def test_gb_advance_from_game_fades_previous_panel_before_announcement():
+    """Timing fix (2026-05-06): the previous sub-game panel must visually
+    close BEFORE the announcement card appears.
+
+    Pre-fix flow: `playPhaseAnnouncement(...)` fired immediately while
+    `currentPanelId` was still `.active` and fully opaque, so the next
+    phase name was overlaid on the still-visible previous panel —
+    students saw two phases at once. The fix sets the from-panel's
+    opacity to 0 (and adds a blur) *before* the announcement, then runs
+    the announcement inside a setTimeout/proceed callback so the fade
+    has time to play.
+
+    Pin in source: opacity-0 write must precede the playPhaseAnnouncement
+    call, AND the playPhaseAnnouncement call must live inside a
+    `proceed`/setTimeout block that runs after the fade transition.
+    """
+    body = _slice_function("gbAdvanceFromGame")
+    fade_pos = body.find("fromPanel.style.opacity = '0'")
+    pa_pos = body.find("playPhaseAnnouncement(next.labelKey")
+    proceed_pos = body.find("const proceed = ()")
+    settimeout_pos = body.find("setTimeout(proceed")
+    assert 0 < fade_pos, (
+        "gbAdvanceFromGame must set the from-panel's opacity to 0 to fade "
+        "the previous game out before the announcement card appears"
+    )
+    assert 0 < proceed_pos < fade_pos, (
+        "the `proceed` deferral closure must be declared before the "
+        "fade-out write so the announcement is queued behind the fade"
+    )
+    assert 0 < proceed_pos < pa_pos, (
+        "playPhaseAnnouncement must live inside the deferred `proceed` "
+        "closure, not at the top level of gbAdvanceFromGame"
+    )
+    assert 0 < fade_pos < settimeout_pos, (
+        "setTimeout(proceed, ...) must come AFTER the from-panel fade "
+        "writes so the fade has actually started before the timer arms"
+    )
+
+
+def test_rlc_stage6_holds_screen_invisible_during_announcement():
+    """Timing fix (2026-05-06): startRLCStage6 must keep #rlc-screen
+    invisible while the phase.real_life announcement plays.
+
+    Pre-fix: `rlcScreen.classList.add('active')` made the screen visible,
+    then `playPhaseAnnouncement` fired immediately so any previously-
+    rendered step content showed through behind the card. Mirror the
+    startStage6 / showConsolidationScreen pattern: opacity 0 before the
+    announcement, opacity 1 inside the onDone callback.
+    """
+    body = _slice_function("startRLCStage6")
+    if "playPhaseAnnouncement" not in body:
+        # If the path is gated and never calls the announcement, nothing
+        # to assert — the bug can't manifest.
+        return
+    pa_pos = body.find("playPhaseAnnouncement('phase.real_life'")
+    hide_pos = body.find("rlcScreen.style.opacity = '0'")
+    reveal_pos = body.find("rlcScreen.style.opacity = '1'")
+    assert 0 < hide_pos < pa_pos, (
+        "startRLCStage6 must set #rlc-screen opacity to 0 BEFORE "
+        "playPhaseAnnouncement so the screen content doesn't bleed "
+        "through behind the card"
+    )
+    assert 0 < pa_pos < reveal_pos, (
+        "the rlc-screen reveal (opacity 1) must be inside the "
+        "playPhaseAnnouncement onDone callback, not before it"
+    )
+
+
+def test_announcement_is_not_triggered_from_progress_or_setstage_helpers():
+    """Regression rule: the announcement card must only fire from explicit
+    phase-transition functions, never from progress/state-update helpers.
+
+    Calling `playPhaseAnnouncement` from `setStage`, `updateProgress`,
+    `bumpPhase`, `setPhaseProgress`, `setPhaseRequired`, or `completePhase`
+    would let the card pop in mid-phase whenever any of those bookkeeping
+    helpers fired (e.g. on every flashcard tap, every sprint answer, every
+    sub-game progress write). The card belongs to transition entry points
+    only.
+    """
+    suspect_helpers = [
+        "setStage",
+        "updateProgress",
+        "bumpPhase",
+        "setPhaseProgress",
+        "setPhaseRequired",
+        "completePhase",
+        "completeAllPhases",
+        "updatePhaseProgress",
+    ]
+    for fn_name in suspect_helpers:
+        if f"function {fn_name}(" not in TEMPLATE:
+            continue
+        body = _slice_function(fn_name)
+        assert "playPhaseAnnouncement" not in body, (
+            f"{fn_name}() must NOT call playPhaseAnnouncement — that helper "
+            f"is fired on routine progress/state writes (every keystroke, "
+            f"every flashcard tap, every sprint answer). If the announcement "
+            f"is bound to it, the card will appear mid-phase."
+        )
+
+
+def test_phase_announcement_callers_run_after_screen_deactivation():
+    """Pin the deactivation → announce → activate ordering for the entry-
+    point functions that switch screens (not sub-game panels).
+
+    `startStage6`, `showConsolidationScreen`, `showReflectionScreen` all
+    follow the same template:
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        ... add new screen + opacity:0 hold ...
+        playPhaseAnnouncement(...);
+
+    If `playPhaseAnnouncement` ever runs before the previous screens'
+    `.classList.remove('active')`, the prior phase's content will still
+    be on screen behind the announcement card.
+    """
+    for fn_name, label_key in [
+        ("startStage6",            "'phase.real_life'"),
+        ("showConsolidationScreen", "'phase.consolidation'"),
+        ("showReflectionScreen",    "'phase.reflection'"),
+    ]:
+        body = _slice_function(fn_name)
+        deactivate_pos = body.find(".classList.remove('active')")
+        announce_pos = body.find("playPhaseAnnouncement(" + label_key)
+        assert 0 < deactivate_pos < announce_pos, (
+            f"{fn_name}: previous screens must have `.classList.remove('active')` "
+            f"called BEFORE playPhaseAnnouncement; got deactivate@{deactivate_pos} "
+            f"announce@{announce_pos}. The announcement card must never overlap "
+            f"with unfinished previous-phase content."
+        )
+
+
 # ---- Invariant 3: post-Stage-5 phases trigger the announcement -----------
 
 def test_real_life_phase_plays_announcement():
