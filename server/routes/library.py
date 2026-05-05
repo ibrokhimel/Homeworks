@@ -99,7 +99,12 @@ async def list_library(
 
 @router.get("/facets")
 async def library_facets() -> dict:
-    """Return distinct subject / grade / mode / language values."""
+    """Return distinct subject / grade / mode / language values.
+
+    2026-05 audit: this route is currently called only by external tooling /
+    planned filter UI. The library page renders facets client-side from
+    /api/library results today.
+    """
     db = await connect()
     try:
         cur = await db.execute(
