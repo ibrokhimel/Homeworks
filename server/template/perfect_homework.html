@@ -1412,8 +1412,10 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            box-sizing: border-box;
             width: min(84vw, 460px);
             min-height: 190px;
+            max-height: min(72vh, 360px);
             padding: 28px 24px;
             display: flex;
             align-items: center;
@@ -1433,12 +1435,29 @@
             opacity: 1;
         }
         .phase-intro-text {
-            font-size: 22px;
+            font-size: clamp(17px, 5.4vw, 22px);
             font-weight: 700;
-            line-height: 1.45;
+            line-height: 1.4;
             color: var(--accent);
             text-shadow: 0 0 15px var(--accent-glow);
             text-align: center;
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            hyphens: auto;
+        }
+        @media (max-width: 480px) {
+            .phase-intro-card {
+                padding: 22px 18px;
+                min-height: 170px;
+                border-radius: 24px;
+            }
+        }
+        @media (max-width: 370px) {
+            .phase-intro-card {
+                padding: 18px 14px;
+                min-height: 150px;
+            }
         }
 
         .ms-phase-anchor {
@@ -6652,6 +6671,18 @@
             background: rgba(239, 68, 68, 0.20);
             color: #fca5a5;
             border-color: rgba(239, 68, 68, 0.45);
+        }
+        /* Tier headline overrides — light hex (#2d7a2f / #b3791f / #a02020)
+           reads muddy on the slate dark surface; brighten to match the
+           palette used by .aq-status-pill and .aq-result-box above. */
+        [data-theme="dark"] .aq-tier-headline.tier-easy {
+            color: #86efac;
+        }
+        [data-theme="dark"] .aq-tier-headline.tier-medium {
+            color: #fcd34d;
+        }
+        [data-theme="dark"] .aq-tier-headline.tier-hard {
+            color: #fca5a5;
         }
 
         /* Why Chain (game break) ----------------------------------- */
