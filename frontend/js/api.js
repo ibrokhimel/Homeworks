@@ -408,22 +408,11 @@
       return buildUrl(`/api/homeworks/${encodeId(id)}/preview`);
     },
 
-    createSession({ homework_id, student_name }) {
-      return request("/api/sessions", {
-        method: "POST",
-        body: { homework_id, student_name },
-      });
-    },
-
-    submitSessionResponse(id, body) {
-      return request(`/api/sessions/${encodeId(id)}/response`, {
-        method: "POST",
-        body,
-      });
-    },
-
-    getSession(id) {
-      return request(`/api/sessions/${encodeId(id)}`);
-    },
+    // (Removed in 2026-05 audit) createSession / submitSessionResponse /
+    // getSession used to point at the /api/sessions namespace — those
+    // routes never existed in the FastAPI app and the methods had zero
+    // callers. Per-student session state is tracked in the runtime via
+    // window.__sessionLog + grading aggregation (POST /api/grading/aggregate).
+    // Restore from git history if a real session backend is added.
   };
 })();
