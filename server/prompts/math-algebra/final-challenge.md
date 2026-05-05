@@ -86,6 +86,7 @@ Show WHY the correct answer is correct. Route back to relevant concept.
 
 ## Rules
 
+- Numbering: questions are pre-numbered 1–6 by the system. Do not renumber mid-stream.
 - 4-6 questions, distribution 40/40/20 (easy/medium/hard)
 - All questions from THIS chapter's content only
 - Every question tagged with Bloom + PISA + Damage

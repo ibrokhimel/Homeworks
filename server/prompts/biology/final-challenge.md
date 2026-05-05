@@ -103,6 +103,7 @@ Place the SVG directly inside the question it belongs to. Keep under 300×200px.
 
 ## Rules
 
+- Numbering: questions are pre-numbered 1–6 by the system. Do not renumber mid-stream.
 - 4-6 questions, 40/40/20 distribution
 - THIS chapter content only — no concepts from outside the session
 - Every question tagged Bloom + PISA + Damage

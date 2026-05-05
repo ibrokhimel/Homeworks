@@ -106,6 +106,7 @@ Show WHY the correct answer is correct. Route back to the relevant Preview card.
 
 ## Rules
 
+- Numbering: questions are pre-numbered 1–6 by the system. Do not renumber mid-stream.
 - Question count and HP from level table. Grade HP override applies (take higher value).
 - Distribution 40/40/20 (easy/medium/hard)
 - All questions from THIS unit's content only
