@@ -11764,22 +11764,39 @@
             const next = order[idx + 1];
             gbState.subGame = next.sub;
             gbUpdateProgress(idx + 1);
-            // Bug #6: announcement card MUST appear before the next panel
-            // becomes visible. Order: previous panel still on screen → card
-            // overlays it with the next game's name → card fades → THEN
-            // gbTransition slides the new panel in → init runs.
-            playPhaseAnnouncement(next.labelKey || ('game.' + next.id), () => {
-                gbTransition(currentPanelId, next.panel, () => {
-                    next.init();
-                    if (next.setupBtn) {
-                        next.setupBtn();
-                    } else {
-                        btn.classList.remove('pulse','state-pill','state-line');
-                        btn.classList.add('state-line');
-                        if (btnText) btnText.style.opacity = '0';
-                    }
+            // Timing fix: the previous sub-game panel must visually close
+            // BEFORE the announcement card appears. The pre-fix flow showed
+            // the next-phase name overlaying the still-active previous
+            // panel — students saw two phases at once. Mirrors the
+            // startStage6 / showConsolidationScreen pattern: fade out the
+            // outgoing content first, THEN announce, THEN slide the new
+            // panel in. Inner ordering remains playPhaseAnnouncement first,
+            // then gbTransition, then the next game's init (the
+            // test_gb_advance_from_game_plays_announcement_before_transition
+            // regression test pins this).
+            const fromPanel = document.getElementById(currentPanelId);
+            const proceed = () => {
+                playPhaseAnnouncement(next.labelKey || ('game.' + next.id), () => {
+                    gbTransition(currentPanelId, next.panel, () => {
+                        next.init();
+                        if (next.setupBtn) {
+                            next.setupBtn();
+                        } else {
+                            btn.classList.remove('pulse','state-pill','state-line');
+                            btn.classList.add('state-line');
+                            if (btnText) btnText.style.opacity = '0';
+                        }
+                    });
                 });
-            });
+            };
+            if (fromPanel) {
+                fromPanel.style.transition = 'opacity 280ms ease, filter 280ms ease';
+                fromPanel.style.opacity = '0';
+                fromPanel.style.filter = 'blur(6px)';
+                setTimeout(proceed, 290);
+            } else {
+                proceed();
+            }
         }
 
         function startStage5() {
@@ -13661,10 +13678,19 @@
                 }
             }
             if (typeof setPhaseRequired === 'function') setPhaseRequired('realLife', 5);
+            // Timing fix: hold rlc-screen invisible during the announcement
+            // (mirrors startStage6 / showConsolidationScreen). The screen is
+            // already .active above, so without the opacity-0 hold any
+            // pre-rendered step content shows through behind the card.
+            if (rlcScreen) { rlcScreen.style.transition = 'none'; rlcScreen.style.opacity = '0'; }
             // Match TM/RL pattern: announce phase, then init.
             if (typeof playPhaseAnnouncement === 'function') {
-                playPhaseAnnouncement('phase.real_life', function () { rlcInit(); });
+                playPhaseAnnouncement('phase.real_life', function () {
+                    if (rlcScreen) { rlcScreen.style.transition = 'opacity 300ms ease'; rlcScreen.style.opacity = '1'; }
+                    rlcInit();
+                });
             } else {
+                if (rlcScreen) { rlcScreen.style.transition = ''; rlcScreen.style.opacity = ''; }
                 rlcInit();
             }
         }
