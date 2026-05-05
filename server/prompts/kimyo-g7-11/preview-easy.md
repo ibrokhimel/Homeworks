@@ -117,6 +117,10 @@ Roles to choose from: kimyogar (chemist), farmatsevt (pharmacist), ekolog (envir
 - **Panel 4 must include a comparison strip** for classification chapters — showing the substance alongside boundary cases.
 - Three-Scale FIRST rule: show the three-scale description before the written explanation in every panel.
 
+### Diagrams & numbering rules
+- For diagrams, use a `{type: "svg", html: ...}` block — never put SVG markup inside a `p` block.
+- Never emit prose like `[SVG: description]` — only real `<svg>...</svg>` markup.
+- Numbering lock: panels are numbered 1–N by the system. Do not renumber. Reorder content via titles, not IDs.
 
 ---
 
@@ -132,7 +136,9 @@ Return valid JSON matching this exact schema:
       "pages": [
         {
           "blocks": [
-            { "type": "p|h2|quote|ul|ol", "text": "string (optional)", "items": ["string (optional)"] }
+            { "type": "p|h2|quote|ul|ol", "text": "string (optional)", "items": ["string (optional)"] },
+            { "type": "svg",   "html": "string (raw <svg>...</svg> markup)" },
+            { "type": "image", "src":  "string (URL or images/img-N.png)", "alt": "string" }
           ]
         }
       ]

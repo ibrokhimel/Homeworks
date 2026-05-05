@@ -119,6 +119,10 @@ End with BOST goal: "Bugun [actual topic] haqida nimani bilmoqchisiz?" — store
 - Visuals: Generate actual SVG code inline where diagrams are needed. Priority: SVG > Mermaid > ASCII. Use SVG for: cell diagrams, organ structures, organism body plans, lifecycle stages, food web arrows, classification trees, process flow (e.g., photosynthesis inputs/outputs), comparative anatomy. Use Mermaid for: taxonomic hierarchies, multi-step process flowcharts. Keep SVGs under 300×200px, legible on mobile. Place SVG immediately after the text it illustrates.
 - Bidirectional: at least one example goes observation → mechanism; at least one example goes mechanism → prediction.
 
+### Diagrams & numbering rules
+- For diagrams, use a `{type: "svg", html: ...}` block — never put SVG markup inside a `p` block.
+- Never emit prose like `[SVG: description]` — only real `<svg>...</svg>` markup.
+- Numbering lock: panels are numbered 1–N by the system. Do not renumber. Reorder content via titles, not IDs.
 
 ---
 
@@ -134,7 +138,9 @@ Return valid JSON matching this exact schema:
       "pages": [
         {
           "blocks": [
-            { "type": "p|h2|quote|ul|ol", "text": "string (optional)", "items": ["string (optional)"] }
+            { "type": "p|h2|quote|ul|ol", "text": "string (optional)", "items": ["string (optional)"] },
+            { "type": "svg",   "html": "string (raw <svg>...</svg> markup)" },
+            { "type": "image", "src":  "string (URL or images/img-N.png)", "alt": "string" }
           ]
         }
       ]

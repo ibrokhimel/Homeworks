@@ -170,6 +170,10 @@ End with BOST goal prompt: "Bugun [actual reaction type or substance class] haqi
 - **Panel 4 must use progressive scale states** — reasoning built step by step, not shown as finished answer.
 - Balancing error shown in red (minimum once in Panel 4) to train coefficient vs. subscript discipline.
 
+### Diagrams & numbering rules
+- For diagrams, use a `{type: "svg", html: ...}` block — never put SVG markup inside a `p` block.
+- Never emit prose like `[SVG: description]` — only real `<svg>...</svg>` markup.
+- Numbering lock: panels are numbered 1–N by the system. Do not renumber. Reorder content via titles, not IDs.
 
 ---
 
@@ -185,7 +189,9 @@ Return valid JSON matching this exact schema:
       "pages": [
         {
           "blocks": [
-            { "type": "p|h2|quote|ul|ol", "text": "string (optional)", "items": ["string (optional)"] }
+            { "type": "p|h2|quote|ul|ol", "text": "string (optional)", "items": ["string (optional)"] },
+            { "type": "svg",   "html": "string (raw <svg>...</svg> markup)" },
+            { "type": "image", "src":  "string (URL or images/img-N.png)", "alt": "string" }
           ]
         }
       ]
