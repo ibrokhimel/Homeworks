@@ -73,9 +73,31 @@ Every question tagged: `[Bloom: LX | PISA: LX | Damage: -XX HP]`
 ## Hint Ladder
 
 If student is stuck:
-- Hint 1: -5 HP. Remind which formula to use.
-- Hint 2: -5 HP. Show the first step.
-- Hint 3: -5 HP. Show setup, student completes the calculation.
+- **Hint 1: -5 HP.** Name the formula, theorem, or technique that applies — never the answer or any intermediate value.
+- **Hint 2: -5 HP.** Show the substituted formula or the first transformation — never the solved equation.
+- **Hint 3: -5 HP.** Show the setup frame with the student-facing operation still missing (e.g. `x² + ?x + ? = 0 → (x + p)(x + q) = 0; find p, q`). Even at Hint 3, the literal numeric or symbolic answer never appears.
+
+**Anti-leak rules (apply at every level):**
+- Hint must never quote the model answer (numeric value, expression, or final form) verbatim or in any algebraically-equivalent reduced form.
+- Hint must never collapse the work to a single substitution — for "Yeching: x² = 64" the hint cannot be "x = ±8" or "√64 = 8".
+- Hint must teach toward the answer (formula, identity, technique, Vieta pair, factoring frame) — not deliver it.
+- Hint must never name the correct option for any sub-choice in a multi-part question.
+
+**Hint format (single-string encoding):**
+The injector splits the `hint` field by newline, `|`, or `•` into up to 3 ladder stages. Encode all three levels in one string, joined by ` | `:
+> Hint 1 text | Hint 2 text | Hint 3 text
+
+If you provide fewer than 3 stages, the last one is duplicated to fill — which means a single answer-leaning hint becomes EVERY level the student sees. Always supply exactly 3.
+
+**BAD / GOOD (for "Yeching: x² + 7x + 12 = 0"):**
+- BAD Hint 1: "x = -3 yoki x = -4" (literal answer)
+- BAD Hint 2: "(x+3)(x+4) = 0" (factored form gives both roots)
+- BAD Hint 3: "x = -3, x = -4" (literal answer at the end)
+- GOOD: "Vieta teoremasini eslang — kvadrat tenglamada ildizlar yig'indisi va ko'paytmasi koeffitsientlardan kelib chiqadi | Yig'indisi 7, ko'paytmasi 12 bo'lgan ikki sonni qidiring (ishoralarga e'tibor bering) | (x + p)(x + q) = 0 ko'rinishida yozing — p va q ni shu shartdan o'zingiz toping"
+
+**BAD / GOOD (for "x² = 64"):**
+- BAD Hint 3: "x = ±8" (literal answer)
+- GOOD Hint 3: "Ikkala tomondan kvadrat ildiz olganda ± belgisini unutmang — natija qaysi sonning kvadrat ildizidir?"
 
 ## Failure Response
 

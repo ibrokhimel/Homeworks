@@ -106,6 +106,26 @@ Include a **Sana qarmogʻi (date hook)** inline with the Xotira tasviri when a f
 
 ---
 
+## Hint (Xotira tasviri) — anti-leak rules
+
+The `hint` field carries the Xotira tasviri (memory image) and renders on the back of the card as a "Tip" pill (the runtime injector maps it to `back.hook`). It is a memory technique — never the answer.
+
+**Hint rules (hard constraints):**
+- Hint must never expose the back-side fact (date, name, dynasty, or treaty) verbatim — those ARE the facts the card is teaching.
+- Hint cannot repeat the front-side term word-for-word or as an inflected form.
+- Hint cannot translate the term/back side into Uzbek, Russian, English, or any other language when translation reveals the answer.
+- Hint must be a memory technique — sound-chain (Tovush zanjiri), image-link, story-link, place memory — not a paraphrase of the answer.
+- Length: ≤2 sentences.
+- If no honest non-spoiler Xotira tasviri exists for a card, omit the `hint` field entirely.
+
+**BAD / GOOD (for "Mustaqillik kuni" / "1991-yil 1-sentyabr"):**
+- BAD: "1-sentyabr 1991" (literal date)
+- BAD: "1991-yilning sentyabr oyida" (paraphrases the date)
+- GOOD: "Tovush zanjiri: birinchi qo'ng'iroq → bayroq darsi → birinchi mustaqil yil. 'Birinchi' so'zi uch joyda — sana kuni va oyiga ham ishora qiladi."
+
+
+---
+
 ## OUTPUT REQUIREMENT
 Return valid JSON matching this exact schema:
 ```json

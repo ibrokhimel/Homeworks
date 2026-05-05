@@ -97,6 +97,23 @@ Example hint sequence for a SAS proof question:
 > Hint 2: `[State 2: one tick on AB=DE (blue), arc at ∠B=∠E (blue), one tick on BC=EF (blue). Orange question mark on conclusion.]` — "Barcha belgilar ko'rsatildi. Qaysi teorema?"
 > Hint 3: `[State 2 diagram] + "1-qadam: AB = DE (berilgan). Keyingi qadamni davom eting."`
 
+**Anti-leak rules (apply at every level):**
+- Hint must never name the theorem (SAS, ASA, AAS, SSS) until the student has named it themselves — Hints 1 and 2 reveal the marked diagram only.
+- Hint must never quote the model answer (numeric length, angle measure, theorem name) verbatim or in any algebraically-equivalent reduced form.
+- Hint must never collapse the proof to a single deduction — at Hint 3 the student still has remaining steps to write.
+- Hint must teach toward the answer (which marks to read, what the marks mean, what the first proof line should set up) — not deliver it.
+
+**Hint format (single-string encoding):**
+The injector splits the `hint` field by newline, `|`, or `•` into up to 3 ladder stages. Encode the three diagram-state references in one string, joined by ` | `:
+> [State 1 description + question] | [State 2 description + question] | [State 3 description + first proof line]
+
+If fewer than 3 stages are supplied, the last one is duplicated to fill — meaning the most-revealing diagram state becomes the FIRST hint shown. Always supply exactly 3.
+
+**BAD / GOOD (for the SAS proof question above):**
+- BAD Hint 1: "SAS teoremasi" (names the answer)
+- BAD Hint 3: "AB=DE, ∠B=∠E, BC=EF → SAS bo'yicha △ABC ≅ △DEF" (full proof handed over)
+- GOOD: see the example sequence above — diagram state + diagnostic question, theorem name never appears.
+
 ## Failure Response
 
 Wrong answer → "Hali emas!" (never "Noto'g'ri")

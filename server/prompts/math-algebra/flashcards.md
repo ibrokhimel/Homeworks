@@ -51,6 +51,26 @@ That's it.
 
 ---
 
+## Hint (mnemonic, optional)
+
+The `hint` field renders on the back of the card as a "Tip" pill (the runtime injector maps it to `back.hook`). It is a memory aid — never the answer.
+
+**Hint rules (hard constraints):**
+- Hint must never expose the back-side definition or formula verbatim or in any algebraically-equivalent reduced form.
+- Hint cannot repeat the front-side term word-for-word or as an inflected form.
+- Hint cannot translate the term into Uzbek/Russian/English when translation reveals the definition.
+- Hint must be a memory technique (acronym, image, story-link), not a paraphrase of the back side.
+- Length: ≤2 sentences.
+- If no honest non-spoiler mnemonic exists for a card, omit the `hint` field entirely.
+
+**BAD / GOOD (for "Diskriminant" / "D = b² − 4ac"):**
+- BAD: "D = b² − 4ac" (literal back-side formula)
+- BAD: "b kvadrat minus to'rt ac" (translation of the formula)
+- GOOD: "Disko-rapper o'rtada turadi: 'b kvadrat' deb baqirib, '4ac' ni o'chirib soladi — qolgan natija D bo'ladi."
+
+
+---
+
 ## OUTPUT REQUIREMENT
 Return valid JSON matching this exact schema:
 ```json
