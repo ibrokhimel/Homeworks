@@ -35,7 +35,9 @@ The single source of truth for a homework's content. Stored as JSON in SQLite `h
             { "type": "h2",    "text": "string" },
             { "type": "quote", "text": "string" },
             { "type": "ol",    "items": ["string", "..."] },
-            { "type": "ul",    "items": ["string", "..."] }
+            { "type": "ul",    "items": ["string", "..."] },
+            { "type": "svg",   "html": "string (raw <svg>...</svg> markup)" },
+            { "type": "image", "src":  "string (URL or images/img-N.png)", "alt": "string" }
           ]
         }
       ]
