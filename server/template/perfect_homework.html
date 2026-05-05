@@ -12356,6 +12356,12 @@
                 if (aq._autoAdvanceTimer) { clearTimeout(aq._autoAdvanceTimer); aq._autoAdvanceTimer = null; }
                 aq.shown++; gbAQShowNext(); return;
             }
+            // Bug AQ-2 fix: sync gate against fast double-clicks while the
+            // language-subject AI grader is awaiting. Without this gate a
+            // second click would re-enter gbAQAction (aq.answered is still
+            // false because it's only set after the await), fire a second
+            // gbAQAIGrade(...) request, and double-count the attempt.
+            if (aq.busy) return;
             if (!aq.captureOk) {
                 // Surface the missing-upload requirement on the status pill (no
                 // capStatus element anymore). Toast also fires for redundancy.
@@ -12393,9 +12399,21 @@
             // no token cost, deterministic for closed-form numeric answers).
             let isCorrect;
             if (gbIsLanguageSubject()) {
+                // Bug AQ-2 fix: arm the busy gate + visually lock the action
+                // button so a fast second click during the AI-grader await is
+                // bounced at the early-return above. Cleared in the finally
+                // block below (also runs on grader error) so the student can
+                // retry if the network blips.
+                aq.busy = true;
                 if (inp) inp.disabled = true;
-                const result = await gbAQAIGrade(item.q || item.prompt || '', userVal, acceptList);
-                isCorrect = !!result.correct;
+                if (btn) { btn.style.pointerEvents = 'none'; btn.classList.add('is-busy'); }
+                try {
+                    const result = await gbAQAIGrade(item.q || item.prompt || '', userVal, acceptList);
+                    isCorrect = !!result.correct;
+                } finally {
+                    aq.busy = false;
+                    if (btn) { btn.style.pointerEvents = ''; btn.classList.remove('is-busy'); }
+                }
             } else {
                 const userN = norm(userVal);
                 isCorrect = acceptList.some(a => {
@@ -13988,8 +14006,28 @@
         async function rlcHandleAction() {
             if (rlcState.busy) return;
             if (rlcState.complete) {
-                if (typeof setStage === 'function') {
-                    setStage(6.5);
+                // Bug RLC-1 fix: previously this branch only called
+                // setStage(6.5), which is a label-only setter (updates the
+                // progress bar but does NOT navigate). The student was stuck
+                // on the RLC result card forever. Match the legacy
+                // rlShowEndPlaceholder pattern (~L16384) and route through
+                // Consolidation → Boss → Reflection → Results so RLC and
+                // legacy Real-Life paths converge to the same downstream
+                // navigation. completePhase('realLife') is already called
+                // inside rlcRenderResult — we keep a defensive call here in
+                // case rlcState.complete was set without going through that
+                // renderer.
+                if (typeof completePhase === 'function') completePhase('realLife');
+                if (typeof setStage === 'function') setStage(6.5);
+                if (typeof showConsolidationScreen === 'function' && typeof consolidationHasContent === 'function' && consolidationHasContent()) {
+                    showConsolidationScreen(startFinalBoss);
+                } else if (typeof startFinalBoss === 'function') {
+                    startFinalBoss();
+                } else {
+                    // Safety: log a warning so a missing downstream renderer
+                    // is visible in the console rather than silently freezing
+                    // the student on the result card.
+                    console.warn('[rlcHandleAction] complete branch: no downstream navigation available (showConsolidationScreen / startFinalBoss missing)');
                 }
                 return;
             }
@@ -16772,8 +16810,15 @@ Prezident ertaga hisobot kutmoqda.`,
                     axis_1: resp.axis_1,
                     axis_2: resp.axis_2,
                 });
-                // If server overrides damage/HP, mirror them back onto bossState.
+                // Bug FB-1 fix: damageDealt was double-counting. bossApplyCorrect
+                // already added the local `dmg` to bossState.damageDealt; if the
+                // server returns its own authoritative damage, we previously
+                // added serverDamage on top, doubling the total shown on the
+                // result card. Subtract bossState.lastDamage (= the local dmg
+                // bossApplyCorrect just accumulated) before adding serverDamage
+                // so the server value is the single source of truth when present.
                 if (serverDamage !== null) {
+                    bossState.damageDealt -= bossState.lastDamage;
                     bossState.lastDamage = serverDamage;
                     bossState.damageDealt += serverDamage;
                 }
@@ -16891,6 +16936,13 @@ Prezident ertaga hisobot kutmoqda.`,
 
         // FB redesign — render result card on server-signaled `done`. Calls completePhase('boss').
         function bossRenderResult(resp) {
+            // Bug FB-2 fix: arm bossState.done so the guard at the top of
+            // bossHandleAction (`if (state.isAnimating || bossState.done) return;`)
+            // actually fires post-result. Without this, qIndex would keep
+            // incrementing on subsequent clicks and bossEnd(false) would be
+            // called even though the student WON the boss. Set early so it
+            // applies even if any of the DOM lookups below short-circuit.
+            bossState.done = true;
             bossState.outcome = resp && resp.outcome ? resp.outcome : 'passing';
             bossState.stars = (resp && typeof resp.stars === 'number') ? resp.stars : 0;
             bossState.outcomeXp = (resp && typeof resp.outcome_xp === 'number') ? resp.outcome_xp : 0;
@@ -17013,7 +17065,23 @@ Prezident ertaga hisobot kutmoqda.`,
 
         // FB redesign — async + server-only grading via bossSubmitAnswer.
         async function bossHandleAction() {
-            if (state.isAnimating || bossState.done) return;
+            if (state.isAnimating) return;
+            // Bug FB-2 fix: when bossState.done is true (server-signaled
+            // end-of-boss; result card is showing) clicking the action
+            // button must route forward to the same downstream phase that
+            // bossEnd(victory) uses — setStage(7.5) → showResultsScreen
+            // (per L17134-17141). Previously this branch silently returned,
+            // dead-ending the student on the boss-result card with a
+            // looking-but-not-working Next button. We mirror bossEnd's
+            // navigation rather than calling bossEnd(false) so a victorious
+            // student isn't mislabeled as defeated.
+            if (bossState.done) {
+                if (typeof setStage === 'function') setStage(7.5);
+                if (typeof showResultsScreen === 'function') {
+                    showResultsScreen();
+                }
+                return;
+            }
 
             if (bossState.answered) {
                 bossState.qIndex++;
