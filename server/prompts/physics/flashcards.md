@@ -51,6 +51,26 @@ That's it.
 
 ---
 
+## Hint (mnemonic, optional)
+
+The `hint` field renders on the back of the card as a "Tip" pill (the runtime injector maps it to `back.hook`). It is a memory aid — never the answer.
+
+**Hint rules (hard constraints):**
+- Hint must never expose the back-side formula or law verbatim or in any unit-converted/algebraically-equivalent form.
+- Hint cannot repeat the front-side term word-for-word or as an inflected form.
+- Hint cannot translate the formula into prose ("kuch teng massa ko'paytirilgan tezlanish" = the formula in words = leak).
+- Hint must be a memory technique (acronym, mental image, story-link), not a paraphrase of the back side.
+- Length: ≤2 sentences.
+- If no honest non-spoiler mnemonic exists for a card, omit the `hint` field entirely.
+
+**BAD / GOOD (for "Nyutonning ikkinchi qonuni" / "F = m · a"):**
+- BAD: "F = m · a" (literal formula)
+- BAD: "Kuch — massa va tezlanishning ko'paytmasi" (formula in words)
+- GOOD: "Bolakay arava itaryapti: arava og'irroq YOKI tezroq surilsa, dadasidan so'raydigan kuch shuncha ortadi."
+
+
+---
+
 ## OUTPUT REQUIREMENT
 Return valid JSON matching this exact schema:
 ```json

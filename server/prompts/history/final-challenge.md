@@ -93,6 +93,23 @@ Every question offers up to 3 hints. Costs −5 HP each.
 
 **Hint 3 rule — critical.** Never write "Javob skeleti: X bo'lgani uchun Y, Z" — that hands the student the structure. Instead, write "Oʻzingizga savol bering: (1) ..., (2) ..., (3) ..." — diagnostic questions that nudge toward the answer without giving it.
 
+**Anti-leak rules (apply at every level):**
+- Hint must never quote the model answer (date, name, dynasty, treaty, cause, or consequence) verbatim or in any inflected/translated form.
+- Hint must never name the correct option for any sub-choice in a multi-part question.
+- Hint must teach toward the answer (which source, which century, which actor) — not deliver it.
+
+**Hint format (single-string encoding):**
+The injector splits the `hint` field by newline, `|`, or `•` into up to 3 ladder stages. Encode all three levels in one string, joined by ` | `:
+> Hint 1 text | Hint 2 text | Hint 3 text
+
+If fewer than 3 stages are supplied, the last one is duplicated to fill — meaning a single answer-leaning line becomes EVERY level the student sees. Always supply exactly 3.
+
+**BAD / GOOD (for "Amir Temur taxtga chiqqan yili?"):**
+- BAD Hint 1: "1370" (literal answer)
+- BAD Hint 2: "1370-yilda Balxda taxtga chiqqan" (literal answer in a sentence)
+- BAD Hint 3: "Javob: 1370 yil" (answer at the end)
+- GOOD: "Phase 0-A panelidagi 'Temuriylar davlati' kartasiga qarang | Bu sana 14-asr ikkinchi yarmiga to'g'ri keladi — uch raqamli o'n yillik | O'zingizga savol bering: (1) Qaysi shaharda toj kiygan? (2) Chig'atoy ulusi qachon parchalandi? (3) Mavlono Zayniddinga qanday qasam bergan?"
+
 ---
 
 ## Failure flow (Boss not defeated)

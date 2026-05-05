@@ -102,6 +102,23 @@ Example hint sequence for a three-scale question:
 > Hint 2: `[Micro: H⁺ va SO₄²⁻ ionlari suvda]` — "Mikroskopik darajada ionlar aniqlandi. Formulani yozing."
 > Hint 3: `[Partial symbolic: H? SO? — coefficients blank (orange)]` — "Formula tuzilishi ko'rsatildi. Valentlikdan foydalanib to'ldiring."
 
+**Anti-leak rules (apply at every level):**
+- Hint must never quote the model answer (substance name, balanced equation, coefficient set, oxidation state) verbatim or in any algebraically-equivalent form.
+- Hint 3 may show the unbalanced framework with `?` coefficients, but it must NOT show the balanced coefficients — those are the student's work.
+- Hint must never name the substance the student is asked to identify until the student has named it themselves.
+- Hint must teach toward the answer (which observable to track, which ions to write, where to place coefficients) — not deliver it.
+
+**Hint format (single-string encoding):**
+The injector splits the `hint` field by newline, `|`, or `•` into up to 3 ladder stages. Encode the three scale-reveals in one string, joined by ` | `:
+> [Macroscopic update + question] | [Microscopic description + question] | [Partial symbolic with `?` coefficients + question]
+
+If fewer than 3 stages are supplied, the last one is duplicated to fill — meaning the most-revealing scale becomes the FIRST hint shown. Always supply exactly 3.
+
+**BAD / GOOD (for the H₂SO₄ identification example above):**
+- BAD Hint 1: "Bu sulfat kislota" (names the answer)
+- BAD Hint 3: `[H₂SO₄ + Fe → FeSO₄ + H₂]` (fully balanced equation)
+- GOOD: see the example sequence above — observable → ions → unbalanced framework with `?`, name never appears.
+
 ## Failure Response
 
 Wrong answer → "Hali emas!" (never "Noto'g'ri")

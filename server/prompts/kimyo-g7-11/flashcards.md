@@ -101,6 +101,26 @@ Safety: [one-line hazard note if applicable]
 
 ---
 
+## Hint (mnemonic, optional)
+
+The `hint` field renders on the back of the card as a "Tip" pill (the runtime injector maps it to `back.hook`). It is a memory aid — never the answer.
+
+**Hint rules (hard constraints):**
+- Hint must never expose the back-side substance name, formula, or balanced equation verbatim.
+- Hint cannot repeat the front-side term word-for-word or as an inflected form.
+- Hint cannot translate the formula into prose ("ikki vodorod, bir oltingugurt, to'rt kislorod" = the formula in words = leak).
+- Hint must be a memory technique (acronym, mental image, story-link), not a paraphrase of the back side.
+- Length: ≤2 sentences.
+- If no honest non-spoiler mnemonic exists for a card, omit the `hint` field entirely.
+
+**BAD / GOOD (for "H₂SO₄" / "Sulfat kislota"):**
+- BAD: "Sulfat kislota" (literal back side)
+- BAD: "Sulphuric acid" (translation = answer)
+- GOOD: "Hovuchda 2 ta vodorod, oltingugurt 1 ta, kislorod 4 ta — kichkina hovli: Hovli–S–O–4 → H₂SO₄. Lekin ATAMASI o'zingizdan."
+
+
+---
+
 ## OUTPUT REQUIREMENT
 Return valid JSON matching this exact schema:
 ```json

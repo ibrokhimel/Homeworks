@@ -53,9 +53,31 @@ Every question tagged: `[Bloom: LX | PISA: LX | Damage: -XX HP]`
 
 ## Hint Ladder
 
-- Hint 1: -5 HP. Show a diagram with one key component highlighted or labeled.
-- Hint 2: -5 HP. Show the partial mechanism — "Bu jarayon [X] bilan boshlanadi..."
-- Hint 3: -5 HP. Write out the first step of the correct answer — student completes the rest.
+- **Hint 1: -5 HP.** Highlight or label one key component on the diagram — never name the mechanism, never name the conclusion.
+- **Hint 2: -5 HP.** Hint at the category of the answer ("bu jarayon energiya almashuvi bilan bog'liq") — never name the specific organelle, enzyme, or species the answer requires.
+- **Hint 3: -5 HP.** Show the first analytical step (e.g. "Diagrammada qaysi tuzilma kislorod bilan ishlaydi?") as a **diagnostic question**, not a fill-in-blank skeleton of the answer.
+
+**Anti-leak rules (apply at every level):**
+- Hint must never quote the model answer (organism name, organelle name, enzyme, mechanism, predicted outcome) verbatim or in any inflected/translated form.
+- Hint must never write "Javob: X" or "Bu jarayon X" with the answer in place of X.
+- Hint must teach toward the answer (which structure to look at, which trophic level, which gas, which phase) — not deliver it.
+- Hint must never name the correct option for any sub-choice in a multi-part question.
+
+**Hint format (single-string encoding):**
+The injector splits the `hint` field by newline, `|`, or `•` into up to 3 ladder stages. Encode all three levels in one string, joined by ` | `:
+> Hint 1 text | Hint 2 text | Hint 3 text
+
+If fewer than 3 stages are supplied, the last one is duplicated to fill — meaning a single answer-leaning line becomes EVERY level the student sees. Always supply exactly 3.
+
+**BAD / GOOD (for "Fotosintez qaysi organellada sodir bo'ladi?"):**
+- BAD Hint 1: "Xloroplast" (literal answer)
+- BAD Hint 2: "Bu jarayon xloroplastda boshlanadi..." (literal answer in a sentence)
+- BAD Hint 3: "Javob: xloroplast" (answer at the end)
+- GOOD: "Diagrammadagi yashil rangli organellaga e'tibor bering | Bu organella faqat o'simlik hujayralarida bor — qaysi pigment bilan bog'liqligini eslang | O'zingizga savol bering: 'Yorug'lik energiyasini kim yutadi?' — diagrammadan shu organellani toping"
+
+**BAD / GOOD (for "Ikkinchi tartibli konsument yo'q bo'lsa nima bo'ladi?"):**
+- BAD Hint 3: "Birinchi konsumentlar soni ko'payadi, uchinchi konsumentlar kamayadi" (full answer)
+- GOOD Hint 3: "O'zingizga savol bering: (1) Yo'qolgan tur kimni iste'mol qilardi? (2) Endi shu tur soniga nima bo'ladi? (3) Bu o'zgarish yuqoriga qanday tarqaladi?"
 
 ## Failure Response
 

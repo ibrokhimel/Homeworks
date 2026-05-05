@@ -52,9 +52,27 @@ Every question tagged: `[Bloom: LX | PISA: LX | Damage: -XX HP]`
 
 ## Hint Ladder
 
-- Hint 1: -5 HP. Remind which formula/law applies.
-- Hint 2: -5 HP. Show what quantities are given.
-- Hint 3: -5 HP. Show setup, student completes calculation.
+- **Hint 1: -5 HP.** Name the law/formula that applies — never the answer.
+- **Hint 2: -5 HP.** Restate which quantities the problem gives you and which symbol stands for the unknown. Don't substitute values yet.
+- **Hint 3: -5 HP.** Show the formula with units placed but the unknown still solved-for symbolically (e.g. `F = m · a → a = F / m`). Even at Hint 3, the literal numeric answer never appears.
+
+**Anti-leak rules (apply at every level):**
+- Hint must never quote the model answer (numeric value with units) verbatim or in any unit-converted equivalent (e.g. if the answer is `5 m/s`, no level can show `5 m/s`, `500 cm/s`, `18 km/h`, or any rounding of it).
+- Hint must never collapse the work to a single substitution — "F = 10 · 2 = 20 N" gives both setup and answer.
+- Hint must teach toward the answer (which law applies, which quantity is unknown, which units must align), not deliver it.
+- Hint must never name the correct option for any sub-choice in a multi-part question.
+
+**Hint format (single-string encoding):**
+The injector splits the `hint` field by newline, `|`, or `•` into up to 3 ladder stages. Encode all three levels in one string, joined by ` | `:
+> Hint 1 text | Hint 2 text | Hint 3 text
+
+If fewer than 3 stages are supplied, the last one is duplicated to fill — meaning one answer-leaning line becomes EVERY level the student sees. Always supply exactly 3.
+
+**BAD / GOOD (for "10 kg jismga 20 N kuch ta'sir qiladi. Tezlanishni toping."):**
+- BAD Hint 1: "a = 2 m/s²" (literal answer)
+- BAD Hint 2: "F = m·a → 20 = 10 · a → a = 2" (full substitution + answer)
+- BAD Hint 3: "Tezlanish 2 m/s² ga teng" (paraphrased answer)
+- GOOD: "Nyutonning ikkinchi qonuni — kuch, massa, tezlanish o'rtasidagi munosabat | Berilganlar: kuch va massa. Noma'lum: tezlanish. Birliklar: N, kg, m/s². | F = m · a tenglamasini a uchun yeching — qaysi miqdorni nimaga bo'lasiz, o'zingiz toping"
 
 ## Failure Response
 

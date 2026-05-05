@@ -77,6 +77,26 @@ Geometry flash cards come in two modes. Both modes are used in every deck — mi
 
 ---
 
+## Hint (mnemonic, optional)
+
+The `hint` field renders on the back of the card as a "Tip" pill (the runtime injector maps it to `back.hook`). It is a memory aid — never the answer.
+
+**Hint rules (hard constraints):**
+- Hint must never expose the back-side theorem name or definition verbatim or as a close paraphrase.
+- Hint cannot repeat the front-side term word-for-word or as an inflected form.
+- Hint cannot translate the theorem name into another language when translation reveals the meaning (e.g. "side-angle-side" for SAS — that IS the answer in English).
+- Hint must be a memory technique (acronym mapped to imagery, recipe-style story), not a paraphrase of the back side.
+- Length: ≤2 sentences.
+- If no honest non-spoiler mnemonic exists for a card, omit the `hint` field entirely.
+
+**BAD / GOOD (for "SAS teoremasi" / "Ikki tomon va ular orasidagi burchak teng → uchburchaklar tengdir"):**
+- BAD: "side-angle-side" (translation of the answer)
+- BAD: "Ikki tomon va orasidagi burchak teng bo'lsa..." (paraphrases the definition)
+- GOOD: "S–A–S — sandvich: ikki noni teng + ichidagi shahatja teng → ikki sandvich bir xil. Ichidagi (A) — burchak."
+
+
+---
+
 ## OUTPUT REQUIREMENT
 Return valid JSON matching this exact schema:
 ```json

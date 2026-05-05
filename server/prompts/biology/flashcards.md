@@ -72,6 +72,26 @@ SVG size limit: 200×150px.
 
 ---
 
+## Hint (mnemonic, optional)
+
+The `hint` field renders on the back of the card as a "Tip" pill (the runtime injector maps it to `back.hook`). It is a memory aid — never the answer.
+
+**Hint rules (hard constraints):**
+- Hint must never expose the back-side definition or function description verbatim or in close paraphrase.
+- Hint cannot repeat the front-side term word-for-word or as an inflected form.
+- Hint cannot translate the term into Uzbek/Russian/English when translation reveals the definition.
+- Hint must be a memory technique (acronym, image, story-link), not a paraphrase of the back side.
+- Length: ≤2 sentences.
+- If no honest non-spoiler mnemonic exists for a card, omit the `hint` field entirely.
+
+**BAD / GOOD (for "Mitoxondriya" / "Hujayraning energiya stansiyasi — ATP ishlab chiqaradi"):**
+- BAD: "Hujayraning energiya stansiyasi" (literal back side)
+- BAD: "ATP ishlab chiqaradigan organella" (paraphrases the answer)
+- GOOD: "MITO-Karta — ichida zavod chizilgan kichik kart: kirish (oziq) → quvurlar → chiqish (energiya). Karta ichidagi quvurlar — kristalar."
+
+
+---
+
 ## OUTPUT REQUIREMENT
 Return valid JSON matching this exact schema:
 ```json
