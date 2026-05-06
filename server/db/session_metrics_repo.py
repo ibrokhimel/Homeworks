@@ -55,15 +55,16 @@ async def recompute_session_metrics(session_id: str, hw_id: str) -> dict:
         "correct_count": correct_count,
         "incorrect_count": incorrect_count,
         "partial_count": partial_count,
-        "hint_count": 0,
-        "avg_attempts": 1.0,
-        "avg_time_ms": 0,
-        "weak_topics": [],
-        "strong_topics": [],
-        "language_confusion_terms": [],
+        "hint_count": 0,  # TODO(deferred): Compute from actual hints usage,
+        "avg_attempts": 1.0,  # TODO(deferred): Compute from attempts count,
+        "avg_time_ms": 0,  # TODO(deferred): Compute from time_ms fields,
+        "weak_topics": [],  # TODO(deferred): Extract from misconceptions,
+        "strong_topics": [],  # TODO(deferred): Extract from correct topics,
+        "language_confusion_terms": [],  # TODO(deferred): Extract from specific language errors,
         "mastery_score": accuracy * 0.45,
-        "boss_readiness_score": 0.0
+        "boss_readiness_score": 0.0  # TODO(deferred): Compute based on phase performance
     }
     
     await upsert_session_metrics(session_id, hw_id, metrics)
     return metrics
+

@@ -91,7 +91,7 @@ def _find_question_in_content(content_json: dict, question_id: str) -> dict:
     Locate a question within the content JSON by ID.
     """
     # TODO(deferred): Implement actual recursive search or lookup map
-    return {"id": question_id, "text": "Dummy text fallback"}
+    raise NotImplementedError("Question search within content JSON is not yet implemented.")
 
 
 def _redact_question_for_tutor(question: dict) -> dict:
@@ -100,8 +100,7 @@ def _redact_question_for_tutor(question: dict) -> dict:
     """
     # TODO(deferred): Remove expected answers/rubrics thoroughly
     safe_q = question.copy()
-    safe_q.pop('expected_answer', None)
-    return safe_q
+    raise NotImplementedError("Question redaction for tutor context is not yet implemented.")
 
 
 async def build_tutor_context(
