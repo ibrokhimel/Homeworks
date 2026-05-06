@@ -244,6 +244,25 @@ CREATE TABLE IF NOT EXISTS boss_sessions (
 
 CREATE INDEX IF NOT EXISTS idx_boss_sessions_session
 ON boss_sessions(session_id, homework_id, status);
+
+CREATE TABLE IF NOT EXISTS ai_call_logs (
+    id TEXT PRIMARY KEY,
+    session_id TEXT,
+    homework_id TEXT,
+    task_type TEXT NOT NULL,
+    provider TEXT,
+    model TEXT,
+    prompt_version TEXT,
+    input_chars INTEGER,
+    output_chars INTEGER,
+    latency_ms INTEGER,
+    success INTEGER NOT NULL,
+    error_code TEXT,
+    fallback_used INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_ai_calls_session ON ai_call_logs(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_calls_task ON ai_call_logs(task_type, created_at);
 """
 
 

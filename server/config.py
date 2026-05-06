@@ -23,6 +23,7 @@ KIMI_API_KEY: str = os.getenv("KIMI_API_KEY", "")
 KIMI_BASE_URL: str = os.getenv("KIMI_BASE_URL", "https://api.moonshot.ai/v1")
 KIMI_MODEL_FAST: str = os.getenv("KIMI_MODEL_FAST", "moonshot-v1-32k")
 KIMI_MODEL_PRO: str = os.getenv("KIMI_MODEL_PRO", "moonshot-v1-128k")
+KIMI_MODEL_VISION: str = os.getenv("KIMI_MODEL_VISION", "kimi-k2.6")
 
 # AI backend selection — kept as comma-separated preference list for forward
 # compat with future providers; currently Kimi is the only registered provider.
