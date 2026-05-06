@@ -36,9 +36,22 @@ def test_summarize_homework_content():
     assert "practice" in summary["phases_available"]
     assert "final-boss" in summary["phases_available"]
 
-def test_ai_context_stubs_raise_not_implemented():
-    with pytest.raises(NotImplementedError, match="Question search within content JSON is not yet implemented."):
-        _find_question_in_content({}, "q1")
+def test_find_question_in_content_works():
+    content = {"questions": [{"question_id": "q1", "text": "What is 2+2?"}]}
+    result = _find_question_in_content(content, "q1")
+    assert result == {"question_id": "q1", "text": "What is 2+2?"}
 
-    with pytest.raises(NotImplementedError, match="Question redaction for tutor context is not yet implemented."):
-        _redact_question_for_tutor({"text": "What is 2+2?", "expected_answer": "4"})
+    assert _find_question_in_content({}, "q1") is None
+    assert _find_question_in_content({"a": 1}, "") is None
+
+
+def test_redact_question_for_tutor_works():
+    # Preview passes through
+    q = {"text": "What is 2+2?", "expected_answer": "4"}
+    result = _redact_question_for_tutor(q, "preview")
+    assert result["expected_answer"] == "4"
+
+    # Practice strips non-safe keys
+    result = _redact_question_for_tutor(q, "practice")
+    assert "expected_answer" not in result
+    assert "text" in result
