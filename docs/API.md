@@ -463,6 +463,20 @@ All AI endpoints accept and return JSON. On failure: `500` with `{ "error": "...
 - `TUTOR_BACKEND_ERROR` — transient AI backend failure (LLM provider unavailable); client should retry
 - `TUTOR_SESSION_CAP` — per-session message cap reached (60 turns max); no further turns can be appended
 
+### AI context debug
+
+`AI_DEBUG_CONTEXT` is an optional server environment flag. Truthy values are `1`, `true`, `yes`, `on`, and `debug`.
+
+When unset or false, AI endpoint response shapes are unchanged. When enabled, these endpoints may include a top-level `context_debug` object:
+
+- `POST /api/ai/check-answer`
+- `POST /api/ai/boss-turn`
+- `POST /api/ai/tutor/chat`
+- `POST /api/ai/tutor/boss-plan`
+- `GET /api/ai/tutor/history`
+
+`context_debug` is metadata-only. It may include route/service names, phase/subphase, id presence flags, safe counts/lengths, selected provider/model, prompt size, checker path/source/result action, fallback or `ai_unavailable` status, boss HP before/after, and similar diagnostics. It must not include raw `screen_context`, raw `student_answer`, expected answers, answer keys, prompts, or chat-history text. The same sanitized metadata is logged on `nets.ai.context`; raw student text and answer-bearing content are never logged by this debug helper.
+
 ### POST /api/ai/check-answer
 
 ```json
@@ -485,6 +499,8 @@ All AI endpoints accept and return JSON. On failure: `500` with `{ "error": "...
 - Only `question` and `student_answer` are required; all others have defaults
 
 **200** `{ "correct": bool, "score": float, "feedback": "string", "matched_expected": "string|null" }`
+
+With `AI_DEBUG_CONTEXT=true`, the same response may include top-level `context_debug` with metadata such as `checker_path`, `source`, `answer_spec_type`, `confidence`, `result_action`, and `ai_unavailable`.
 
 ---
 
@@ -982,6 +998,8 @@ Legacy canonical endpoint for the Final Boss mechanic. The `phase=final-boss` br
 
 `outcome` / `stars` / `outcome_xp` populate only on the final turn (`done=true`). See the table under `phase=final-boss` above for the rubric.
 
+With `AI_DEBUG_CONTEXT=true`, the same response may include top-level `context_debug` with metadata such as fixed/dynamic mode, session presence, history count when available, question source, HP before/after, difficulty when available, provider/model, and `ai_unavailable`.
+
 ---
 
 ### POST /api/ai/reflection
@@ -1038,6 +1056,8 @@ Live, persistent tutor chat. Each call appends one user turn and one assistant t
 
 **200** `{ "response": "string", "message_id": int }`. **429** when the cap is reached. **500** `TUTOR_BACKEND_ERROR` on a transient AI-backend failure.
 
+With `AI_DEBUG_CONTEXT=true`, the same response may include top-level `context_debug` with metadata such as session/homework presence, phase/subphase, question id presence, `question_found`, question text length, raw/clean/forwarded screen-context lengths, student-work length, chat-history count, provider/model, prompt size, and fallback status.
+
 ---
 
 ### POST /api/ai/tutor/boss-plan  *(Wave F1)*
@@ -1060,6 +1080,8 @@ Builds a personalized boss-question plan from `boss_questions[]` in the homework
 ```
 On any LLM failure or invalid response, the server returns a default fallback: input order, `persona_traits = ["mentor"]`, neutral framing.
 
+With `AI_DEBUG_CONTEXT=true`, the same response may include top-level `context_debug` with metadata such as boss-question count, question source, provider/model, prompt size, fallback status, and `ai_unavailable`.
+
 ---
 
 ### GET /api/ai/tutor/history  *(Wave F1)*
@@ -1072,6 +1094,8 @@ On any LLM failure or invalid response, the server returns a default fallback: i
 Returns chronological turns (oldest first), capped at 50.
 
 **200** `{ "turns": [{ "id", "session_id", "hw_id", "phase", "question_id", "role", "content", "created_at" }] }`
+
+With `AI_DEBUG_CONTEXT=true`, the same response may include top-level `context_debug` with metadata such as session/homework presence and `history_count`; it does not include turn content.
 
 ---
 

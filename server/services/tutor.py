@@ -15,7 +15,7 @@ import json
 from fastapi import HTTPException
 
 from ..config import PROMPTS_DIR
-from . import ai_orchestrator
+from . import ai_orchestrator, ai_debug
 from . import answer_checker
 from .. import db
 
@@ -292,7 +292,18 @@ async def check_answer(
         }
         if det_result.get("format_tip"):
             res["format_tip"] = det_result["format_tip"]
-        return res
+        return ai_debug.with_context_debug(
+            res,
+            {
+                "service": "tutor.check_answer",
+                "checker_path": "deterministic",
+                "provider": None,
+                "model": None,
+                "answer_spec_type": answer_spec.get("type"),
+                "result_action": "accepted" if is_correct else "rejected",
+            },
+            route="service.check_answer",
+        )
 
     # Step 2: AI Fallback check
     # Defensive guard: memory_sprint is a tap-only quiz — never burn Vertex tokens on it.
@@ -300,13 +311,24 @@ async def check_answer(
     # check for any caller that forgets to set it on the spec.
     if not allow_ai_fallback or phase == "memory_sprint":
         # If unsure and no AI fallback, just mark incorrect to be safe
-        return {
+        return ai_debug.with_context_debug(
+            {
             "correct": False,
             "score": 0.0,
             "feedback": "Notog'ri javob.",
             "source": "deterministic",
             "matched_expected": None
-        }
+            },
+            {
+                "service": "tutor.check_answer",
+                "checker_path": "deterministic_no_ai",
+                "provider": None,
+                "model": None,
+                "answer_spec_type": answer_spec.get("type"),
+                "result_action": "rejected",
+            },
+            route="service.check_answer",
+        )
 
     # Cache key includes the answer_spec/expected fingerprint so the same question_id
     # reused across homeworks (e.g. "q1") can't collide on different correct answers.
@@ -320,7 +342,18 @@ async def check_answer(
 
     cached = await db.get_answer_cache(cache_key)
     if cached:
-        return cached
+        return ai_debug.with_context_debug(
+            cached,
+            {
+                "service": "tutor.check_answer",
+                "checker_path": "cache",
+                "provider": ai_orchestrator._active_backend(),
+                "model": ai_orchestrator.FAST_MODEL,
+                "answer_spec_type": answer_spec.get("type"),
+                "result_action": "cached",
+            },
+            route="service.check_answer",
+        )
 
     # Log every AI fallback call for rate-limit / abuse triage.
     print(
@@ -390,6 +423,7 @@ async def check_answer(
     # PR 1 — bloat-fix: sanitize+cap before LLM, fall back when unavailable.
     try:
         input_section = ai_orchestrator.build_input_section(payload)
+        prompt_size = len(f"{prompt}\n\n{input_section}")
         ai_response = await ai_orchestrator.generate_json(
             f"{prompt}\n\n{input_section}",
             schema_hint=schema,
@@ -401,20 +435,45 @@ async def check_answer(
             exc.__class__.__name__,
             exc,
         )
-        return {
+        return ai_debug.with_context_debug(
+            {
             "correct": False,
             "score": 0.0,
             "feedback": "AI baholash hozir mavjud emas — qayta urinib ko'ring.",
             "source": "ai_unavailable",
             "matched_expected": None,
             "ai_unavailable": True,
-        }
+            },
+            {
+                "service": "tutor.check_answer",
+                "checker_path": "ai_judge",
+                "provider": ai_orchestrator._active_backend(),
+                "model": ai_orchestrator.FAST_MODEL,
+                "answer_spec_type": answer_spec.get("type"),
+                "result_action": "ai_unavailable",
+                "ai_unavailable": True,
+            },
+            route="service.check_answer",
+        )
 
     confidence = float(ai_response.get("confidence", 1.0))
     if confidence >= 0.90:
         ai_response["source"] = "ai"
         await db.set_answer_cache(cache_key, ai_response)
-        return ai_response
+        return ai_debug.with_context_debug(
+            ai_response,
+            {
+                "service": "tutor.check_answer",
+                "checker_path": "ai_judge",
+                "provider": ai_orchestrator._active_backend(),
+                "model": ai_orchestrator.FAST_MODEL,
+                "answer_spec_type": answer_spec.get("type"),
+                "confidence": confidence,
+                "prompt_size": prompt_size,
+                "result_action": "accepted",
+            },
+            route="service.check_answer",
+        )
     else:
         # Low confidence
         needs_review = True
@@ -444,7 +503,20 @@ async def check_answer(
                 res[k] = ai_response[k]
 
         await db.add_to_review_queue(question_id, student_answer, answer_spec, ai_response)
-        return res
+        return ai_debug.with_context_debug(
+            res,
+            {
+                "service": "tutor.check_answer",
+                "checker_path": "ai_judge",
+                "provider": ai_orchestrator._active_backend(),
+                "model": ai_orchestrator.FAST_MODEL,
+                "answer_spec_type": answer_spec.get("type"),
+                "confidence": confidence,
+                "prompt_size": prompt_size,
+                "result_action": "review_candidate",
+            },
+            route="service.check_answer",
+        )
 
 
 async def boss_turn(
@@ -930,7 +1002,9 @@ async def tutor_chat(
     # `screen_context` which can carry inline base64 images on bloated HWs;
     # rejecting at this boundary saves a 17s provider-cap timeout cascade.
     _PROMPT_SIZE_CAP = 60000
+    prompt_cap_exceeded = False
     if len(full_prompt) > _PROMPT_SIZE_CAP:
+        prompt_cap_exceeded = True
         _log.warning(
             "tutor.chat prompt %s chars exceeds cap %s; returning canned reply",
             len(full_prompt),
@@ -969,7 +1043,28 @@ async def tutor_chat(
         role="assistant",
         content=response_text,
     )
-    return {"response": response_text, "message_id": asst_turn_id}
+    return ai_debug.with_context_debug(
+        {"response": response_text, "message_id": asst_turn_id},
+        {
+            "service": "tutor.tutor_chat",
+            "phase": phase,
+            "subphase": subphase,
+            "question_id_present": ai_debug.present(question_id),
+            "question_found": bool(question_context),
+            "question_text_len": ai_debug.text_len(question_text),
+            "screen_context_forwarded_len": ai_debug.text_len(screen_context),
+            "screen_context_clean_len": ai_debug.text_len(screen_context_clean),
+            "student_work_text_len": ai_debug.text_len(student_work_text),
+            "chat_history_count": len(chat_history),
+            "provider": ai_orchestrator._active_backend(),
+            "model": model,
+            "prompt_size": len(full_prompt),
+            "prompt_cap": _PROMPT_SIZE_CAP,
+            "prompt_cap_exceeded": prompt_cap_exceeded,
+            "fallback_status": "prompt_too_large" if prompt_cap_exceeded else "llm_success",
+        },
+        route="service.tutor_chat",
+    )
 
 
 def _default_boss_plan(boss_questions: list[dict]) -> dict:
@@ -1052,7 +1147,19 @@ async def boss_plan(
     rather than crashing — boss must always be playable.
     """
     if not boss_questions:
-        return {"ordered": [], "persona_traits": ["mentor"]}
+        return ai_debug.with_context_debug(
+            {"ordered": [], "persona_traits": ["mentor"]},
+            {
+                "service": "tutor.boss_plan",
+                "mode": "fixed_boss",
+                "boss_questions_count": 0,
+                "question_source": "content_json",
+                "provider": None,
+                "model": None,
+                "fallback_status": "empty_boss_pool",
+            },
+            route="service.boss_plan",
+        )
 
     student_profile = await db.build_session_profile(session_id, hw_id)
 
@@ -1063,7 +1170,19 @@ async def boss_plan(
     try:
         system_prompt = _load_runtime_prompt("tutor-boss-plan")
     except FileNotFoundError:
-        return _default_boss_plan(boss_questions)
+        return ai_debug.with_context_debug(
+            _default_boss_plan(boss_questions),
+            {
+                "service": "tutor.boss_plan",
+                "mode": "fixed_boss",
+                "boss_questions_count": len(boss_questions),
+                "question_source": "content_json",
+                "provider": None,
+                "model": None,
+                "fallback_status": "prompt_missing",
+            },
+            route="service.boss_plan",
+        )
 
     payload = {
         "BOSS_QUESTIONS": sanitized_questions,
@@ -1085,12 +1204,50 @@ async def boss_plan(
         )
     except Exception as exc:  # noqa: BLE001 — we want every LLM hiccup caught.
         print(f"[boss_plan] LLM failed; using default plan: {exc}", flush=True)
-        return _default_boss_plan(boss_questions)
+        return ai_debug.with_context_debug(
+            _default_boss_plan(boss_questions),
+            {
+                "service": "tutor.boss_plan",
+                "mode": "fixed_boss",
+                "boss_questions_count": len(boss_questions),
+                "question_source": "content_json",
+                "provider": ai_orchestrator._active_backend(),
+                "model": ai_orchestrator.PRO_MODEL,
+                "fallback_status": "llm_unavailable",
+                "ai_unavailable": True,
+            },
+            route="service.boss_plan",
+        )
 
     cleaned = _validate_boss_plan(ai_response, boss_questions)
     if cleaned is None:
-        return _default_boss_plan(boss_questions)
-    return cleaned
+        return ai_debug.with_context_debug(
+            _default_boss_plan(boss_questions),
+            {
+                "service": "tutor.boss_plan",
+                "mode": "fixed_boss",
+                "boss_questions_count": len(boss_questions),
+                "question_source": "content_json",
+                "provider": ai_orchestrator._active_backend(),
+                "model": ai_orchestrator.PRO_MODEL,
+                "fallback_status": "invalid_llm_plan",
+            },
+            route="service.boss_plan",
+        )
+    return ai_debug.with_context_debug(
+        cleaned,
+        {
+            "service": "tutor.boss_plan",
+            "mode": "fixed_boss",
+            "boss_questions_count": len(boss_questions),
+            "question_source": "content_json",
+            "provider": ai_orchestrator._active_backend(),
+            "model": ai_orchestrator.PRO_MODEL,
+            "prompt_size": len(full_prompt),
+            "fallback_status": "llm_success",
+        },
+        route="service.boss_plan",
+    )
 
 
 async def tutor_help(
