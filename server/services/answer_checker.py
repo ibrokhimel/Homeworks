@@ -3,6 +3,8 @@ import re
 from typing import Optional
 from rapidfuzz import fuzz
 
+from .math_normalize import normalize_math
+
 # Fix #2: DoS guard for sympify/parse_expr on untrusted student input.
 # SymPy is well-known to hang on inputs like 2**2**2**2**2 (power tower DoS).
 MAX_SYMPIFY_INPUT_LEN = 200
@@ -67,7 +69,13 @@ def _check_numeric(expected: float, tolerance: float, student_answer: str, canon
     try:
         expected_value = float(expected)
         tolerance_value = float(tolerance or 0.0)
-        clean_ans = student_answer.strip().replace(',', '.')
+        # AC-02: accept Unicode minus (U+2212), en/em dashes, decimal comma, and
+        # interior whitespace. Without this, a student typing "−1.5" (the same
+        # glyph the prompt printed) is rejected by float(...).
+        clean_ans = student_answer.strip()
+        for m in ("−", "–", "—", "‒", "－"):
+            clean_ans = clean_ans.replace(m, "-")
+        clean_ans = clean_ans.replace(",", ".").replace(" ", "")
         val = float(clean_ans)
         if abs(val - expected_value) <= tolerance_value + 1e-9:
             return {
@@ -162,8 +170,19 @@ def _check_text_exact(expected: str, student_answer: str, canonical: str) -> dic
             "reason": "exact match",
             "format_tip": _make_tip("correct", student_answer, canonical)
         }
-    else:
-        return {"verdict": "unsure", "reason": "exact match failed"}
+
+    # AC-01: math-equivalence fallback for symbol-rich answers (Greek letters,
+    # trig aliases, unicode minus, decimal comma, "lhs = rhs" prefixes, degree
+    # markers). The strict path above stays first so existing string-equality
+    # tests are unchanged; this only matches additional equivalent forms.
+    if normalize_math(student_answer) == normalize_math(expected):
+        return {
+            "verdict": "correct",
+            "reason": "math-equivalent",
+            "format_tip": _make_tip("correct", student_answer, canonical),
+        }
+
+    return {"verdict": "unsure", "reason": "exact match failed"}
 
 def _check_text_fuzzy(expected: str, student_answer: str, canonical: str) -> dict:
     if not student_answer.strip():

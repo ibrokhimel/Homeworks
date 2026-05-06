@@ -596,6 +596,34 @@
             max-width: 100%; max-height: 70px; vertical-align: middle;
         }
 
+        /* FC-01 + FC-04 (2026-05-06): when a card has no media on either face,
+           the .fc-photo zone collapses (display:none via .fc-photo:empty) and the
+           remaining content is just term + formula + tap-hint on the front, and
+           definition + optional tip pill on the back. Without these rules the
+           flex column stays anchored to the top of the card and leaves a tall
+           bottom gap that reads as a layout glitch. Center the column instead,
+           and bump definition typography so short text-only cards feel intentional
+           rather than like raw output. */
+        .fc-inner.no-image .fc-front,
+        .fc-inner.no-image .fc-back {
+            justify-content: center;
+        }
+        .fc-inner.no-image .fc-front .fc-tap-hint {
+            /* Override the auto top-margin that was pushing the hint to the
+               bottom of a top-aligned column. With centered content the hint
+               sits naturally below the term + formula. */
+            margin-top: 18px;
+        }
+        .fc-inner.no-image .fc-definition {
+            font-size: 17px;
+            line-height: 1.55;
+            font-feature-settings: "tnum" 1;
+            flex: 0 0 auto;
+        }
+        .fc-inner.no-image .fc-formula {
+            font-size: 16px;
+        }
+
         /* FORMULA box (sub-line under the title on the front) */
         .fc-formula {
             font-family: "SF Mono", "SFMono-Regular", Menlo, monospace;
@@ -6389,6 +6417,20 @@
         [data-theme="dark"] .state-pill {
             box-shadow: 0 6px 24px rgba(0,122,255,0.42);
         }
+        /* DM-01 (2026-05-06): bottom action button visibility in dark mode.
+           .btn-text inherits a hardcoded #ffffff which is fine on the blue
+           accent pill but invisible if a future state ever flips the bg to a
+           pale tone. Pin the dark-mode value to a slate-near-white so the
+           contrast intent is explicit and regression-testable. .state-line
+           keeps the accent bg but bumps opacity so the 4px progress ribbon
+           stays legible against the dark slate surface. */
+        [data-theme="dark"] .btn-text {
+            color: #f8fafc;
+        }
+        [data-theme="dark"] .state-line {
+            background: var(--accent);
+            opacity: 0.62;
+        }
         [data-theme="dark"] .fc-side {
             opacity: 0.34;
             filter: saturate(0.9) brightness(0.72);
@@ -8598,6 +8640,7 @@
                 // shared button labels
                 'btn.continue':          'Davom etish',
                 'btn.next':              'Keyingi',
+                'btn.next_page':         'Keyingi sahifa',
                 'btn.next_panel':        'Keyingi panel',
                 'btn.finish':            'Yakunlash',
                 'btn.start':             'Boshlash',
@@ -8934,6 +8977,7 @@
                 'skip.label':            '⏭ Пропустить фазу',
                 'btn.continue':          'Продолжить',
                 'btn.next':              'Дальше',
+                'btn.next_page':         'Следующая страница',
                 'btn.next_panel':        'Следующая панель',
                 'btn.finish':            'Завершить',
                 'btn.start':             'Начать',
@@ -9257,6 +9301,7 @@
                 'skip.label':            '⏭ Skip phase',
                 'btn.continue':          'Continue',
                 'btn.next':              'Next',
+                'btn.next_page':         'Next page',
                 'btn.next_panel':        'Next panel',
                 'btn.finish':            'Finish',
                 'btn.start':             'Start',
@@ -10241,7 +10286,17 @@
             if (state.isAnimating) return;
             if (state.stage === 0) startStage1();
             else if (state.stage === 1 && btn.classList.contains('state-pill')) startStage2();
-            else if (state.stage === 2) nextPanel();
+            else if (state.stage === 2) {
+                // NAV-01 + NAV-02 (2026-05-06): on intermediate pages, advance one
+                // page; on the last page of a panel, advance to the next panel.
+                // Mirrors the swipe-left direction so click + swipe stay consistent.
+                const p = PANELS[state.panelIndex];
+                if (p && state.pageIndex < p.pages.length - 1) {
+                    switchPage(state.pageIndex + 1);
+                } else {
+                    nextPanel();
+                }
+            }
             else if (state.stage === 2.5 && btn.classList.contains('state-pill')) startStage3();
             else if (state.stage === 3) endStage3();
             else if (state.stage === 3.5 && btn.classList.contains('state-pill')) {
@@ -10825,15 +10880,21 @@
         })();
 
         function updatePanelButton() {
+            // NAV-01 + NAV-02 (2026-05-06): keep the CTA reachable on every preview
+            // page so geometry homeworks like HW-20260505-005 (19 chunked pages
+            // across 7 panels) don't trap the student behind a hidden state-line.
+            // The chunker budget (PREVIEW_PAGE_BUDGET_PX) is intentionally NOT
+            // touched so non-math subjects keep their existing page rhythm.
             const panel = PANELS[state.panelIndex];
-            const isLast = state.pageIndex === panel.pages.length - 1;
+            const isLastPage = state.pageIndex === panel.pages.length - 1;
             btn.classList.remove('state-pill', 'pulse', 'state-line');
-            if (isLast) {
-                btn.classList.add('state-pill', 'pulse');
+            btn.classList.add('state-pill');
+            if (isLastPage) {
+                btn.classList.add('pulse');
                 setBtnText(RT('btn.next_panel'));
             } else {
-                btn.classList.add('state-line');
-                if (btnText) btnText.style.opacity = '0';
+                // No pulse — pill is reachable but not visually "graduated yet".
+                setBtnText(RT('btn.next_page'));
             }
         }
 
@@ -12466,6 +12527,64 @@
             return LANGUAGE_SUBJECTS_RUNTIME.has(s);
         }
 
+        // AC-01: Math answer normalization. Mirror of server/services/math_normalize.py.
+        // Both implementations must produce identical canonical strings — the test
+        // suite tests/test_runtime_math_normalize_js.py runs JS via PyExecJS to verify.
+        // Used by gbAQAction's deterministic compare path so equivalent forms match:
+        //   α/alfa/alpha, tg/tan, ctg/cot, U+2212/-, decimal comma/dot,
+        //   "sin B = 0,6" → "0.6", degree markers stripped, internal spaces collapsed.
+        const _MATH_GREEK = {
+            'α':'alpha','β':'beta','γ':'gamma','δ':'delta','ε':'epsilon','ζ':'zeta',
+            'η':'eta','θ':'theta','ι':'iota','κ':'kappa','λ':'lambda','μ':'mu',
+            'ν':'nu','ξ':'xi','ο':'omicron','π':'pi','ρ':'rho','σ':'sigma','ς':'sigma',
+            'τ':'tau','υ':'upsilon','φ':'phi','χ':'chi','ψ':'psi','ω':'omega'
+        };
+        const _MATH_NAME_ALIASES = [
+            [/\balfa\b/g, 'alpha'], [/\btetha\b/g, 'theta'], [/\bteta\b/g, 'theta'],
+            [/\blyamda\b/g, 'lambda']
+        ];
+        const _MATH_TRIG_ALIASES = [
+            [/\bctg\b/g, 'cot'], [/\bcotan\b/g, 'cot'], [/\btg\b/g, 'tan'],
+            [/\bsh\b/g, 'sinh'], [/\bch\b/g, 'cosh'], [/\bth\b/g, 'tanh'], [/\bcth\b/g, 'coth']
+        ];
+        const _MATH_DEGREE_WORDS = [
+            /\bdeg\b/g, /\bdegree\b/g, /\bdegrees\b/g, /\bgradus\b/g, /\bgradusda\b/g
+        ];
+        function mathNormalize(text) {
+            if (text == null) return '';
+            let s = String(text);
+            // 1. NFC + casefold (toLowerCase is JS's nearest equivalent — locale-safe
+            //    for the ASCII / Cyrillic / Greek subset used in math answers).
+            s = s.normalize ? s.normalize('NFC') : s;
+            s = s.toLowerCase();
+            // 2. Strip leading "lhs =" prefix so "sin B = 0,6" → "0,6".
+            const eqIdx = s.lastIndexOf('=');
+            if (eqIdx !== -1) s = s.slice(eqIdx + 1);
+            // 3. Greek glyphs → English names.
+            for (const [g, name] of Object.entries(_MATH_GREEK)) {
+                if (s.indexOf(g) !== -1) s = s.split(g).join(name);
+            }
+            // 4. Unicode minus / dashes → ASCII minus.
+            s = s.replace(/[−–—‒－]/g, '-');
+            // 5. Uzbek/Russian transliterations of Greek names → English canonical.
+            for (const [pat, repl] of _MATH_NAME_ALIASES) s = s.replace(pat, repl);
+            // 6. Trig aliases.
+            for (const [pat, repl] of _MATH_TRIG_ALIASES) s = s.replace(pat, repl);
+            // 7. Degree markers + words.
+            s = s.replace(/[°º˚]/g, '');
+            for (const w of _MATH_DEGREE_WORDS) s = s.replace(w, '');
+            // 8. Decimal comma between digits → dot.
+            s = s.replace(/(\d),(\d)/g, '$1.$2');
+            // 9. Strip ALL whitespace.
+            s = s.replace(/\s+/g, '');
+            // 10. Trailing punctuation that doesn't change math meaning.
+            s = s.replace(/[.,;:!?]+$/, '');
+            return s;
+        }
+        // Expose for tests + other call sites (memory-sprint, sentence-fill could
+        // adopt the same canonical form in future scoped fixes).
+        window.mathNormalize = mathNormalize;
+
         async function gbAQAIGrade(question, studentAnswer, acceptList) {
             // Route Adaptive Quiz answers through the AI grader for language
             // subjects so different sentence forms / paraphrases are accepted
@@ -12537,7 +12656,12 @@
             const userVal = inp ? inp.value.trim() : '';
             if (!userVal) { if (inp) { inp.style.borderColor = '#d9534f'; setTimeout(() => { inp.style.borderColor = ''; }, 1200); } return; }
             const item = aq.currentItem;
-            const norm = s => String(s == null ? '' : s).toLowerCase().replace(/\s+/g,'').trim();
+            // AC-01: dual-pass match — first the legacy whitespace-stripped lowercase
+            // compare (preserves prior behavior for English/non-math-text answers),
+            // then a math-equivalence compare via mathNormalize (handles α/alfa/alpha,
+            // tg/tan, ctg/cot, U+2212/-, decimal comma/dot, "lhs = rhs" prefix,
+            // degree markers).
+            const normLegacy = s => String(s == null ? '' : s).toLowerCase().replace(/\s+/g,'').trim();
             // Wave 2 fix (multi-answer): prefer item.acceptable[] (array of accepted answers).
             // Fall back to item.ans_all (legacy) and finally to item.answer (single string)
             // so old fixtures still work. Match is case-insensitive + whitespace-stripped.
@@ -12568,13 +12692,17 @@
                     if (btn) { btn.style.pointerEvents = ''; btn.classList.remove('is-busy'); }
                 }
             } else {
-                const userN = norm(userVal);
+                const userLegacy = normLegacy(userVal);
+                const userMath = mathNormalize(userVal);
                 isCorrect = acceptList.some(a => {
-                    const an = norm(a);
-                    if (!an) return false;
-                    if (an === userN) return true;
+                    const aLegacy = normLegacy(a);
+                    if (!aLegacy) return false;
+                    if (aLegacy === userLegacy) return true;
+                    // AC-01: math-equivalence pass. Two strings are equivalent if
+                    // their canonical math form matches.
+                    if (userMath && mathNormalize(a) === userMath) return true;
                     // Loose include for partial-form answers (matches legacy behavior).
-                    return an.includes(userN.split(/[,\s]/)[0]) || userN.includes(an);
+                    return aLegacy.includes(userLegacy.split(/[,\s]/)[0]) || userLegacy.includes(aLegacy);
                 });
             }
             aq.answered = true;
