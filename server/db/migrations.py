@@ -152,6 +152,78 @@ CREATE TABLE IF NOT EXISTS taskboard_tasks (
 );
 CREATE INDEX IF NOT EXISTS idx_tb_tasks_assignee ON taskboard_tasks(assignee_id);
 CREATE INDEX IF NOT EXISTS idx_tb_tasks_position ON taskboard_tasks(position);
+
+CREATE TABLE IF NOT EXISTS session_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT NOT NULL,
+  hw_id TEXT NOT NULL,
+  phase TEXT,
+  subphase TEXT,
+  question_id TEXT,
+  event_type TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_events_session
+ON session_events(session_id, hw_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_session_events_type
+ON session_events(session_id, hw_id, event_type, created_at);
+
+CREATE TABLE IF NOT EXISTS phase_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT NOT NULL,
+  hw_id TEXT NOT NULL,
+  phase TEXT NOT NULL,
+  subphase TEXT,
+  question_id TEXT,
+  item_id TEXT,
+  step_id TEXT,
+  attempt_number INTEGER NOT NULL DEFAULT 1,
+  student_answer TEXT,
+  normalized_answer TEXT,
+  answer_spec_json TEXT,
+  checker_source TEXT NOT NULL,
+  correct INTEGER,
+  score REAL,
+  confidence REAL,
+  feedback TEXT,
+  misconception_tags_json TEXT,
+  time_ms INTEGER,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_phase_attempts_session
+ON phase_attempts(session_id, hw_id, phase, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_phase_attempts_question
+ON phase_attempts(session_id, hw_id, question_id, created_at);
+
+CREATE TABLE IF NOT EXISTS session_metrics (
+  session_id TEXT NOT NULL,
+  hw_id TEXT NOT NULL,
+  metrics_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (session_id, hw_id)
+);
+
+CREATE TABLE IF NOT EXISTS generated_boss_questions (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  hw_id TEXT NOT NULL,
+  difficulty TEXT NOT NULL,
+  topic_tags_json TEXT NOT NULL,
+  question_text TEXT NOT NULL,
+  expected_answer_json TEXT NOT NULL,
+  rubric_json TEXT NOT NULL,
+  source_context_json TEXT NOT NULL,
+  used INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_generated_boss_session
+ON generated_boss_questions(session_id, hw_id, created_at);
 """
 
 
@@ -178,6 +250,14 @@ async def init_db() -> None:
             "ALTER TABLE taskboard_tasks ADD COLUMN subtask_done INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE taskboard_tasks ADD COLUMN attachment_count INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE taskboard_tasks ADD COLUMN cover_url TEXT",
+            "ALTER TABLE sessions ADD COLUMN status TEXT DEFAULT 'active'",
+            "ALTER TABLE sessions ADD COLUMN current_phase TEXT",
+            "ALTER TABLE sessions ADD COLUMN current_subphase TEXT",
+            "ALTER TABLE sessions ADD COLUMN current_question_id TEXT",
+            "ALTER TABLE sessions ADD COLUMN tutor_summary_json TEXT",
+            "ALTER TABLE sessions ADD COLUMN performance_summary_json TEXT",
+            "ALTER TABLE sessions ADD COLUMN boss_state_json TEXT",
+            "ALTER TABLE sessions ADD COLUMN updated_at TEXT",
         ):
             try:
                 await db.execute(migration)
