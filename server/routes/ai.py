@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Path as PathParam, Query
 from pydantic import BaseModel, Field
 from typing import Optional, Any
 
-from ..services import tutor, ai_orchestrator, injector
+from ..services import tutor, ai_orchestrator, injector, ai_debug
 from ..services.slur_filter import classify, detect_slurs
 from ..services import warnings as warnings_svc
 from .. import db
@@ -206,6 +206,122 @@ def _handle_exc(e: Exception):
     if isinstance(e, FileNotFoundError):
         raise HTTPException(500, detail={"error": str(e), "code": "PROMPT_MISSING"})
     raise HTTPException(500, detail={"error": str(e), "code": "AI_ERROR"})
+
+
+def _answer_spec_type(req: CheckAnswerRequest) -> Optional[str]:
+    if isinstance(req.answer_spec, dict):
+        value = req.answer_spec.get("type")
+        return str(value) if value is not None else None
+    return None
+
+
+def _result_action(result: dict[str, Any]) -> str:
+    if result.get("ai_unavailable"):
+        return "ai_unavailable"
+    if result.get("needs_review"):
+        return "review_candidate"
+    source = result.get("source")
+    if source == "ai_unsure":
+        return "partial_retry"
+    if result.get("correct") is True:
+        return "accepted"
+    if result.get("correct") is False:
+        return "rejected"
+    return "completed"
+
+
+def _attach_check_answer_debug(
+    req: CheckAnswerRequest,
+    result: dict[str, Any],
+    *,
+    checker_path: str,
+) -> dict[str, Any]:
+    existing_debug = result.get("context_debug")
+    service_checker_path = None
+    if isinstance(existing_debug, dict):
+        service_checker_path = existing_debug.get("checker_path")
+    return ai_debug.with_context_debug(
+        result,
+        {
+            "route": "check_answer",
+            "phase": req.phase,
+            "homework_id_present": ai_debug.present(req.homework_id),
+            "question_id_present": ai_debug.present(req.question_id),
+            "question_id": req.question_id or None,
+            "item_id": req.item_id,
+            "step_id": req.step_id,
+            "answer_spec_type": _answer_spec_type(req),
+            "checker_path": service_checker_path or checker_path,
+            "route_checker_path": checker_path,
+            "provider": ai_orchestrator._active_backend(),
+            "model": ai_orchestrator.FAST_MODEL,
+            "source": result.get("source"),
+            "confidence": result.get("confidence"),
+            "result_action": _result_action(result),
+            "ai_unavailable": bool(result.get("ai_unavailable")),
+        },
+        route="api.check_answer",
+    )
+
+
+def _attach_boss_turn_debug(
+    req: BossTurnRequest,
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    damage = int(result.get("damage_dealt") or 0)
+    hp_before = int(req.hp_remaining or 0)
+    return ai_debug.with_context_debug(
+        result,
+        {
+            "route": "boss_turn",
+            "mode": "fixed_boss",
+            "session_id_present": ai_debug.present(req.session_id),
+            "homework_id_present": ai_debug.present(req.homework_id),
+            "question_id_present": ai_debug.present(req.question_id),
+            "history_count": 0,
+            "boss_questions_count": None,
+            "question_source": "frontend_payload",
+            "hp_before": hp_before,
+            "hp_after": max(0, hp_before - damage),
+            "damage_dealt": damage,
+            "difficulty": req.boss_type or req.grade_band,
+            "model": ai_orchestrator.PRO_MODEL,
+            "provider": ai_orchestrator._active_backend(),
+            "ai_unavailable": bool(result.get("ai_unavailable")),
+        },
+        route="api.boss_turn",
+    )
+
+
+def _attach_tutor_chat_route_debug(
+    req: TutorChatRequest,
+    result: dict[str, Any],
+    *,
+    hw_present: bool,
+    question_found: bool,
+    screen_context: Optional[str],
+    student_work_text: Optional[str],
+    subphase: Optional[str],
+    warning_level: int,
+) -> dict[str, Any]:
+    return ai_debug.with_context_debug(
+        result,
+        {
+            "route": "tutor_chat",
+            "session_id_present": ai_debug.present(req.session_id),
+            "hw_id_present": ai_debug.present(req.hw_id),
+            "homework_found": hw_present,
+            "phase": req.phase,
+            "subphase": subphase,
+            "question_id_present": ai_debug.present(req.question_id),
+            "question_found": question_found,
+            "screen_context_raw_len": ai_debug.text_len(req.screen_context),
+            "screen_context_forwarded_len": ai_debug.text_len(screen_context),
+            "student_work_text_len": ai_debug.text_len(student_work_text),
+            "warning_level": warning_level,
+        },
+        route="api.tutor_chat",
+    )
 
 
 # --- Status ---
@@ -1962,7 +2078,10 @@ async def check_answer(req: CheckAnswerRequest):
     # `item_id` and `blank_idx` are then validated strictly (400 on missing).
     if req.phase == "sentence-fill" and req.homework_id:
         try:
-            return await _check_answer_sentence_fill(req)
+            result = await _check_answer_sentence_fill(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:sentence-fill"
+            )
         except HTTPException:
             raise
         except Exception as e:
@@ -1973,7 +2092,10 @@ async def check_answer(req: CheckAnswerRequest):
     # without an HW id continue to flow through tutor.check_answer below.
     if req.phase == "tile-match" and req.homework_id:
         try:
-            return await _check_answer_tile_match(req)
+            result = await _check_answer_tile_match(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:tile-match"
+            )
         except HTTPException:
             raise
         except Exception as e:
@@ -1985,7 +2107,10 @@ async def check_answer(req: CheckAnswerRequest):
     # fall through to tutor.check_answer below.
     if req.phase == "real-life-challenge" and req.homework_id:
         try:
-            return await _check_answer_real_life_challenge(req)
+            result = await _check_answer_real_life_challenge(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:real-life-challenge"
+            )
         except HTTPException:
             raise
         except Exception as e:
@@ -1995,7 +2120,10 @@ async def check_answer(req: CheckAnswerRequest):
     # callers without a homework_id fall through to tutor.check_answer.
     if req.phase == "final-boss" and req.homework_id:
         try:
-            return await _check_answer_final_boss(req)
+            result = await _check_answer_final_boss(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:final-boss"
+            )
         except HTTPException:
             raise
         except Exception as e:
@@ -2004,7 +2132,10 @@ async def check_answer(req: CheckAnswerRequest):
     # Tic Tac Toe per-pick grading branch — same back-compat gate.
     if req.phase == "ttt" and req.homework_id:
         try:
-            return await _check_answer_ttt(req)
+            result = await _check_answer_ttt(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:ttt"
+            )
         except HTTPException:
             raise
         except Exception as e:
@@ -2013,7 +2144,10 @@ async def check_answer(req: CheckAnswerRequest):
     # Tic Tac Toe end-of-session tally branch — same back-compat gate.
     if req.phase == "ttt-session" and req.homework_id:
         try:
-            return await _check_answer_ttt_session(req)
+            result = await _check_answer_ttt_session(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:ttt-session"
+            )
         except HTTPException:
             raise
         except Exception as e:
@@ -2023,14 +2157,17 @@ async def check_answer(req: CheckAnswerRequest):
     # Stateless: the entire encode→walk→recall arc rides in one POST.
     if req.phase == "memory-palace" and req.homework_id:
         try:
-            return await _check_answer_memory_palace(req)
+            result = await _check_answer_memory_palace(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:memory-palace"
+            )
         except HTTPException:
             raise
         except Exception as e:
             _handle_exc(e)
 
     try:
-        return await tutor.check_answer(
+        result = await tutor.check_answer(
             question_id=req.question_id,
             question=req.question,
             student_answer=req.student_answer,
@@ -2042,6 +2179,9 @@ async def check_answer(req: CheckAnswerRequest):
             tier=req.tier,
             context=req.context,
             phase=req.phase,
+        )
+        return _attach_check_answer_debug(
+            req, result, checker_path="legacy:tutor.check_answer"
         )
     except Exception as e:
         _handle_exc(e)
@@ -2140,7 +2280,7 @@ async def boss_turn(req: BossTurnRequest):
             result["stars"] = stars
             result["outcome_xp"] = int(outcome_xp)
             result["boss_type_used"] = boss_type
-        return result
+        return _attach_boss_turn_debug(req, result)
     except Exception as e:
         _handle_exc(e)
 
@@ -2228,6 +2368,8 @@ async def tutor_chat(req: TutorChatRequest):
     tutor._validate_session_id(req.session_id)
 
     hw = await db.get_homework(req.hw_id)
+    hw_present = hw is not None
+    question_found = False
     hw_meta: dict[str, Any] = {}
     if hw:
         hw_meta["subject"] = hw.get("subject", "")
@@ -2237,6 +2379,7 @@ async def tutor_chat(req: TutorChatRequest):
             q = _find_question_in_content(content, req.question_id)
             if q is not None:
                 hw_meta["question"] = q
+                question_found = True
     # screen_context is now passed for ALL phases. The server-side sanitizer in
     # tutor.py (_sanitize_screen_context) scrubs answer-bearing DOM attributes
     # so we no longer need to silently drop it outside preview.
@@ -2276,13 +2419,22 @@ async def tutor_chat(req: TutorChatRequest):
             fail_msg = "Homework done. Moving to reflection."
         else:
             fail_msg = "Uy vazifasi tugadi. So'nggi bosqichga o'tamiz."
-        return {
+        return _attach_tutor_chat_route_debug(
+            req,
+            {
             "response": fail_msg,
             "message_id": None,
             "homework_failed": True,
             "warning_level": outcome.level,
             "cumulative_deduction_pct": outcome.cumulative_deduction_pct,
-        }
+            },
+            hw_present=hw_present,
+            question_found=question_found,
+            screen_context=screen_context,
+            student_work_text=student_work_text,
+            subphase=subphase,
+            warning_level=outcome.level,
+        )
 
     try:
         # Step 4: build kwargs for tutor_chat from warning outcome.
@@ -2347,7 +2499,16 @@ async def tutor_chat(req: TutorChatRequest):
             outcome.cumulative_deduction_pct if outcome is not None else 0
         )
         result["homework_failed"] = False
-        return result
+        return _attach_tutor_chat_route_debug(
+            req,
+            result,
+            hw_present=hw_present,
+            question_found=question_found,
+            screen_context=screen_context,
+            student_work_text=student_work_text,
+            subphase=subphase,
+            warning_level=outcome.level if outcome is not None else 0,
+        )
     except HTTPException:
         # tutor_chat raises HTTPException itself for the cap + LLM-error cases —
         # let those propagate untouched.
@@ -2365,10 +2526,34 @@ async def tutor_boss_plan(req: BossPlanRequest):
     if hw:
         boss_questions = _extract_boss_questions(hw.get("content_json") or {})
     try:
-        return await tutor.boss_plan(
+        result = await tutor.boss_plan(
             session_id=req.session_id,
             hw_id=req.hw_id,
             boss_questions=boss_questions,
+        )
+        existing_debug = result.get("context_debug")
+        service_ai_unavailable = (
+            existing_debug.get("ai_unavailable")
+            if isinstance(existing_debug, dict)
+            else None
+        )
+        return ai_debug.with_context_debug(
+            result,
+            {
+                "route": "tutor_boss_plan",
+                "mode": "fixed_boss",
+                "session_id_present": ai_debug.present(req.session_id),
+                "hw_id_present": ai_debug.present(req.hw_id),
+                "homework_found": hw is not None,
+                "boss_questions_count": len(boss_questions),
+                "question_source": "content_json",
+                "provider": ai_orchestrator._active_backend(),
+                "model": ai_orchestrator.PRO_MODEL,
+                "ai_unavailable": bool(
+                    service_ai_unavailable or result.get("ai_unavailable")
+                ),
+            },
+            route="api.tutor_boss_plan",
         )
     except HTTPException:
         raise
@@ -2384,4 +2569,13 @@ async def tutor_history(
     """Return the chronological chat history for a (session_id, hw_id), capped at 50."""
     tutor._validate_session_id(session_id)
     turns = await db.list_tutor_turns(session_id=session_id, hw_id=hw_id, limit=50)
-    return {"turns": turns}
+    return ai_debug.with_context_debug(
+        {"turns": turns},
+        {
+            "route": "tutor_history",
+            "session_id_present": ai_debug.present(session_id),
+            "hw_id_present": ai_debug.present(hw_id),
+            "history_count": len(turns),
+        },
+        route="api.tutor_history",
+    )
