@@ -99,7 +99,6 @@ def _redact_question_for_tutor(question: dict) -> dict:
     Build safe question context.
     """
     # TODO(deferred): Remove expected answers/rubrics thoroughly
-    safe_q = question.copy()
     raise NotImplementedError("Question redaction for tutor context is not yet implemented.")
 
 
