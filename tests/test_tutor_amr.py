@@ -30,7 +30,7 @@ def _run(coro):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.tutor.gemini.generate_json", new_callable=AsyncMock)
+@patch("server.services.tutor.ai_orchestrator.generate_json", new_callable=AsyncMock)
 def test_boss_turn_requests_amr_mode(mock_generate_json):
     from server.services import tutor
 
@@ -87,7 +87,7 @@ def test_boss_turn_requests_amr_mode(mock_generate_json):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.tutor.gemini.generate_json", new_callable=AsyncMock)
+@patch("server.services.tutor.ai_orchestrator.generate_json", new_callable=AsyncMock)
 def test_tutor_help_requests_amr_mode(mock_generate_json):
     from server.services import tutor
 

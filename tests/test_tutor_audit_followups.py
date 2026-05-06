@@ -209,7 +209,7 @@ def test_message_count_incremented_after_offline_guard():
 
 
 @pytest.mark.parametrize("bad_phase", ["xyzzy", "", "PREVIEW", "boss-mode", " preview"])
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_unknown_phase_is_rejected(mock_generate, bad_phase, client):
     mock_generate.return_value = "should not be called"
     hw_id = _make_homework_with_boss_question(client)
@@ -232,7 +232,7 @@ def test_unknown_phase_is_rejected(mock_generate, bad_phase, client):
 
 
 @pytest.mark.parametrize("good_phase", ["preview", "practice", "boss"])
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_known_phases_pass_validation(mock_generate, good_phase, client):
     mock_generate.return_value = "ok"
     hw_id = _make_homework_with_boss_question(client)
@@ -288,7 +288,7 @@ def test_list_tutor_turns_most_recent_returns_last_n_chronologically():
     )
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_chat_history_window_uses_most_recent_query_not_slice(mock_generate, client):
     """The chat-history window in tutor_chat must call list_tutor_turns with
     most_recent=True + the small window limit — not pull 200 rows and slice.

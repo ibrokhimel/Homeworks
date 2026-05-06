@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Path as PathParam, Query
 from pydantic import BaseModel, Field
 from typing import Optional, Any
 
-from ..services import tutor, gemini, injector
+from ..services import tutor, ai_orchestrator, injector
 from ..services.slur_filter import classify, detect_slurs
 from ..services import warnings as warnings_svc
 from .. import db
@@ -213,26 +213,19 @@ def _handle_exc(e: Exception):
 @router.get("/ai/status")
 async def ai_status() -> dict:
     """Report which AI backend is active plus project/location/model for debugging."""
-    pref_list = gemini._preference_list()
-    active = gemini._active_backend()
+    pref_list = ai_orchestrator._preference_list()
+    active = ai_orchestrator._active_backend()
 
     info: dict[str, Any] = {
         # Legacy fields — kept for backward compat
         "backend": active,
-        "model_fast": gemini.FAST_MODEL,
-        "model_pro": gemini.PRO_MODEL,
+        "model_fast": ai_orchestrator.FAST_MODEL,
+        "model_pro": ai_orchestrator.PRO_MODEL,
         # Wave F0 additions
         "active_provider": active,
         "preference_list": pref_list,
-        "available_providers": gemini.available_providers(),
+        "available_providers": ai_orchestrator.available_providers(),
     }
-    if active == "vertex":
-        try:
-            info["project"] = gemini._resolve_vertex_project(gemini.VERTEX_CREDENTIALS_PATH)
-        except Exception:
-            info["project"] = None
-        info["location"] = gemini.VERTEX_LOCATION
-        info["credentials_path"] = gemini.VERTEX_CREDENTIALS_PATH
     return info
 
 
@@ -830,12 +823,12 @@ async def _grade_rlc_reasoning(
     """Grade reasoning step via the LLM. Returns (score 0-100, feedback string).
 
     Loads the `real-life-challenge-grader` runtime prompt and calls the same
-    `gemini.generate_json` adapter used by `tutor.check_answer`. Anchors the
+    `ai_orchestrator.generate_json` adapter used by `tutor.check_answer`. Anchors the
     LLM on step.acceptable_keywords (server-only) + case intro context. The
     min-char gate is enforced BEFORE this is called (cheap reject).
 
     The student's score is mapped 1:1 onto `xp.reasoning_quality` (0-100).
-    Tests mock this function directly — they do not exercise gemini.
+    Tests mock this function directly — they do not exercise ai_orchestrator.
     """
     # Local imports keep the module load light when the RLC branch is unused.
     from ..services.tutor import _load_runtime_prompt
@@ -858,11 +851,20 @@ async def _grade_rlc_reasoning(
         "score": "integer 0..100",
         "feedback": "1-2 sentence string in the case's language",
     }
-    ai_response = await gemini.generate_json(
-        f"{prompt}\n\n---\n\nINPUT:\n{_json.dumps(payload, ensure_ascii=False, indent=2)}",
-        schema_hint=schema,
-        model=gemini.FAST_MODEL,
-    )
+    # PR 1 — bloat-fix: sanitize+cap before LLM, fall back to neutral score
+    # when unavailable so the runtime sees a usable response instead of 500.
+    try:
+        input_section = ai_orchestrator.build_input_section(payload)
+        ai_response = await ai_orchestrator.generate_json(
+            f"{prompt}\n\n{input_section}",
+            schema_hint=schema,
+            model=ai_orchestrator.FAST_MODEL,
+        )
+    except (ai_orchestrator.PromptTooLargeError, RuntimeError):
+        # AI grading unavailable — return a neutral "needs human review" score
+        # rather than 0 (which would punish the student) or 100 (false pass).
+        return (50, "AI baholash hozir mavjud emas — javobingiz keyinroq tekshiriladi.")
+
     # Defensive parse — clamp to [0, 100], coerce to int.
     raw_score = ai_response.get("score", 0)
     try:

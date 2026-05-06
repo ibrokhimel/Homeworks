@@ -182,7 +182,7 @@ def clean_tutor_tables():
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_preview_chat_persists_turns(mock_generate, client):
     mock_generate.return_value = "Mitoz — bu hujayra bo'linish jarayoni."
     hw_id = _make_homework_with_question(client)
@@ -211,12 +211,12 @@ def test_preview_chat_persists_turns(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_practice_no_answer_leak(mock_generate, client):
     """Set expected="MAGIC_TOKEN_42" on the question. Capture the prompt the
-    tutor service hands to gemini.generate and assert MAGIC_TOKEN_42 is NOT in it.
+    tutor service hands to ai_orchestrator.generate and assert MAGIC_TOKEN_42 is NOT in it.
 
-    We also stub gemini.generate's return value to contain MAGIC_TOKEN_42 — the
+    We also stub ai_orchestrator.generate's return value to contain MAGIC_TOKEN_42 — the
     test must still pass because we only protect *input* (the prompt is the
     safety surface). Output filtering is intentionally out of scope.
     """
@@ -240,7 +240,7 @@ def test_practice_no_answer_leak(mock_generate, client):
     assert resp.status_code == 200, resp.text
 
     captured_prompt = captured.get("prompt", "")
-    assert captured_prompt, "gemini.generate was never called"
+    assert captured_prompt, "ai_orchestrator.generate was never called"
     assert "MAGIC_TOKEN_42" not in captured_prompt, (
         "Answer-leak guard failed: MAGIC_TOKEN_42 ended up in the LLM prompt.\n"
         f"Prompt:\n{captured_prompt[:1000]}"
@@ -251,7 +251,7 @@ def test_practice_no_answer_leak(mock_generate, client):
     assert "MAGIC_TOKEN_42" in resp.json()["response"]
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_practice_no_answer_alias_leak_from_answer_spec(mock_generate, client):
     """Some editor/importer shapes store the answer in `canonical_display`,
     `answer`, or `matched_expected`, not only `expected`. Practice prompts
@@ -310,7 +310,7 @@ def test_practice_no_answer_alias_leak_from_answer_spec(mock_generate, client):
         assert token not in prompt, f"{token} leaked into prompt:\n{prompt[:1000]}"
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_practice_no_nested_answer_leak(mock_generate, client):
     """Redaction should be recursive: answers can appear in nested lists/dicts
     such as options[], fields[], or rubrics from imported content."""
@@ -371,7 +371,7 @@ def test_practice_no_nested_answer_leak(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_practice_response_passthrough(mock_generate, client):
     mock_generate.return_value = "Try isolating x first"
     hw_id = _make_homework_with_question(client, expected="7")
@@ -392,7 +392,7 @@ def test_practice_response_passthrough(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_boss_plan_basic(mock_generate_json, client):
     qids = ["qa", "qb", "qc"]
     hw_id = _make_homework_with_boss_pool(client, qids)
@@ -420,7 +420,7 @@ def test_boss_plan_basic(mock_generate_json, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_boss_plan_invalid_falls_back(mock_generate_json, client):
     qids = ["qx", "qy", "qz"]
     hw_id = _make_homework_with_boss_pool(client, qids)
@@ -485,7 +485,7 @@ def test_cross_session_isolation(client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_session_message_cap_returns_429(mock_generate, client):
     mock_generate.return_value = "ok"
     hw_id = _make_homework_with_question(client)
@@ -512,7 +512,7 @@ def test_session_message_cap_returns_429(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_tutor_chat_accepts_screen_context(mock_generate, client):
     """screen_context sent from the client must appear in the prompt under
     the SCREEN_CONTEXT: heading so the tutor can reference on-screen text."""
@@ -546,7 +546,7 @@ def test_tutor_chat_accepts_screen_context(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_tutor_chat_truncates_long_screen_context(mock_generate, client):
     """A 5000-char screen_context must be capped at 2000 chars in the prompt."""
     captured: dict[str, str] = {}
@@ -642,7 +642,7 @@ def test_tutor_assistant_prompt_locks_in_tone_rules():
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_tutor_chat_uses_pro_model_for_math(mock_generate, client):
     """Math subjects must use PRO_MODEL for deeper reasoning to avoid hallucinations."""
     captured: dict[str, str] = {}
@@ -666,13 +666,13 @@ def test_tutor_chat_uses_pro_model_for_math(mock_generate, client):
     assert resp.status_code == 200, resp.text
 
     model = captured.get("model")
-    from server.services import gemini
-    assert model == gemini.PRO_MODEL, (
+    from server.services import ai_orchestrator
+    assert model == ai_orchestrator.PRO_MODEL, (
         f"math-algebra should use PRO_MODEL, got {model}"
     )
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_tutor_chat_uses_fast_model_for_non_math(mock_generate, client):
     """Non-math subjects like English use FAST_MODEL for cost efficiency."""
     captured: dict[str, str] = {}
@@ -722,8 +722,8 @@ def test_tutor_chat_uses_fast_model_for_non_math(mock_generate, client):
     assert resp.status_code == 200, resp.text
 
     model = captured.get("model")
-    from server.services import gemini
-    assert model == gemini.FAST_MODEL, (
+    from server.services import ai_orchestrator
+    assert model == ai_orchestrator.FAST_MODEL, (
         f"english should use FAST_MODEL, got {model}"
     )
 
@@ -763,7 +763,7 @@ def test_strip_fence_tags_collapses_extra_newlines():
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_screen_context_accepted_in_practice_phase(mock_generate, client):
     """screen_context must reach the LLM prompt even in practice phase."""
     captured: dict[str, str] = {}
@@ -791,7 +791,7 @@ def test_screen_context_accepted_in_practice_phase(mock_generate, client):
     )
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_screen_context_accepted_in_boss_phase(mock_generate, client):
     """screen_context must reach the LLM prompt in boss phase."""
     captured: dict[str, str] = {}
@@ -824,7 +824,7 @@ def test_screen_context_accepted_in_boss_phase(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_student_work_text_appears_in_prompt(mock_generate, client):
     """student_work_text must appear in the prompt under STUDENT_ATTEMPT:."""
     captured: dict[str, str] = {}
@@ -856,7 +856,7 @@ def test_student_work_text_appears_in_prompt(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_subphase_appears_in_prompt_when_in_allowlist(mock_generate, client):
     """A valid subphase value must appear as SUBPHASE: in the prompt."""
     captured: dict[str, str] = {}
@@ -884,7 +884,7 @@ def test_subphase_appears_in_prompt_when_in_allowlist(mock_generate, client):
     )
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_subphase_dropped_when_not_in_allowlist(mock_generate, client):
     """An invalid subphase must be silently dropped — no SUBPHASE: in prompt."""
     captured: dict[str, str] = {}
@@ -917,7 +917,7 @@ def test_subphase_dropped_when_not_in_allowlist(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_response_strips_untrusted_tags_from_model_output(mock_generate, client):
     """If the LLM returns text wrapped in <UNTRUSTED> tags, the final HTTP
     response body must not contain those tags."""

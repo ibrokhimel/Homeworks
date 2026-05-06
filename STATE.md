@@ -12,7 +12,7 @@ agent should test next. Update this file whenever you ship a fix or discover a r
 
 | Area | Status | Confidence |
 |----|----|----|
-| AI tutor backend (Vertex) | ✅ working | 100% |
+| AI tutor backend (Kimi) | ✅ working | 100% |
 | Homework CRUD + persistence | ✅ working | 100% |
 | Dashboard / library / trash / versions | ✅ working | 100% |
 | Export to standalone HTML | ✅ working | 100% |
@@ -35,11 +35,10 @@ Overall: **~94% functional**. The remaining 6% is mostly polish and the
 - SQLite with WAL + `synchronous=FULL`. Crashes / hard-refreshes don't lose data.
 - Soft-delete + version snapshots. Restore-from-version tested.
 - 4 AI tutor endpoints (`/api/ai/check-answer`, `/boss-turn`, `/reflection`, `/tutor`).
-- Vertex AI active: project `unique-spirit-494018-h5`, location `us-central1`,
-  models `gemini-2.5-flash` (fast) + `gemini-2.5-pro` (boss).
+- Kimi (Moonshot) active: models `moonshot-v1-32k` (fast) + `moonshot-v1-128k` (boss) via `ai_orchestrator.py`.
 - Endpoints return well-formed Uzbek JSON in <2s p50.
 - Trashed homeworks return 409 on `/preview` and `/h/{id}` (BUG-1, fixed; export route removed in Wave B1+B2).
-- Auto-fallback: if Vertex fails → Gemini API → Kimi → stock responses. Sessions never stall.
+- No provider fallback chain — Kimi is the sole backend. If Kimi is unavailable, endpoints return stock responses so sessions never stall.
 
 ### Builder UI
 - All 10 phase editors load, save, and round-trip content correctly.
@@ -118,7 +117,7 @@ Overall: **~94% functional**. The remaining 6% is mostly polish and the
 
 - **[New — High] `cons-check-answer` always visible; no interactive reveal** — `perfect_homework.html:2380–2383`. The consolidation screen shows `check_answer` as permanently visible italicized text. There is no "Show answer" button or input field. This is arguably worse than display-only — the answer is exposed before the student attempts the check question, defeating the formative purpose entirely.
 
-- **[New — Medium] `pipeline.py` still imports from `db.py` and `services`** — `server/services/pipeline.py:26–28`. Despite the deprecation notice, the file still imports `get_homework`, `update_homework`, `set_status` from `db`, and `gemini` from services. If these imports fail (e.g., signature change), they will raise at module load only if something imports `pipeline` — currently nothing does. Safe but messy; should be cleaned up in the Wave A5 pass.
+- **[New — Medium] `pipeline.py` still imports from `db.py` and `services`** — `server/services/pipeline.py:26–28`. Despite the deprecation notice, the file still imports `get_homework`, `update_homework`, `set_status` from `db`, and `ai_orchestrator` from services. If these imports fail (e.g., signature change), they will raise at module load only if something imports `pipeline` — currently nothing does. Safe but messy; should be cleaned up in the Wave A5 pass.
 
 - **[BROKEN — Medium] `homeworkSummary` in runtime context uses `subject_display`, not a real summary** — moved into `server/routes/homework_page.py::render_homework()` after Wave B1+B2 deleted `export.py`. The `NETS_CTX.homeworkSummary` field, which `runtime.js` passes to `/api/ai/reflection` as `homework_summary`, is still set to `content.get("meta", {}).get("subject_display", "")` — i.e., the subject name string ("Algebra", etc.), not a session performance summary. The reflection AI prompt receives a subject label instead of meaningful session data, producing generic feedback. Real fix: compute a summary from session score data or leave it empty for the frontend to fill in.
 
@@ -133,7 +132,7 @@ Run these on the Mac whenever someone changes the relevant area. Curl examples a
 
 ```bash
 curl -sf /api/subjects > /dev/null && echo OK
-curl -sf /api/ai/status | grep -q '"backend":"vertex"' && echo VERTEX_OK
+curl -sf /api/ai/status | grep -q '"backend":"kimi"' && echo KIMI_OK
 curl -sf /api/homeworks > /dev/null && echo HW_LIST_OK
 ```
 
@@ -152,7 +151,7 @@ Specifically watch for:
 - `acceptable: [...]` present in `GB_ADAPTIVE_QUIZ` items with multi-answer fixtures.
 - `chain[i].expect` matches `expects[i]` for sentence-fill items with per-level expects.
 
-### AI tutor (run after gemini.py / tutor.py / .env changes)
+### AI tutor (run after ai_orchestrator.py / tutor.py / .env changes)
 
 ```bash
 # All four should return 200 with non-empty content
@@ -238,7 +237,7 @@ These behaviors are easy to break with a careless refactor. Keep them green.
 | Preview shows empty constant | template's regex pattern in injector probably no longer matches |
 | Preview crashes with `Cannot read X` | `perfect_homework.html` `renderXxx` function |
 | AI endpoint returns 422 | `server/routes/ai.py` Pydantic model |
-| AI returns garbage | `server/services/tutor.py` prompt or `services/gemini.py` JSON parsing |
+| AI returns garbage | `server/services/tutor.py` prompt or `services/ai_orchestrator.py` JSON parsing |
 | Dashboard list empty | `server/routes/homework.py` list query |
 | Permanent URL serves stale content | `server/routes/homework_page.py` — `render_homework()` reads DB on each call; if stale, restart uvicorn or check the cache layer (none currently). |
 | Database file ballooning | `server/db.py` version retention; consider trimming old snapshots |
@@ -256,7 +255,7 @@ truth about how content flows from DB to user. Everything else is a thin shell.
 ## Smoke Test Results — Wave A2
 
 Date: 2026-04-27
-Run with: `VERTEX_CREDENTIALS_PATH=C:/Users/DaddysHere/Documents/claw_api_service.json pytest tests/test_ai_runtime.py -v`
+Run with: `KIMI_API_KEY=<key> pytest tests/test_ai_runtime.py -v`
 
 | Test | Endpoint | HTTP | Latency (ms) | Result |
 |------|----------|------|-------------|--------|
@@ -267,7 +266,7 @@ Run with: `VERTEX_CREDENTIALS_PATH=C:/Users/DaddysHere/Documents/claw_api_servic
 | test_tutor | POST /api/ai/tutor | 200 | 4271 | PASSED |
 | test_report_written | (artifact check) | — | — | PASSED |
 
-**6/6 passed. Backend: Vertex AI (gemini-2.5-flash / gemini-2.5-pro). No shape divergences detected.**
+**6/6 passed. Backend: Kimi (moonshot-v1-32k / moonshot-v1-128k). No shape divergences detected.**
 
 Shape contracts verified against `server/template/runtime.js` FALLBACK objects and JSDoc:
 - `check-answer` → `{correct, score, feedback, matched_expected}` ✅
@@ -315,30 +314,28 @@ Date: 2026-04-27
 
 ## Wave F0 — AI Provider Abstraction + Kimi-first (2026-04-28)
 
-Refactored `server/services/gemini.py` from a hardcoded Vertex→Gemini→Kimi fallback chain into a clean provider registry.
+Refactored `server/services/gemini.py` from a hardcoded Vertex→Gemini→Kimi fallback chain into a clean provider registry. Vertex AI and Gemini API providers have since been removed; the orchestrator is now `server/services/ai_orchestrator.py` with Kimi as the sole provider.
 
-**New files:**
+**New files (at time of F0):**
 - `server/services/ai_providers/__init__.py` — registry (`register`, `get_provider`, `select_provider`, `available_providers`)
 - `server/services/ai_providers/base.py` — `AIProvider` ABC
-- `server/services/ai_providers/kimi.py` — Kimi/Moonshot provider (primary)
-- `server/services/ai_providers/vertex.py` — Vertex AI provider
-- `server/services/ai_providers/gemini_api.py` — Public Gemini API provider
+- `server/services/ai_providers/kimi.py` — Kimi/Moonshot provider
 - `tests/test_ai_providers.py` — 7 passing tests
 
 **Modified:**
-- `server/services/gemini.py` — slimmed to shim; delegates to registry; `generate_json` signature unchanged
-- `server/config.py` — added `AI_BACKEND_PREFERENCE`, `KIMI_MODEL_FAST`, `KIMI_MODEL_PRO`
-- `server/routes/ai.py::ai_status` — now surfaces `active_provider`, `preference_list`, `available_providers`
-- `.env.example` — updated with Kimi-first preference + new model env vars
+- `server/services/ai_orchestrator.py` — main orchestrator (renamed from `gemini.py`); `generate_json` signature unchanged
+- `server/config.py` — `KIMI_API_KEY`, `KIMI_BASE_URL`, `KIMI_MODEL_FAST`, `KIMI_MODEL_PRO`
+- `server/routes/ai.py::ai_status` — surfaces `active_provider`, `available_providers`
+- `.env.example` — updated with Kimi keys + model env vars
 - `docs/API.md` — updated `/api/ai/status` schema
 
-**Behavior change:** Default provider order is now `kimi → vertex → gemini` (was `vertex → gemini → kimi`). Set `AI_BACKEND_PREFERENCE` env to override.
+**Current behavior:** Kimi is the only provider. `AI_BACKEND_PREFERENCE` env is no longer used (no other providers to prefer).
 
 **Mac mini propagation (one-time SSH op):**
 ```bash
 ssh aisigma@192.168.1.26
 cd /Users/aisigma/nets-builder
-# Append to .env: KIMI_API_KEY=<key> and AI_BACKEND_PREFERENCE=kimi,vertex,gemini
+# Ensure .env has: KIMI_API_KEY=<key>
 launchctl bootout gui/501 ~/Library/LaunchAgents/com.aisigma.netsbuilder.plist
 launchctl bootstrap gui/501 ~/Library/LaunchAgents/com.aisigma.netsbuilder.plist
 curl -sS http://127.0.0.1:8000/api/ai/status | jq

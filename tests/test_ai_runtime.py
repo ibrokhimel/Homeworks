@@ -15,8 +15,8 @@ Run:
     # No-AI tests only (no creds needed):
     pytest tests/test_ai_runtime.py -v -m "not requires_ai"
 
-    # Full suite (requires Vertex / Gemini / Kimi):
-    VERTEX_CREDENTIALS_PATH=/path/to/key.json pytest tests/test_ai_runtime.py -v
+    # Full suite (requires Kimi):
+    KIMI_API_KEY=... pytest tests/test_ai_runtime.py -v
 
 After a run, tests/last_run_report.json is written with per-test latency.
 """
@@ -127,7 +127,7 @@ def test_ai_status_no_creds(client):
 # Hybrid Routing tests (No real AI required, uses mocking)
 # ---------------------------------------------------------------------------
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_check_answer_deterministic(mock_generate, client):
     """
     Deterministic path should not call AI and return immediately.
@@ -147,7 +147,7 @@ def test_check_answer_deterministic(mock_generate, client):
     assert data["source"] == "deterministic"
     mock_generate.assert_not_called()
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_check_answer_ai_fallback_high_confidence(mock_generate, client):
     """
     AI path high confidence -> source='ai', cached
@@ -181,7 +181,7 @@ def test_check_answer_ai_fallback_high_confidence(mock_generate, client):
     assert resp2.json()["source"] == "ai"
     mock_generate.assert_not_called()
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_check_answer_ai_fallback_low_confidence(mock_generate, client):
     """
     AI path low confidence -> source='ai_unsure', correct based on phase, needs_review=True, queued
@@ -237,7 +237,7 @@ def test_review_queue_decide_404(client):
     assert resp.status_code == 404
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_review_queue_decision_persists(mock_generate, client):
     """The teacher's decision must be stored on the row, not silently discarded.
 
@@ -296,7 +296,7 @@ def test_review_queue_decision_persists(mock_generate, client):
     assert stored == decision  # full payload survived round-trip
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_check_answer_no_ai_fallback(mock_generate, client):
     """allow_ai_fallback=False on an unsure deterministic verdict must short-circuit."""
     payload = {
@@ -316,7 +316,7 @@ def test_check_answer_no_ai_fallback(mock_generate, client):
     mock_generate.assert_not_called()
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_check_answer_always_returns_matched_expected_key(mock_generate, client):
     """
     Regression: every check_answer return path MUST include matched_expected
@@ -394,7 +394,7 @@ def test_check_answer_always_returns_matched_expected_key(mock_generate, client)
     mock_generate.assert_called_once()
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_cache_key_namespaced_by_spec(mock_generate, client):
     """Same question_id + same student_answer but different answer_spec MUST NOT collide."""
     mock_generate.side_effect = [
@@ -430,7 +430,7 @@ def test_cache_key_namespaced_by_spec(mock_generate, client):
 # escalating, re-introducing the synonym-rejection bug).
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_check_answer_semantic_always_routes_through_ai(mock_generate, client):
     """type=semantic must NEVER short-circuit the deterministic path —
     even an exact-string match has to go through AI for meaning checks."""
@@ -465,7 +465,7 @@ def test_check_answer_semantic_always_routes_through_ai(mock_generate, client):
     mock_generate.assert_called_once()
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_sentence_fill_amr_flag_extends_schema(mock_generate, client):
     """When the SF runtime sends answer_spec.amr=true, the grader must
     accept and surface axis_1 / axis_2 in the response so the
@@ -515,7 +515,7 @@ def test_sentence_fill_amr_flag_extends_schema(mock_generate, client):
     )
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_sentence_fill_unsure_path_preserves_axes(mock_generate, client):
     """Low-confidence AI verdicts must still pass axis values through
     to the response — the scorecard depends on them even when the
@@ -557,7 +557,7 @@ def test_sentence_fill_unsure_path_preserves_axes(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_cache_hit_skips_ai_call(mock_generate, client):
     """Same (question_id, normalized_student_answer, answer_spec) submitted twice
     via POST /api/ai/check-answer.  The mocked generate_json must be called
@@ -590,7 +590,7 @@ def test_cache_hit_skips_ai_call(mock_generate, client):
     )
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_review_queue_insert_on_low_confidence(mock_generate, client):
     """A boss-phase request that triggers an AI fallback with confidence < 0.90
     must insert exactly one row into the review_queue table.
@@ -636,7 +636,7 @@ def test_review_queue_insert_on_low_confidence(mock_generate, client):
     assert count == 1, f"Expected 1 review_queue row, got {count}"
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_boss_soft_fail_returns_correct_true(mock_generate, client):
     """Boss-phase + deterministic 'unsure' + AI confidence 0.7:
       - Response must be {correct: True, score: 0.7, source: 'ai_unsure', needs_review: True}
@@ -694,7 +694,7 @@ def test_boss_soft_fail_returns_correct_true(mock_generate, client):
     )
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_review_queue_dedup(mock_generate, client):
     """Submitting the same low-confidence answer twice must produce only one
     row in review_queue (idempotent insert).
@@ -1022,7 +1022,7 @@ def test_tutor(client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_boss_turn_accepts_persona_traits(mock_generate, client):
     """POST /api/ai/boss-turn with persona_traits must be accepted (no 422) and the
     captured prompt must contain the trait string so the boss-tutor prompt adapts tone.
@@ -1058,7 +1058,7 @@ def test_boss_turn_accepts_persona_traits(mock_generate, client):
     )
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_boss_turn_backward_compat_no_traits(mock_generate, client):
     """POST /api/ai/boss-turn WITHOUT persona_traits must still work (no 422, shape
     unchanged).  This guards backward-compat for callers that pre-date F3.

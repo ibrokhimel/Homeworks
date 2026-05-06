@@ -63,13 +63,19 @@ class KimiProvider(AIProvider):
             if not api_key:
                 raise RuntimeError("KIMI_API_KEY not configured")
             base_url = os.environ.get("KIMI_BASE_URL", "https://api.moonshot.ai/v1")
+            # 60s was too generous for grading UX — students stared at the
+            # boss "thinking..." UI for 17s+ while the cascade chewed through
+            # oversized prompts (PR 1 stress test). Drop to 15s so a Kimi
+            # hiccup fails fast and the synthetic-verdict fallback fires
+            # before the student loses patience. Vision calls override
+            # per-call to a longer timeout (see KIMI_VISION_TIMEOUT).
             self._client = httpx.AsyncClient(
                 base_url=base_url,
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
-                timeout=60.0,
+                timeout=15.0,
             )
         return self._client
 

@@ -107,7 +107,7 @@ def test_grade_happy_path(client, tmp_path, monkeypatch):
 
     with patch("server.services.notebook_grade.notebook_prefilter.validate",
                return_value=_FakePF()), \
-         patch("server.services.notebook_grade.gemini.generate_vision",
+         patch("server.services.notebook_grade.ai_orchestrator.generate_vision",
                new=AsyncMock(return_value={"text": json.dumps(_VALID_VISION_JSON)})):
         resp = client.post("/api/notebook/grade",
             data={
@@ -193,7 +193,7 @@ def test_captures_get_returns_persisted_rows(client, tmp_path, monkeypatch):
 
     with patch("server.services.notebook_grade.notebook_prefilter.validate",
                return_value=_FakePF()), \
-         patch("server.services.notebook_grade.gemini.generate_vision",
+         patch("server.services.notebook_grade.ai_orchestrator.generate_vision",
                new=AsyncMock(return_value={"text": json.dumps(_VALID_VISION_JSON)})):
         for _ in range(2):
             r = client.post("/api/notebook/grade",

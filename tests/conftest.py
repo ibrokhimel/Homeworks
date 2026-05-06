@@ -21,23 +21,15 @@ def pytest_configure(config):
 
 
 def _ai_available() -> bool:
-    """Return True if at least one AI backend credential is configured and reachable."""
-    vertex_path = os.environ.get("VERTEX_CREDENTIALS_PATH", "")
-    if vertex_path and os.path.exists(vertex_path):
-        return True
-    gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    if gemini_key and gemini_key not in ("", "your_api_key_here"):
-        return True
-    if os.environ.get("KIMI_API_KEY", ""):
-        return True
-    return False
+    """Return True if Kimi (the sole AI backend) is configured."""
+    return bool(os.environ.get("KIMI_API_KEY", ""))
 
 
 def pytest_collection_modifyitems(config, items):
     """Auto-skip @pytest.mark.requires_ai tests when no creds are present."""
     if _ai_available():
         return  # don't skip anything
-    skip_marker = pytest.mark.skip(reason="No AI credentials found (VERTEX_CREDENTIALS_PATH / GEMINI_API_KEY / KIMI_API_KEY)")
+    skip_marker = pytest.mark.skip(reason="No AI credentials found (KIMI_API_KEY)")
     for item in items:
         if item.get_closest_marker("requires_ai"):
             item.add_marker(skip_marker)

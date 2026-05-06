@@ -109,7 +109,7 @@ def clean_db():
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_screen_context_sanitized_in_practice_phase(mock_generate, client):
     """Wave J.2: screen_context is now passed through in PRACTICE/BOSS but
     sanitized — HTML answer-marker lines are stripped by _sanitize_screen_context.
@@ -152,7 +152,7 @@ def test_screen_context_sanitized_in_practice_phase(mock_generate, client):
     )
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_screen_context_sanitized_in_boss_phase(mock_generate, client):
     """Wave J.2: screen_context is sanitized (not dropped) in BOSS phase.
 
@@ -183,7 +183,7 @@ def test_screen_context_sanitized_in_boss_phase(mock_generate, client):
     assert "Boss question text" in prompt
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_screen_context_allowed_in_preview_phase(mock_generate, client):
     """PREVIEW is the legitimate phase for screen_context — a student studying
     material can ask "explain this paragraph" and the tutor needs the text."""
@@ -313,7 +313,7 @@ def test_valid_uuid_session_id_accepted_on_history(client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_student_message_wrapped_in_untrusted_fence(mock_generate, client):
     mock_generate.return_value = "ok"
     hw_id = _make_homework_with_boss_question(client)
@@ -339,7 +339,7 @@ def test_student_message_wrapped_in_untrusted_fence(mock_generate, client):
     assert "<UNTRUSTED>" not in after_fence
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_history_turns_fenced_in_untrusted(mock_generate, client):
     """A persisted user turn from a previous request must also be fenced when
     replayed in CHAT_HISTORY — otherwise a crafted earlier turn re-injects on
@@ -404,7 +404,7 @@ def test_history_turns_fenced_in_untrusted(mock_generate, client):
         "acceptableAnswers",
     ],
 )
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_practice_strips_all_known_leak_key_aliases(mock_generate, leak_key, client):
     mock_generate.return_value = "ok"
     create = client.post(
@@ -450,7 +450,7 @@ def test_practice_strips_all_known_leak_key_aliases(mock_generate, leak_key, cli
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_boss_turn_does_not_send_expected_answers_to_llm(mock_generate_json, client):
     """The expected_answers list (which the route accepts for backward compat)
     must be redacted from the LLM payload — only the server-side computed
@@ -482,7 +482,7 @@ def test_boss_turn_does_not_send_expected_answers_to_llm(mock_generate_json, cli
     assert "\"was_correct\"" in input_section
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_boss_turn_correctness_overrides_llm_when_correct(mock_generate_json, client):
     """If the student's answer matches expected_answers, the server-side
     pre-computed correctness must be authoritative even if the LLM (perhaps
@@ -511,7 +511,7 @@ def test_boss_turn_correctness_overrides_llm_when_correct(mock_generate_json, cl
     assert body["damage_dealt"] == 15
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_boss_turn_correctness_overrides_llm_when_incorrect(mock_generate_json, client):
     """If the student's answer does NOT match, an LLM that hallucinates
     correct=True must be overridden so a prompt-injection cannot fake a hit."""
@@ -544,7 +544,7 @@ def test_boss_turn_correctness_overrides_llm_when_incorrect(mock_generate_json, 
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_provider_error_does_not_leak_to_client(mock_generate, client):
     """A raw provider exception (which can carry API-key fragments or GCP
     project IDs) must NEVER appear in the 500 detail returned to the browser.
@@ -576,7 +576,7 @@ def test_provider_error_does_not_leak_to_client(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_slur_in_llm_response_is_scrubbed(mock_generate, client):
     """If a prompt-injection tricks the model into emitting a slur in its
     reply, the response must be replaced before reaching the student.
@@ -610,7 +610,7 @@ def test_slur_in_llm_response_is_scrubbed(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_cap_check_runs_before_db_insert(mock_generate, client):
     """When the cap is already at SESSION_MESSAGE_CAP, a new request must
     return 429 *and* must NOT add another row to tutor_conversations.
@@ -667,7 +667,7 @@ def test_cap_check_runs_before_db_insert(mock_generate, client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_question_id_boss_prefix_no_longer_triggers_boss_mode(
     mock_generate_json, client
 ):

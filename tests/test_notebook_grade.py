@@ -217,7 +217,7 @@ def test_grade_capture_happy_path(tmp_path, monkeypatch):
 
     with patch.object(notebook_grade.notebook_prefilter, "validate",
                       return_value=_FakePF(ok=True, deskewed=_JPG_HEAD)), \
-         patch.object(notebook_grade.gemini, "generate_vision",
+         patch.object(notebook_grade.ai_orchestrator, "generate_vision",
                       new=AsyncMock(return_value={"text": json.dumps(_VALID_VISION_JSON)})), \
          patch.object(notebook_grade.db, "add_capture",
                       new=AsyncMock(return_value=1)) as mock_add:
@@ -278,7 +278,7 @@ def test_grade_capture_hallucination_guard(tmp_path, monkeypatch):
     }
     with patch.object(notebook_grade.notebook_prefilter, "validate",
                       return_value=_FakePF(ok=True, deskewed=_JPG_HEAD)), \
-         patch.object(notebook_grade.gemini, "generate_vision",
+         patch.object(notebook_grade.ai_orchestrator, "generate_vision",
                       new=AsyncMock(return_value={"text": json.dumps(bad_json)})), \
          patch.object(notebook_grade.db, "add_capture",
                       new=AsyncMock(return_value=3)) as mock_add:
@@ -299,7 +299,7 @@ def test_grade_capture_invalid_input_rejection(tmp_path, monkeypatch):
     monkeypatch.setenv("NETS_PHOTO_DIR", str(tmp_path))
 
     with patch.object(notebook_grade.notebook_prefilter, "validate") as mock_pf, \
-         patch.object(notebook_grade.gemini, "generate_vision",
+         patch.object(notebook_grade.ai_orchestrator, "generate_vision",
                       new=AsyncMock()) as mock_vis, \
          patch.object(notebook_grade.db, "add_capture",
                       new=AsyncMock(return_value=4)):

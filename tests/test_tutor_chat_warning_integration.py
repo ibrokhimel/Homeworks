@@ -136,7 +136,7 @@ def _make_slur_classification(severity: str, is_clean: bool = False):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 @patch("server.routes.ai.classify")
 def test_casual_safe_no_warning_record(mock_classify, mock_generate, client):
     """casual_safe message → no warning record stored, LLM response returned."""
@@ -161,7 +161,7 @@ def test_casual_safe_no_warning_record(mock_classify, mock_generate, client):
     assert _count_warnings(hw_id) == 0
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 @patch("server.routes.ai.classify")
 def test_profanity_strong_first_time_level_1(mock_classify, mock_generate, client):
     """First profanity_strong → warning level=1 in response, no deduction."""
@@ -186,7 +186,7 @@ def test_profanity_strong_first_time_level_1(mock_classify, mock_generate, clien
     assert _count_warnings(hw_id) == 1
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 @patch("server.routes.ai.classify")
 def test_ninth_profanity_strong_returns_homework_failed(
     mock_classify, mock_generate, client
@@ -220,7 +220,7 @@ def test_ninth_profanity_strong_returns_homework_failed(
     mock_generate.assert_not_called()
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 @patch("server.routes.ai.classify")
 def test_recent_assistant_phrases_accepted(mock_classify, mock_generate, client):
     """recent_assistant_phrases field is accepted by the endpoint without error."""
@@ -242,7 +242,7 @@ def test_recent_assistant_phrases_accepted(mock_classify, mock_generate, client)
     assert resp.json()["response"] == "Here is the formula."
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 @patch("server.routes.ai.classify")
 def test_response_always_has_warning_fields(mock_classify, mock_generate, client):
     """Every non-fail response includes warning_level, cumulative_deduction_pct,
