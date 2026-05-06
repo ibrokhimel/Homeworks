@@ -45,21 +45,7 @@ def test_explicit_preference_kimi(monkeypatch):
     assert isinstance(provider, KimiProvider)
 
 
-# ── 3. Fallback chain — Vertex returned when Kimi key is absent ──────────────
-
-def test_fallback_to_vertex(monkeypatch, tmp_path):
-    monkeypatch.delenv("KIMI_API_KEY", raising=False)
-    # Create a fake creds file so Vertex reports available
-    fake_creds = tmp_path / "creds.json"
-    fake_creds.write_text(json.dumps({"project_id": "test-proj"}))
-    monkeypatch.setenv("VERTEX_CREDENTIALS_PATH", str(fake_creds))
-
-    from server.services.ai_providers import select_provider
-    from server.services.ai_providers.vertex import VertexProvider
-
-    provider = select_provider(["kimi", "vertex"])
-    assert provider is not None
-    assert isinstance(provider, VertexProvider)
+# ── 3. (Deleted: test_fallback_to_vertex — Vertex provider no longer exists)
 
 
 # ── 4. Status endpoint fields ─────────────────────────────────────────────────
@@ -80,20 +66,22 @@ def test_status_endpoint_fields(client):
 def test_malformed_preference_env(monkeypatch):
     monkeypatch.setenv("AI_BACKEND_PREFERENCE", "!@#$%")
 
-    from server.services import gemini
+    from server.services import ai_orchestrator
 
-    pref = gemini._preference_list()
-    # Should fall back to the default order without crashing
-    assert pref == ["kimi", "vertex", "gemini_api"]
+    pref = ai_orchestrator._preference_list()
+    # Should fall back to the default without crashing.
+    # Default is "kimi" only after the soft-disable of Vertex + Gemini API
+    # (see server/services/ai_orchestrator.py::_DEFAULT_PREFERENCE).
+    assert pref == ["kimi"]
 
 
 def test_provider_name_with_underscore_parses(monkeypatch):
     """gemini_api (and any future provider with underscores) must parse."""
     monkeypatch.setenv("AI_BACKEND_PREFERENCE", "gemini_api,kimi")
 
-    from server.services import gemini
+    from server.services import ai_orchestrator
 
-    assert gemini._preference_list() == ["gemini_api", "kimi"]
+    assert ai_orchestrator._preference_list() == ["gemini_api", "kimi"]
 
 
 @pytest.mark.asyncio
@@ -103,10 +91,10 @@ async def test_no_backend_raises(monkeypatch):
     monkeypatch.delenv("VERTEX_CREDENTIALS_PATH", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
 
-    from server.services import gemini
+    from server.services import ai_orchestrator
 
     with pytest.raises(RuntimeError, match="No AI backend available"):
-        await gemini.generate("hello")
+        await ai_orchestrator.generate("hello")
 
 
 # ── 6. Envelope shape from KimiProvider ──────────────────────────────────────

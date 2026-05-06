@@ -18,21 +18,15 @@ PROMPTS_DIR: Path = BASE_DIR / "server" / "prompts"
 FIXTURES_DIR: Path = BASE_DIR / "fixtures"
 DATA_DIR: Path = BASE_DIR / "server" / "data"
 
-GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-
-# Vertex AI (preferred) — service account JSON key
-VERTEX_CREDENTIALS_PATH: str = os.getenv("VERTEX_CREDENTIALS_PATH", "")
-VERTEX_PROJECT: str = os.getenv("VERTEX_PROJECT", "")
-VERTEX_LOCATION: str = os.getenv("VERTEX_LOCATION", "us-central1")
-
-# Kimi (Moonshot) — primary AI backend (Wave F0)
+# Kimi (Moonshot) — sole AI backend
 KIMI_API_KEY: str = os.getenv("KIMI_API_KEY", "")
 KIMI_BASE_URL: str = os.getenv("KIMI_BASE_URL", "https://api.moonshot.ai/v1")
 KIMI_MODEL_FAST: str = os.getenv("KIMI_MODEL_FAST", "moonshot-v1-32k")
 KIMI_MODEL_PRO: str = os.getenv("KIMI_MODEL_PRO", "moonshot-v1-128k")
 
-# AI backend selection — comma-separated provider preference list
-AI_BACKEND_PREFERENCE: str = os.getenv("AI_BACKEND_PREFERENCE", "kimi,vertex,gemini_api")
+# AI backend selection — kept as comma-separated preference list for forward
+# compat with future providers; currently Kimi is the only registered provider.
+AI_BACKEND_PREFERENCE: str = os.getenv("AI_BACKEND_PREFERENCE", "kimi")
 
 PORT: int = int(os.getenv("PORT", "8000"))
 DEBUG: bool = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes", "on")

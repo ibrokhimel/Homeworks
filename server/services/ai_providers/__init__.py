@@ -65,8 +65,6 @@ def available_providers() -> list[str]:
 
 # --- Auto-import concrete providers so they self-register ---
 from . import kimi as _kimi          # noqa: E402, F401
-from . import vertex as _vertex      # noqa: E402, F401
-from . import gemini_api as _gemini  # noqa: E402, F401
 
 __all__ = [
     "AIProvider",

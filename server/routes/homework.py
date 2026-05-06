@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ValidationError
 from typing import Optional, Dict, Any
@@ -39,6 +40,86 @@ def _validate_content_json(content: Any) -> None:
                 "details": exc.errors(),
             },
         )
+
+
+# ── PR 2 — write-time bloat validator ────────────────────────────────────────
+#
+# Regression guard: HW-20260429-019 was authored with a 1.5MB inline base64
+# PNG embedded in `boss_questions[0].q`. The bloat blew through the LLM
+# grading layer (PR 1 patches the read path). This validator stops new
+# bloated content from being written at the API boundary.
+#
+# Existing rows are unaffected — PATCH only inspects the INCOMING patch dict,
+# never the merged result. This lets authors fix bloated rows incrementally.
+
+# Per-field cap. Tuned empirically: legitimate "wall of text" content rarely
+# exceeds 50KB in a single field; HW-20260429-019 had a 1.5MB field. 200KB
+# is generous enough to never false-positive on real prose.
+_MAX_FIELD_CHARS = 200_000
+
+# Matches inline `data:image/png;base64,...` (and other data: URLs that smuggle
+# binary content via base64). The runtime expects images in a STRUCTURED `media`
+# field (e.g. `media: {type:"svg", html:"<svg>...</svg>"}`), never as base64
+# blobs concatenated into prose.
+_INLINE_DATA_URL_PATTERN = re.compile(
+    r"data:[a-z]+/[a-z0-9+\-.]+;base64,",
+    re.IGNORECASE,
+)
+
+
+def _check_no_inline_bloat(content: Any, path: str = "content_json") -> None:
+    """Walk `content` recursively; reject string fields with inline bloat.
+
+    Two checks per string field:
+      1. Per-field char cap (200KB) — catches massive embedded payloads.
+      2. `data:*;base64,` substring — catches inline images regardless of
+         length, even small ones (no honest reason for them in text).
+
+    Raises ``HTTPException 422`` on the first violation with the field path
+    so the author can locate the problem. Codes: ``CONTENT_FIELD_TOO_LARGE``
+    or ``BASE64_NOT_ALLOWED_IN_TEXT``.
+
+    No-op on ``None`` / ``int`` / ``bool`` / numeric leaves.
+    """
+    if isinstance(content, dict):
+        for k, v in content.items():
+            _check_no_inline_bloat(v, f"{path}.{k}")
+        return
+    if isinstance(content, list):
+        for i, item in enumerate(content):
+            _check_no_inline_bloat(item, f"{path}[{i}]")
+        return
+    if isinstance(content, str):
+        if len(content) > _MAX_FIELD_CHARS:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": (
+                        f"Field {path} is {len(content):,} chars, "
+                        f"exceeds the {_MAX_FIELD_CHARS:,} cap. "
+                        "Move large embedded media to a structured `media` "
+                        "field instead of stuffing it into text."
+                    ),
+                    "code": "CONTENT_FIELD_TOO_LARGE",
+                    "path": path,
+                    "size": len(content),
+                    "cap": _MAX_FIELD_CHARS,
+                },
+            )
+        if _INLINE_DATA_URL_PATTERN.search(content):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": (
+                        f"Field {path} contains an inline data: URL (base64). "
+                        "Store images in a structured media field "
+                        "(e.g. media: {type:'svg', html:'<svg>...</svg>'}) "
+                        "instead of embedding base64 in text."
+                    ),
+                    "code": "BASE64_NOT_ALLOWED_IN_TEXT",
+                    "path": path,
+                },
+            )
 
 class HomeworkCreate(BaseModel):
     title: str
@@ -135,6 +216,11 @@ async def create_homework(hw: HomeworkCreate):
     if hw.content_json and "meta" in hw.content_json:
       final_content["meta"] = {**empty_scaffold["meta"], **hw.content_json["meta"]}
 
+    # PR 2 — reject inline base64 / oversized text fields at the write boundary.
+    # New rows must be clean; existing rows are not affected (this only fires
+    # on POST/PUT/PATCH).
+    _check_no_inline_bloat(final_content)
+
     result = await db.create_homework({
         "title": hw.title,
         "subject": hw.subject,
@@ -171,6 +257,8 @@ async def update_homework(hw_id: str, hw_update: HomeworkUpdate):
 
     if "content_json" in updates:
         _validate_content_json(updates["content_json"])
+        # PR 2 — bloat check on the FULL content_json (PUT is full overwrite).
+        _check_no_inline_bloat(updates["content_json"])
 
     return await db.update_homework(hw_id, updates)
 
@@ -195,6 +283,10 @@ async def patch_homework_content(hw_id: str, body: ContentPatch):
     # Validate the *merged* result, not just the patch — otherwise an
     # accidental key drop in the patch wouldn't be caught.
     _validate_content_json(merged)
+    # PR 2 — bloat check on the INCOMING patch only (not the merged result).
+    # Existing rows may carry pre-fix bloat; we don't want to block authors
+    # from patching them with clean values. Only NEW bloat is rejected.
+    _check_no_inline_bloat(body.content_json, path="content_json (patch)")
     return await db.update_homework(hw_id, {"content_json": merged})
 
 @router.delete("/{hw_id}")

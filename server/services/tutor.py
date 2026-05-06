@@ -15,7 +15,7 @@ import json
 from fastapi import HTTPException
 
 from ..config import PROMPTS_DIR
-from . import gemini
+from . import ai_orchestrator
 from . import answer_checker
 from .. import db
 
@@ -218,8 +218,8 @@ def _model_for_subject(subject: str) -> str:
     Extensible for future subject→provider routing.
     """
     if subject in _PRO_SUBJECTS:
-        return gemini.PRO_MODEL
-    return gemini.FAST_MODEL
+        return ai_orchestrator.PRO_MODEL
+    return ai_orchestrator.FAST_MODEL
 
 
 def _load_runtime_prompt(name: str) -> str:
@@ -387,12 +387,29 @@ async def check_answer(
                 "axis_1_label": "Mastered|Proficient|Apprentice|Novice",
                 "axis_2_label": "Mastered|Proficient|Apprentice|Novice",
             })
-    ai_response = await gemini.generate_json(
-        f"{prompt}\n\n---\n\nINPUT:\n{json.dumps(payload, ensure_ascii=False, indent=2)}",
-        schema_hint=schema,
-        model=gemini.FAST_MODEL,
-    )
-    
+    # PR 1 — bloat-fix: sanitize+cap before LLM, fall back when unavailable.
+    try:
+        input_section = ai_orchestrator.build_input_section(payload)
+        ai_response = await ai_orchestrator.generate_json(
+            f"{prompt}\n\n{input_section}",
+            schema_hint=schema,
+            model=ai_orchestrator.FAST_MODEL,
+        )
+    except (ai_orchestrator.PromptTooLargeError, RuntimeError) as exc:
+        _log.warning(
+            "check_answer AI fallback unavailable (%s: %s); marking unavailable",
+            exc.__class__.__name__,
+            exc,
+        )
+        return {
+            "correct": False,
+            "score": 0.0,
+            "feedback": "AI baholash hozir mavjud emas — qayta urinib ko'ring.",
+            "source": "ai_unavailable",
+            "matched_expected": None,
+            "ai_unavailable": True,
+        }
+
     confidence = float(ai_response.get("confidence", 1.0))
     if confidence >= 0.90:
         ai_response["source"] = "ai"
@@ -502,11 +519,25 @@ async def boss_turn(
         "axis_1_label": "Mastered|Proficient|Apprentice|Novice",
         "axis_2_label": "Mastered|Proficient|Apprentice|Novice",
     }
-    result = await gemini.generate_json(
-        f"{prompt}\n\n---\n\nINPUT:\n{json.dumps(payload, ensure_ascii=False, indent=2)}",
-        schema_hint=schema,
-        model=gemini.PRO_MODEL,  # boss uses stronger model
-    )
+    # PR 1 — AI grading bloat fix. Sanitize+size-cap the payload before it hits
+    # the LLM; on PromptTooLargeError or any provider failure, fall back to a
+    # synthetic response keyed off `was_correct` so the runtime sees the right
+    # verdict instead of a silent 500.
+    try:
+        input_section = ai_orchestrator.build_input_section(payload)
+        result = await ai_orchestrator.generate_json(
+            f"{prompt}\n\n{input_section}",
+            schema_hint=schema,
+            model=ai_orchestrator.PRO_MODEL,  # boss uses stronger model
+        )
+    except (ai_orchestrator.PromptTooLargeError, RuntimeError) as exc:
+        _log.warning(
+            "boss_turn AI call unavailable (%s: %s); returning synthetic verdict",
+            exc.__class__.__name__,
+            exc,
+        )
+        return _boss_turn_ai_unavailable(was_correct, damage_value)
+
     # Authoritative correctness + damage come from the server-side check.
     # Override whatever the model returned to keep scoring deterministic and
     # prevent a prompt-injection from flipping the outcome (in either direction
@@ -517,6 +548,39 @@ async def boss_turn(
         result["correct"] = was_correct
         result["damage_dealt"] = int(damage_value) if was_correct else 0
     return result
+
+
+def _boss_turn_ai_unavailable(was_correct: bool, damage_value: int) -> dict:
+    """Synthetic boss-turn response when the LLM is unavailable.
+
+    Server-computed `was_correct` (from `_was_correct_normalized`) is the
+    authoritative verdict; the runtime's bossHandleResponse already trusts
+    `correct` + `damage_dealt` as canonical (Batch A FB-1 fix). Boss line
+    surfaces a polite "AI tafsiloti yo'q" note rather than a silent fail.
+    Axes are neutralised so the report card still renders meaningfully.
+    """
+    if was_correct:
+        boss_response = "To'g'ri! 🛡️ (AI tafsiloti vaqtinchalik mavjud emas — keyinroq qayta urinib ko'ring.)"
+        score = 1.0
+        axis = 3
+        axis_label = "Proficient"
+    else:
+        boss_response = "Hali emas. 🌀 (AI tafsiloti vaqtinchalik mavjud emas — qayta urinib ko'ring.)"
+        score = 0.0
+        axis = 1
+        axis_label = "Novice"
+    return {
+        "correct": was_correct,
+        "damage_dealt": int(damage_value) if was_correct else 0,
+        "boss_response": boss_response,
+        "hint": None,
+        "score": score,
+        "axis_1": axis,
+        "axis_2": axis,
+        "axis_1_label": axis_label,
+        "axis_2_label": axis_label,
+        "ai_unavailable": True,
+    }
 
 
 async def reflection_feedback(
@@ -549,11 +613,32 @@ async def reflection_feedback(
         "next_steps": "array of 2-3 Uzbek strings",
         "encouragement": "Uzbek string, 1 sentence",
     }
-    return await gemini.generate_json(
-        f"{prompt}\n\n---\n\nINPUT:\n{json.dumps(payload, ensure_ascii=False, indent=2)}",
-        schema_hint=schema,
-        model=gemini.FAST_MODEL,
-    )
+    # PR 1 — bloat-fix: synthesize canned encouragement if LLM unavailable.
+    try:
+        input_section = ai_orchestrator.build_input_section(payload)
+        return await ai_orchestrator.generate_json(
+            f"{prompt}\n\n{input_section}",
+            schema_hint=schema,
+            model=ai_orchestrator.FAST_MODEL,
+        )
+    except (ai_orchestrator.PromptTooLargeError, RuntimeError) as exc:
+        _log.warning(
+            "reflection_feedback AI unavailable (%s: %s); returning canned response",
+            exc.__class__.__name__,
+            exc,
+        )
+        return {
+            "feedback": (
+                "Bugungi mashg'ulot uchun rahmat. Sizning urinishingiz qadrli — "
+                "har bir mashq bilan miyangiz mustahkamroq bo'ladi."
+            ),
+            "next_steps": [
+                "Asosiy fikrlarni qisqacha o'qib chiqing",
+                "Ertaga yana bir mashq bilan davom eting",
+            ],
+            "encouragement": "Muvaffaqiyat tilaymiz!",
+            "ai_unavailable": True,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -839,21 +924,38 @@ async def tutor_chat(
     # Route math-heavy subjects through PRO_MODEL to avoid hallucinations.
     subject = str(hw_meta.get("subject", ""))
     model = _model_for_subject(subject)
-    try:
-        response_text = await gemini.generate(full_prompt, model=model)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        # Scrub the provider error string before it reaches the browser —
-        # raw exceptions can carry API-key fragments, GCP project IDs, or
-        # internal endpoints. Full detail is logged server-side.
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": _scrub_provider_error(exc),
-                "code": "TUTOR_BACKEND_ERROR",
-            },
-        ) from exc
+
+    # PR 1 — bloat-fix: defensive size check on the assembled prompt before
+    # it hits the LLM. `_build_tutor_chat_prompt` includes `question_text` and
+    # `screen_context` which can carry inline base64 images on bloated HWs;
+    # rejecting at this boundary saves a 17s provider-cap timeout cascade.
+    _PROMPT_SIZE_CAP = 60000
+    if len(full_prompt) > _PROMPT_SIZE_CAP:
+        _log.warning(
+            "tutor.chat prompt %s chars exceeds cap %s; returning canned reply",
+            len(full_prompt),
+            _PROMPT_SIZE_CAP,
+        )
+        response_text = (
+            "Hozir bu savolga javob bera olmayman — kontekst juda katta. "
+            "Iltimos, qisqaroq savol bilan qayta urinib ko'ring."
+        )
+    else:
+        try:
+            response_text = await ai_orchestrator.generate(full_prompt, model=model)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            # Scrub the provider error string before it reaches the browser —
+            # raw exceptions can carry API-key fragments, GCP project IDs, or
+            # internal endpoints. Full detail is logged server-side.
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": _scrub_provider_error(exc),
+                    "code": "TUTOR_BACKEND_ERROR",
+                },
+            ) from exc
 
     # Strip any <UNTRUSTED> fence tags the LLM may have mirrored back.
     response_text = _strip_fence_tags(response_text)
@@ -971,16 +1073,15 @@ async def boss_plan(
         "ordered": "array of {question_id: string, framing_text: string (<=180 chars)}",
         "persona_traits": "array with at least one of: challenger, mentor, analyst",
     }
-    full_prompt = (
-        f"{system_prompt}\n\n---\n\nINPUT:\n"
-        + json.dumps(payload, ensure_ascii=False, indent=2)
-    )
-
+    # PR 1 — bloat-fix: sanitize+cap. Existing fallback to _default_boss_plan
+    # already handles LLM failures; PromptTooLargeError follows the same path.
     try:
-        ai_response = await gemini.generate_json(
+        input_section = ai_orchestrator.build_input_section(payload)
+        full_prompt = f"{system_prompt}\n\n{input_section}"
+        ai_response = await ai_orchestrator.generate_json(
             full_prompt,
             schema_hint=schema,
-            model=gemini.PRO_MODEL,
+            model=ai_orchestrator.PRO_MODEL,
         )
     except Exception as exc:  # noqa: BLE001 — we want every LLM hiccup caught.
         print(f"[boss_plan] LLM failed; using default plan: {exc}", flush=True)
@@ -1029,8 +1130,28 @@ async def tutor_help(
         "axis_1_label": "Mastered|Proficient|Apprentice|Novice",
         "axis_2_label": "Mastered|Proficient|Apprentice|Novice",
     }
-    return await gemini.generate_json(
-        f"{prompt}\n\n---\n\nINPUT:\n{json.dumps(payload, ensure_ascii=False, indent=2)}",
-        schema_hint=schema,
-        model=gemini.FAST_MODEL,
-    )
+    # PR 1 — bloat-fix: synthesize a polite "try again" if LLM unavailable.
+    try:
+        input_section = ai_orchestrator.build_input_section(payload)
+        return await ai_orchestrator.generate_json(
+            f"{prompt}\n\n{input_section}",
+            schema_hint=schema,
+            model=ai_orchestrator.FAST_MODEL,
+        )
+    except (ai_orchestrator.PromptTooLargeError, RuntimeError) as exc:
+        _log.warning(
+            "tutor_help AI unavailable (%s: %s); returning canned response",
+            exc.__class__.__name__,
+            exc,
+        )
+        return {
+            "response": (
+                "Hozir javob bera olmayman — bir oz vaqtdan keyin qayta urinib ko'ring."
+            ),
+            "guidance_type": "encouragement",
+            "axis_1": 1,
+            "axis_2": 1,
+            "axis_1_label": "Novice",
+            "axis_2_label": "Novice",
+            "ai_unavailable": True,
+        }

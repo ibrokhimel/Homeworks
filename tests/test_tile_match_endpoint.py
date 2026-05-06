@@ -325,7 +325,7 @@ def test_tm_check_answer_cleared_outcome(client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_tm_check_answer_legacy_route_back_compat(mock_generate, client):
     """phase=tile-match WITHOUT homework_id flows through tutor.check_answer
     (legacy AMR-shape path) — guards against the new branch swallowing

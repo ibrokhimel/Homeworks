@@ -74,3 +74,8 @@ tests/fixtures/prod_replay/
 ref_*.txt
 ai_models_comparison.md
 SENTENCE_FILL_BACKEND_PLAN.md
+
+# Local-only working artifacts (not project-relevant)
+/extract_lesson.py
+/pip_err.txt
+/pip_out.txt

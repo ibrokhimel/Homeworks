@@ -106,7 +106,7 @@ def test_callout_for_no_slur_returns_none():
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate")
+@patch("server.services.ai_orchestrator.generate")
 def test_route_passes_slur_context_to_llm(mock_generate, client):
     """Wave J: the old callout_for prepend was removed. The route now passes
     severity/warning_level into the LLM prompt instead of prepending a canned

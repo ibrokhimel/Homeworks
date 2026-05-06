@@ -1080,19 +1080,16 @@ Returns chronological turns (oldest first), capped at 50.
 **200**:
 ```json
 {
-  "backend": "kimi|vertex|gemini_api|none",
-  "model_fast": "gemini-2.5-flash",
-  "model_pro": "gemini-2.5-pro",
+  "backend": "kimi|none",
+  "model_fast": "moonshot-v1-32k",
+  "model_pro": "moonshot-v1-128k",
   "active_provider": "kimi",
-  "preference_list": ["kimi", "vertex", "gemini_api"],
   "available_providers": ["kimi"]
 }
 ```
-- `active_provider` — name of the provider currently selected (first available in `preference_list`).
-- `preference_list` — ordered list read from `AI_BACKEND_PREFERENCE` env (default `kimi,vertex,gemini_api`).
+- `active_provider` — name of the provider currently selected (`"kimi"` when credentials are present, `"none"` otherwise).
 - `available_providers` — all registered providers whose credentials are present.
 - `backend` is a legacy alias for `active_provider` — kept for backward compat.
-When `active_provider == "vertex"`: also includes `project`, `location`, `credentials_path`.
 
 ---
 
@@ -1206,7 +1203,7 @@ STRINGS[current_lang][key] → STRINGS['en'][key] → STRINGS['uz'][key] → fal
 
 ### GET /api/health
 
-**200** `{ "status": "ok", "ai_backend": "vertex|...", "ai_ready": bool, "gemini": bool }`. `gemini` is a legacy alias for `ai_ready`.
+**200** `{ "status": "ok", "ai_backend": "kimi|none", "ai_ready": bool, "gemini": bool }`. `gemini` is a legacy alias for `ai_ready`.
 
 ---
 

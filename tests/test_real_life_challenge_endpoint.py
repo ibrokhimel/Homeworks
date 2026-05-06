@@ -517,7 +517,7 @@ def test_rlc_no_answer_leak_in_response(client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_rlc_back_compat_legacy_callers_without_homework_id_fall_through(
     mock_generate, client,
 ):

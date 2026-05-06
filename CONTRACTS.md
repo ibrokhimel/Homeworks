@@ -469,11 +469,11 @@ Used by the builder's quote picker modal (`frontend/js/editors/_quote-picker.js`
 ```python
 async def generate(prompt: str, context: str = "", json_schema: dict = None) -> str | dict:
     """
-    Send prompt + context to Gemini. If json_schema provided, return parsed dict.
+    Send prompt + context to Kimi. If json_schema provided, return parsed dict.
     Otherwise return raw text.
-    
-    Uses model: gemini-2.5-flash for fast tasks, gemini-2.5-pro for complex phases.
-    API key from env: GEMINI_API_KEY.
+
+    Uses model: moonshot-v1-32k for fast tasks, moonshot-v1-128k for complex phases.
+    API key from env: KIMI_API_KEY.
     """
 ```
 
@@ -562,8 +562,8 @@ nets-builder/
 │           ├── consolidation.js
 │           ├── boss.js
 │           └── reflection.js
-├── fixtures/               # Gemini-produced sample content_json for each subject
-├── .env                    # GEMINI_API_KEY=...
+├── fixtures/               # Sample content_json for each subject
+├── .env                    # KIMI_API_KEY=...
 ├── requirements.txt
 ├── README.md
 └── CONTRACTS.md            # this file

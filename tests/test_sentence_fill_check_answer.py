@@ -360,7 +360,7 @@ def test_response_body_never_contains_answers_field(client):
 # ---------------------------------------------------------------------------
 
 
-@patch("server.services.gemini.generate_json")
+@patch("server.services.ai_orchestrator.generate_json")
 def test_legacy_phase_path_still_works(mock_generate, client):
     """Smoke: a legacy phase request (no sentence-fill fields) still routes to
     tutor.check_answer and returns the deterministic shape."""

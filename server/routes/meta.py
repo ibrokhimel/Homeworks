@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 from .. import db
 from ..config import FIXTURES_DIR
 from ..services import quotes as quotes_service
-from ..services.gemini import ACTIVE_BACKEND
+from ..services.ai_orchestrator import ACTIVE_BACKEND
 from ..services.routing import (
     ALWAYS_HARD,
     FAMILY_COLORS,

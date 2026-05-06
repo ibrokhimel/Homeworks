@@ -17,7 +17,7 @@ from dataclasses import asdict, dataclass
 from typing import Any, Optional
 
 from server import db
-from server.services import gemini, notebook_prefilter, photo_store
+from server.services import ai_orchestrator, notebook_prefilter, photo_store
 
 log = logging.getLogger(__name__)
 
@@ -224,7 +224,7 @@ async def grade_capture(
         prompt_template=prompt_template,
     )
     try:
-        resp = await gemini.generate_vision(
+        resp = await ai_orchestrator.generate_vision(
             prompt=grounded,
             image_b64=image_b64,
             mime="image/jpeg",

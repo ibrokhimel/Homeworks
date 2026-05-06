@@ -63,7 +63,7 @@ The server runs on a Mac mini (`192.168.1.26`) with a launchd agent that respawn
   ├── server/
   │   ├── app.py           # FastAPI entry + static mounts
   │   ├── routes/          # CRUD, Library, AI, Meta, review-queue
-  │   ├── services/        # gemini.py, injector.py, answer_checker.py
+  │   ├── services/        # ai_orchestrator.py, injector.py, answer_checker.py
   │   └── template/        # perfect_homework.html (runtime template)
   ├── frontend/
   │   ├── index.html       # Dashboard (library + trash)
@@ -103,7 +103,7 @@ In PRACTICE and BOSS phases, the server rigorously strips all grading fields —
 - `GET  /api/ai/tutor/history` — Retrieve the current session's chat log.
 
 **AI Backend:**
-Defaults to Kimi (`moonshot-v1-32k` for chat, `moonshot-v1-128k` for boss planning) with automatic fallback to Vertex AI or Gemini API based on the `AI_BACKEND_PREFERENCE` environment variable.
+Uses Kimi (Moonshot) as the sole provider (`moonshot-v1-32k` for chat, `moonshot-v1-128k` for boss planning). Set `KIMI_API_KEY` in `.env`; no other provider is configured.
 
 **Status:**
 Wave F0 + F1 shipped (backend, PR #6 + #7). F2 (frontend widget) in PR #9. F3 (boss personalization wiring) queued. Architecture details in [`docs/TUTOR.md`](docs/TUTOR.md).

@@ -1,10 +1,10 @@
 """PR B — runtime provider fallback chain regression tests.
 
-Locks audit finding C6: `gemini.generate` was calling `select_provider` once
+Locks audit finding C6: `ai_orchestrator.generate` was calling `select_provider` once
 at request time and surfacing the raw exception on any failure. The chain
 advertised in STATE.md (Vertex → Gemini → Kimi → stock) was not actually
 wired at runtime — only at startup selection. These tests assert that
-`gemini.generate` now walks every available provider in preference order on
+`ai_orchestrator.generate` now walks every available provider in preference order on
 exception, only raising RuntimeError when all have failed.
 
 Each test uses MagicMock providers registered into the registry so the chain
@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from server.services import gemini
+from server.services import ai_orchestrator
 from server.services.ai_providers import _REGISTRY, register
 
 
@@ -77,7 +77,7 @@ def fake_chain(monkeypatch):
     yield fakes
 
     # Restore the live registry — IMPORTANT so subsequent tests still see the
-    # real KimiProvider / VertexProvider singletons.
+    # real KimiProvider singleton.
     _REGISTRY.clear()
     _REGISTRY.update(snapshot)
 
@@ -89,7 +89,7 @@ def fake_chain(monkeypatch):
 
 def test_first_provider_success_short_circuits(fake_chain):
     async def _run():
-        return await gemini.generate("hello")
+        return await ai_orchestrator.generate("hello")
 
     text = asyncio.run(_run())
     assert text == "reply from vertex"
@@ -113,7 +113,7 @@ def test_first_provider_failure_falls_through_to_second(fake_chain):
     fake_chain["vertex"].generate_json = _vertex_5xx
 
     async def _run():
-        return await gemini.generate("hello")
+        return await ai_orchestrator.generate("hello")
 
     text = asyncio.run(_run())
     assert text == "reply from gemini_api", (
@@ -137,7 +137,7 @@ def test_chain_walks_to_third_provider_on_double_failure(fake_chain):
     fake_chain["gemini_api"].generate_json = _boom
 
     async def _run():
-        return await gemini.generate("hello")
+        return await ai_orchestrator.generate("hello")
 
     text = asyncio.run(_run())
     assert text == "reply from kimi"
@@ -156,7 +156,7 @@ def test_all_providers_fail_raises_runtime_error_with_list(fake_chain):
         fake.generate_json = _boom
 
     async def _run():
-        await gemini.generate("hello")
+        await ai_orchestrator.generate("hello")
 
     with pytest.raises(RuntimeError) as excinfo:
         asyncio.run(_run())
@@ -190,7 +190,7 @@ def test_provider_error_strings_do_not_leak_into_runtime_error(fake_chain):
         fake.generate_json = _leaky
 
     async def _run():
-        await gemini.generate("hello")
+        await ai_orchestrator.generate("hello")
 
     with pytest.raises(RuntimeError) as excinfo:
         asyncio.run(_run())
@@ -219,7 +219,7 @@ def test_preference_order_drives_fallback_order(fake_chain, monkeypatch):
     # vertex stays as the default success stub
 
     async def _run():
-        return await gemini.generate("hello")
+        return await ai_orchestrator.generate("hello")
 
     text = asyncio.run(_run())
     assert text == "reply from vertex"
@@ -237,7 +237,7 @@ def test_unavailable_providers_skipped(fake_chain):
     fake_chain["vertex"].is_available = lambda: False  # type: ignore[assignment]
 
     async def _run():
-        return await gemini.generate("hello")
+        return await ai_orchestrator.generate("hello")
 
     text = asyncio.run(_run())
     assert text == "reply from gemini_api"

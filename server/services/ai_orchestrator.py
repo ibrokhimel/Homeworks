@@ -1,25 +1,22 @@
 """
 AI client shim — thin wrapper over the provider registry.
 
-Public API (unchanged from Wave C):
+Public API:
   - generate_json(prompt, context, model, schema_hint) -> dict
   - generate(prompt, context, model, json_mode, temperature) -> str
   - health_check() -> bool
-  - ACTIVE_BACKEND: str   ("kimi" | "vertex" | "gemini_api" | "none")
-  - FAST_MODEL, PRO_MODEL: str
+  - ACTIVE_BACKEND: str   ("kimi" | "none")
+  - FAST_MODEL, PRO_MODEL: str   (Kimi model identifiers)
 
-All routing logic has moved to server/services/ai_providers/.
-This module exists purely to keep existing call-sites (tutor.py etc.) unchanged.
+All routing logic lives in server/services/ai_providers/.
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
-from typing import Iterator, Optional
-
-# Keep for backward compat — ai.py status endpoint reads these
-from ..config import VERTEX_CREDENTIALS_PATH, VERTEX_LOCATION  # noqa: F401
+import re
+from typing import Any, Iterator, Optional
 
 # Provider registry — concrete providers self-register on import
 from .ai_providers import (  # noqa: F401
@@ -28,24 +25,20 @@ from .ai_providers import (  # noqa: F401
     get_provider,
     select_provider,
 )
-from .ai_providers.kimi import KimiProvider
-from .ai_providers.vertex import VertexProvider
-
 # Server-side log channel for provider failures. Errors are recorded with full
 # detail here while the public RuntimeError stays generic.
-_log = logging.getLogger("nets.gemini")
-
-# ── Compatibility helper used by routes/ai.py ─────────────────────────────────
-def _resolve_vertex_project(creds_path: str) -> str:
-    return VertexProvider()._resolve_project(creds_path)
+_log = logging.getLogger("nets.ai")
 
 
-# ── Model name constants ───────────────────────────────────────────────────────
-FAST_MODEL: str = "gemini-2.5-flash"
-PRO_MODEL: str = "gemini-2.5-pro"
+# ── Model name constants — Kimi's actual model identifiers ──────────────────
+# Read from config so KIMI_MODEL_FAST / KIMI_MODEL_PRO env overrides flow through.
+from ..config import KIMI_MODEL_FAST, KIMI_MODEL_PRO  # noqa: E402
+
+FAST_MODEL: str = KIMI_MODEL_FAST  # default "moonshot-v1-32k"
+PRO_MODEL: str = KIMI_MODEL_PRO    # default "moonshot-v1-128k"
 
 # ── Preference parsing ────────────────────────────────────────────────────────
-_DEFAULT_PREFERENCE = "kimi,vertex,gemini_api"
+_DEFAULT_PREFERENCE = "kimi"
 
 # Provider-name regex: lowercase letters with optional underscores. Permits
 # "gemini_api" / "kimi" / future "openai" without dropping valid names.
@@ -147,19 +140,93 @@ def __getattr__(name: str):  # noqa: N807
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-# ── Model resolution ──────────────────────────────────────────────────────────
-def _resolve_model(model: str, provider) -> str:
-    """Map gemini-native model names to provider-specific equivalents.
+# ── Prompt input sanitization (PR 1 — AI grading bloat fix) ──────────────────
+#
+# Regression guard: HW-20260429-019 had 1.5MB of inline base64 PNG embedded in
+# its boss_question text. The unsanitized payload blew past every provider's
+# input cap → 500 silent-fail → "always wrong" UX. Helper centralises the strip
+# + size guard so all 5 LLM call sites share one code path.
 
-    Takes the provider INSTANCE (already resolved by select_provider) instead
-    of re-fetching by name — avoids a redundant registry lookup per request.
+
+class PromptTooLargeError(RuntimeError):
+    """Raised when a prompt payload exceeds the configured size cap.
+
+    Carries the actual size + cap so callers can log exact numbers.
     """
-    if isinstance(provider, KimiProvider):
-        if model == FAST_MODEL:
-            return provider.fast_model
-        if model == PRO_MODEL:
-            return provider.pro_model
-    return model
+
+    def __init__(self, size: int, cap: int):
+        self.size = size
+        self.cap = cap
+        super().__init__(
+            f"Prompt payload {size:,} chars exceeds cap {cap:,}; "
+            "likely contains embedded media that should be stripped at "
+            "authoring time."
+        )
+
+
+# <img …  src=data:…> — full tag, even if attributes wrap multiple lines
+_IMG_DATA_URL_RE = re.compile(
+    r"<img\b[^>]*\bsrc\s*=\s*[\"']?data:[^\"'>]+[\"']?[^>]*/?\s*>",
+    re.IGNORECASE | re.DOTALL,
+)
+# <svg …>…</svg> — entire block (LLM doesn't need the geometry)
+_SVG_BLOCK_RE = re.compile(r"<svg\b[^>]*>.*?</svg>", re.IGNORECASE | re.DOTALL)
+# Bare data:image/...;base64,… URL not wrapped in an <img> tag
+_INLINE_DATA_URL_RE = re.compile(
+    r"data:[a-z]+/[a-z0-9+\-.]+;base64,[A-Za-z0-9+/=]+",
+    re.IGNORECASE,
+)
+
+_PER_FIELD_CHAR_CAP = 5000
+_PROMPT_INPUT_CHAR_CAP = 50000
+
+
+def _strip_inline_media(text: str) -> str:
+    """Remove inline ``<img data:…>``, ``<svg>…</svg>``, bare ``data:`` URLs.
+
+    Replaces stripped content with ``[media]`` so structure is preserved but
+    the LLM context isn't polluted.
+    """
+    if not isinstance(text, str):
+        return text
+    text = _IMG_DATA_URL_RE.sub("[media]", text)
+    text = _SVG_BLOCK_RE.sub("[media]", text)
+    text = _INLINE_DATA_URL_RE.sub("[media]", text)
+    return text
+
+
+def _sanitize_payload(obj: Any, max_per_field: int = _PER_FIELD_CHAR_CAP) -> Any:
+    """Recursively sanitize string fields in a payload.
+
+    - Strips inline-media bloat
+    - Caps individual string fields at ``max_per_field`` chars (truncate +
+      mark how many chars were dropped so the LLM sees the boundary)
+    """
+    if isinstance(obj, str):
+        cleaned = _strip_inline_media(obj)
+        if len(cleaned) > max_per_field:
+            dropped = len(cleaned) - max_per_field
+            cleaned = cleaned[:max_per_field] + f"\n... [truncated, {dropped} chars omitted]"
+        return cleaned
+    if isinstance(obj, dict):
+        return {k: _sanitize_payload(v, max_per_field) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_payload(item, max_per_field) for item in obj]
+    return obj  # numbers, bools, None — pass through
+
+
+def build_input_section(payload: dict, max_chars: int = _PROMPT_INPUT_CHAR_CAP) -> str:
+    """Sanitize + serialize a payload to the ``---\\n\\nINPUT:\\n{json}`` template.
+
+    Raises ``PromptTooLargeError`` when the serialized result exceeds
+    ``max_chars``. Callers should catch and fall back to a synthetic response
+    rather than letting the exception bubble to the runtime as a 500.
+    """
+    sanitized = _sanitize_payload(payload)
+    body = json.dumps(sanitized, ensure_ascii=False, indent=2)
+    if len(body) > max_chars:
+        raise PromptTooLargeError(size=len(body), cap=max_chars)
+    return f"---\n\nINPUT:\n{body}"
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -189,18 +256,16 @@ async def generate(
     available = list(_iter_available_providers(_preference_list()))
     if not available:
         raise RuntimeError(
-            "No AI backend available. Set KIMI_API_KEY, VERTEX_CREDENTIALS_PATH, "
-            "or GEMINI_API_KEY in .env"
+            "No AI backend available. Set KIMI_API_KEY in .env."
         )
 
     tried: list[str] = []
     last_exc: Optional[BaseException] = None
     for provider in available:
-        resolved_model = _resolve_model(model, provider)
         try:
             envelope = await provider.generate_json(
                 full_prompt,
-                resolved_model,
+                model,
                 json_mode=json_mode,
                 temperature=temperature,
             )

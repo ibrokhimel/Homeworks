@@ -1,6 +1,6 @@
 # Live AI Tutor — Architecture
 
-The AI Tutor is a stateless runtime service that provides personalized guidance to students during homework playback. It orchestrates interaction between the frontend widget, the LLM provider (Vertex AI / Gemini / Kimi), and the session database to provide context-aware hints without leaking answers.
+The AI Tutor is a stateless runtime service that provides personalized guidance to students during homework playback. It orchestrates interaction between the frontend widget, the Kimi (Moonshot) LLM provider, and the session database to provide context-aware hints without leaking answers.
 
 ## Phase modes
 
@@ -20,7 +20,7 @@ The AI Tutor is a stateless runtime service that provides personalized guidance 
       |-- 1. db.add_tutor_turn (persist "user" message)
       |-- 2. check SESSION_MESSAGE_CAP (60 turns)
       |-- 3. build context (profile + attempts + redacted question)
-      |-- 4. gemini.generate (server/services/gemini.py)
+      |-- 4. ai_orchestrator.generate (server/services/ai_orchestrator.py)
       |-- 5. db.add_tutor_turn (persist "assistant" response)
       v
 [ Response JSON ] -> {"response": "...", "message_id": 123}
