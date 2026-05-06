@@ -3,8 +3,9 @@
 These models define the expected shape of responses from the AI gateway
 for each task type. They are used for validation and repair retries.
 """
+from typing import Literal, Optional
+
 from pydantic import BaseModel, Field
-from typing import Optional
 
 
 class TutorResponse(BaseModel):
@@ -32,21 +33,50 @@ class AnswerCheckResult(BaseModel):
     is_correct: Optional[bool] = Field(default=None)
 
 
+# ---- Plan 7 enriched Boss schemas ------------------------------------------
+
+class BossExpectedAnswer(BaseModel):
+    canonical: str
+    accepted_variants: list[str] = Field(default_factory=list)
+    notes: str = ""
+
+
+class BossRubric(BaseModel):
+    full_credit: list[str] = Field(default_factory=list)
+    partial_credit: list[str] = Field(default_factory=list)
+    common_mistakes: list[str] = Field(default_factory=list)
+
+
 class BossQuestionGenerated(BaseModel):
-    question_text: str
-    expected_answer: str
-    rubric: list[str] = Field(default_factory=list)
-    difficulty: str = Field(default="medium")
-    topic_tags: list[str] = Field(default_factory=list)
+    """Plan 7 strict contract for the Boss Question Generator output."""
+
+    question_text: str = Field(..., max_length=900)
+    expected_answer: BossExpectedAnswer
+    rubric: BossRubric
+    target_skill: str
+    difficulty: Literal["easy", "medium", "hard"]
+    source_phase_ids: list[str] = Field(default_factory=list)
+    why_this_question: str = ""
 
 
 class BossAnswerCheckResult(BaseModel):
-    score: float = Field(ge=0.0, le=1.0)
-    confidence: float = Field(ge=0.0, le=1.0)
-    feedback: str
+    """Plan 7 strict contract for the Boss Answer Checker output.
+
+    NOTE: ``hp_delta`` was removed in Plan 7. The backend owns HP mutations;
+    the model only recommends a ``damage_multiplier`` which the backend clamps.
+    """
+
     is_correct: bool
-    hp_delta: int = Field(default=0, description="Boss HP change")
+    score: float = Field(..., ge=0.0, le=1.0)
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    feedback: str = Field(
+        ...,
+        description="1-2 sentence feedback in the student's language",
+    )
     misconception_tags: list[str] = Field(default_factory=list)
+    damage_multiplier: float = Field(default=1.0, ge=0.0, le=1.5)
+    difficulty_recommendation: Literal["increase", "decrease", "stay"] = "stay"
+    should_retry_same_skill: bool = False
 
 
 class FinalReportResult(BaseModel):

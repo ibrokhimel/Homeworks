@@ -1,4 +1,4 @@
-"""Plan 5 — Dynamic Boss state machine.
+"""Plan 5 + Plan 7 — Dynamic Boss state machine.
 
 Owns:
   * server-side damage formula (LLM never sets HP)
@@ -9,25 +9,44 @@ Owns:
     backend clamps any model-supplied damage_multiplier and it never trusts
     the LLM for HP/trials updates)
 
-Hard rules (Plan 5 §4 + §13 + the answer-leak invariant in CLAUDE.md):
+Plan 7 additions:
+  * Pydantic output models for strict JSON contract validation
+  * <UNTRUSTED_STUDENT_MESSAGE> delimiter wrapping
+  * Prompt version tracking
+  * Wired through ai_gateway.generate_structured() for schema validation,
+    repair retry, and ai_call_logs telemetry.
+
+Hard rules (Plan 5 §4 + §13 + Plan 7 §2 + the answer-leak invariant in CLAUDE.md):
 
   - ``answer_spec.expected``, ``ans``, ``accepted_answers``, and ``correct``
     must never appear in any prompt this module sends.
   - HP / trials / difficulty mutations live here, not in the model output.
+  - User text (student_answer) is untrusted and wrapped in XML delimiters.
   - The legacy ``/ai/boss-turn`` endpoint stays untouched as a fallback.
 """
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
-from . import ai_orchestrator
+from pydantic import BaseModel, Field, field_validator
+
+from . import ai_gateway
 from ..config import PROMPTS_DIR
+from ..schemas.ai_contracts import BossQuestionGenerated, BossAnswerCheckResult
 
 
 _log = logging.getLogger("nets.boss_dynamic")
+
+
+# ---- Prompt versions (Plan 7 §8) ------------------------------------------
+
+PROMPT_VERSION = {
+    "boss-question-generator": "v1",
+    "boss-answer-checker": "v1",
+    "boss-tutor": "v2",
+}
 
 
 # ---- Damage / difficulty policy --------------------------------------------
@@ -104,6 +123,68 @@ def _load_prompt(name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+# ---- Local Pydantic models (Plan 7 §4 + §10 Test 2) ------------------------
+# These mirror ai_contracts schemas for tests and direct validation.
+
+class ExpectedAnswer(BaseModel):
+    canonical: str
+    accepted_variants: list[str] = Field(default_factory=list)
+    notes: str = ""
+
+
+class Rubric(BaseModel):
+    full_credit: list[str] = Field(default_factory=list)
+    partial_credit: list[str] = Field(default_factory=list)
+    common_mistakes: list[str] = Field(default_factory=list)
+
+
+class BossQuestionOutput(BaseModel):
+    """Plan 7 strict output contract for the Boss Question Generator."""
+
+    question_text: str = Field(..., max_length=900)
+    expected_answer: ExpectedAnswer
+    rubric: Rubric
+    target_skill: str
+    difficulty: Literal["easy", "medium", "hard"]
+    source_phase_ids: list[str] = Field(default_factory=list)
+    why_this_question: str = ""
+
+    @field_validator("question_text")
+    @classmethod
+    def _non_empty_question(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("question_text must not be empty")
+        return v.strip()
+
+    @field_validator("target_skill")
+    @classmethod
+    def _non_empty_skill(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("target_skill must not be empty")
+        return v.strip()
+
+
+class BossAnswerVerdictOutput(BaseModel):
+    """Plan 7 strict output contract for the Boss Answer Checker."""
+
+    is_correct: bool
+    score: float = Field(..., ge=0.0, le=1.0)
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    feedback_to_student: str
+    misconception_tags: list[str] = Field(default_factory=list)
+    damage_multiplier: float = Field(default=1.0, ge=0.0, le=1.5)
+    difficulty_recommendation: str = "stay"
+    should_retry_same_skill: bool = False
+
+    @field_validator("feedback_to_student")
+    @classmethod
+    def _non_empty_feedback_when_wrong(cls, v: str, info) -> str:
+        is_correct = info.data.get("is_correct")
+        if not is_correct and not v.strip():
+            raise ValueError("feedback_to_student required when is_correct is false")
+        return v
+
+
 # ---- Generation -----------------------------------------------------------
 
 @dataclass
@@ -129,7 +210,7 @@ class GeneratedBossQuestion:
 
 
 class BossQuestionRejected(Exception):
-    """Raised when the generator output fails validation (Plan 5 §6)."""
+    """Raised when the generator output fails validation (Plan 5 §6 / Plan 7 §10)."""
 
     def __init__(self, reason: str, *, raw: Optional[dict[str, Any]] = None):
         super().__init__(reason)
@@ -152,39 +233,27 @@ def _validate_generated_question(
     asked_questions: list[dict[str, Any]],
     max_question_length: int = 900,
 ) -> GeneratedBossQuestion:
-    """Plan 5 §6 backend validation."""
-    if not isinstance(raw, dict):
-        raise BossQuestionRejected("not_a_dict", raw=None)
-    for key in _REQUIRED_GENERATION_KEYS:
-        if key not in raw:
-            raise BossQuestionRejected(f"missing_field:{key}", raw=raw)
+    """Plan 5 §6 + Plan 7 §10 backend validation.
 
-    question_text = str(raw.get("question_text") or "").strip()
-    if not question_text:
-        raise BossQuestionRejected("empty_question_text", raw=raw)
+    Step 1: Key presence + Pydantic strict contract validation.
+    Step 2: Business rules (anti-repetition, length cap).
+    """
+    # --- Step 1: Pydantic strict contract validation ---
+    try:
+        parsed = BossQuestionOutput.model_validate(raw)
+    except Exception as exc:
+        raise BossQuestionRejected(f"pydantic_validation:{exc}", raw=raw) from exc
+
+    # --- Step 2: Business rules ---
+    question_text = parsed.question_text
     if len(question_text) > max_question_length:
         raise BossQuestionRejected("question_too_long", raw=raw)
 
-    expected = raw.get("expected_answer")
-    if not isinstance(expected, dict) or not (
-        expected.get("canonical")
-        or expected.get("accepted_variants")
-    ):
-        raise BossQuestionRejected("missing_expected_answer", raw=raw)
-
-    rubric = raw.get("rubric")
-    if not isinstance(rubric, dict) or not (
-        rubric.get("full_credit")
-        or rubric.get("partial_credit")
-    ):
-        raise BossQuestionRejected("missing_rubric", raw=raw)
-
-    target_skill = str(raw.get("target_skill") or "").strip()
-    if not target_skill:
-        raise BossQuestionRejected("missing_target_skill", raw=raw)
-
-    difficulty = raw.get("difficulty")
-    if difficulty not in ALLOWED_DIFFICULTIES:
+    # Anti-repetition check: the new question must not be a near-exact
+    # duplicate of any question we've already asked. We use a normalized
+    # whitespace-collapsed comparison rather than string equality so trivial
+    # paraphrases ("Solve x + 2 = 5" vs "solve  x + 2 = 5  .") still trip.
+    if parsed.difficulty not in ALLOWED_DIFFICULTIES:
         raise BossQuestionRejected("invalid_difficulty", raw=raw)
 
     # Anti-repetition check: the new question must not be a near-exact
@@ -199,32 +268,30 @@ def _validate_generated_question(
 
     return GeneratedBossQuestion(
         question_text=question_text,
-        expected_answer=expected,
-        rubric=rubric,
-        target_skill=target_skill,
-        difficulty=difficulty,
-        source_phase_ids=list(raw.get("source_phase_ids") or []),
-        why_this_question=str(raw.get("why_this_question") or ""),
+        expected_answer=parsed.expected_answer.model_dump(),
+        rubric=parsed.rubric.model_dump(),
+        target_skill=parsed.target_skill,
+        difficulty=parsed.difficulty,
+        source_phase_ids=list(parsed.source_phase_ids),
+        why_this_question=parsed.why_this_question,
     )
 
 
-_GENERATION_SCHEMA: dict[str, Any] = {
-    "question_text": "string — the question to ask the student, <=900 chars",
-    "expected_answer": {
-        "canonical": "canonical correct answer string",
-        "accepted_variants": "list[string]",
-        "notes": "optional grader note",
-    },
-    "rubric": {
-        "full_credit": "list[string]",
-        "partial_credit": "list[string]",
-        "common_mistakes": "list[string]",
-    },
-    "target_skill": "skill tag (e.g. according_to, factoring)",
-    "difficulty": "easy | medium | hard",
-    "source_phase_ids": "list[string] (phase ids used as source)",
-    "why_this_question": "1-sentence rationale",
-}
+def _build_boss_input_section(payload: dict[str, Any]) -> str:
+    """Serialize a boss payload with Plan 7 <UNTRUSTED_STUDENT_MESSAGE> wrapping.
+
+    Any field named ``student_answer`` is wrapped in XML delimiters so the
+    model knows it is untrusted user input.
+    """
+    from . import ai_orchestrator
+
+    payload = dict(payload)
+    if "student_answer" in payload:
+        raw = str(payload["student_answer"])
+        payload["student_answer"] = (
+            f"<UNTRUSTED_STUDENT_MESSAGE>\n{raw}\n</UNTRUSTED_STUDENT_MESSAGE>"
+        )
+    return ai_orchestrator.build_input_section(payload)
 
 
 async def generate_boss_question(
@@ -234,7 +301,8 @@ async def generate_boss_question(
 ) -> GeneratedBossQuestion:
     """Call the LLM to generate one new boss question, validate, and return.
 
-    Plan 5 §6 — boss-question-generator prompt + strict JSON output.
+    Plan 5 §6 + Plan 7 §4 — wired through ai_gateway.generate_structured()
+    for Pydantic validation, repair retry, and ai_call_logs telemetry.
     Raises BossQuestionRejected if validation fails. Caller should retry once
     or fall back to a deterministic stem.
     """
@@ -242,25 +310,35 @@ async def generate_boss_question(
     prompt = _load_prompt("boss-question-generator")
     payload = dict(boss_context)
     payload["target_difficulty"] = diff
+    input_section = _build_boss_input_section(payload)
+    full_prompt = f"{prompt}\n\n{input_section}"
 
     try:
-        input_section = ai_orchestrator.build_input_section(payload)
-        raw = await ai_orchestrator.generate_json(
-            f"{prompt}\n\n{input_section}",
-            schema_hint=_GENERATION_SCHEMA,
-            model=ai_orchestrator.PRO_MODEL,
+        result = await ai_gateway.generate_structured(
+            task=ai_gateway.AITask.BOSS_QUESTION_GENERATE,
+            prompt=full_prompt,
+            schema=BossQuestionGenerated,
+            session_id=boss_context.get("session_id"),
+            homework_id=boss_context.get("homework_id"),
+            temperature=0.3,
+            prompt_version=PROMPT_VERSION["boss-question-generator"],
         )
-    except (ai_orchestrator.PromptTooLargeError, RuntimeError) as exc:
+    except RuntimeError as exc:
         _log.warning(
             "generate_boss_question AI unavailable (%s: %s)",
             exc.__class__.__name__, exc,
         )
         raise BossQuestionRejected("ai_unavailable") from exc
 
+    # Gateway already validated against BossQuestionGenerated Pydantic schema.
+    # Convert to dict for business-rule validation.
+    raw = result.model_dump()
     return _validate_generated_question(
         raw,
         asked_questions=list(boss_context.get("asked_questions") or []),
-        max_question_length=int((boss_context.get("boss_policy") or {}).get("max_question_length") or 900),
+        max_question_length=int(
+            (boss_context.get("boss_policy") or {}).get("max_question_length") or 900
+        ),
     )
 
 
@@ -279,33 +357,22 @@ class BossAnswerVerdict:
     ai_unavailable: bool = False
 
 
-_ANSWER_CHECK_SCHEMA: dict[str, Any] = {
-    "is_correct": "bool",
-    "score": "float 0..1",
-    "confidence": "float 0..1",
-    "feedback_to_student": "1-2 sentence feedback in student's language",
-    "misconception_tags": "list[string]",
-    "damage_multiplier": "float 0..1.5",
-    "difficulty_recommendation": "increase | decrease | stay",
-    "should_retry_same_skill": "bool",
-}
-
-
-def _verdict_from_raw(raw: dict[str, Any]) -> BossAnswerVerdict:
-    diff_rec = str(raw.get("difficulty_recommendation") or "stay")
+def _verdict_from_gateway(result: BossAnswerCheckResult) -> BossAnswerVerdict:
+    """Convert a validated gateway result to the internal dataclass."""
+    diff_rec = result.difficulty_recommendation
     if diff_rec not in {"increase", "decrease", "stay"}:
         diff_rec = "stay"
     return BossAnswerVerdict(
-        is_correct=bool(raw.get("is_correct")),
-        score=max(0.0, min(1.0, float(raw.get("score") or 0.0))),
-        confidence=max(0.0, min(1.0, float(raw.get("confidence") or 0.0))),
-        feedback_to_student=str(raw.get("feedback_to_student") or ""),
-        misconception_tags=[
-            t for t in (raw.get("misconception_tags") or []) if isinstance(t, str)
-        ],
-        damage_multiplier=max(_MULTIPLIER_MIN, min(_MULTIPLIER_MAX, float(raw.get("damage_multiplier") or 1.0))),
+        is_correct=result.is_correct,
+        score=result.score,
+        confidence=result.confidence,
+        feedback_to_student=result.feedback,
+        misconception_tags=list(result.misconception_tags),
+        damage_multiplier=max(
+            _MULTIPLIER_MIN, min(_MULTIPLIER_MAX, float(result.damage_multiplier or 1.0))
+        ),
         difficulty_recommendation=diff_rec,
-        should_retry_same_skill=bool(raw.get("should_retry_same_skill") or False),
+        should_retry_same_skill=result.should_retry_same_skill,
     )
 
 
@@ -317,8 +384,13 @@ async def check_boss_answer(
     student_answer: str,
     target_skill: str,
     difficulty: str,
+    session_id: Optional[str] = None,
+    homework_id: Optional[str] = None,
 ) -> BossAnswerVerdict:
-    """Plan 5 §7 — boss-answer-checker prompt path.
+    """Plan 5 §7 + Plan 7 §4 — boss-answer-checker prompt path.
+
+    Wired through ai_gateway.generate_structured() for Pydantic validation,
+    repair retry, and ai_call_logs telemetry.
 
     NOTE: ``expected_answer`` IS sent to the checker (it has to grade against
     something). It is NEVER sent to the boss persona / response model. Keep
@@ -334,14 +406,20 @@ async def check_boss_answer(
         "target_skill": target_skill,
         "difficulty": difficulty,
     }
+    input_section = _build_boss_input_section(payload)
+    full_prompt = f"{prompt}\n\n{input_section}"
+
     try:
-        input_section = ai_orchestrator.build_input_section(payload)
-        raw = await ai_orchestrator.generate_json(
-            f"{prompt}\n\n{input_section}",
-            schema_hint=_ANSWER_CHECK_SCHEMA,
-            model=ai_orchestrator.PRO_MODEL,
+        result = await ai_gateway.generate_structured(
+            task=ai_gateway.AITask.BOSS_ANSWER_CHECK,
+            prompt=full_prompt,
+            schema=BossAnswerCheckResult,
+            session_id=session_id,
+            homework_id=homework_id,
+            temperature=0.3,
+            prompt_version=PROMPT_VERSION["boss-answer-checker"],
         )
-    except (ai_orchestrator.PromptTooLargeError, RuntimeError) as exc:
+    except RuntimeError as exc:
         _log.warning(
             "check_boss_answer AI unavailable (%s: %s)",
             exc.__class__.__name__, exc,
@@ -350,11 +428,7 @@ async def check_boss_answer(
             student_answer=student_answer, expected_answer=expected_answer,
         )
 
-    if not isinstance(raw, dict):
-        return _synthetic_verdict(
-            student_answer=student_answer, expected_answer=expected_answer,
-        )
-    return _verdict_from_raw(raw)
+    return _verdict_from_gateway(result)
 
 
 def _synthetic_verdict(
@@ -398,4 +472,9 @@ __all__ = [
     "generate_boss_question",
     "BossAnswerVerdict",
     "check_boss_answer",
+    "BossQuestionOutput",
+    "BossAnswerVerdictOutput",
+    "ExpectedAnswer",
+    "Rubric",
+    "PROMPT_VERSION",
 ]

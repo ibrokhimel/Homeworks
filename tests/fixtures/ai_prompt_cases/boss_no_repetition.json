@@ -1,0 +1,45 @@
+{
+  "name": "boss generator avoids repeating prior questions",
+  "prompt_file": "boss-question-generator.md",
+  "context": {
+    "homework_id": "hw-002",
+    "homework_title": "Math Algebra",
+    "subject": "math-algebra",
+    "grade": 8,
+    "phase_summaries": [
+      {
+        "phase": "practice",
+        "attempts": 3,
+        "correct": 1,
+        "score": 0.33,
+        "accuracy": 0.33,
+        "weak_topics": ["factoring", "linear_eq"],
+        "strong_topics": []
+      }
+    ],
+    "overall_metrics": {
+      "accuracy": 0.33
+    },
+    "weak_topics": ["factoring", "linear_eq"],
+    "strong_topics": [],
+    "asked_questions": [
+      {
+        "question_text": "Solve x + 2 = 5",
+        "target_skill": "linear_eq",
+        "difficulty": "easy"
+      }
+    ],
+    "recent_boss_phrases": [],
+    "boss_policy": {
+      "target_weak_topics_first": true,
+      "avoid_repetition": true,
+      "max_question_length": 900,
+      "language": "uzbek"
+    },
+    "target_difficulty": "medium"
+  },
+  "expected": {
+    "output_must_include_fields": ["question_text", "expected_answer", "rubric", "target_skill", "difficulty"],
+    "question_must_not_normalize_to": "solve x + 2 = 5"
+  }
+}
