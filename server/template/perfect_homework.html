@@ -591,37 +591,31 @@
         .fc-inner.no-image .fc-term {
             font-size: 28px;
             padding: 28px 0 20px;
+            margin-top: auto;
         }
         .fc-term img, .fc-term svg {
             max-width: 100%; max-height: 70px; vertical-align: middle;
         }
 
-        /* FC-01 + FC-04 (2026-05-06): when a card has no media on either face,
-           the .fc-photo zone collapses (display:none via .fc-photo:empty) and the
-           remaining content is just term + formula + tap-hint on the front, and
-           definition + optional tip pill on the back. Without these rules the
-           flex column stays anchored to the top of the card and leaves a tall
-           bottom gap that reads as a layout glitch. Center the column instead,
-           and bump definition typography so short text-only cards feel intentional
-           rather than like raw output. */
-        .fc-inner.no-image .fc-front,
-        .fc-inner.no-image .fc-back {
-            justify-content: center;
-        }
+        /* FC-01 + FC-04 (2026-05-06) + FC-R1 (2026-05-07):
+           no-media cards should center the learning content, but metadata
+           (cluster chip + counter) must remain anchored at the top. Use auto
+           margins on the content rows instead of centering the whole flex face. */
         .fc-inner.no-image .fc-front .fc-tap-hint {
-            /* Override the auto top-margin that was pushing the hint to the
-               bottom of a top-aligned column. With centered content the hint
-               sits naturally below the term + formula. */
             margin-top: 18px;
+            margin-bottom: auto;
         }
         .fc-inner.no-image .fc-definition {
             font-size: 17px;
             line-height: 1.55;
             font-feature-settings: "tnum" 1;
             flex: 0 0 auto;
+            margin-top: auto;
+            margin-bottom: auto;
         }
         .fc-inner.no-image .fc-formula {
             font-size: 16px;
+            margin-bottom: auto;
         }
 
         /* FORMULA box (sub-line under the title on the front) */
@@ -2450,6 +2444,9 @@
             font-size: 10.5px;
             font-weight: 620;
             letter-spacing: .02em;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .gb-tm-h1 {
             position: relative;
@@ -2476,6 +2473,12 @@
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
             gap: 8px;
+        }
+        .gb-tm-stats.demo-no-timer {
+            grid-template-columns: 1fr 1fr;
+        }
+        .gb-tm-stats.demo-no-timer #gb-tm-stat-timer-card {
+            display: none;
         }
         .gb-tm-stat {
             border-radius: 20px;
@@ -2605,16 +2608,12 @@
             animation: gbTmShake .32s ease;
         }
         .gb-tm-tile.matched {
-            opacity: 0;
-            min-height: 0;
-            max-height: 0;
-            padding-top: 0;
-            padding-bottom: 0;
-            border-width: 0;
-            margin: 0;
+            opacity: 0.34;
             pointer-events: none;
             overflow: hidden;
             position: relative;
+            border-color: rgba(52,199,89,.30);
+            background: linear-gradient(135deg, rgba(52,199,89,.10), rgba(255,255,255,.16));
         }
         .gb-tm-hint {
             display: block;
@@ -11156,6 +11155,10 @@
             mirrorEl.classList.toggle('has-media', hasMedia);
         }
 
+        function fcFormatInlineMathHtml(value) {
+            return String(value || '').replace(/([A-Za-z0-9αβγ])\^([0-9]+)/g, '$1<sup>$2</sup>');
+        }
+
         function renderFlashcard(showYakunlash) {
             const card = FLASHCARDS[state.cardIndex];
             const total = FLASHCARDS.length;
@@ -11179,7 +11182,7 @@
             // Term inside the frosted glass strip. innerHTML preserves any
             // inline <img>/<svg> the builder's RichField may have embedded.
             const termHtml = (card.front && (card.front.term_html || card.front.term)) || '';
-            document.getElementById('fc-term').innerHTML = termHtml;
+            document.getElementById('fc-term').innerHTML = fcFormatInlineMathHtml(termHtml);
 
             // No-image variant: photo zone empty AND term has no inline media →
             // collapse photo zone, term scales up.
@@ -11197,7 +11200,7 @@
 
             const defEl = document.getElementById('fc-definition');
             // innerHTML — back-of-card definition may contain inline images/SVGs/bold/italic.
-            defEl.innerHTML = (card.back && card.back.definition) || '';
+            defEl.innerHTML = fcFormatInlineMathHtml((card.back && card.back.definition) || '');
             if (card.back && Array.isArray(card.back.bullets) && card.back.bullets.length) {
                 const ul = document.createElement('ul');
                 card.back.bullets.forEach(bullet => {
@@ -12185,25 +12188,37 @@
         // skipping any empty slot. If all five are empty, Stage 5 is skipped
         // entirely from startStage5. This rule applies to every future game
         // added below — never inject placeholder content for empty games.
+        function gbIsGrade8MathDemo() {
+            const ctx = window.NETS_CTX || {};
+            const subject = String(ctx.subject || '').toLowerCase().trim();
+            const grade = Number(ctx.grade);
+            return grade === 8 && (subject === 'math-algebra' || subject === 'geometriya-g7-11');
+        }
+
+        function gbDemoSkippedGames() {
+            return gbIsGrade8MathDemo() ? new Set(['aq', 'pl']) : new Set();
+        }
+
         function gbActiveGameOrder() {
             const list = [];
-            if (Array.isArray(GB_ADAPTIVE_QUIZ) && GB_ADAPTIVE_QUIZ.length > 0)
+            const skipped = gbDemoSkippedGames();
+            if (!skipped.has('aq') && Array.isArray(GB_ADAPTIVE_QUIZ) && GB_ADAPTIVE_QUIZ.length > 0)
                 list.push({ id: 'aq', sub: 0, init: gbInitAQ, panel: 'gb-panel-aq', label: 'Adaptive Quiz', labelKey: 'game.aq', setupBtn: gbSetButtonForAQ });
-            if (Array.isArray(GB_WHY_CHAIN) && GB_WHY_CHAIN.length > 0)
+            if (!skipped.has('wc') && Array.isArray(GB_WHY_CHAIN) && GB_WHY_CHAIN.length > 0)
                 list.push({ id: 'wc', sub: 1, init: gbInitWC, panel: 'gb-panel-wc', label: 'Sentence Fill', labelKey: 'game.wc', setupBtn: gbSetButtonForWC });
-            if (Array.isArray(GB_TILE_MATCH) && GB_TILE_MATCH.length > 0)
+            if (!skipped.has('tm') && Array.isArray(GB_TILE_MATCH) && GB_TILE_MATCH.length > 0)
                 list.push({ id: 'tm', sub: 2, init: gbInitTM, panel: 'gb-panel-tm', label: 'Tile Match', labelKey: 'game.tm', setupBtn: null });
-            if (Array.isArray(GB_PUZZLE_LOCK) && GB_PUZZLE_LOCK.length > 0)
+            if (!skipped.has('pl') && Array.isArray(GB_PUZZLE_LOCK) && GB_PUZZLE_LOCK.length > 0)
                 list.push({ id: 'pl', sub: 3, init: gbInitPL, panel: 'gb-panel-pl', label: 'Puzzle Lock', labelKey: 'game.pl', setupBtn: null });
-            if (Array.isArray(GB_MYSTERY_BOX) && GB_MYSTERY_BOX.length > 0)
+            if (!skipped.has('mb') && Array.isArray(GB_MYSTERY_BOX) && GB_MYSTERY_BOX.length > 0)
                 list.push({ id: 'mb', sub: 4, init: gbInitMB, panel: 'gb-panel-mb', label: 'Mystery Box', labelKey: 'game.mb', setupBtn: null });
-            if (Array.isArray(GB_TTT) && GB_TTT.length > 0)
+            if (!skipped.has('ttt') && Array.isArray(GB_TTT) && GB_TTT.length > 0)
                 list.push({ id: 'ttt', sub: 5, init: gbInitTTT, panel: 'gb-panel-ttt', label: 'Tic Tac Toe', labelKey: 'game.ttt', setupBtn: null });
-            if (Array.isArray(GB_SENTENCE_FILL) && GB_SENTENCE_FILL.length > 0)
+            if (!skipped.has('sf') && Array.isArray(GB_SENTENCE_FILL) && GB_SENTENCE_FILL.length > 0)
                 list.push({ id: 'sf', sub: 6, init: gbInitSF, panel: 'gb-panel-sf', label: 'Sentence Fill', labelKey: 'game.sf', setupBtn: gbSetButtonForSF });
             // Memory Palace (sub-slot 7). Gate on non-null wire + ≥1 palace + ≥3 concepts
             // (mirrors TM/SF/TTT empty-content gating). content lives in GB_MEMORY_PALACE.
-            if (GB_MEMORY_PALACE && Array.isArray(GB_MEMORY_PALACE.palaces) && GB_MEMORY_PALACE.palaces.length > 0
+            if (!skipped.has('mp') && GB_MEMORY_PALACE && Array.isArray(GB_MEMORY_PALACE.palaces) && GB_MEMORY_PALACE.palaces.length > 0
                 && Array.isArray(GB_MEMORY_PALACE.concepts) && GB_MEMORY_PALACE.concepts.length >= 3)
                 list.push({ id: 'mp', sub: 7, init: gbInitMP, panel: 'gb-panel-mp', label: 'Memory Palace', labelKey: 'game.mp', setupBtn: null });
             return list;
@@ -13789,6 +13804,9 @@
             if (typeof gbSetButtonNext === 'function') {
                 gbSetButtonNext(RT('tm.dock_select'));
             }
+
+            const stats = document.querySelector('#gb-panel-tm .gb-tm-stats');
+            if (stats) stats.classList.toggle('demo-no-timer', gbIsGrade8MathDemo());
 
             tm.startedAt = Date.now();
         }
