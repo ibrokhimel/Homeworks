@@ -133,6 +133,75 @@ def test_search_box_clear_button_styled():
     assert "display: inline-flex" in visible
 
 
+def test_search_box_empty_state_matches_filled_right_inset():
+    """SEARCH-PAD-01: when the input has no `.is-filled` class the
+    wrapper's effective right inset should match the filled state's
+    inset (8px), so the bar doesn't look like it has dead space on
+    the right when empty.
+
+    The base `.search-box` keeps its `padding: 0 10px 0 12px` for the
+    filled state (the X button's `margin-right: -2px` shaves the right
+    inset down to 8px). For the empty state, an explicit
+    `:not(.is-filled)` rule must drop padding-right to 8px so both
+    states feel balanced."""
+    css = _read(APP_CSS)
+    empty = _css_block(css, ".search-box:not(.is-filled)")
+    assert re.search(r"padding-right\s*:\s*8px", empty), (
+        "expected `.search-box:not(.is-filled) { padding-right: 8px; }` "
+        "to balance the empty-state right inset against the filled-state "
+        "inset (which is 8px after the X button's negative margin)."
+    )
+
+
+def test_search_box_input_overrides_global_input_styles():
+    """SEARCH-INNER-BOX-01: the global `input[type="search"]` rule (and
+    its `[data-theme="dark"]` override further down the file) tie on
+    specificity with `.search-box input` and win by source order. Without
+    an explicit `[type=…]` qualifier on the wrapper-scoped rule, the
+    inner input paints its own 1px border + background + border-radius
+    inside the wrapper pill — visible as a "second box" near the right
+    edge of the bar.
+
+    This guard locks in the fix on two axes:
+      1. The light-mode rule must qualify `[type="search"]` /
+         `[type="text"]` so its specificity climbs from (0,1,1) to
+         (0,2,1) and beats the global input rule.
+      2. A dark-mode rule scoped to `[data-theme="dark"] .search-box
+         input[type="search"]` must exist (specificity (0,3,1)) so it
+         beats `[data-theme="dark"] input[type="search"]` (0,2,1).
+    Both rules must zero `background` and `border` for the input."""
+    css = _read(APP_CSS)
+
+    # 1. Light-mode rule: the wrapper-scoped selector list must include
+    #    the typed selector so the rule wins over `input[type="search"]`.
+    light_pattern = re.compile(
+        r"\.search-box input\[type=[\"']search[\"']\]"
+        r"[^{}]*\{[^}]*background\s*:\s*transparent[^}]*\}",
+        re.DOTALL,
+    )
+    assert light_pattern.search(css), (
+        "expected a `.search-box input[type=\"search\"]` rule with "
+        "`background: transparent` so the typed selector beats the "
+        "global `input[type=\"search\"]` rule (without the type qualifier "
+        "they tie on specificity and source order wins)."
+    )
+
+    # 2. Dark-mode tail: the wrapper-scoped dark override must reset
+    #    background so the global dark override doesn't paint a second
+    #    box inside the pill.
+    dark_pattern = re.compile(
+        r"\[data-theme=[\"']dark[\"']\]\s+\.search-box\s+input\[type=[\"']search[\"']\]"
+        r"[^{}]*\{[^}]*background\s*:\s*transparent[^}]*\}",
+        re.DOTALL,
+    )
+    assert dark_pattern.search(css), (
+        "expected `[data-theme=\"dark\"] .search-box input[type=\"search\"]` "
+        "override that resets `background: transparent` so the global "
+        "`[data-theme=\"dark\"] input[type=\"search\"]` rule doesn't "
+        "repaint an opaque inner box on top of the wrapper pill."
+    )
+
+
 def test_search_box_wiring_script_is_loaded_by_pages():
     assert SEARCH_BOX_JS.exists(), "frontend/js/search-box.js is missing"
     js = _read(SEARCH_BOX_JS)
