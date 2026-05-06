@@ -1312,3 +1312,183 @@ async def tutor_help(
             "axis_2_label": "Novice",
             "ai_unavailable": True,
         }
+
+
+
+
+async def process_runtime_answer(target: dict, student_answer: str, attempt_number: int = 1) -> dict:
+    """
+    Grading ladder: Deterministic -> Phase Checker -> AI Judge.
+    Returns standard unified contract dict.
+    
+    Tiered Confidence Policy:
+    - confidence >= 0.90: Trust score directly (is_correct = score >= 0.70)
+    - confidence >= 0.75: Trust score, flag medium confidence (is_correct = score >= 0.70)
+    - confidence >= 0.60: Partial trust, force is_correct=False but keep score
+    - confidence < 0.60: Fallback to review queue, score=0
+    
+    The score >= 0.70 boundary for binary correctness indicates a high
+    degree of semantic match without requiring perfection.
+    """
+    import json
+    from . import answer_checker
+    from ..db.attempts_repo import add_phase_attempt
+
+    is_correct = False
+    score = 0.0
+    confidence = 1.0
+    feedback = ""
+    misconception_tags = []
+    next_hint = ""
+    grading_method = ""
+    requires_review = False
+
+    session_id = target.get("session_id", "")
+    if session_id:
+        _validate_session_id(session_id)
+        
+    hw_id = target.get("homework_id", "")
+    phase = target.get("phase", "")
+    subphase = target.get("subphase", "")
+    question_id = target.get("question_id", "")
+    item_id = target.get("item_id", "")
+    step_id = target.get("step_id", "")
+    answer_spec = target.get("answer_spec") or {}
+    expected_answers = target.get("expected_answers", [])
+
+    # 1. Deterministic
+    det_result = answer_checker.check(answer_spec, student_answer)
+    verdict = det_result.get("verdict")
+    
+    if verdict == "correct":
+        is_correct = True
+        score = 1.0
+        confidence = 1.0
+        grading_method = "deterministic"
+        feedback = det_result.get("format_tip") or "To'g'ri!"
+    elif verdict == "incorrect":
+        is_correct = False
+        score = 0.0
+        confidence = 1.0
+        grading_method = "deterministic"
+        feedback = det_result.get("reason", "Hali emas, qayta urinib ko'ring.")
+    else:
+        # 3. AI Judge
+        # We invoke the orchestrator directly to avoid the legacy `check_answer`'s 
+        # hard 0.90 confidence gate, allowing us to enforce the new tiered policy.
+        grading_method = "ai_judge"
+        try:
+            # Decide which prompt to use based on target info
+            answer_type = target.get("answer_type", "text")
+            
+            prompt_name = "answer-checker-language"
+            if "math" in answer_type or "math" in target.get("subject", "").lower():
+                prompt_name = "answer-checker-math"
+            if target.get("phase") == "final-boss":
+                prompt_name = "answer-checker-boss"
+                
+            prompt = _load_runtime_prompt(prompt_name)
+            
+            payload = {
+                "question": target.get("question_text", ""),
+                "student_answer": student_answer,
+                "expected_answers": expected_answers,
+                "answer_spec": answer_spec,
+            }
+            
+            schema = {
+                "score": "float between 0.0 and 1.0",
+                "confidence": "float between 0.0 and 1.0",
+                "feedback": "string, helpful feedback for the student",
+                "misconception_tags": "array of strings",
+                "next_hint": "string, a hint for the next attempt if incorrect",
+            }
+            if prompt_name == "answer-checker-math":
+                schema["math_error_type"] = "string, e.g., 'calculation', 'conceptual', 'format', 'none'"
+                
+            input_section = ai_orchestrator.build_input_section(payload)
+            ai_res = await ai_orchestrator.generate_json(
+                f"{prompt}\n\n{input_section}",
+                schema_hint=schema,
+                model=ai_orchestrator.PRO_MODEL if prompt_name == "answer-checker-boss" else ai_orchestrator.FAST_MODEL
+            )
+            
+            raw_score = float(ai_res.get("score", 0.0))
+            raw_confidence = float(ai_res.get("confidence", 1.0))
+            raw_feedback = ai_res.get("feedback", "")
+            misconception_tags = ai_res.get("misconception_tags", [])
+            next_hint = ai_res.get("next_hint", "")
+            
+            # Tiered Confidence Policy
+            if raw_confidence >= 0.90:
+                is_correct = raw_score >= 0.70
+                score = raw_score
+                confidence = raw_confidence
+                requires_review = False
+            elif raw_confidence >= 0.75:
+                is_correct = raw_score >= 0.70
+                score = raw_score
+                confidence = raw_confidence
+                requires_review = False
+                misconception_tags.append("medium_confidence")
+            elif raw_confidence >= 0.60:
+                is_correct = False
+                score = raw_score
+                confidence = raw_confidence
+                requires_review = False
+            else:
+                is_correct = False
+                score = 0.0
+                confidence = raw_confidence
+                requires_review = True
+                
+            feedback = raw_feedback
+        except Exception as e:
+            _log.error("AI Judge failed: %s", e)
+            is_correct = False
+            score = 0.0
+            confidence = 0.0
+            requires_review = True
+            grading_method = "error"
+            feedback = "Tizim xatosi, iltimos qayta urinib ko'ring."
+
+    normalized_res = {
+        "ok": True,
+        "grading_method": grading_method,
+        "is_correct": is_correct,
+        "score": score,
+        "confidence": confidence,
+        "feedback": feedback,
+        "misconception_tags": misconception_tags,
+        "next_hint": next_hint,
+        "requires_review": requires_review,
+        "attempt_number": attempt_number
+    }
+
+    # d. (Chunk E) After grading, save the attempt to the DB
+    try:
+        await add_phase_attempt(
+            session_id=session_id,
+            hw_id=hw_id,
+            phase=phase,
+            checker_source=grading_method,
+            subphase=subphase,
+            question_id=question_id,
+            item_id=item_id,
+            step_id=step_id,
+            attempt_number=attempt_number,
+            student_answer=student_answer,
+            normalized_answer=None,
+            answer_spec_json=json.dumps(answer_spec) if answer_spec else None,
+            correct=1 if is_correct else 0,
+            score=score,
+            confidence=confidence,
+            feedback=feedback,
+            misconception_tags_json=json.dumps(misconception_tags) if misconception_tags else None,
+            time_ms=None
+        )
+    except Exception as e:
+        _log.error("Failed to add phase attempt: %s", e)
+        raise
+
+    return normalized_res

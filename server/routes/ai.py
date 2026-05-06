@@ -22,6 +22,21 @@ _log = logging.getLogger("nets.sentence_fill")
 
 # --- Request models ---
 
+class RuntimeAnswerSubmitRequest(BaseModel):
+    session_id: str
+    homework_id: str
+    phase: Optional[str] = None
+    subphase: Optional[str] = None
+    phase_index: Optional[int] = None
+    question_id: Optional[str] = None
+    item_id: Optional[str] = None
+    step_id: Optional[str] = None
+    answer_type: Optional[str] = None
+    student_answer: Any
+    student_work_text: Optional[str] = None
+    client_context: dict[str, Any] = Field(default_factory=dict)
+    attempt_number: Optional[int] = None
+
 class CheckAnswerRequest(BaseModel):
     # Legacy free-form fields (made optional so sentence-fill phase callers
     # can submit a minimal payload without forcing dummy values).
@@ -2065,6 +2080,30 @@ async def _check_answer_memory_palace(req: CheckAnswerRequest) -> dict:
         "missed_location_indices": missed_location_indices,
     }
 
+
+@router.post("/ai/runtime/submit-answer")
+async def submit_runtime_answer(req: RuntimeAnswerSubmitRequest):
+    from ..services.runtime_answer_resolver import resolve_runtime_answer
+    
+    if req.session_id:
+        tutor._validate_session_id(req.session_id)
+        
+    try:
+        target = await resolve_runtime_answer(req)
+        result = await tutor.process_runtime_answer(
+            target=target.model_dump(),
+            student_answer=req.student_answer,
+            attempt_number=req.attempt_number or 1
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        _log.error("Failed to process runtime answer: %s", e)
+        raise HTTPException(
+            status_code=500, 
+            detail={"error": "internal", "code": "RUNTIME_GRADING_ERROR"}
+        )
 
 @router.post("/ai/check-answer")
 async def check_answer(req: CheckAnswerRequest):

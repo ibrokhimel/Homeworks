@@ -144,7 +144,15 @@ Return JSON ONLY. No markdown fences. Match the student's language for `feedback
 When `amr_mode` is false or missing — minimal shape:
 
 ```json
-{"correct": bool, "score": float, "feedback": "string", "matched_expected": "string or null", "confidence": 0.0-1.0}
+{
+  "correct": bool,
+  "score": float,
+  "feedback": "string",
+  "matched_expected": "string or null",
+  "confidence": 0.0-1.0,
+  "misconception_tags": ["string"],
+  "next_hint": "string or null"
+}
 ```
 
 When `amr_mode` is true — extended shape:
@@ -156,6 +164,8 @@ When `amr_mode` is true — extended shape:
   "feedback": "string (1-2 sentences)",
   "matched_expected": "string or null",
   "confidence": 0.0-1.0,
+  "misconception_tags": ["string"],
+  "next_hint": "string or null",
   "axis_1": 1-4,
   "axis_2": 1-4,
   "axis_1_label": "Mastered|Proficient|Apprentice|Novice",

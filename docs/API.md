@@ -477,6 +477,40 @@ When unset or false, AI endpoint response shapes are unchanged. When enabled, th
 
 `context_debug` is metadata-only. It may include route/service names, phase/subphase, id presence flags, safe counts/lengths, selected provider/model, prompt size, checker path/source/result action, fallback or `ai_unavailable` status, boss HP before/after, and similar diagnostics. It must not include raw `screen_context`, raw `student_answer`, expected answers, answer keys, prompts, or chat-history text. The same sanitized metadata is logged on `nets.ai.context`; raw student text and answer-bearing content are never logged by this debug helper.
 
+### POST /api/ai/runtime/submit-answer
+
+Evaluates a student's answer using a phase-aware grading pipeline and persists the attempt. It resolves context server-side based on `session_id`, `homework_id`, `phase`, and `question_id`.
+
+**Request Body:**
+```json
+{
+  "session_id": "string",
+  "homework_id": "string",
+  "phase": "string",
+  "question_id": "string",
+  "answer_type": "string",
+  "student_answer": "any",
+  "student_work_text": "string",
+  "attempt_number": 1
+}
+```
+
+**Response Body:**
+```json
+{
+  "ok": true,
+  "grading_method": "deterministic | ai_judge",
+  "is_correct": true,
+  "score": 1.0,
+  "confidence": 0.95,
+  "feedback": "string",
+  "misconception_tags": ["string"],
+  "next_hint": "string",
+  "requires_review": false,
+  "attempt_number": 1
+}
+```
+
 ### POST /api/ai/check-answer
 
 ```json
