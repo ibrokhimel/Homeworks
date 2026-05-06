@@ -17,6 +17,7 @@ from fastapi import HTTPException
 from ..config import PROMPTS_DIR
 from . import ai_orchestrator, ai_debug
 from . import answer_checker
+from . import ai_context
 from .. import db
 
 # Server-side log channel for the tutor — full provider errors land here while
@@ -313,11 +314,11 @@ async def check_answer(
         # If unsure and no AI fallback, just mark incorrect to be safe
         return ai_debug.with_context_debug(
             {
-            "correct": False,
-            "score": 0.0,
-            "feedback": "Notog'ri javob.",
-            "source": "deterministic",
-            "matched_expected": None
+                "correct": False,
+                "score": 0.0,
+                "feedback": "Notog'ri javob.",
+                "source": "deterministic",
+                "matched_expected": None,
             },
             {
                 "service": "tutor.check_answer",
@@ -437,12 +438,12 @@ async def check_answer(
         )
         return ai_debug.with_context_debug(
             {
-            "correct": False,
-            "score": 0.0,
-            "feedback": "AI baholash hozir mavjud emas — qayta urinib ko'ring.",
-            "source": "ai_unavailable",
-            "matched_expected": None,
-            "ai_unavailable": True,
+                "correct": False,
+                "score": 0.0,
+                "feedback": "AI baholash hozir mavjud emas — qayta urinib ko'ring.",
+                "source": "ai_unavailable",
+                "matched_expected": None,
+                "ai_unavailable": True,
             },
             {
                 "service": "tutor.check_answer",
@@ -815,6 +816,9 @@ def _build_tutor_chat_prompt(
     behavior_summary: str = "",
     message_lang: str = "uz",
     recent_assistant_phrases: Optional[list[str]] = None,
+    # Plan 3 — missing context flags
+    missing_context_flags: Optional[list[str]] = None,
+    metrics: Optional[dict] = None,
 ) -> str:
     """Assemble the full tutor_chat prompt. Optional sections are omitted when
     their input is empty so the prompt stays tight.
@@ -857,6 +861,16 @@ def _build_tutor_chat_prompt(
             "RECENT_OPENINGS (you said these recently — DO NOT echo):\n"
             + "\n".join(f"  - {p}" for p in recent_assistant_phrases)
         )
+    if metrics:
+        parts.append(
+            "PERFORMANCE:\n"
+            + json.dumps(metrics, ensure_ascii=False, indent=2)
+        )
+    if missing_context_flags:
+        parts.append(
+            "MISSING_CONTEXT_FLAGS:\n"
+            + "\n".join(f"  - {f}" for f in missing_context_flags)
+        )
     parts.append(f"MESSAGE_LANG: {message_lang}  # mirror this in your reply")
     parts.append(
         "CHAT_HISTORY:\n" + (_format_history_for_prompt(chat_history) or "(none)")
@@ -865,13 +879,9 @@ def _build_tutor_chat_prompt(
     return "\n\n".join(parts)
 
 
-async def tutor_chat(
-    session_id: str,
-    hw_id: str,
-    phase: str,
-    question_id: Optional[str],
+async def tutor_chat_v2(
+    context: ai_context.TutorContextPacket,
     message: str,
-    hw_meta: Optional[dict] = None,
     # Wave J warning fields
     severity: str = "casual_safe",
     warning_level: int = 0,
@@ -881,29 +891,16 @@ async def tutor_chat(
     behavior_summary: str = "",
     message_lang: str = "uz",
     recent_assistant_phrases: Optional[list[str]] = None,
-    # Wave J.2 — new context fields (all default None for backward compat)
-    screen_context: Optional[str] = None,
-    student_work_text: Optional[str] = None,
-    subphase: Optional[str] = None,
 ) -> dict:
-    """Live tutor chat — persists the user turn, calls the LLM, persists the
-    assistant turn, returns ``{"response": str, "message_id": int}``.
+    """Live tutor chat v2 — accepts a canonical context packet.
 
-    Enforces a per-(session_id, hw_id) cap of ``SESSION_MESSAGE_CAP`` total
-    turns. Beyond that, raises ``HTTPException(429)``.
-
-    For non-preview phases, strips all answer-bearing keys from the loaded
-    question payload before it enters the LLM context.
+    Persists the user turn, calls the LLM, persists the assistant turn.
     """
-    hw_meta = hw_meta or {}
-    _validate_session_id(session_id)
-    _validate_phase(phase)
+    _validate_session_id(context.session_id)
+    _validate_phase(context.phase)
 
     # Step 1 — enforce the per-session cap BEFORE writing the user turn.
-    # Counting first prevents a spam burst from accumulating cap+N rows in
-    # tutor_conversations before the limit kicks in. The user message is only
-    # persisted once we've confirmed there's room for it.
-    total = await db.count_session_messages(session_id, hw_id)
+    total = await db.count_session_messages(context.session_id, context.hw_id)
     if total >= SESSION_MESSAGE_CAP:
         raise HTTPException(
             status_code=429,
@@ -916,22 +913,20 @@ async def tutor_chat(
             },
         )
 
-    # Step 2 — persist the user turn now that we know it's under cap.
-    user_turn_id = await db.add_tutor_turn(
-        session_id=session_id,
-        hw_id=hw_id,
-        phase=phase,
-        question_id=question_id,
+    # Step 2 — persist the user turn.
+    await db.add_tutor_turn(
+        session_id=context.session_id,
+        hw_id=context.hw_id,
+        phase=context.phase,
+        question_id=context.current_question_id,
         role="user",
         content=message,
     )
 
-    # Step 3 — chat history (last N turns). Fetch only the window we'll use
-    # rather than pulling everything and slicing — the cap is 60, but every
-    # request was scanning up to 200 rows just to take the last 6.
+    # Step 3 — chat history.
     chat_history = await db.list_tutor_turns(
-        session_id,
-        hw_id,
+        context.session_id,
+        context.hw_id,
         limit=TUTOR_CHAT_HISTORY_WINDOW,
         most_recent=True,
     )
@@ -939,46 +934,18 @@ async def tutor_chat(
     # Step 4 — build the prompt.
     system_prompt = _load_runtime_prompt("tutor-assistant")
 
-    # Pull the full question dict from the homework's content_json when one was
-    # named. Strip answer-bearing keys for non-preview phases.
-    question_text = ""
-    question_context: Optional[dict] = None
-    if question_id and isinstance(hw_meta.get("question"), dict):
-        redacted = _redact_question_for_tutor(hw_meta["question"], phase)
-        # Use the prompt/q text the student sees.
-        question_text = (
-            redacted.get("q")
-            or redacted.get("prompt")
-            or redacted.get("question")
-            or ""
-        )
-        question_context = redacted
-
-    # Wave J.2 — sanitize screen_context to scrub answer-bearing DOM attributes.
-    # Pull expected_value from the question's answer_spec when available so the
-    # sanitizer can strip it even if it slipped past the DOM-marker regex.
-    expected_value: Optional[str] = None
-    q_dict = hw_meta.get("question")
-    if isinstance(q_dict, dict):
-        ans_spec = q_dict.get("answer_spec")
-        if isinstance(ans_spec, dict):
-            ev = ans_spec.get("expected")
-            if isinstance(ev, str):
-                expected_value = ev
-    screen_context_clean = _sanitize_screen_context(screen_context, expected_value)
-
     full_prompt = _build_tutor_chat_prompt(
         system_prompt=system_prompt,
-        phase=phase,
-        subject=str(hw_meta.get("subject", "")),
-        grade=int(hw_meta.get("grade", 0) or 0),
-        question_text=question_text,
-        question_context=question_context,
-        screen_context=screen_context_clean or None,
-        student_attempt=student_work_text,
-        subphase=subphase,
-        student_profile=hw_meta.get("student_profile"),
-        persona_traits=hw_meta.get("persona_traits"),
+        phase=context.phase,
+        subject=context.subject,
+        grade=context.grade,
+        question_text=context.current_question_text,
+        question_context=context.current_question_context,
+        screen_context=context.visible_screen_text or None,
+        student_attempt=context.student_work_text or None,
+        subphase=context.subphase,
+        student_profile=None,
+        persona_traits=None,
         chat_history=chat_history,
         student_message=message,
         severity=severity,
@@ -989,18 +956,13 @@ async def tutor_chat(
         behavior_summary=behavior_summary,
         message_lang=message_lang,
         recent_assistant_phrases=recent_assistant_phrases,
+        missing_context_flags=context.missing_context_flags or None,
+        metrics=context.metrics or None,
     )
 
-    # Step 6 — call the LLM. Wrap in a try/except so a backend hiccup surfaces
-    # as a friendly 500 instead of an uncaught traceback.
-    # Route math-heavy subjects through PRO_MODEL to avoid hallucinations.
-    subject = str(hw_meta.get("subject", ""))
-    model = _model_for_subject(subject)
+    # Step 5 — call the LLM.
+    model = _model_for_subject(context.subject)
 
-    # PR 1 — bloat-fix: defensive size check on the assembled prompt before
-    # it hits the LLM. `_build_tutor_chat_prompt` includes `question_text` and
-    # `screen_context` which can carry inline base64 images on bloated HWs;
-    # rejecting at this boundary saves a 17s provider-cap timeout cascade.
     _PROMPT_SIZE_CAP = 60000
     prompt_cap_exceeded = False
     if len(full_prompt) > _PROMPT_SIZE_CAP:
@@ -1020,9 +982,6 @@ async def tutor_chat(
         except HTTPException:
             raise
         except Exception as exc:
-            # Scrub the provider error string before it reaches the browser —
-            # raw exceptions can carry API-key fragments, GCP project IDs, or
-            # internal endpoints. Full detail is logged server-side.
             raise HTTPException(
                 status_code=500,
                 detail={
@@ -1034,12 +993,12 @@ async def tutor_chat(
     # Strip any <UNTRUSTED> fence tags the LLM may have mirrored back.
     response_text = _strip_fence_tags(response_text)
 
-    # Step 7 — persist the assistant turn and return.
+    # Step 6 — persist the assistant turn and return.
     asst_turn_id = await db.add_tutor_turn(
-        session_id=session_id,
-        hw_id=hw_id,
-        phase=phase,
-        question_id=question_id,
+        session_id=context.session_id,
+        hw_id=context.hw_id,
+        phase=context.phase,
+        question_id=context.current_question_id,
         role="assistant",
         content=response_text,
     )
@@ -1047,14 +1006,14 @@ async def tutor_chat(
         {"response": response_text, "message_id": asst_turn_id},
         {
             "service": "tutor.tutor_chat",
-            "phase": phase,
-            "subphase": subphase,
-            "question_id_present": ai_debug.present(question_id),
-            "question_found": bool(question_context),
-            "question_text_len": ai_debug.text_len(question_text),
-            "screen_context_forwarded_len": ai_debug.text_len(screen_context),
-            "screen_context_clean_len": ai_debug.text_len(screen_context_clean),
-            "student_work_text_len": ai_debug.text_len(student_work_text),
+            "phase": context.phase,
+            "subphase": context.subphase,
+            "question_id_present": ai_debug.present(context.current_question_id),
+            "question_found": bool(context.current_question_text),
+            "question_text_len": ai_debug.text_len(context.current_question_text),
+            "screen_context_forwarded_len": ai_debug.text_len(context.visible_screen_text),
+            "screen_context_clean_len": ai_debug.text_len(context.visible_screen_text),
+            "student_work_text_len": ai_debug.text_len(context.student_work_text),
             "chat_history_count": len(chat_history),
             "provider": ai_orchestrator._active_backend(),
             "model": model,
@@ -1064,6 +1023,83 @@ async def tutor_chat(
             "fallback_status": "prompt_too_large" if prompt_cap_exceeded else "llm_success",
         },
         route="service.tutor_chat",
+    )
+
+
+async def tutor_chat(
+    session_id: str,
+    hw_id: str,
+    phase: str,
+    question_id: Optional[str],
+    message: str,
+    hw_meta: Optional[dict] = None,
+    # Wave J warning fields
+    severity: str = "casual_safe",
+    warning_level: int = 0,
+    cumulative_deduction_pct: int = 0,
+    is_big_warning: bool = False,
+    deduction_pct_this: int = 0,
+    behavior_summary: str = "",
+    message_lang: str = "uz",
+    recent_assistant_phrases: Optional[list[str]] = None,
+    # Wave J.2 — new context fields
+    screen_context: Optional[str] = None,
+    student_work_text: Optional[str] = None,
+    subphase: Optional[str] = None,
+) -> dict:
+    """Legacy wrapper — builds a minimal context packet and delegates to v2."""
+    hw_meta = hw_meta or {}
+
+    # Build a minimal context packet from legacy arguments.
+    question_dict = hw_meta.get("question") if isinstance(hw_meta.get("question"), dict) else None
+    redacted = _redact_question_for_tutor(question_dict, phase) if question_dict else {}
+    question_text = (
+        redacted.get("q")
+        or redacted.get("prompt")
+        or redacted.get("question")
+        or ""
+    )
+
+    expected_value: Optional[str] = None
+    if question_dict:
+        ans_spec = question_dict.get("answer_spec")
+        if isinstance(ans_spec, dict):
+            ev = ans_spec.get("expected")
+            if isinstance(ev, str):
+                expected_value = ev
+    screen_clean = _sanitize_screen_context(screen_context, expected_value)
+
+    context = ai_context.TutorContextPacket(
+        session_id=session_id,
+        hw_id=hw_id,
+        phase=phase,
+        subphase=subphase,
+        current_question_id=question_id,
+        subject=str(hw_meta.get("subject", "")),
+        grade=int(hw_meta.get("grade", 0) or 0),
+        homework_title="",
+        current_question_text=question_text,
+        current_question_context=redacted if redacted else None,
+        visible_screen_text=screen_clean,
+        student_work_text=str(student_work_text or ""),
+        recent_chat_history=[],
+        recent_attempts=[],
+        metrics={},
+        warnings_summary="",
+        missing_context_flags=[],
+    )
+
+    return await tutor_chat_v2(
+        context=context,
+        message=message,
+        severity=severity,
+        warning_level=warning_level,
+        cumulative_deduction_pct=cumulative_deduction_pct,
+        is_big_warning=is_big_warning,
+        deduction_pct_this=deduction_pct_this,
+        behavior_summary=behavior_summary,
+        message_lang=message_lang,
+        recent_assistant_phrases=recent_assistant_phrases,
     )
 
 

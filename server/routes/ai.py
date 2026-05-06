@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Path as PathParam, Query
 from pydantic import BaseModel, Field
 from typing import Optional, Any
 
-from ..services import tutor, ai_orchestrator, injector, ai_debug
+from ..services import tutor, ai_orchestrator, injector, ai_debug, ai_context
 from ..services.slur_filter import classify, detect_slurs
 from ..services import warnings as warnings_svc
 from .. import db
@@ -186,12 +186,13 @@ SUBPHASE_ALLOWLIST: frozenset[str] = frozenset({
 class TutorChatRequest(BaseModel):
     session_id: str
     hw_id: str
-    phase: str
+    phase: Optional[str] = None
     question_id: Optional[str] = None
     message: str
     screen_context: Optional[str] = None
     student_work_text: Optional[str] = None
     subphase: Optional[str] = None
+    ui_state: Optional[dict[str, Any]] = None
     recent_assistant_phrases: list[str] = []
 
 
@@ -2406,25 +2407,28 @@ async def tutor_chat(req: TutorChatRequest):
     # Reject malformed session IDs early so they never reach the DB layer.
     tutor._validate_session_id(req.session_id)
 
+    # If phase is explicitly supplied, validate it immediately.
+    if req.phase is not None:
+        tutor._validate_phase(req.phase)
+
+    # Pre-flight homework lookup — used purely for debug-instrumentation
+    # metadata (hw_present / question_found). The actual context payload is
+    # rebuilt by ai_context.build_tutor_context below, so hw_meta is not
+    # forwarded to tutor.tutor_chat_v2.
     hw = await db.get_homework(req.hw_id)
     hw_present = hw is not None
     question_found = False
-    hw_meta: dict[str, Any] = {}
     if hw:
-        hw_meta["subject"] = hw.get("subject", "")
-        hw_meta["grade"] = hw.get("grade", 0)
         content = hw.get("content_json") or {}
         if req.question_id:
             q = _find_question_in_content(content, req.question_id)
             if q is not None:
-                hw_meta["question"] = q
                 question_found = True
-    # screen_context is now passed for ALL phases. The server-side sanitizer in
-    # tutor.py (_sanitize_screen_context) scrubs answer-bearing DOM attributes
-    # so we no longer need to silently drop it outside preview.
-    screen_context = req.screen_context[:2000] if req.screen_context else None
 
-    # student_work_text: what the student has typed/selected right now.
+    # Truncated copies of frontend payloads — used only by the debug envelope
+    # so context_debug.text_len() reports the post-clip length, matching the
+    # length the tutor service ultimately sees after its own sanitization.
+    screen_context = req.screen_context[:2000] if req.screen_context else None
     student_work_text = (
         req.student_work_text[:2000] if req.student_work_text else None
     )
@@ -2432,11 +2436,20 @@ async def tutor_chat(req: TutorChatRequest):
     # subphase: validate against the allowlist; drop silently if unknown.
     subphase = req.subphase if req.subphase in SUBPHASE_ALLOWLIST else None
 
-    # --- Warning state machine ---
-    # Step 1: classify the incoming message via T1's new classifier.
-    classification = classify(req.message)
+    # Build canonical context packet from backend state + frontend payload.
+    context = await ai_context.build_tutor_context(
+        session_id=req.session_id,
+        hw_id=req.hw_id,
+        phase=req.phase,
+        subphase=subphase,
+        question_id=req.question_id,
+        screen_context=req.screen_context,
+        student_work_text=req.student_work_text,
+        ui_state=req.ui_state,
+    )
 
-    # Step 2: evaluate against the warning state machine (persists if triggered).
+    # --- Warning state machine ---
+    classification = classify(req.message)
     try:
         outcome = await warnings_svc.evaluate(
             classification,
@@ -2444,12 +2457,11 @@ async def tutor_chat(req: TutorChatRequest):
             session_id=req.session_id,
         )
     except Exception as e:
-        # Don't let a DB error in the warning layer block the tutor.
         import logging
         logging.getLogger("nets.tutor").warning("warnings.evaluate failed: %s", e)
         outcome = None
 
-    # Step 3: fail short-circuit — level 9 means homework failed.
+    # Fail short-circuit — level 9 means homework failed.
     if outcome is not None and outcome.is_fail:
         lang = outcome.lang
         if lang == "ru":
@@ -2476,7 +2488,6 @@ async def tutor_chat(req: TutorChatRequest):
         )
 
     try:
-        # Step 4: build kwargs for tutor_chat from warning outcome.
         warning_kwargs: dict[str, Any] = {}
         if outcome is not None:
             warning_kwargs = {
@@ -2489,17 +2500,10 @@ async def tutor_chat(req: TutorChatRequest):
                 "message_lang": outcome.lang,
             }
 
-        result = await tutor.tutor_chat(
-            session_id=req.session_id,
-            hw_id=req.hw_id,
-            phase=req.phase,
-            question_id=req.question_id,
+        result = await tutor.tutor_chat_v2(
+            context=context,
             message=req.message,
-            hw_meta=hw_meta,
             recent_assistant_phrases=req.recent_assistant_phrases or [],
-            screen_context=screen_context,
-            student_work_text=student_work_text,
-            subphase=subphase,
             **warning_kwargs,
         )
 
