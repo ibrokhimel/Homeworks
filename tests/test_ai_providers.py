@@ -61,6 +61,39 @@ def test_status_endpoint_fields(client):
     assert isinstance(data["available_providers"], list)
 
 
+def test_status_endpoint_matches_documented_plan6_shape(client):
+    """Regression — Sigma #179 finding #2.
+
+    docs/API.md documents `/ai/status` as emitting `provider_order` + a `tasks`
+    dict (per-task provider/model/tier) for all 8 AITask values, plus the
+    legacy `backend`/`model_fast`/`model_pro`/`preference_list` fields. This
+    test asserts the implementation matches the docs so the two cannot drift
+    silently.
+    """
+    from server.services.ai_gateway import AITask
+
+    resp = client.get("/api/ai/status")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    # Plan 6 fields
+    assert "provider_order" in data
+    assert isinstance(data["provider_order"], list)
+    assert "tasks" in data
+    assert isinstance(data["tasks"], dict)
+
+    # All 8 AITask values must be keys in `tasks`
+    for task in AITask:
+        assert task.value in data["tasks"], f"missing task {task.value}"
+        entry = data["tasks"][task.value]
+        assert set(entry.keys()) >= {"provider", "model", "tier"}
+        assert entry["tier"] in ("pro", "fast")
+
+    # Legacy compat fields
+    for legacy_key in ("backend", "model_fast", "model_pro", "preference_list"):
+        assert legacy_key in data, f"legacy field {legacy_key} missing"
+
+
 # ── 5. Malformed preference env — graceful fallback ───────────────────────────
 
 def test_malformed_preference_env(monkeypatch):

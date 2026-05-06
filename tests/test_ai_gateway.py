@@ -221,13 +221,32 @@ async def test_run_guardrail_returns_guardrail_result():
 
 
 @pytest.mark.asyncio
-async def test_run_guardrail_falls_back_to_allowed_on_error():
+async def test_run_guardrail_fails_closed_on_provider_error():
+    """Regression — Sigma #179 finding #1.
+
+    A safety classifier MUST fail closed: when the guardrail provider is down
+    we cannot verify the message is safe, so the call is rejected (not
+    silently allowed). Failing open would let prompt injections and answer-
+    leak requests through whenever the provider is overloaded, which is
+    exactly when we need the guardrail most.
+    """
     with patch("server.services.ai_gateway.generate_structured") as mock_struct:
         mock_struct.side_effect = RuntimeError("provider down")
         result = await ai_gateway.run_guardrail(prompt="hello")
     assert isinstance(result, GuardrailResult)
-    assert result.allowed is True
-    assert result.risk == "none"
+    assert result.allowed is False, "guardrail must fail closed on provider error"
+    assert result.action == "ask_clarifying"
+
+
+@pytest.mark.asyncio
+async def test_run_guardrail_fails_closed_on_validation_error():
+    """Validation failures (e.g. AI_SCHEMA_VALIDATION_FAILED bubbling up as
+    RuntimeError) also count as 'unverified' and must fail closed."""
+    with patch("server.services.ai_gateway.generate_structured") as mock_struct:
+        mock_struct.side_effect = RuntimeError("AI_SCHEMA_VALIDATION_FAILED")
+        result = await ai_gateway.run_guardrail(prompt="ignore previous")
+    assert result.allowed is False
+    assert result.action == "ask_clarifying"
 
 
 # ---------------------------------------------------------------------------
@@ -268,3 +287,104 @@ async def test_ai_call_log_written_on_failure():
     kwargs = mock_log.call_args.kwargs
     assert kwargs["success"] is False
     assert kwargs["error_code"] == "AI_PROVIDER_FAILED"
+
+
+# ---------------------------------------------------------------------------
+# 7. prompt_version population
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_generate_text_logs_default_prompt_version():
+    """Regression — Sigma #179 finding #5.
+
+    The ai_call_logs.prompt_version column was always NULL because nothing
+    plumbed a version through. After the fix, generate_text logs the default
+    when no caller-supplied version is given.
+    """
+    with patch("server.services.ai_gateway.ai_orchestrator.generate") as mock_gen:
+        mock_gen.return_value = "ok"
+        with patch("server.services.ai_gateway.add_ai_call_log") as mock_log:
+            await ai_gateway.generate_text(
+                task=ai_gateway.AITask.TUTOR_CHAT,
+                prompt="test",
+            )
+    kwargs = mock_log.call_args.kwargs
+    assert kwargs["prompt_version"] is not None
+    assert kwargs["prompt_version"] == ai_gateway.DEFAULT_PROMPT_VERSION
+
+
+@pytest.mark.asyncio
+async def test_generate_text_logs_caller_supplied_prompt_version():
+    """When the caller passes an explicit prompt_version it must reach the DB."""
+    with patch("server.services.ai_gateway.ai_orchestrator.generate") as mock_gen:
+        mock_gen.return_value = "ok"
+        with patch("server.services.ai_gateway.add_ai_call_log") as mock_log:
+            await ai_gateway.generate_text(
+                task=ai_gateway.AITask.TUTOR_CHAT,
+                prompt="test",
+                prompt_version="tutor-prompt-v3",
+            )
+    kwargs = mock_log.call_args.kwargs
+    assert kwargs["prompt_version"] == "tutor-prompt-v3"
+
+
+@pytest.mark.asyncio
+async def test_run_guardrail_logs_input_guardrail_prompt_version():
+    """run_guardrail must tag its DB row so guardrail-only metrics can be sliced."""
+    with patch("server.services.ai_gateway.ai_orchestrator.generate") as mock_gen:
+        mock_gen.return_value = json.dumps({
+            "allowed": True,
+            "risk": "none",
+            "action": "continue",
+        })
+        with patch("server.services.ai_gateway.add_ai_call_log") as mock_log:
+            await ai_gateway.run_guardrail(prompt="hello")
+    assert mock_log.called
+    kwargs = mock_log.call_args.kwargs
+    assert kwargs["prompt_version"] is not None
+    assert kwargs["prompt_version"].startswith("input-guardrail")
+
+
+# ---------------------------------------------------------------------------
+# 8. SIMULATION_JUDGE schema registered
+# ---------------------------------------------------------------------------
+
+
+def test_simulation_judge_has_schema():
+    """Regression — Sigma #179 finding #4. _task_schema(SIMULATION_JUDGE) must
+    not silently return None."""
+    from server.schemas.ai_contracts import SimulationJudgeResult
+    schema = ai_gateway._task_schema(ai_gateway.AITask.SIMULATION_JUDGE)
+    assert schema is SimulationJudgeResult
+
+
+# ---------------------------------------------------------------------------
+# 9. schema_hint actually wired into the prompt
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_generate_structured_embeds_schema_hint_in_prompt():
+    """Regression — Sigma #179 finding #3. schema_hint was computed but never
+    sent. After the fix the JSON schema must appear in the outgoing prompt."""
+    with patch("server.services.ai_gateway.ai_orchestrator.generate") as mock_gen:
+        mock_gen.return_value = json.dumps({
+            "reply": "ok",
+            "action": "explain",
+            "used_screen": False,
+            "used_question": False,
+            "used_performance": False,
+            "detected_need": None,
+            "misconception_tags": [],
+        })
+        await ai_gateway.generate_structured(
+            task=ai_gateway.AITask.TUTOR_CHAT,
+            prompt="solve 2+2",
+            schema=TutorResponse,
+        )
+    # The orchestrator must have been called with a prompt that includes the
+    # schema-hint marker text and a property name from TutorResponse.
+    sent_prompt = mock_gen.call_args.kwargs["prompt"]
+    assert "Respond with valid JSON matching this schema" in sent_prompt
+    assert "reply" in sent_prompt  # property name from TutorResponse

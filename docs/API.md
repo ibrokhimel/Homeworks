@@ -1242,19 +1242,36 @@ With `AI_DEBUG_CONTEXT=true`, the same response may include top-level `context_d
 
 ### GET /api/ai/status
 
+Reports which AI backend is active plus the resolved effective model for every gateway task (Plan 6).
+
 **200**:
 ```json
 {
-  "backend": "kimi|none",
+  "provider_order": ["kimi"],
+  "active_provider": "kimi",
+  "tasks": {
+    "tutor_chat":             {"provider": "kimi", "model": "moonshot-v1-128k", "tier": "pro"},
+    "answer_check":           {"provider": "kimi", "model": "moonshot-v1-128k", "tier": "pro"},
+    "boss_question_generate": {"provider": "kimi", "model": "moonshot-v1-128k", "tier": "pro"},
+    "boss_answer_check":      {"provider": "kimi", "model": "moonshot-v1-128k", "tier": "pro"},
+    "boss_persona_response":  {"provider": "kimi", "model": "moonshot-v1-32k",  "tier": "fast"},
+    "final_report":           {"provider": "kimi", "model": "moonshot-v1-128k", "tier": "pro"},
+    "safety_guardrail":       {"provider": "kimi", "model": "moonshot-v1-32k",  "tier": "fast"},
+    "simulation_judge":       {"provider": "kimi", "model": "moonshot-v1-128k", "tier": "pro"}
+  },
+  "backend": "kimi",
   "model_fast": "moonshot-v1-32k",
   "model_pro": "moonshot-v1-128k",
-  "active_provider": "kimi",
-  "available_providers": ["kimi"]
+  "available_providers": ["kimi"],
+  "preference_list": ["kimi"]
 }
 ```
-- `active_provider` — name of the provider currently selected (`"kimi"` when credentials are present, `"none"` otherwise).
+
+- `provider_order` — provider preference list parsed from `AI_BACKEND_PREFERENCE`. Resolution walks this list in order until a provider is healthy.
+- `active_provider` — first provider in `provider_order` whose credentials are present (`"kimi"` by default, `"none"` if no credentials are configured).
+- `tasks` — per-`AITask` resolved `provider` / `model` / `tier`. The 8 task keys mirror `server/services/ai_gateway.py::AITask`. `tier` is `"pro"` or `"fast"` from `TASK_MODEL_POLICY` and selects between `KIMI_MODEL_PRO` and `KIMI_MODEL_FAST` env overrides.
 - `available_providers` — all registered providers whose credentials are present.
-- `backend` is a legacy alias for `active_provider` — kept for backward compat.
+- `backend`, `model_fast`, `model_pro`, `preference_list` — legacy fields kept for backward compat with pre-Plan-6 consumers. New consumers should read `tasks` and `provider_order`.
 
 ---
 

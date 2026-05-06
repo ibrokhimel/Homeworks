@@ -64,3 +64,22 @@ class GuardrailResult(BaseModel):
         default="continue",
         description="continue | refuse | redirect | ask_clarifying",
     )
+
+
+class SimulationJudgeResult(BaseModel):
+    """Output of an LLM-as-judge over a multi-turn tutor session transcript.
+
+    Used by the SIMULATION_JUDGE task to score offline simulations of tutor
+    behaviour (correctness of feedback, age-appropriate tone, no answer
+    leakage, etc.).
+    """
+    overall_score: float = Field(ge=0.0, le=1.0, description="Aggregate quality score 0.0–1.0")
+    confidence: float = Field(ge=0.0, le=1.0)
+    verdict: str = Field(default="pass", description="pass | fail | needs_review")
+    strengths: list[str] = Field(default_factory=list)
+    weaknesses: list[str] = Field(default_factory=list)
+    rubric_scores: dict[str, float] = Field(
+        default_factory=dict,
+        description="Per-axis 0.0–1.0 scores (correctness, tone, safety, ...)",
+    )
+    notes: Optional[str] = Field(default=None)
