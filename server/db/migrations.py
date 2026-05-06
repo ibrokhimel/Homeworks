@@ -224,6 +224,26 @@ CREATE TABLE IF NOT EXISTS generated_boss_questions (
 
 CREATE INDEX IF NOT EXISTS idx_generated_boss_session
 ON generated_boss_questions(session_id, hw_id, created_at);
+
+CREATE TABLE IF NOT EXISTS boss_sessions (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  homework_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  hp INTEGER NOT NULL DEFAULT 100,
+  max_hp INTEGER NOT NULL DEFAULT 100,
+  trials_left INTEGER NOT NULL DEFAULT 7,
+  current_difficulty TEXT NOT NULL DEFAULT 'medium',
+  current_question_id TEXT,
+  asked_question_ids_json TEXT NOT NULL DEFAULT '[]',
+  weak_topics_json TEXT NOT NULL DEFAULT '[]',
+  strong_topics_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_boss_sessions_session
+ON boss_sessions(session_id, homework_id, status);
 """
 
 
