@@ -48,17 +48,20 @@ You are building the Game Breaks (Phase 3) for a Geometry homework session. This
 
 ## Construction per game
 
-### Puzzle Lock (Sliding Tile) — Interactive Catalog
-- 8-12 tiles to arrange in the correct configuration
-- Correct answer slides chosen tile; wrong answer slides a random tile
-- Tile types:
-  - **Diagram assembly:** labeled parts of a triangle or parallel-line figure to reconstruct
-  - **Proof step ordering:** jumbled steps of a 3-5 step argument to put in logical order — include one distractor tile at L3
-  - **Cross-section:** 3D object → student identifies the 2D cross-section shape
-**Every tile that references a figure must include a Visual Layer diagram description** (tick marks, arcs, square corners, color codes).
-- Good: `"SAS isbootini 5 qadamdan yig'ing: [Tile 1: triangles ABC/DEF, no marks — State 0] → [Tile 2: one tick on AB=DE, blue — State 1] → [Tile 3: arc at ∠B=∠E, blue — State 2] → [Tile 4: one tick on BC=EF, blue — State 3] → [Tile 5: both triangles orange, △ABC=△DEF — Conclusion]"`
-- Good (diagram assembly): `"Ushbu △ABC rasmini yig'ing: [Tile: vertex A top], [Tile: vertex B bottom-left], [Tile: vertex C bottom-right], [Tile: one tick on AB], [Tile: one tick on AC], [Tile: arc at ∠B = arc at ∠C], [Tile: label 'teng yonli uchburchak']"`
-- Bad: All tiles are text definitions with no diagram fragments
+### Puzzle Lock (Linear Solve-Stepper) — Interactive Catalog
+- 4-8 ordered steps of a single proof or construction
+- Student solves them **in order**, one slot active at a time. Correct answer unlocks the next step; wrong answer surfaces the authored hint and keeps the same step active.
+- Each item is `{content, q, a, hint?}`:
+  - `content` — the step description shown on the card (e.g. `"<b>Qadam 1.</b> ABC — to'g'ri burchakli uchburchak; ∠C = 90°, ∠A = α (berilgan)."`); `<b>` markup welcome
+  - `q` — the question the student must answer to advance from this step
+  - `a` — the expected answer (matched via mathNormalize: α/alfa/alpha, tg/tan, °/gradus, U+2212/-, decimal comma/dot are all equivalent)
+  - `hint` — optional one-line nudge shown on a wrong attempt
+- Step types:
+  - **Proof chain:** each step = one line of a 4-8 step formal argument; the question tests the student's grasp of THAT step's reasoning
+  - **Construction sequence:** sequential moves that build a labeled diagram; each question identifies the element/value introduced at that step
+- **Every step that references a figure should include a Visual Layer diagram description** in `content` (tick marks, arcs, square corners, color codes) — runtime renders inline SVG when present.
+- Good: `Qadam 1: "<b>Qadam 1.</b> ABC — to'g'ri burchakli uchburchak; ∠C = 90°, ∠A = α." q: "To'g'ri burchakning qiymati nechi gradus?" a: "90"` … then Qadam 2 builds on Qadam 1 with `∠A + ∠B + ∠C = 180°`.
+- Bad: questions out of order or steps that don't depend on each other (use Mystery Box for unrelated practice).
 
 ### Mystery Box — Default Pool
 - 3-5 closed boxes, each containing a geometry problem from a different topic of the current chapter

@@ -214,13 +214,14 @@ def test_tile_match_desktop_layout_still_three_column_stats() -> None:
 
 
 def test_puzzle_lock_desktop_grid_max_width_preserved() -> None:
-    """The base .gb-pl-grid rule must keep `max-width: 420px` so the
-    grid doesn't stretch past readable width on wide screens."""
+    """The base .gb-pl-grid rule must keep max-width cap so the grid
+    doesn't stretch past readable width on wide screens. (Updated to
+    max-width: 560px as part of the linear-stepper rewrite, PR 2026-05-07.)"""
     base_rule_idx = TEMPLATE.find(".gb-pl-grid {")
     assert base_rule_idx >= 0
     base_rule = TEMPLATE[base_rule_idx : base_rule_idx + 400]
-    assert "max-width: 420px" in base_rule, (
-        "base .gb-pl-grid lost its max-width: 420px cap — on wide "
+    assert "max-width: 560px" in base_rule, (
+        "base .gb-pl-grid lost its max-width: 560px cap — on wide "
         "viewports the puzzle grid will stretch full-width and cells "
         "become too large."
     )
