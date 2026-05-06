@@ -1181,10 +1181,17 @@ Live, persistent tutor chat. Each call appends one user turn and one assistant t
   "hw_id": "HW-20260428-001",
   "phase": "preview|practice|boss",
   "question_id": "qb1",
-  "message": "string"
+  "message": "string",
+  "screen_context": "string",
+  "student_work_text": "string",
+  "subphase": "string",
+  "ui_state": {},
+  "recent_assistant_phrases": ["string"]
 }
 ```
+- `phase` is optional (defaults to `"preview"`).
 - `question_id` is optional — required only when the chat is scoped to a specific question (practice/boss).
+- `screen_context`, `student_work_text`, `subphase`, `ui_state`, and `recent_assistant_phrases` are optional context enrichment fields.
 - For `phase != "preview"`, the server strips `expected`, `ans`, `accepted_answers`, and `correct` from the question payload before it enters the LLM context.
 - Per-(session_id, hw_id) cap of **60 total turns**. The 61st request returns **429** `TUTOR_SESSION_CAP`.
 

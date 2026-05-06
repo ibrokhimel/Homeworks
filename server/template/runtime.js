@@ -153,6 +153,64 @@
     // Convenience: check if AI is available right now
     function isAvailable() { return isBackendHosted; }
 
+    // ─── Plan 3 — runtime context collector ──────────────────
+    function _extractVisibleText(root) {
+        const el = root || document.querySelector('main') || document.body;
+        if (!el) return '';
+        const clone = el.cloneNode(true);
+        clone.querySelectorAll('[data-answer], [data-expected], .answer-key, script, style').forEach(function(n) { n.remove(); });
+        return (clone.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 1800);
+    }
+
+    function _extractStudentWork(root) {
+        if (!root) return '';
+        const input = root.querySelector('input:focus, textarea:focus, [contenteditable]:focus');
+        if (input) {
+            return (input.value || input.innerText || '').trim().slice(0, 500);
+        }
+        const selected = root.querySelector('[data-selected="true"]');
+        if (selected) {
+            return (selected.innerText || selected.textContent || '').trim().slice(0, 500);
+        }
+        return '';
+    }
+
+    function _getRecentAssistantOpenings() {
+        // Simple heuristic: return last 3 assistant turns' first 3 words.
+        if (!window.NETS_TUTOR_HISTORY || !window.NETS_TUTOR_HISTORY.length) return [];
+        return window.NETS_TUTOR_HISTORY
+            .filter(function(t) { return t.role === 'assistant'; })
+            .slice(-3)
+            .map(function(t) {
+                const words = (t.content || '').trim().split(/\s+/).slice(0, 3);
+                return words.join(' ');
+            });
+    }
+
+    function collectRuntimeContext(opts) {
+        opts = opts || {};
+        const active = document.querySelector('[data-nets-active="true"]')
+            || document.querySelector('[data-question-active="true"]')
+            || document.querySelector('.is-active-question')
+            || (document.activeElement && document.activeElement.closest('[data-question-id]'))
+            || null;
+
+        return {
+            session_id: opts.session_id || (window.NETS_CTX && window.NETS_CTX.sessionId) || '',
+            hw_id: opts.hw_id || (window.NETS_CTX && window.NETS_CTX.homeworkId) || '',
+            phase: opts.phase || (document.body && document.body.dataset.phase) || (window.NETS_STATE && window.NETS_STATE.phase) || 'preview',
+            subphase: opts.subphase || (active && active.dataset.subphase) || (window.NETS_STATE && window.NETS_STATE.subphase) || null,
+            question_id: opts.question_id || (active && active.dataset.questionId) || (window.NETS_STATE && window.NETS_STATE.questionId) || null,
+            screen_context: opts.screen_context || _extractVisibleText(active),
+            student_work_text: opts.student_work_text || _extractStudentWork(active),
+            ui_state: {
+                has_active_element: !!active,
+                url_path: window.location.pathname,
+            },
+        };
+    }
+
+
     // ─── Wave F2 — live tutor widget endpoints ───────────────────
     /**
      * Send one tutor chat turn.
@@ -171,24 +229,15 @@
      *        | {_error|_cap|_offline: true, message?: string}>}
      */
     async function tutorChat(opts) {
+        opts = opts || {};
+        const ctxPacket = collectRuntimeContext(opts);
         const body = {
-            session_id: opts.session_id,
-            hw_id: opts.hw_id,
-            phase: opts.phase,
+            ...ctxPacket,
             message: opts.message,
+            recent_assistant_phrases: opts.recent_assistant_phrases && opts.recent_assistant_phrases.length
+                ? opts.recent_assistant_phrases.slice(0, 3)
+                : _getRecentAssistantOpenings(),
         };
-        if (opts.question_id) body.question_id = opts.question_id;
-        if (opts.screen_context) body.screen_context = opts.screen_context;
-        // Wave J.2 / T2: forward fine-grained subphase + student's
-        // current active input so the tutor backend can inject them
-        // into the prompt (TutorContext: subphase + student_work_text).
-        if (opts.student_work_text) body.student_work_text = opts.student_work_text;
-        if (opts.subphase) body.subphase = opts.subphase;
-        // Wave J / T4: forward last assistant openings so the backend can
-        // pass them to the prompt as RECENT_OPENINGS (anti-repetition).
-        if (opts.recent_assistant_phrases && opts.recent_assistant_phrases.length) {
-            body.recent_assistant_phrases = opts.recent_assistant_phrases.slice(0, 3);
-        }
         return _post('/tutor/chat', body);
     }
 
