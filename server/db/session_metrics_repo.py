@@ -39,32 +39,92 @@ async def get_session_metrics(session_id: str, hw_id: str) -> Optional[dict]:
         await db.close()
 
 async def recompute_session_metrics(session_id: str, hw_id: str) -> dict:
-    # Basic implementation computing metrics from phase_attempts
+    """Recompute metrics from phase_attempts."""
     attempts = await list_phase_attempts(session_id, hw_id, limit=1000)
-    
+
     total = len(attempts)
-    correct_count = sum(1 for a in attempts if a.get('correct') == 1)
-    incorrect_count = sum(1 for a in attempts if a.get('correct') == 0)
-    partial_count = sum(1 for a in attempts if a.get('correct') is None and a.get('score', 0) > 0)
-    
+    correct_count = sum(1 for a in attempts if a.get("correct") == 1)
+    incorrect_count = sum(1 for a in attempts if a.get("correct") == 0)
+    partial_count = sum(
+        1 for a in attempts if a.get("correct") is None and a.get("score", 0) > 0
+    )
+
     accuracy = correct_count / total if total > 0 else 0.0
-    
-    # Placeholder logic for more complex metrics, normally would inspect answer_spec, etc.
+
+    # Average attempts per distinct question
+    from collections import Counter
+    question_attempt_counts = Counter(
+        a.get("question_id") or a.get("item_id") or f"q_{i}"
+        for i, a in enumerate(attempts)
+    )
+    avg_attempts = (
+        sum(question_attempt_counts.values()) / len(question_attempt_counts)
+        if question_attempt_counts
+        else 0.0
+    )
+
+    # Average time_ms
+    times = [a.get("time_ms") for a in attempts if a.get("time_ms") is not None]
+    avg_time_ms = sum(times) / len(times) if times else 0
+
+    # Weak topics from misconception_tags_json
+    weak_topics: set[str] = set()
+    for a in attempts:
+        tags_raw = a.get("misconception_tags_json")
+        if tags_raw:
+            try:
+                tags = json.loads(tags_raw) if isinstance(tags_raw, str) else tags_raw
+                if isinstance(tags, list):
+                    weak_topics.update(str(t) for t in tags if t)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    # Strong topics: from correct attempts, look at answer_spec tags if present
+    strong_topics: set[str] = set()
+    for a in attempts:
+        if a.get("correct") != 1:
+            continue
+        spec_raw = a.get("answer_spec_json")
+        if spec_raw:
+            try:
+                spec = json.loads(spec_raw) if isinstance(spec_raw, str) else spec_raw
+                if isinstance(spec, dict):
+                    tags = spec.get("tags")
+                    if isinstance(tags, list):
+                        strong_topics.update(str(t) for t in tags if t)
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    # Boss readiness: weighted blend of accuracy and independence
+    # Higher accuracy + fewer attempts per question = more ready
+    independence = max(0.0, 1.0 - (avg_attempts - 1.0) * 0.3)
+    boss_readiness_score = round(accuracy * 0.6 + independence * 0.4, 2)
+
+    # Mastery score from Plan 2 formula
+    mastery_score = round(
+        accuracy * 0.45
+        + independence * 0.20
+        + max(0.0, (accuracy - 0.5)) * 0.20  # improvement proxy
+        + (1.0 if avg_time_ms > 0 else 0.0) * 0.05  # speed score placeholder
+        + boss_readiness_score * 0.10,
+        2,
+    )
+
     metrics = {
-        "accuracy": accuracy,
+        "accuracy": round(accuracy, 2),
         "correct_count": correct_count,
         "incorrect_count": incorrect_count,
         "partial_count": partial_count,
-        "hint_count": 0,  # TODO(deferred): Compute from actual hints usage,
-        "avg_attempts": 1.0,  # TODO(deferred): Compute from attempts count,
-        "avg_time_ms": 0,  # TODO(deferred): Compute from time_ms fields,
-        "weak_topics": [],  # TODO(deferred): Extract from misconceptions,
-        "strong_topics": [],  # TODO(deferred): Extract from correct topics,
-        "language_confusion_terms": [],  # TODO(deferred): Extract from specific language errors,
-        "mastery_score": accuracy * 0.45,
-        "boss_readiness_score": 0.0  # TODO(deferred): Compute based on phase performance
+        "hint_count": 0,  # Requires session_events hint tracking (not yet implemented)
+        "avg_attempts": round(avg_attempts, 2),
+        "avg_time_ms": int(avg_time_ms),
+        "weak_topics": sorted(weak_topics),
+        "strong_topics": sorted(strong_topics),
+        "language_confusion_terms": [],  # Requires NLP pipeline (not yet implemented)
+        "mastery_score": mastery_score,
+        "boss_readiness_score": boss_readiness_score,
     }
-    
+
     await upsert_session_metrics(session_id, hw_id, metrics)
     return metrics
 
