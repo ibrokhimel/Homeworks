@@ -3455,6 +3455,12 @@
         }
 
         /* Puzzle Lock — knowledge-gated sliding-tile */
+        /* Puzzle Lock — linear solve-stepper (PR A 2026-05-07).
+           Was a 15-style sliding-tile grid; now a vertical stack of proof
+           steps that the student solves in order. The .gb-pl-grid /
+           .gb-pl-cell class names are intentionally preserved so existing
+           dark-mode + responsive + glyph-badge regression tests still hit
+           the right selectors — only the layout semantics change. */
         .gb-pl-status {
             font-size: 13px;
             color: var(--text-muted);
@@ -3467,46 +3473,116 @@
             margin-bottom: 14px;
         }
         .gb-pl-grid {
-            display: grid;
-            gap: 6px;
-            background: rgba(0,0,0,0.06);
-            padding: 6px;
-            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(0,0,0,0.04);
+            padding: 12px;
+            border-radius: 18px;
             width: 100%;
-            max-width: 420px;
+            max-width: 560px;
         }
         .gb-pl-cell {
-            aspect-ratio: 1 / 1;
+            /* PL-03 fix: aspect-ratio: 1/1 removed. Step text used to be
+               clipped by overflow:hidden inside a square box. Now the
+               card grows to fit its content vertically. */
+            display: grid;
+            grid-template-columns: 36px 1fr;
+            gap: 12px;
+            align-items: start;
             background: var(--surface-strong);
             backdrop-filter: var(--glass-blur);
             -webkit-backdrop-filter: var(--glass-blur);
             border: 1px solid var(--surface-border);
             border-radius: 14px;
-            padding: 6px;
-            font-size: 13px;
-            line-height: 1.25;
-            cursor: pointer;
+            padding: 12px 14px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text);
+            cursor: default;
+            user-select: text;
+            text-align: left;
+            transition: transform 200ms ease, border-color 200ms ease, background 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .gb-pl-cell::before {
+            content: attr(data-step-num);
             display: flex;
             align-items: center;
             justify-content: center;
-            text-align: center;
-            user-select: none;
-            transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
-            overflow: hidden;
-            box-shadow: var(--shadow-card);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 13px;
+            font-weight: 700;
+            background: rgba(0,0,0,0.07);
+            color: var(--text-muted);
+            flex-shrink: 0;
+            line-height: 1;
         }
-        .gb-pl-cell:hover { transform: scale(1.03); border-color: var(--accent); }
-        .gb-pl-cell.empty { background: transparent; border-style: dashed; cursor: default; }
-        .gb-pl-cell.empty:hover { transform: none; }
-        .gb-pl-cell.locked { border-color: #d4af37; background: rgba(212,175,55,0.10); box-shadow: 0 0 0 2px rgba(212,175,55,0.25) inset; }
-        .gb-pl-cell.selected { border-color: var(--accent); background: rgba(99,184,255,0.18); transform: scale(1.05); }
-        .gb-pl-cell.wrong-flash { border-color: #d9534f; background: rgba(217,83,79,0.18); animation: gb-pl-shake 0.5s; }
-        .gb-pl-cell.not-adjacent { border-color: #d9534f; opacity: 0.6; }
+        .gb-pl-cell.locked {
+            opacity: 0.55;
+            border-style: dashed;
+            background: transparent;
+        }
+        .gb-pl-cell.locked::after {
+            content: '\01F512';   /* 🔒 — non-color affordance for "future step" */
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            font-size: 14px;
+            opacity: 0.55;
+            line-height: 1;
+            pointer-events: none;
+        }
+        .gb-pl-cell.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(99,184,255,0.22), var(--shadow-card);
+            background: linear-gradient(180deg, rgba(99,184,255,0.06), rgba(255,255,255,0.22));
+        }
+        .gb-pl-cell.active::before {
+            background: var(--accent);
+            color: #fff;
+        }
+        .gb-pl-cell.solved {
+            border-color: rgba(91,184,93,0.42);
+            background: rgba(91,184,93,0.06);
+        }
+        .gb-pl-cell.solved::before {
+            background: #5bb85d;
+            color: #fff;
+        }
+        .gb-pl-cell.wrong-flash {
+            border-color: #d9534f;
+            background: rgba(217,83,79,0.10);
+            animation: gb-pl-shake 0.5s;
+        }
         @keyframes gb-pl-shake {
             0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-3px); }
-            75% { transform: translateX(3px); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
         }
+        .gb-pl-cell-body {
+            min-width: 0;     /* allow shrinking inside grid cell */
+        }
+        .gb-pl-cell-body b,
+        .gb-pl-cell-body strong { font-weight: 700; color: var(--text); }
+        .gb-pl-feedback {
+            display: none;
+            margin-top: 8px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 12.5px;
+            line-height: 1.4;
+            color: #9f241d;
+            background: rgba(217,83,79,0.08);
+            border: 1px solid rgba(217,83,79,0.18);
+        }
+        .gb-pl-feedback.show { display: block; }
+        .gb-pl-input.shake { animation: gb-pl-shake 0.32s; }
         .gb-pl-question-box {
             background: var(--surface);
             backdrop-filter: var(--glass-blur);
@@ -3567,15 +3643,23 @@
                 margin-bottom: 8px;
             }
             .gb-pl-grid {
-                gap: 5px;
-                padding: 5px;
+                gap: 8px;
+                padding: 10px;
                 border-radius: 14px;
+                max-width: 100%;
             }
             .gb-pl-cell {
-                padding: 4px;
-                font-size: 11.5px;
+                grid-template-columns: 28px 1fr;
+                gap: 10px;
+                padding: 10px 12px;
+                font-size: 13px;
+                line-height: 1.45;
                 border-radius: 12px;
-                line-height: 1.18;
+            }
+            .gb-pl-cell::before {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
             }
             .gb-pl-question-box {
                 padding: 12px 13px;
@@ -3603,12 +3687,12 @@
         }
         @media (max-width: 370px) {
             .gb-pl-cell {
-                font-size: 10.8px;
-                padding: 3px;
+                font-size: 12px;
+                padding: 9px 10px;
             }
             .gb-pl-grid {
-                gap: 4px;
-                padding: 4px;
+                gap: 7px;
+                padding: 8px;
             }
         }
 
@@ -5086,19 +5170,22 @@
         /* Tile Match / Memory Match / Puzzle Lock — game tiles whose
            state is communicated via background tint + shake animation.
            Pin a corner badge so a static screenshot still tells the
-           story. */
+           story. (PR A 2026-05-07: the ✓ for Puzzle Lock now lives on
+           .solved instead of .locked — .locked carries a 🔒 glyph for
+           future steps in the new linear-stepper mechanic, defined in
+           the Puzzle Lock CSS block above.) */
         .gb-tm-tile.matched,
         .gb-mm-card.matched,
-        .gb-pl-cell.locked {
+        .gb-pl-cell.solved {
             position: relative;
         }
         .gb-tm-tile.matched::after,
         .gb-mm-card.matched::after,
-        .gb-pl-cell.locked::after {
+        .gb-pl-cell.solved::after {
             content: '\2713';
             position: absolute;
-            top: 4px;
-            right: 6px;
+            top: 8px;
+            right: 12px;
             font-size: 14px;
             font-weight: 800;
             color: #117a3d;
@@ -6780,9 +6867,38 @@
         [data-theme="dark"] .gb-pl-win-text { color: #86efac; }
         [data-theme="dark"] .gb-pl-grid { background: rgba(15, 23, 42, 0.45); }
         [data-theme="dark"] .gb-pl-cell {
-            background: var(--surface-strong);
-            border-color: var(--surface-border);
+            background: rgba(15, 23, 42, 0.55);
+            border-color: rgba(96, 165, 250, 0.20);
             color: var(--text);
+        }
+        [data-theme="dark"] .gb-pl-cell::before {
+            background: rgba(255,255,255,0.06);
+            color: #cbd5e1;
+        }
+        [data-theme="dark"] .gb-pl-cell.locked {
+            background: transparent;
+            opacity: 0.45;
+        }
+        [data-theme="dark"] .gb-pl-cell.active {
+            background: linear-gradient(180deg, rgba(96,165,250,0.12), rgba(15,23,42,0.55));
+            border-color: var(--accent);
+        }
+        [data-theme="dark"] .gb-pl-cell.active::before {
+            background: var(--accent);
+            color: #f8fafc;
+        }
+        [data-theme="dark"] .gb-pl-cell.solved {
+            background: rgba(91,184,93,0.10);
+            border-color: rgba(91,184,93,0.32);
+        }
+        [data-theme="dark"] .gb-pl-cell.solved::before {
+            background: #5bb85d;
+            color: #f8fafc;
+        }
+        [data-theme="dark"] .gb-pl-feedback {
+            background: rgba(217,83,79,0.14);
+            border-color: rgba(217,83,79,0.32);
+            color: #fca5a5;
         }
         [data-theme="dark"] .gb-pl-question-box {
             background: var(--surface);
@@ -7660,10 +7776,11 @@
         /* Glyph badges on game tiles use light-mode greens; brighten for dark ---- */
         [data-theme="dark"] .gb-tm-tile.matched::after,
         [data-theme="dark"] .gb-mm-card.matched::after,
-        [data-theme="dark"] .gb-pl-cell.locked::after,
+        [data-theme="dark"] .gb-pl-cell.solved::after,
         [data-theme="dark"] .gb-mb-label.picked-correct::after,
         [data-theme="dark"] .gb-mb-label.picked-truth::after { color: #86efac; }
         [data-theme="dark"] .gb-mb-label.picked-wrong::after { color: #fca5a5; }
+        [data-theme="dark"] .gb-pl-cell.locked::after { opacity: 0.7; }
     </style>
 
     <!-- KaTeX: render $...$ / $$...$$ math in any prompt that uses LaTeX. -->
@@ -8057,18 +8174,24 @@
                         </section>
                         <div class="gb-tm-toast" id="gb-tm-toast" role="status" aria-live="polite"></div>
                     </div>
-                    <!-- Sub-game 4: Puzzle Lock (optional — only if GB_PUZZLE_LOCK has items) -->
+                    <!-- Sub-game 4: Puzzle Lock (optional — only if GB_PUZZLE_LOCK has items)
+                         PR A 2026-05-07: linear solve-stepper. The student sees all steps
+                         in order; only the active one is interactive. Correct → unlock next,
+                         wrong → feedback + stay. Class names .gb-pl-grid / .gb-pl-cell are
+                         preserved for dark-mode + responsive test compatibility, but layout
+                         is now a vertical stack, not a square sliding grid. -->
                     <div class="gb-game-panel enter-right" id="gb-panel-pl">
                         <div class="gb-section-title">O'YIN — PUZZLE LOCK</div>
-                        <div class="gb-pl-status" id="gb-pl-status">Mos joyga: 0 / 0</div>
+                        <div class="gb-pl-status" id="gb-pl-status">Qadam 0 / 0</div>
                         <div class="gb-pl-board"><div class="gb-pl-grid" id="gb-pl-grid"></div></div>
                         <div class="gb-pl-question-box" id="gb-pl-question-box">
                             <div class="gb-pl-question" id="gb-pl-question"></div>
                             <input class="gb-pl-input" id="gb-pl-input" type="text" inputmode="text" placeholder="Javob..." autocomplete="off" autocorrect="off" spellcheck="false" />
+                            <div class="gb-pl-feedback" id="gb-pl-feedback" role="status" aria-live="polite"></div>
                         </div>
                         <div class="gb-pl-win-banner" id="gb-pl-win-banner">
-                            <div class="gb-pl-win-text">Boshqotirma yechildi!</div>
-                            <div class="gb-pl-win-sub">Mantiqiy tartiblash — barcha bo'laklar joyiga tushdi.</div>
+                            <div class="gb-pl-win-text">Barcha qadamlar hal qilindi!</div>
+                            <div class="gb-pl-win-sub">Isbotni qadamma-qadam yig'ib chiqdingiz.</div>
                         </div>
                     </div>
                     <!-- Sub-game 5: Mystery Box (optional — only if GB_MYSTERY_BOX has items) -->
@@ -8737,6 +8860,9 @@
                 // puzzle lock
                 'pl.fit_status':         'Mos joyga:',
                 'pl.no_question':        '(savol berilmagan)',
+                'pl.step_status':        'Qadam {n} / {total}',
+                'pl.step_locked':        'Avval oldingi qadamni hal qiling',
+                'pl.wrong_feedback':     "Notog'ri javob — qaytadan urinib ko'ring.",
                 // mystery box
                 'mb.boxes_status':       'Qutilar:',
                 'mb.right_category':     "To'g'ri toifa!",
@@ -9066,6 +9192,9 @@
                 'tm.xp_label':           'Tile Match XP',
                 'pl.fit_status':         'На своих местах:',
                 'pl.no_question':        '(вопрос не задан)',
+                'pl.step_status':        'Шаг {n} / {total}',
+                'pl.step_locked':        'Сначала решите предыдущий шаг',
+                'pl.wrong_feedback':     'Неверно — попробуйте ещё раз.',
                 'mb.boxes_status':       'Коробки:',
                 'mb.right_category':     'Категория верна!',
                 'mb.actually_prefix':    'На самом деле — ',
@@ -9390,6 +9519,9 @@
                 'tm.xp_label':           'Tile Match XP',
                 'pl.fit_status':         'In place:',
                 'pl.no_question':        '(no question)',
+                'pl.step_status':        'Step {n} / {total}',
+                'pl.step_locked':        'Solve the previous step first',
+                'pl.wrong_feedback':     'Not quite — try again.',
                 'mb.boxes_status':       'Boxes:',
                 'mb.right_category':     'Right category!',
                 'mb.actually_prefix':    "It's actually — ",
@@ -12301,8 +12433,10 @@
             }
             if (gbState.subGame === 3) {
                 if (gbState.pl && gbState.pl.complete) { gbAdvanceFromGame(3, 'gb-panel-pl'); return; }
-                if (gbState.pl && gbState.pl.selected) { gbPLAction(); return; }
-                return; // PL waiting for tile click
+                // PR A 2026-05-07: linear stepper — the active step is always
+                // ready, so the CTA always dispatches to gbPLAction. The old
+                // pl.selected gate (waiting for a tile click) no longer applies.
+                gbPLAction(); return;
             }
             if (gbState.subGame === 2) {
                 if (gbState.tm && gbState.tm.complete) { gbAdvanceFromGame(2, 'gb-panel-tm'); return; }
@@ -14551,174 +14685,241 @@
             pill.textContent = cum + ' XP';
         }
 
+        // ── PUZZLE LOCK — linear solve-stepper (PR A 2026-05-07) ─────────
+        // Replaces the prior 15-style sliding-tile implementation. Real
+        // demo data (HW-20260505-005, HW-20260505-009) ships items as a
+        // sequential proof/factoring chain {content, q, a}; the student
+        // now solves them in order, one slot active at a time.
+        //
+        // State model:
+        //   pl.tiles        — input items in original order
+        //   pl.total        — pl.tiles.length
+        //   pl.currentStep  — index of the active step (0..total-1)
+        //   pl.complete     — true once currentStep === total
+        //   pl.busy         — input lock during animation/feedback
+        //   pl.wrongCount   — running counter for session log
+        //
+        // Answer matching mirrors gbAQAction's dual-pass from PR #165:
+        // legacy whitespace-stripped lowercase first, then the shared
+        // window.mathNormalize for math-equivalent forms (α/alfa/alpha,
+        // tg/tan, U+2212/-, decimal comma/dot, "lhs = rhs" prefix).
         function gbInitPL() {
             const pl = gbState.pl;
-            const tileCount = Array.isArray(GB_PUZZLE_LOCK) ? GB_PUZZLE_LOCK.length : 0;
-            // Pick grid size: 4×4 if ≥15 tiles, else 3×3 (uses up to 8 tiles).
-            if (tileCount >= 15) {
-                pl.size = 4;
-                pl.tiles = GB_PUZZLE_LOCK.slice(0, 15);
-            } else {
-                pl.size = 3;
-                pl.tiles = GB_PUZZLE_LOCK.slice(0, 8);
-            }
-            pl.total = pl.tiles.length;
-            pl.correct = 0;
-            pl.wrongCount = 0;
-            pl.complete = false;
-            pl.busy = false;
-            pl.selected = null;
-            pl.cells = new Array(pl.size * pl.size).fill(null);
-            pl.tiles.forEach((tile, pid) => {
-                pl.cells[pid] = { pid: pid, content: tile.content || '', q: tile.q || '', a: tile.a || '' };
+            const items = Array.isArray(GB_PUZZLE_LOCK) ? GB_PUZZLE_LOCK : [];
+            pl.tiles = items.slice(0, 15).map(function (t) {
+                return {
+                    content: (t && t.content) || '',
+                    q:       (t && t.q)       || '',
+                    a:       (t && t.a)       || '',
+                    hint:    (t && t.hint)    || '',
+                };
             });
-            pl.emptyIdx = pl.size * pl.size - 1;
-            // Scramble: 200 random valid moves keeps puzzle solvable (parity preserved).
-            for (let i = 0; i < 200; i++) {
-                const ns = gbPLNeighbors(pl.emptyIdx, pl.size);
-                const pick = ns[Math.floor(Math.random() * ns.length)];
-                pl.cells[pl.emptyIdx] = pl.cells[pick];
-                pl.cells[pick] = null;
-                pl.emptyIdx = pick;
-            }
-            gbPLRecountCorrect();
-            const qBox = document.getElementById('gb-pl-question-box');
-            if (qBox) qBox.classList.remove('show');
+            pl.total = pl.tiles.length;
+            pl.currentStep = 0;
+            pl.wrongCount = 0;
+            pl.complete = pl.total === 0;
+            pl.busy = false;
+            // Legacy fields kept around so any external accessors don't crash;
+            // they are no longer consulted by render or action.
+            pl.size = 0;
+            pl.cells = [];
+            pl.emptyIdx = -1;
+            pl.correct = 0;
+            pl.selected = null;
+
             const winBanner = document.getElementById('gb-pl-win-banner');
             if (winBanner) winBanner.classList.remove('show');
+            const fb = document.getElementById('gb-pl-feedback');
+            if (fb) { fb.classList.remove('show'); fb.textContent = ''; }
+
             gbPLRender();
             gbPLUpdateStatus();
+            gbPLPrimeButton();
         }
 
-        function gbPLNeighbors(idx, size) {
-            const row = Math.floor(idx / size);
-            const col = idx % size;
-            const out = [];
-            if (row > 0) out.push(idx - size);
-            if (row < size - 1) out.push(idx + size);
-            if (col > 0) out.push(idx - 1);
-            if (col < size - 1) out.push(idx + 1);
-            return out;
-        }
-
-        function gbPLRecountCorrect() {
+        function gbPLPrimeButton() {
+            // Linear stepper always offers a clickable Confirm CTA when there's
+            // an active step. No more "waiting for tile selection" gap.
+            if (typeof btn === 'undefined' || !btn) return;
             const pl = gbState.pl;
-            let correct = 0;
-            pl.cells.forEach((cell, idx) => {
-                if (cell && cell.pid === idx) correct++;
-            });
-            pl.correct = correct;
+            if (pl.complete) return;  // gbPLWin will set the next-game label
+            btn.classList.remove('state-line', 'pulse');
+            btn.classList.add('state-pill', 'pulse');
+            setBtnText(RT('btn.confirm'));
+        }
+
+        // Authored content carries <b>Qadam N.</b> markup that must render
+        // as HTML to read naturally. This helper mirrors how the rest of
+        // the runtime injects authored homework content (fc-definition,
+        // panel blocks, tile-match text) — same trust model: the JSON is
+        // server-side authored, never student-typed.
+        function gbPLSetCellContent(node, html) {
+            // Use insertAdjacentHTML for parity with the existing safe-HTML
+            // pattern across the runtime; clearing first avoids a duplicate
+            // append when this helper is called twice on the same node.
+            while (node.firstChild) node.removeChild(node.firstChild);
+            node.insertAdjacentHTML('afterbegin', String(html || ''));
         }
 
         function gbPLRender() {
             const pl = gbState.pl;
             const grid = document.getElementById('gb-pl-grid');
             if (!grid) return;
-            grid.style.gridTemplateColumns = 'repeat(' + pl.size + ', 1fr)';
-            grid.innerHTML = '';
-            pl.cells.forEach((cell, idx) => {
-                const div = document.createElement('div');
-                div.className = 'gb-pl-cell';
-                div.dataset.idx = idx;
-                if (cell === null) {
-                    div.classList.add('empty');
+            // Reset any inline grid-template style left over from the old
+            // sliding-mechanic render, so the CSS `flex-direction: column`
+            // on .gb-pl-grid wins on re-init.
+            grid.style.gridTemplateColumns = '';
+            while (grid.firstChild) grid.removeChild(grid.firstChild);
+            pl.tiles.forEach(function (tile, idx) {
+                const card = document.createElement('div');
+                card.className = 'gb-pl-cell';
+                card.dataset.idx = String(idx);
+                card.dataset.stepNum = String(idx + 1);
+                // No click handler — the active step is driven by the
+                // dedicated input + #action-button below the stepper.
+                let stateClass;
+                if (idx < pl.currentStep)        stateClass = 'solved';
+                else if (idx === pl.currentStep) stateClass = 'active';
+                else                              stateClass = 'locked';
+                card.classList.add(stateClass);
+
+                const body = document.createElement('div');
+                body.className = 'gb-pl-cell-body';
+                if (stateClass === 'locked') {
+                    // Future steps stay hidden by content — only the lock
+                    // glyph and dashed border tell the student "later".
+                    body.textContent = RT('pl.step_locked');
                 } else {
-                    div.innerHTML = cell.content || '';
-                    if (cell.pid === idx) div.classList.add('locked');
-                    if (pl.selected && pl.selected.idx === idx) div.classList.add('selected');
-                    div.addEventListener('click', () => gbPLClickTile(idx));
+                    // Active and solved both show the step content. Authored
+                    // HTML markup (<b>Qadam N.</b>) preserved.
+                    gbPLSetCellContent(body, tile.content);
                 }
-                grid.appendChild(div);
+                card.appendChild(body);
+                grid.appendChild(card);
             });
+
+            // Drive the question box off the active step.
+            const qBox = document.getElementById('gb-pl-question-box');
+            const qText = document.getElementById('gb-pl-question');
+            const qInput = document.getElementById('gb-pl-input');
+            const fb = document.getElementById('gb-pl-feedback');
+            if (pl.complete) {
+                if (qBox) qBox.classList.remove('show');
+                return;
+            }
+            const active = pl.tiles[pl.currentStep];
+            if (!active) {
+                if (qBox) qBox.classList.remove('show');
+                return;
+            }
+            if (qText) qText.textContent = active.q || RT('pl.no_question');
+            if (qInput) {
+                qInput.value = '';
+                qInput.disabled = false;
+                qInput.style.borderColor = '';
+                qInput.classList.remove('shake');
+            }
+            if (fb) { fb.classList.remove('show'); fb.textContent = ''; }
+            if (qBox) qBox.classList.add('show');
         }
 
         function gbPLUpdateStatus() {
             const st = document.getElementById('gb-pl-status');
-            if (st) st.textContent = RT('pl.fit_status') + ' ' + gbState.pl.correct + ' / ' + gbState.pl.total;
+            if (!st) return;
+            const pl = gbState.pl;
+            // i18n template — "Qadam {n} / {total}". Falls back gracefully
+            // if the locale missed the key (would render the placeholder).
+            const tmpl = RT('pl.step_status') || 'Qadam {n} / {total}';
+            const done = Math.min(pl.currentStep, pl.total);
+            st.textContent = tmpl.replace('{n}', String(done)).replace('{total}', String(pl.total));
         }
 
-        function gbPLClickTile(idx) {
-            const pl = gbState.pl;
-            if (pl.busy || pl.complete) return;
-            const ns = gbPLNeighbors(pl.emptyIdx, pl.size);
-            if (!ns.includes(idx)) {
-                const flashCell = document.querySelector('#gb-pl-grid [data-idx="' + idx + '"]');
-                if (flashCell) {
-                    flashCell.classList.add('not-adjacent');
-                    setTimeout(() => flashCell.classList.remove('not-adjacent'), 400);
-                }
-                return;
+        // PL-04: dual-pass match (legacy + mathNormalize) at parity with PR #165.
+        function gbPLAnswerMatches(userVal, expected) {
+            const norm = function (s) { return String(s == null ? '' : s).toLowerCase().replace(/\s+/g, '').trim(); };
+            const userN = norm(userVal);
+            const expectedN = norm(expected);
+            if (!expectedN) return false;
+            if (userN === expectedN) return true;
+            // Math-equivalence: same canonical form via the shared normalizer.
+            if (typeof window.mathNormalize === 'function') {
+                const um = window.mathNormalize(userVal);
+                const em = window.mathNormalize(expected);
+                if (um && um === em) return true;
             }
-            const cell = pl.cells[idx];
-            if (!cell) return;
-            pl.selected = { idx: idx, pid: cell.pid };
-            const qBox = document.getElementById('gb-pl-question-box');
-            const qText = document.getElementById('gb-pl-question');
-            const qInput = document.getElementById('gb-pl-input');
-            if (qText) qText.textContent = cell.q || RT('pl.no_question');
-            if (qInput) { qInput.value = ''; qInput.style.borderColor = ''; }
-            if (qBox) qBox.classList.add('show');
-            gbPLRender();
-            btn.classList.remove('pulse','state-pill','state-line');
-            btn.classList.add('state-pill');
-            setBtnText(RT('btn.confirm'));
-            btn.classList.add('pulse');
-            if (qInput) setTimeout(() => qInput.focus(), 50);
+            // Loose include for partial-form answers (legacy behavior).
+            if (expectedN.length > 3 && expectedN.includes(userN)) return true;
+            if (userN.length     > 3 && userN.includes(expectedN)) return true;
+            return false;
         }
 
         function gbPLAction() {
             const pl = gbState.pl;
-            if (pl.complete || !pl.selected) return;
+            if (pl.complete || pl.busy) return;
             const qInput = document.getElementById('gb-pl-input');
             const userVal = qInput ? qInput.value.trim() : '';
             if (!userVal) {
-                if (qInput) { qInput.style.borderColor = '#d9534f'; setTimeout(() => { qInput.style.borderColor = ''; }, 1200); }
+                if (qInput) {
+                    qInput.style.borderColor = '#d9534f';
+                    setTimeout(function () { qInput.style.borderColor = ''; }, 1200);
+                }
                 return;
             }
-            const cell = pl.cells[pl.selected.idx];
-            if (!cell) { pl.selected = null; return; }
-            const norm = function(s) { return String(s == null ? '' : s).toLowerCase().replace(/\s+/g, ' ').trim(); };
-            const userN = norm(userVal);
-            const expectedN = norm(cell.a);
-            const isOk = expectedN.length > 0 && (
-                userN === expectedN ||
-                (expectedN.length > 3 && expectedN.includes(userN)) ||
-                (userN.length > 3 && userN.includes(expectedN))
-            );
-            let wrongFlashIdx = null;
+            const tile = pl.tiles[pl.currentStep];
+            if (!tile) return;
+
+            pl.busy = true;
+            if (qInput) qInput.disabled = true;
+
+            const isOk = gbPLAnswerMatches(userVal, tile.a);
+
             if (isOk) {
-                const fromIdx = pl.selected.idx;
-                pl.cells[pl.emptyIdx] = pl.cells[fromIdx];
-                pl.cells[fromIdx] = null;
-                pl.emptyIdx = fromIdx;
-            } else {
-                pl.wrongCount++;
-                const candidates = gbPLNeighbors(pl.emptyIdx, pl.size).filter(n => pl.cells[n] !== null);
-                if (candidates.length) {
-                    const pick = candidates[Math.floor(Math.random() * candidates.length)];
-                    wrongFlashIdx = pl.emptyIdx;
-                    pl.cells[pl.emptyIdx] = pl.cells[pick];
-                    pl.cells[pick] = null;
-                    pl.emptyIdx = pick;
+                pl.currentStep += 1;
+                if (pl.currentStep >= pl.total) {
+                    pl.complete = true;
+                    gbPLRender();
+                    gbPLUpdateStatus();
+                    gbPLWin();
+                    return;
                 }
+                // Brief pause so the previous step gets to flash green
+                // before we re-render with the next active step.
+                setTimeout(function () {
+                    pl.busy = false;
+                    gbPLRender();
+                    gbPLUpdateStatus();
+                    gbPLPrimeButton();
+                    const inp2 = document.getElementById('gb-pl-input');
+                    if (inp2) setTimeout(function () { inp2.focus(); }, 60);
+                }, 380);
+                return;
             }
-            pl.selected = null;
-            const qBox = document.getElementById('gb-pl-question-box');
-            if (qBox) qBox.classList.remove('show');
-            gbPLRecountCorrect();
-            gbPLRender();
-            gbPLUpdateStatus();
-            if (wrongFlashIdx !== null) {
-                const flashCell = document.querySelector('#gb-pl-grid [data-idx="' + wrongFlashIdx + '"]');
-                if (flashCell) {
-                    flashCell.classList.add('wrong-flash');
-                    setTimeout(() => flashCell.classList.remove('wrong-flash'), 600);
+
+            // Wrong path — stay on the same step, surface the authored hint.
+            pl.wrongCount += 1;
+            const fb = document.getElementById('gb-pl-feedback');
+            if (fb) {
+                fb.textContent = (tile.hint && String(tile.hint).trim()) || RT('pl.wrong_feedback');
+                fb.classList.add('show');
+            }
+            if (qInput) {
+                qInput.style.borderColor = '#d9534f';
+                qInput.classList.add('shake');
+            }
+            const activeCard = document.querySelector('#gb-pl-grid .gb-pl-cell.active');
+            if (activeCard) {
+                activeCard.classList.add('wrong-flash');
+                setTimeout(function () { activeCard.classList.remove('wrong-flash'); }, 600);
+            }
+            setTimeout(function () {
+                pl.busy = false;
+                if (qInput) {
+                    qInput.disabled = false;
+                    qInput.style.borderColor = '';
+                    qInput.classList.remove('shake');
+                    qInput.focus();
                 }
-            }
-            if (pl.correct >= pl.total) { gbPLWin(); return; }
-            btn.classList.remove('pulse','state-pill','state-line');
-            btn.classList.add('state-line');
-            if (btnText) btnText.style.opacity = '0';
+            }, 700);
         }
 
         function gbPLWin() {
@@ -14726,6 +14927,8 @@
             pl.complete = true;
             const banner = document.getElementById('gb-pl-win-banner');
             if (banner) banner.classList.add('show');
+            const qBox = document.getElementById('gb-pl-question-box');
+            if (qBox) qBox.classList.remove('show');
             if (window.__sessionLog) {
                 window.__sessionLog.push({
                     phase: 'puzzle-lock', id: 'pl-all',
@@ -14733,6 +14936,10 @@
                 });
             }
             // Registry decides next game on click; we just label the button.
+            if (typeof btn !== 'undefined' && btn) {
+                btn.classList.remove('state-line');
+                btn.classList.add('state-pill', 'pulse');
+            }
             gbSetButtonNext(gbIsLastGame(3) ? RT('btn.next_stage') : RT('btn.next_game'));
         }
 
