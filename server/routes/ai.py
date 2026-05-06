@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Path as PathParam, Query
 from pydantic import BaseModel, Field
 from typing import Optional, Any
 
-from ..services import tutor, ai_orchestrator, injector, ai_debug, ai_context
+from ..services import tutor, ai_orchestrator, injector, ai_debug, ai_context, ai_gateway
 from ..services.slur_filter import classify, detect_slurs
 from ..services import warnings as warnings_svc
 from .. import db
@@ -344,20 +344,15 @@ def _attach_tutor_chat_route_debug(
 
 @router.get("/ai/status")
 async def ai_status() -> dict:
-    """Report which AI backend is active plus project/location/model for debugging."""
-    pref_list = ai_orchestrator._preference_list()
-    active = ai_orchestrator._active_backend()
-
-    info: dict[str, Any] = {
-        # Legacy fields — kept for backward compat
-        "backend": active,
-        "model_fast": ai_orchestrator.FAST_MODEL,
-        "model_pro": ai_orchestrator.PRO_MODEL,
-        # Wave F0 additions
-        "active_provider": active,
-        "preference_list": pref_list,
-        "available_providers": ai_orchestrator.available_providers(),
-    }
+    """Report which AI backend is active plus resolved task models for debugging."""
+    info = ai_gateway.get_status()
+    # Legacy fields — kept for backward compat
+    info["backend"] = info["active_provider"]
+    info["model_fast"] = ai_orchestrator.FAST_MODEL
+    info["model_pro"] = ai_orchestrator.PRO_MODEL
+    info["available_providers"] = ai_orchestrator.available_providers()
+    # Alias provider_order as preference_list for existing consumers
+    info["preference_list"] = info["provider_order"]
     return info
 
 

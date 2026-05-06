@@ -32,10 +32,11 @@ _log = logging.getLogger("nets.ai")
 
 # ── Model name constants — Kimi's actual model identifiers ──────────────────
 # Read from config so KIMI_MODEL_FAST / KIMI_MODEL_PRO env overrides flow through.
-from ..config import KIMI_MODEL_FAST, KIMI_MODEL_PRO  # noqa: E402
+from ..config import KIMI_MODEL_FAST, KIMI_MODEL_PRO, KIMI_MODEL_VISION  # noqa: E402
 
 FAST_MODEL: str = KIMI_MODEL_FAST  # default "moonshot-v1-32k"
 PRO_MODEL: str = KIMI_MODEL_PRO    # default "moonshot-v1-128k"
+VISION_MODEL: str = KIMI_MODEL_VISION  # default "kimi-k2.6"
 
 # ── Preference parsing ────────────────────────────────────────────────────────
 _DEFAULT_PREFERENCE = "kimi"
