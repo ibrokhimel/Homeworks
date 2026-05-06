@@ -220,6 +220,45 @@
         });
     }
 
+    // ─── Plan 5 — Dynamic Boss AI bridge ─────────────────────────
+    // Net-new endpoints. Legacy `bossTurn(...)` above stays as a fallback for
+    // homework HTML emitted before Plan 5; new runtime flows should call
+    // bossStart → bossGenerateQuestion → bossSubmitAnswer in a loop.
+
+    async function bossStart(opts) {
+        return _post('/ai/boss/start', {
+            session_id: opts.session_id,
+            homework_id: opts.homework_id,
+            max_hp: opts.max_hp || 100,
+            trials_left: opts.trials_left || 7,
+            initial_difficulty: opts.initial_difficulty || 'medium',
+        });
+    }
+
+    async function bossGenerateQuestion(opts) {
+        const body = { boss_session_id: opts.boss_session_id };
+        if (opts.recent_boss_phrases && opts.recent_boss_phrases.length) {
+            body.recent_boss_phrases = opts.recent_boss_phrases.slice(0, 5);
+        }
+        return _post('/ai/boss/generate-question', body);
+    }
+
+    async function bossSubmitAnswer(opts) {
+        return _post('/ai/boss/submit-answer', {
+            boss_session_id: opts.boss_session_id,
+            question_id: opts.question_id,
+            student_answer: opts.student_answer,
+        });
+    }
+
+    async function bossState(opts) {
+        return _post('/ai/boss/state', { boss_session_id: opts.boss_session_id });
+    }
+
+    async function bossGiveUp(opts) {
+        return _post('/ai/boss/give-up', { boss_session_id: opts.boss_session_id });
+    }
+
     // Expose
     window.NETS_AI = {
         checkAnswer,
@@ -229,6 +268,12 @@
         tutorChat,
         tutorHistory,
         bossPlan,
+        // Plan 5 — Dynamic Boss
+        bossStart,
+        bossGenerateQuestion,
+        bossSubmitAnswer,
+        bossState,
+        bossGiveUp,
         isAvailable,
         _ctx: ctx,
     };

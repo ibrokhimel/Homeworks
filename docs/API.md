@@ -1002,6 +1002,106 @@ With `AI_DEBUG_CONTEXT=true`, the same response may include top-level `context_d
 
 ---
 
+## Dynamic Boss (Plan 5) — net-new endpoints
+
+The five `/api/ai/boss/*` endpoints below implement Plan 5 (`docs/AI Architecture plan/.../05_DYNAMIC_BOSS_AI_PLAN.md`). They generate boss questions adaptively from the student's session metrics rather than reading from `content_json.boss_questions[]`. The legacy `/api/ai/boss-turn` (above) and the static `boss_questions` content path remain untouched as fallbacks for older homework HTML.
+
+Backend owns HP, trials, and difficulty. The model never receives `answer_spec.expected` / `accepted_answers` / prior question answer keys. The damage formula and difficulty policy live server-side; any model-supplied `damage_multiplier` is clamped to `[0.0, 1.5]`.
+
+### POST /api/ai/boss/start
+
+```json
+{
+  "session_id": "string",
+  "homework_id": "string",
+  "max_hp": 100,
+  "trials_left": 7,
+  "initial_difficulty": "medium"
+}
+```
+`initial_difficulty` is one of `easy | medium | hard`. Idempotent: if an active boss session already exists for `(session_id, homework_id)`, returns it.
+
+**200**
+```json
+{
+  "boss_session_id": "bs_<hex>",
+  "hp": 100,
+  "max_hp": 100,
+  "trials_left": 7,
+  "current_difficulty": "medium",
+  "weak_topics": ["string"],
+  "strong_topics": ["string"],
+  "missing_context_flags": ["string"]
+}
+```
+
+### POST /api/ai/boss/generate-question
+
+```json
+{
+  "boss_session_id": "string",
+  "recent_boss_phrases": ["string"]
+}
+```
+
+**200**
+```json
+{
+  "question_id": "gbq_<hex>",
+  "question_text": "string",
+  "target_skill": "string",
+  "difficulty": "easy|medium|hard",
+  "why_this_question": "string",
+  "boss_session_id": "string"
+}
+```
+`expected_answer` and `rubric` are stored server-side and never returned to the frontend. **502** with `code=BOSS_GEN_REJECTED` if the generator output fails validation (missing answer/rubric, paraphrase of an asked question, invalid difficulty, too long).
+
+### POST /api/ai/boss/submit-answer
+
+```json
+{
+  "boss_session_id": "string",
+  "question_id": "string",
+  "student_answer": "string"
+}
+```
+
+**200**
+```json
+{
+  "is_correct": true,
+  "score": 0.92,
+  "confidence": 0.88,
+  "feedback": "string",
+  "damage": 15,
+  "hp": 85,
+  "trials_left": 6,
+  "current_difficulty": "medium",
+  "boss_status": "active|won|failed",
+  "should_retry_same_skill": false,
+  "misconception_tags": ["string"]
+}
+```
+
+### POST /api/ai/boss/state
+
+```json
+{ "boss_session_id": "string" }
+```
+
+**200** — full hydrated boss-session row (HP / trials / difficulty / asked queue / current question summary). Used by the runtime to recover after a refresh.
+
+### POST /api/ai/boss/give-up
+
+```json
+{ "boss_session_id": "string" }
+```
+
+Marks the boss session as `abandoned`; subsequent `generate-question` / `submit-answer` calls return **409**.
+
+---
+
 ### POST /api/ai/reflection
 
 ```json
