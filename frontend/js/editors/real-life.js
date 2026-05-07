@@ -113,26 +113,26 @@
           <div class="editor-card nested-card" data-question="${questionKey}" data-field-index="${index}">
             <div class="editor-header compact-header">
               <div>
-                <p class="eyebrow">Field ${index + 1}</p>
-                <h3>${escapeHtml(field.label || "Untitled field")}</h3>
+                <p class="eyebrow">${escapeHtml(t("editor.rl.field_n"))} ${index + 1}</p>
+                <h3>${escapeHtml(field.label || t("editor.rl.untitled_field"))}</h3>
               </div>
-              <button class="btn btn-danger js-remove-field" type="button">Remove</button>
+              <button class="btn btn-danger js-remove-field" type="button">${escapeHtml(t("editor.rl.remove"))}</button>
             </div>
 
             <div class="editor-grid">
               <label class="field">
-                <span>ID</span>
+                <span>${escapeHtml(t("editor.rl.field_id"))}</span>
                 <input class="js-field-row" data-key="id" type="text" value="${escapeHtml(field.id)}" placeholder="m" />
               </label>
 
               <label class="field">
-                <span>Label</span>
-                <input class="js-field-row" data-key="label" type="text" value="${escapeHtml(field.label)}" placeholder="Label" />
+                <span>${escapeHtml(t("editor.rl.field_label"))}</span>
+                <input class="js-field-row" data-key="label" type="text" value="${escapeHtml(field.label)}" placeholder="${escapeHtml(t("editor.rl.field_label_placeholder"))}" />
               </label>
 
               <label class="field full-span">
-                <span>Answer</span>
-                <input class="js-field-row" data-key="ans" type="text" value="${escapeHtml(field.ans)}" placeholder="Correct answer" />
+                <span>${escapeHtml(t("editor.rl.answer"))}</span>
+                <input class="js-field-row" data-key="ans" type="text" value="${escapeHtml(field.ans)}" placeholder="${escapeHtml(t("editor.rl.answer_correct_ph"))}" />
               </label>
             </div>
           </div>
@@ -146,24 +146,24 @@
       <section class="editor-card" data-question="${key}">
         <div class="editor-header">
           <div>
-            <p class="eyebrow">${label}</p>
-            <h3>${escapeHtml(stripHtml(question.prompt) || "Untitled prompt")}</h3>
+            <p class="eyebrow">${escapeHtml(label)}</p>
+            <h3>${escapeHtml(stripHtml(question.prompt) || t("editor.rl.untitled_prompt"))}</h3>
           </div>
         </div>
 
         <div class="editor-grid">
           <div class="field full-span">
-            <span>Prompt</span>
+            <span>${escapeHtml(t("editor.rl.prompt"))}</span>
             <div class="js-rich-host" data-path="${key}.prompt"></div>
           </div>
 
           <label class="field full-span">
-            <span>Answer</span>
-            <input class="js-q-field" data-key="ans" type="text" value="${escapeHtml(question.ans)}" placeholder="Correct answer" />
+            <span>${escapeHtml(t("editor.rl.answer"))}</span>
+            <input class="js-q-field" data-key="ans" type="text" value="${escapeHtml(question.ans)}" placeholder="${escapeHtml(t("editor.rl.answer_correct_ph"))}" />
           </label>
 
           <div class="field full-span">
-            <span>Feedback</span>
+            <span>${escapeHtml(t("editor.rl.feedback"))}</span>
             <div class="js-rich-host" data-path="${key}.fb"></div>
           </div>
 
@@ -178,20 +178,20 @@
       <section class="editor-card" data-question="${key}">
         <div class="editor-header">
           <div>
-            <p class="eyebrow">${label}</p>
-            <h3>${escapeHtml(stripHtml(question.prompt) || "Untitled prompt")}</h3>
+            <p class="eyebrow">${escapeHtml(label)}</p>
+            <h3>${escapeHtml(stripHtml(question.prompt) || t("editor.rl.untitled_prompt"))}</h3>
           </div>
-          <button class="btn btn-ghost js-add-field" type="button">Add field</button>
+          <button class="btn btn-ghost js-add-field" type="button">${escapeHtml(t("editor.rl.add_field"))}</button>
         </div>
 
         <div class="editor-grid">
           <div class="field full-span">
-            <span>Prompt</span>
+            <span>${escapeHtml(t("editor.rl.prompt"))}</span>
             <div class="js-rich-host" data-path="${key}.prompt"></div>
           </div>
 
           <div class="field full-span">
-            <span>Feedback</span>
+            <span>${escapeHtml(t("editor.rl.feedback"))}</span>
             <div class="js-rich-host" data-path="${key}.fb"></div>
           </div>
 
@@ -210,24 +210,24 @@
       <section class="editor-card" data-question="${key}">
         <div class="editor-header">
           <div>
-            <p class="eyebrow">${label}</p>
-            <h3>${escapeHtml(stripHtml(question.prompt) || "Untitled prompt")}</h3>
+            <p class="eyebrow">${escapeHtml(label)}</p>
+            <h3>${escapeHtml(stripHtml(question.prompt) || t("editor.rl.untitled_prompt"))}</h3>
           </div>
         </div>
 
         <div class="editor-grid">
           <div class="field full-span">
-            <span>Prompt</span>
+            <span>${escapeHtml(t("editor.rl.prompt"))}</span>
             <div class="js-rich-host" data-path="${key}.prompt"></div>
           </div>
 
           <label class="field">
-            <span>Open</span>
+            <span>${escapeHtml(t("editor.rl.open_label"))}</span>
             <input type="text" value="true" readonly />
           </label>
 
           <div class="field full-span">
-            <span>Feedback</span>
+            <span>${escapeHtml(t("editor.rl.feedback"))}</span>
             <div class="js-rich-host" data-path="${key}.fb"></div>
           </div>
 
@@ -265,9 +265,9 @@
       const path = host.dataset.path;
       if (!path) return;
       const initial = getByPath(state, path);
-      let placeholder = "Question prompt...";
-      if (path === "story") placeholder = "Multi-line scenario story...";
-      else if (path.endsWith(".fb")) placeholder = "Feedback shown after answer...";
+      let placeholder = t("editor.rl.prompt_ph");
+      if (path === "story") placeholder = t("editor.rl.story_ph");
+      else if (path.endsWith(".fb")) placeholder = t("editor.rl.feedback");
       const mini = window.RichField.create({
         value: initial || "",
         placeholder,
@@ -294,33 +294,33 @@
 
           <div class="editor-grid">
             <label class="field">
-              <span>Badge</span>
-              <input class="js-root-field" data-key="badge" type="text" value="${escapeHtml(state.badge)}" placeholder="VAZIFA · Scenario name" />
+              <span>${escapeHtml(t("editor.rl.badge"))}</span>
+              <input class="js-root-field" data-key="badge" type="text" value="${escapeHtml(state.badge)}" placeholder="${escapeHtml(t("editor.rl.badge_placeholder"))}" />
             </label>
 
             <div class="field full-span">
-              <span>Story</span>
+              <span>${escapeHtml(t("editor.rl.story"))}</span>
               <div class="js-rich-host" data-path="story"></div>
             </div>
 
             <label class="field">
-              <span>End title</span>
-              <input class="js-root-field" data-key="endTitle" type="text" value="${escapeHtml(state.endTitle)}" placeholder="Great finish title" />
+              <span>${escapeHtml(t("editor.rl.end_title"))}</span>
+              <input class="js-root-field" data-key="endTitle" type="text" value="${escapeHtml(state.endTitle)}" placeholder="${escapeHtml(t("editor.rl.end_title_placeholder"))}" />
             </label>
 
             <label class="field">
-              <span>End subtitle</span>
-              <input class="js-root-field" data-key="endSub" type="text" value="${escapeHtml(state.endSub)}" placeholder="Final encouragement" />
+              <span>${escapeHtml(t("editor.rl.end_subtitle"))}</span>
+              <input class="js-root-field" data-key="endSub" type="text" value="${escapeHtml(state.endSub)}" placeholder="${escapeHtml(t("editor.rl.end_subtitle_placeholder"))}" />
             </label>
           </div>
         </section>
 
-        ${renderTextQuestion("q1", "Q1 · Direct answer", state.q1)}
-        ${renderFieldsQuestion("q2", "Q2 · Multi-field", state.q2)}
-        ${renderTextQuestion("q3", "Q3 · Direct answer", state.q3)}
-        ${renderFieldsQuestion("q4", "Q4 · Multi-field", state.q4)}
-        ${renderOpenQuestion("q5", "Q5 · Open response", state.q5)}
-        ${renderTextQuestion("q6", "Q6 · Direct answer", state.q6)}
+        ${renderTextQuestion("q1", t("editor.rl.q1_label"), state.q1)}
+        ${renderFieldsQuestion("q2", t("editor.rl.q2_label"), state.q2)}
+        ${renderTextQuestion("q3", t("editor.rl.q3_label"), state.q3)}
+        ${renderFieldsQuestion("q4", t("editor.rl.q4_label"), state.q4)}
+        ${renderOpenQuestion("q5", t("editor.rl.q5_label"), state.q5)}
+        ${renderTextQuestion("q6", t("editor.rl.q6_label"), state.q6)}
       </div>
     `;
   }

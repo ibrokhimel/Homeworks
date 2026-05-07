@@ -55,9 +55,7 @@
               </div>
               <button class="btn btn-ghost js-clear" type="button">${escapeHtml(t("editor.clear"))}</button>
             </div>
-            <p class="muted-text">
-              Reflection maps to <strong>content_json.reflection</strong>. Keep it short, formal Uzbek, and useful for review.
-            </p>
+            <p class="muted-text">${t("editor.refl.help")}</p>
           </section>
 
           <section class="editor-card">
@@ -78,7 +76,7 @@
               </div>
 
               <div class="field full-span">
-                <span>Closing</span>
+                <span>${escapeHtml(t("editor.refl.closing"))}</span>
                 <div class="js-rich-host" data-key="closing"></div>
               </div>
             </div>
@@ -88,10 +86,10 @@
 
       if (window.RichField) {
         const placeholders = {
-          summary: "Bugun siz...",
-          question: "Siz uchun eng muhim qoida qaysi bo'ldi?",
-          spaced_rep: "Ertaga 3 ta misolni qayta ishlang...",
-          closing: "Ajoyib ish!",
+          summary: t("editor.refl.summary_ph"),
+          question: t("editor.refl.prompt_ph_default"),
+          spaced_rep: t("editor.refl.spaced_rep_ph_default"),
+          closing: t("editor.refl.closing_placeholder"),
         };
         container.querySelectorAll(".js-rich-host").forEach((host) => {
           const key = host.dataset.key;

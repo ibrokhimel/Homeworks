@@ -53,8 +53,8 @@
       .map(
         (bullet, index) => `
           <div class="option-row" data-index="${index}">
-            <input class="js-bullet" type="text" value="${escapeHtml(bullet)}" placeholder="Bullet ${index + 1}" />
-            <button class="icon-btn js-remove-bullet" type="button" title="Remove bullet">×</button>
+            <input class="js-bullet" type="text" value="${escapeHtml(bullet)}" placeholder="${escapeHtml(t("editor.cons.bullet_n"))} ${index + 1}" />
+            <button class="icon-btn js-remove-bullet" type="button" title="${escapeHtml(t("editor.cons.remove_bullet"))}">×</button>
           </div>
         `
       )
@@ -70,32 +70,30 @@
               <p class="eyebrow">${escapeHtml(t("editor.cons.eyebrow"))}</p>
               <h3>${escapeHtml(t("editor.cons.intro"))}</h3>
             </div>
-            <button class="btn btn-ghost js-clear" type="button">Clear</button>
+            <button class="btn btn-ghost js-clear" type="button">${escapeHtml(t("editor.clear"))}</button>
           </div>
 
-          <p class="muted-text">
-            Temporary editor. This phase is in the pipeline, but it is not contract-backed yet.
-          </p>
+          <p class="muted-text">${escapeHtml(t("editor.cons.help"))}</p>
 
           <div class="editor-grid">
             <label class="field full-span">
-              <span>Title</span>
-              <input class="js-root-field" data-key="title" type="text" value="${escapeHtml(state.title)}" placeholder="Mustahkamlash" />
+              <span>${escapeHtml(t("editor.cons.title"))}</span>
+              <input class="js-root-field" data-key="title" type="text" value="${escapeHtml(state.title)}" placeholder="${escapeHtml(t("editor.cons.title_placeholder"))}" />
             </label>
 
             <div class="field full-span">
-              <span>Mnemonic / lock phrase</span>
+              <span>${escapeHtml(t("editor.cons.mnemonic_lock"))}</span>
               <div class="js-rich-host" data-key="mnemonic"></div>
             </div>
 
             <div class="field full-span">
-              <span>Check prompt</span>
+              <span>${escapeHtml(t("editor.cons.check_prompt"))}</span>
               <div class="js-rich-host" data-key="check_prompt"></div>
             </div>
 
             <label class="field full-span">
-              <span>Check answer</span>
-              <input class="js-root-field" data-key="check_answer" type="text" value="${escapeHtml(state.check_answer)}" placeholder="Expected answer" />
+              <span>${escapeHtml(t("editor.cons.check_answer"))}</span>
+              <input class="js-root-field" data-key="check_answer" type="text" value="${escapeHtml(state.check_answer)}" placeholder="${escapeHtml(t("editor.cons.check_answer_placeholder"))}" />
             </label>
           </div>
         </section>
@@ -103,10 +101,10 @@
         <section class="editor-card">
           <div class="editor-header">
             <div>
-              <p class="eyebrow">Key takeaways</p>
-              <h3>${state.bullets.length} bullet${state.bullets.length === 1 ? "" : "s"}</h3>
+              <p class="eyebrow">${escapeHtml(t("editor.cons.key_takeaways"))}</p>
+              <h3>${state.bullets.length} ${escapeHtml(t(state.bullets.length === 1 ? "editor.cons.bullet_count" : "editor.cons.bullets_count"))}</h3>
             </div>
-            <button class="btn btn-primary js-add-bullet" type="button">Add bullet</button>
+            <button class="btn btn-primary js-add-bullet" type="button">${escapeHtml(t("editor.cons.add_bullet"))}</button>
           </div>
 
           <div class="editor-list">
@@ -132,7 +130,7 @@
           if (!key) return;
           const initial = state[key] || "";
           const placeholder =
-            key === "mnemonic" ? "Short memory hook..." : "Quick self-check question...";
+            key === "mnemonic" ? t("editor.cons.mnemonic_short") : t("editor.cons.check_prompt_short");
           const mini = window.RichField.create({
             value: initial,
             placeholder,

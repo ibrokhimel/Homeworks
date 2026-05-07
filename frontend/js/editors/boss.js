@@ -393,7 +393,7 @@
       const bandHintCostHint = defaultHintCostForGradeBand(meta.grade_band || gradeBandFromGrade(ctx.grade));
       const attemptsPlaceholder = meta.attempts_max == null
         ? (defaultAttemptsForBossType(meta.boss_type, ctx.tier) == null
-            ? "Unlimited (premium sub default)"
+            ? t("editor.boss.attempts_unlimited")
             : String(defaultAttemptsForBossType(meta.boss_type, ctx.tier)))
         : "";
       const ac = meta.anti_cheat || { paste_detect: false, response_time_floor_ms: 0 };
@@ -404,10 +404,10 @@
             <div class="editor-header compact-header">
               <div>
                 <p class="eyebrow">${escapeHtml(t("editor.boss.eyebrow_meta"))}</p>
-                <h3>${ui.metaOpen ? "Editing meta" : "Boss configuration (collapsed)"}</h3>
+                <h3>${escapeHtml(ui.metaOpen ? t("editor.boss.editing_meta") : t("editor.boss.collapsed_meta"))}</h3>
               </div>
               <button class="btn btn-ghost js-toggle-meta" type="button">
-                ${ui.metaOpen ? "Hide" : "Show"}
+                ${escapeHtml(ui.metaOpen ? t("editor.boss.hide") : t("editor.boss.show"))}
               </button>
             </div>
             ${
@@ -415,17 +415,17 @@
                 ? `
                 <div class="editor-grid">
                   <label class="field">
-                    <span>Boss type</span>
+                    <span>${escapeHtml(t("editor.boss.boss_type"))}</span>
                     <select class="js-meta-field" data-key="boss_type">
-                      ${BOSS_TYPES.map((t) => {
-                        const allowed = typeOptions.includes(t);
-                        return `<option value="${t}" ${meta.boss_type === t ? "selected" : ""} ${allowed ? "" : "disabled"}>${t}${allowed ? "" : " (premium)"}</option>`;
+                      ${BOSS_TYPES.map((bt) => {
+                        const allowed = typeOptions.includes(bt);
+                        return `<option value="${bt}" ${meta.boss_type === bt ? "selected" : ""} ${allowed ? "" : "disabled"}>${bt}${allowed ? "" : " (premium)"}</option>`;
                       }).join("")}
                     </select>
-                    ${!isPremium ? `<small class="sf-hint">Big and Mythical require Premium tier.</small>` : ""}
+                    ${!isPremium ? `<small class="sf-hint">${escapeHtml(t("editor.boss.premium_required_types"))}</small>` : ""}
                   </label>
                   <label class="field">
-                    <span>Grade band</span>
+                    <span>${escapeHtml(t("editor.boss.grade_band"))}</span>
                     <select class="js-meta-field" data-key="grade_band">
                       ${GRADE_BANDS.map(
                         (b) => `<option value="${b}" ${meta.grade_band === b ? "selected" : ""}>${b}</option>`
@@ -433,28 +433,28 @@
                     </select>
                   </label>
                   <label class="field">
-                    <span>Attempts max</span>
+                    <span>${escapeHtml(t("editor.boss.attempts_max"))}</span>
                     <input class="js-meta-field" data-key="attempts_max" type="number" min="1" step="1"
                       value="${meta.attempts_max == null ? "" : escapeHtml(meta.attempts_max)}"
                       placeholder="${escapeHtml(attemptsPlaceholder)}" />
-                    <small class="sf-hint">Leave blank for unlimited (Premium Sub default).</small>
+                    <small class="sf-hint">${escapeHtml(t("editor.boss.attempts_hint"))}</small>
                   </label>
                   <label class="field">
-                    <span>Starting HP override</span>
+                    <span>${escapeHtml(t("editor.boss.starting_hp"))}</span>
                     <input class="js-meta-field" data-key="starting_hp_override" type="number" min="10" step="1"
                       value="${meta.starting_hp_override == null ? "" : escapeHtml(meta.starting_hp_override)}"
-                      placeholder="${escapeHtml(bandHpHint)} (band default)" />
+                      placeholder="${escapeHtml(bandHpHint)} ${escapeHtml(t("editor.boss.starting_hp_hint"))}" />
                   </label>
                   <fieldset class="field full-span boss-anticheat" ${isPremium ? "" : "disabled"}>
-                    <legend>Anti-cheat policy ${isPremium ? "" : "(Premium only)"}</legend>
+                    <legend>${escapeHtml(t("editor.boss.anticheat"))} ${isPremium ? "" : escapeHtml(t("editor.boss.anticheat_premium_only"))}</legend>
                     <div class="editor-grid">
                       <label class="field">
                         <input class="js-meta-anticheat" data-key="paste_detect" type="checkbox"
                           ${ac.paste_detect ? "checked" : ""} ${isPremium ? "" : "disabled"} />
-                        <span>Paste detection</span>
+                        <span>${escapeHtml(t("editor.boss.paste_detect"))}</span>
                       </label>
                       <label class="field">
-                        <span>Response time floor (ms)</span>
+                        <span>${escapeHtml(t("editor.boss.response_floor"))}</span>
                         <input class="js-meta-anticheat" data-key="response_time_floor_ms" type="number" min="0" step="100"
                           value="${escapeHtml(ac.response_time_floor_ms || 0)}" ${isPremium ? "" : "disabled"} />
                       </label>
@@ -462,7 +462,7 @@
                   </fieldset>
                 </div>
                 `
-                : `<p class="muted-text">Type: <strong>${escapeHtml(meta.boss_type)}</strong> · Band: <strong>${escapeHtml(meta.grade_band || gradeBandFromGrade(ctx.grade))}</strong> · Attempts: <strong>${meta.attempts_max == null ? "∞" : escapeHtml(meta.attempts_max)}</strong></p>`
+                : `<p class="muted-text">${escapeHtml(t("editor.boss.summary_type"))}: <strong>${escapeHtml(meta.boss_type)}</strong> · ${escapeHtml(t("editor.boss.summary_band"))}: <strong>${escapeHtml(meta.grade_band || gradeBandFromGrade(ctx.grade))}</strong> · ${escapeHtml(t("editor.boss.summary_attempts"))}: <strong>${meta.attempts_max == null ? "∞" : escapeHtml(meta.attempts_max)}</strong></p>`
             }
           </section>
           <section class="editor-card">
