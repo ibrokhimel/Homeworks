@@ -368,3 +368,158 @@ def test_dynamic_helpers_no_hardcoded_answer_keys(perfect_homework_html: str):
             assert forbidden not in body, (
                 f"{fn} must not reference `{forbidden}` (server-only field)"
             )
+
+
+# ---------------------------------------------------------------------------
+# BLOCKER 1 — race guard between 3s startFinalBoss timeout and dynamic kickoff
+#
+# Without this guard, a slow LLM `bossStart`/`bossGenerateQuestion` could
+# resolve AFTER the 3s timeout has already flipped the UI into legacy
+# BOSS_QUESTIONS[0] mode. Late writes to bossState.currentQuestion /
+# bossSessionId / useDynamicBoss=true would then cause the student to
+# answer the legacy-rendered question while bossSubmitAnswer posts the
+# (different) server-generated question_id — cursed mirror grading.
+# ---------------------------------------------------------------------------
+
+
+def test_boss_kickoff_expired_flag_exists(perfect_homework_html: str):
+    """bossState must declare a `kickoffExpired` boolean field so both
+    helpers and the timeout promise can coordinate via shared state."""
+    m = re.search(
+        r"const\s+bossState\s*=\s*\{(.*?)\};",
+        perfect_homework_html,
+        re.DOTALL,
+    )
+    assert m, "bossState literal missing"
+    body = m.group(1)
+    assert re.search(r"\bkickoffExpired\s*:", body), (
+        "bossState literal must declare `kickoffExpired` for the FE-5 race guard"
+    )
+
+
+def test_dynamic_helpers_check_kickoff_expired(perfect_homework_html: str):
+    """Both bossDynamicStart and bossFetchNextQuestion must read
+    bossState.kickoffExpired AFTER their await returns and BEFORE
+    writing to bossState — otherwise a slow LLM response can clobber
+    legacy-mode UI state."""
+    for fn in ("bossDynamicStart", "bossFetchNextQuestion"):
+        body = _extract_function_body(perfect_homework_html, fn)
+        assert "kickoffExpired" in body, (
+            f"{fn} must check bossState.kickoffExpired after awaiting "
+            f"the network call (BLOCKER 1 race guard)"
+        )
+        # The guard must read the flag (an `if (bossState.kickoffExpired)`
+        # pattern), not just write it.
+        assert re.search(r"bossState\.kickoffExpired", body), (
+            f"{fn} must reference `bossState.kickoffExpired` explicitly"
+        )
+
+
+def test_timeout_promise_flips_use_dynamic_boss(perfect_homework_html: str):
+    """startFinalBoss's timeout promise must (a) set kickoffExpired=true
+    and (b) flip useDynamicBoss=false when the 3s cap is hit before any
+    question landed. This is the second half of the race guard — without
+    it, a successful late kickoff would still write currentQuestion."""
+    body = _extract_function_body(perfect_homework_html, "startFinalBoss")
+    # Must set kickoffExpired = true somewhere in the body.
+    assert re.search(r"kickoffExpired\s*=\s*true", body), (
+        "startFinalBoss timeout must set bossState.kickoffExpired = true"
+    )
+    # Must flip useDynamicBoss = false when no currentQuestion landed.
+    assert re.search(r"useDynamicBoss\s*=\s*false", body), (
+        "startFinalBoss must flip bossState.useDynamicBoss = false when "
+        "the 3s timeout wins and no currentQuestion was set"
+    )
+    # Reset kickoffExpired = false at the top so a re-entry into the boss
+    # arc starts clean.
+    assert re.search(r"kickoffExpired\s*=\s*false", body), (
+        "startFinalBoss must reset bossState.kickoffExpired = false at the "
+        "top of the function so a re-entry doesn't inherit stale state"
+    )
+
+
+# ---------------------------------------------------------------------------
+# BLOCKER 2 — textContent (not innerHTML) on AI-generated text
+#
+# innerHTML on LLM output is an XSS sink. The dynamic branch renders
+# server-generated `question_text` and `feedback` strings, both of
+# which are LLM output and must go through textContent. The legacy
+# branch keeps innerHTML for q.prompt because BOSS_QUESTIONS is
+# server-injected STATIC content (template-side renderer, not LLM).
+# ---------------------------------------------------------------------------
+
+
+def test_boss_q_text_uses_text_content_in_dynamic_branch(perfect_homework_html: str):
+    """The dynamic branch of bossRenderQuestion must use textContent for
+    `dq.question_text`, NOT innerHTML. The legacy branch can keep
+    innerHTML for `q.prompt` — that's static server-injected content."""
+    body = _extract_function_body(perfect_homework_html, "bossRenderQuestion")
+    # Dynamic branch — must use textContent for dq.question_text.
+    assert re.search(
+        r"boss-q-text['\"]?\)\s*\.textContent\s*=\s*dq\.question_text",
+        body,
+    ), (
+        "bossRenderQuestion's dynamic branch must use "
+        "el('boss-q-text').textContent = dq.question_text (NOT innerHTML) — "
+        "dq.question_text is LLM output and innerHTML is an XSS sink"
+    )
+    # Forbid the unsafe pattern explicitly.
+    assert not re.search(
+        r"boss-q-text['\"]?\)\s*\.innerHTML\s*=\s*dq\.question_text",
+        body,
+    ), (
+        "bossRenderQuestion must NOT use innerHTML for dq.question_text "
+        "(XSS sink — Sigma BLOCKER 2)"
+    )
+    # Legacy branch — innerHTML on q.prompt is preserved (static content).
+    assert re.search(
+        r"boss-q-text['\"]?\)\s*\.innerHTML\s*=\s*q\.prompt",
+        body,
+    ), (
+        "bossRenderQuestion's LEGACY branch must keep innerHTML for q.prompt "
+        "(BOSS_QUESTIONS static content — inline images/SVGs/bold)"
+    )
+
+
+def test_feedback_rendering_no_innerhtml_on_ai_msg(perfect_homework_html: str):
+    """bossHandleResponse must NOT call fbEl.innerHTML = aiMsg. Use
+    textContent + programmatic span (createElement + appendChild)."""
+    body = _extract_function_body(perfect_homework_html, "bossHandleResponse")
+    assert not re.search(r"fbEl\.innerHTML\s*=\s*aiMsg", body), (
+        "bossHandleResponse must NOT set fbEl.innerHTML = aiMsg "
+        "(aiMsg is LLM-generated → XSS sink — Sigma BLOCKER 2)"
+    )
+    assert not re.search(r"fbEl\.innerHTML\s*=\s*resp\.feedback", body), (
+        "bossHandleResponse must NOT set fbEl.innerHTML = resp.feedback "
+        "(resp.feedback is LLM-generated → XSS sink)"
+    )
+    # The new safe pattern — textContent + appendChild.
+    assert re.search(r"fbEl\.textContent\s*=\s*aiMsg", body), (
+        "bossHandleResponse must use fbEl.textContent = aiMsg + ' ' for "
+        "the AI feedback message"
+    )
+    assert "fbEl.appendChild(badge)" in body or "appendChild(badge)" in body, (
+        "bossHandleResponse must build the AI-baho badge programmatically "
+        "via createElement + appendChild instead of innerHTML"
+    )
+
+
+def test_boss_apply_correct_no_innerhtml_on_dynamic(perfect_homework_html: str):
+    """bossApplyCorrect's AI-baho rendering site (the aiGraded branch)
+    must use textContent + programmatic span, not innerHTML."""
+    body = _extract_function_body(perfect_homework_html, "bossApplyCorrect")
+    # Forbid innerHTML on the feedback element entirely in this function.
+    assert not re.search(r"fbEl\.innerHTML\s*=", body), (
+        "bossApplyCorrect must NOT use fbEl.innerHTML — switch to "
+        "textContent + createElement('span') for the AI baho badge "
+        "(Sigma BLOCKER 2)"
+    )
+    # Must build the badge programmatically inside the aiGraded branch.
+    assert "createElement('span')" in body, (
+        "bossApplyCorrect's aiGraded branch must build the AI-baho badge "
+        "via document.createElement('span')"
+    )
+    assert "screen-reading-ai-badge" in body, (
+        "bossApplyCorrect must still emit the .screen-reading-ai-badge "
+        "class (legacy a11y/visual contract)"
+    )

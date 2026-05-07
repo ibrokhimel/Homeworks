@@ -17188,6 +17188,7 @@ Prezident ertaga hisobot kutmoqda.`,
             currentDifficulty: null,    // server-side difficulty signal
             recentBossPhrases: [],      // last ≤5 question_text snippets — anti-repetition
             useDynamicBoss: true,       // feature flag — falls back to BOSS_QUESTIONS path on failure
+            kickoffExpired: false,      // FE-5 race guard — set true when 3s startFinalBoss timeout wins; late LLM responses must NOT clobber legacy-mode state
         };
 
         // Wave F3 — load personalised boss plan (ordering + framing + persona).
@@ -17294,6 +17295,14 @@ Prezident ertaga hisobot kutmoqda.`,
             // the legacy initBossPlan() / BOSS_QUESTIONS[0] path below.
             // Wave F3 — boss-plan personalisation runs in parallel as a
             // legacy-mode fallback.
+            // Sigma race-guard: kickoffExpired prevents a slow LLM response
+            // (landing AFTER the 3s cap when the UI has already rendered
+            // BOSS_QUESTIONS[0] in legacy mode) from silently writing to
+            // bossState.currentQuestion / bossSessionId / useDynamicBoss=true.
+            // Without this guard the student answers the legacy-rendered
+            // question but the dynamic submit branch posts the (different)
+            // server-generated question_id — cursed mirror grading.
+            bossState.kickoffExpired = false;
             const planPromise = initBossPlan().catch(e => {
                 console.warn('[F3] initBossPlan error:', e);
             });
@@ -17308,9 +17317,17 @@ Prezident ertaga hisobot kutmoqda.`,
                     bossState.useDynamicBoss = false;
                 }
             })();
+            const timeoutPromise = new Promise(r => setTimeout(() => {
+                bossState.kickoffExpired = true;
+                if (!bossState.currentQuestion) {
+                    bossState.useDynamicBoss = false;
+                    console.warn('[FE-5] dynamic kickoff exceeded 3s, falling back to legacy');
+                }
+                r();
+            }, 3000));
             const planReady = Promise.race([
                 Promise.all([planPromise, dynamicReady]),
-                new Promise(r => setTimeout(r, 3000))
+                timeoutPromise,
             ]);
 
             setTimeout(() => {
@@ -17394,6 +17411,12 @@ Prezident ertaga hisobot kutmoqda.`,
                     max_hp: bossState.maxHp,
                     trials_left: 7,
                 });
+                // Sigma race-guard: if the 3s startFinalBoss timeout already
+                // expired while we were awaiting, abort silently — the UI is
+                // (or is about to be) in legacy mode; do NOT clobber it.
+                if (bossState.kickoffExpired) {
+                    return null;
+                }
                 if (!res || res._error || res._offline || res._cap) {
                     console.warn('[FE-5] bossDynamicStart fell back to legacy:', res);
                     bossState.useDynamicBoss = false;
@@ -17446,6 +17469,13 @@ Prezident ertaga hisobot kutmoqda.`,
                     boss_session_id: bossState.bossSessionId,
                     recent_boss_phrases: bossState.recentBossPhrases.slice(-5),
                 });
+                // Sigma race-guard: if the 3s startFinalBoss timeout already
+                // expired while we were awaiting, abort silently. Writing
+                // currentQuestion now would clobber the legacy-mode UI the
+                // student is already looking at and produce mirror-grading.
+                if (bossState.kickoffExpired) {
+                    return null;
+                }
                 if (!res || res._error || res._offline || res._cap) {
                     console.warn('[FE-5] bossFetchNextQuestion fell back to legacy:', res);
                     bossState.useDynamicBoss = false;
@@ -17595,7 +17625,14 @@ Prezident ertaga hisobot kutmoqda.`,
                     fbEl.className = 'boss-feedback wrong';
                     // FE-5 — Plan-5 returns `feedback`; legacy returns `boss_response`.
                     const aiMsg = resp.feedback || resp.boss_response || RT('boss.toast.wrong');
-                    fbEl.innerHTML = aiMsg + ' <span class="screen-reading-ai-badge">AI baho</span>';
+                    // Sigma XSS guard: aiMsg is LLM-generated. textContent +
+                    // programmatic span instead of innerHTML so a malicious
+                    // (or hallucinated) feedback string can't inject script.
+                    fbEl.textContent = aiMsg + ' ';
+                    const badge = document.createElement('span');
+                    badge.className = 'screen-reading-ai-badge';
+                    badge.textContent = 'AI baho';
+                    fbEl.appendChild(badge);
                 }
                 bossUpdateAttemptPill();
                 // Log incorrect attempt to AMR session log (mirrors legacy nets:result handler shape).
@@ -17765,7 +17802,12 @@ Prezident ertaga hisobot kutmoqda.`,
                 // to the Plan-5 dynamic loop — server-side prompt drives tone).
                 const framingEl = el('boss-framing');
                 if (framingEl) { framingEl.textContent = ''; framingEl.style.display = 'none'; }
-                if (el('boss-q-text'))    el('boss-q-text').innerHTML      = dq.question_text || '';
+                // Sigma XSS guard: dq.question_text is LLM-generated. Use
+                // textContent (never innerHTML) so server output can never
+                // inject script/markup. Legacy branch below keeps innerHTML
+                // for q.prompt because BOSS_QUESTIONS is server-injected
+                // STATIC content (inline <img>/<svg>/bold), not LLM text.
+                if (el('boss-q-text'))    el('boss-q-text').textContent    = dq.question_text || '';
                 if (el('boss-q-tags')) {
                     const parts = [];
                     if (dq.target_skill) parts.push(dq.target_skill);
@@ -17857,7 +17899,17 @@ Prezident ertaga hisobot kutmoqda.`,
                 fbEl.className = 'boss-feedback correct';
                 const baseMsg = doubled ? (RT('boss.combo_hp') + dmg + ' HP') : (RT('boss.correct_hp') + dmg + ' HP');
                 if (opts && opts.aiGraded) {
-                    fbEl.innerHTML = baseMsg + ' <span class="screen-reading-ai-badge">AI baho</span>';
+                    // Sigma XSS guard: even though baseMsg is composed from
+                    // RT() locale strings + numeric dmg, we mirror the
+                    // textContent + programmatic-badge pattern from
+                    // bossHandleResponse so future edits to baseMsg can't
+                    // accidentally interpolate untrusted server text into
+                    // an innerHTML sink.
+                    fbEl.textContent = baseMsg + ' ';
+                    const badge = document.createElement('span');
+                    badge.className = 'screen-reading-ai-badge';
+                    badge.textContent = 'AI baho';
+                    fbEl.appendChild(badge);
                 } else {
                     fbEl.textContent = baseMsg;
                 }
