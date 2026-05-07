@@ -208,6 +208,15 @@ CREATE TABLE IF NOT EXISTS session_metrics (
   PRIMARY KEY (session_id, hw_id)
 );
 
+CREATE TABLE IF NOT EXISTS final_reports (
+  session_id TEXT NOT NULL,
+  hw_id TEXT NOT NULL,
+  report_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (session_id, hw_id)
+);
+
 CREATE TABLE IF NOT EXISTS generated_boss_questions (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL,

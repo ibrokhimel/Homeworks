@@ -155,7 +155,7 @@ async def generate_text(
 
     try:
         text = await ai_orchestrator.generate(
-            prompt=prompt,
+            prompt,
             model=model,
             temperature=temperature,
         )
