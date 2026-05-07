@@ -19039,6 +19039,20 @@ Prezident ertaga hisobot kutmoqda.`,
         };
         try { localStorage.setItem('nets_tutor_session', state.sessionId); } catch (e) { /* private mode */ }
 
+        // ── FE-3 — mirror active question metadata to window.NETS_STATE ──
+        // runtime.js#collectRuntimeContext falls back to window.NETS_STATE
+        // when no [data-nets-active] DOM marker is found. This mirror keeps
+        // tutor + answer-submit context complete even before per-renderer
+        // DOM markers are wired (TODO(FE-3): add data-nets-active /
+        // data-question-id / data-subphase to each phase renderer's
+        // active question wrapper).
+        function syncNetsState() {
+            window.NETS_STATE = window.NETS_STATE || {};
+            window.NETS_STATE.phase = state.currentPhase;
+            window.NETS_STATE.subphase = (typeof currentSubphase !== 'undefined') ? currentSubphase : null;
+            window.NETS_STATE.questionId = state.currentQuestionId;
+        }
+
         // ── DOM refs ────────────────────────────────────────────
         const root        = document.getElementById('nets-ai-tutor');
         const fab         = document.getElementById('nets-tutor-fab');
@@ -19682,6 +19696,7 @@ Prezident ertaga hisobot kutmoqda.`,
             state.currentPhase = (phase === 'practice' || phase === 'boss') ? phase : 'preview';
             state.currentQuestionId = detail.questionId || null;
             currentSubphase = deriveSubphase(detail);
+            syncNetsState();
             updateBadge(state.currentPhase);
             updateAvatar(state.currentPhase);
         });
@@ -20000,6 +20015,7 @@ Prezident ertaga hisobot kutmoqda.`,
             ctaBtn.addEventListener('click', function () {
                 const pending = state.pendingCtaQuestion || {};
                 if (pending.id)   state.currentQuestionId = pending.id;
+                syncNetsState();
                 openPanel();
                 updateBadge(state.currentPhase);
                 const prefill = (CTA_PREFILL[lang] || CTA_PREFILL.uz)

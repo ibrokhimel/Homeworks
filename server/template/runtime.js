@@ -275,7 +275,7 @@
     // bossStart → bossGenerateQuestion → bossSubmitAnswer in a loop.
 
     async function bossStart(opts) {
-        return _post('/ai/boss/start', {
+        return _post('/boss/start', {
             session_id: opts.session_id,
             homework_id: opts.homework_id,
             max_hp: opts.max_hp || 100,
@@ -289,11 +289,11 @@
         if (opts.recent_boss_phrases && opts.recent_boss_phrases.length) {
             body.recent_boss_phrases = opts.recent_boss_phrases.slice(0, 5);
         }
-        return _post('/ai/boss/generate-question', body);
+        return _post('/boss/generate-question', body);
     }
 
     async function bossSubmitAnswer(opts) {
-        return _post('/ai/boss/submit-answer', {
+        return _post('/boss/submit-answer', {
             boss_session_id: opts.boss_session_id,
             question_id: opts.question_id,
             student_answer: opts.student_answer,
@@ -301,11 +301,49 @@
     }
 
     async function bossState(opts) {
-        return _post('/ai/boss/state', { boss_session_id: opts.boss_session_id });
+        return _post('/boss/state', { boss_session_id: opts.boss_session_id });
     }
 
     async function bossGiveUp(opts) {
-        return _post('/ai/boss/give-up', { boss_session_id: opts.boss_session_id });
+        return _post('/boss/give-up', { boss_session_id: opts.boss_session_id });
+    }
+
+    // ─── FE-1 — Runtime answer submit (canonical grading path) ───
+    /**
+     * Submit a homework answer through the new runtime grading endpoint.
+     * Uses collectRuntimeContext() for phase / subphase / question_id /
+     * screen_context / student_work_text discovery.
+     * @param {Object} opts
+     * @param {string} [opts.session_id]
+     * @param {string} [opts.hw_id]
+     * @param {string} [opts.phase]
+     * @param {string} [opts.subphase]
+     * @param {string} [opts.question_id]
+     * @param {string} [opts.item_id]
+     * @param {string} [opts.step_id]
+     * @param {string} [opts.answer_type] - 'text' | 'mcq' | ...
+     * @param {string} opts.student_answer
+     * @param {string} [opts.student_work_text]
+     * @param {number} [opts.attempt_number]
+     * @returns {Promise<{is_correct, score, confidence, feedback, grading_method, ...}>}
+     */
+    async function submitRuntimeAnswer(opts) {
+        opts = opts || {};
+        const ctxPacket = collectRuntimeContext(opts);
+        return _post('/runtime/submit-answer', {
+            session_id: ctxPacket.session_id,
+            homework_id: ctxPacket.hw_id,
+            phase: ctxPacket.phase,
+            subphase: ctxPacket.subphase,
+            question_id: ctxPacket.question_id,
+            item_id: opts.item_id || null,
+            step_id: opts.step_id || null,
+            answer_type: opts.answer_type || 'text',
+            student_answer: opts.student_answer || '',
+            student_work_text: ctxPacket.student_work_text || opts.student_work_text || '',
+            client_context: ctxPacket.ui_state || {},
+            attempt_number: opts.attempt_number || 1,
+        });
     }
 
     // Expose
@@ -323,6 +361,8 @@
         bossSubmitAnswer,
         bossState,
         bossGiveUp,
+        // FE-1 — runtime answer submit (canonical grading path)
+        submitRuntimeAnswer,
         isAvailable,
         _ctx: ctx,
     };
@@ -338,11 +378,19 @@
     //   }}))
     // Fallback feedback is always delivered so the session never stalls.
     // ---------------------------------------------------------------
+    // FE-2 — kinds for the new AI architecture are the default.
+    // Legacy kinds remain available for older homework templates.
     const FALLBACK = {
-        boss: { correct: null, damage_dealt: 0, boss_response: 'Davom eting!', hint: null, score: 0 },
-        answer: { correct: null, score: 0, feedback: 'Javob qabul qilindi.', matched_expected: null },
-        reflection: { feedback: 'Sessiya yakunlandi. Ajoyib ish!', next_steps: [], encouragement: 'Davom eting!' },
-        tutor: { response: 'Yordam hozircha mavjud emas. Qayta urinib ko\'ring.', guidance_type: 'encouragement' },
+        // New default kinds
+        'answer':         { is_correct: null, score: 0, confidence: 0, feedback: 'Javob qabul qilindi.', grading_method: 'fallback' },
+        'boss-answer':    { is_correct: null, hp_remaining: null, trials_left: null, feedback: 'Davom eting!', grading_method: 'fallback' },
+        'boss-generate':  { question_id: null, question_text: '', target_skill: null, difficulty: null, why_this_question: null },
+        'tutor-chat':     { response: 'Yordam hozircha mavjud emas. Qayta urinib ko\'ring.', message_id: null },
+        'reflection':     { feedback: 'Sessiya yakunlandi. Ajoyib ish!', next_steps: [], encouragement: 'Davom eting!' },
+        // Legacy kinds (older templates / fallback paths)
+        'legacy-answer':  { correct: null, score: 0, feedback: 'Javob qabul qilindi.', matched_expected: null },
+        'legacy-boss':    { correct: null, damage_dealt: 0, boss_response: 'Davom eting!', hint: null, score: 0 },
+        'legacy-tutor':   { response: 'Yordam hozircha mavjud emas. Qayta urinib ko\'ring.', guidance_type: 'encouragement' },
     };
 
     document.addEventListener('nets:submit', async (ev) => {
@@ -352,9 +400,20 @@
         const cb = typeof detail.onResult === 'function' ? detail.onResult : null;
         let result;
         try {
-            if (kind === 'boss') result = await bossTurn(payload);
-            else if (kind === 'answer') result = await checkAnswer(payload);
+            // FE-2 — new architecture kinds (default)
+            if (kind === 'answer') result = await submitRuntimeAnswer(payload);
+            else if (kind === 'boss-answer') result = await bossSubmitAnswer(payload);
+            else if (kind === 'boss-generate') result = await bossGenerateQuestion(payload);
+            else if (kind === 'tutor-chat') result = await tutorChat(payload);
             else if (kind === 'reflection') result = await reflectionFeedback(payload);
+            // Legacy kinds — explicit, intentional fallback for older templates
+            else if (kind === 'legacy-answer') result = await checkAnswer(payload);
+            else if (kind === 'legacy-boss') result = await bossTurn(payload);
+            else if (kind === 'legacy-tutor') result = await tutor(payload);
+            // Back-compat aliases — older templates still dispatch 'boss'/'tutor' without
+            // the legacy prefix. Route them to the legacy implementations so existing
+            // homework HTML keeps working.
+            else if (kind === 'boss') result = await bossTurn(payload);
             else if (kind === 'tutor') result = await tutor(payload);
             else { console.warn('[NETS_AI] unknown nets:submit kind:', kind); return; }
             if (result && (result._error || result._offline)) {
