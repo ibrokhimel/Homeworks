@@ -17397,8 +17397,15 @@ Prezident ertaga hisobot kutmoqda.`,
                 if (rlPendingAi === ticket) rlClearAiPending();
             }, RL_AI_LOCK_TIMEOUT_MS);
             try {
+                // FE-7: this dispatcher uses guidance_type for verdict
+                // detection (real-life challenge answer-equivalence check).
+                // The new tutorChat endpoint does not surface guidance_type,
+                // so this caller stays on the legacy tutor() path explicitly
+                // via kind: 'legacy-tutor' (no more bare 'tutor'). Free-form
+                // tutor chat in the widget calls window.NETS_AI.tutorChat()
+                // directly, not via this event bridge.
                 document.dispatchEvent(new CustomEvent('nets:submit', { detail: {
-                    kind: 'tutor',
+                    kind: 'legacy-tutor',
                     payload: {
                         phase: 'real-life',
                         question: q.prompt || q.label || ('Savol ' + (idx + 1)),
@@ -17540,7 +17547,8 @@ Prezident ertaga hisobot kutmoqda.`,
         // AI errors / falls back, the local "incorrect" state is kept verbatim.
         document.addEventListener('nets:result', (ev) => {
             const detail = ev.detail || {};
-            if (detail.kind !== 'tutor') return;
+            // FE-7: dispatcher above migrated from bare 'tutor' to 'legacy-tutor'.
+            if (detail.kind !== 'legacy-tutor') return;
             const ticket = rlPendingAi;
             if (!ticket) return;
             // User moved on to the next question already — drop stale response.
@@ -20665,8 +20673,10 @@ Prezident ertaga hisobot kutmoqda.`,
 
             document.addEventListener('nets:result', function (ev) {
                 const detail = (ev && ev.detail) || {};
-                // Only wire CTA for practice phase (kind: 'tutor'), not boss phase.
-                if (detail.kind !== 'tutor') return;
+                // FE-7: dispatcher migrated to 'legacy-tutor' (still uses
+                // guidance_type for verdict). Only wire CTA for practice
+                // phase, not boss phase.
+                if (detail.kind !== 'legacy-tutor') return;
                 if (state.currentPhase === 'boss') return;
                 const result = detail.result || {};
                 const aiCorrect = (result.guidance_type || '').toLowerCase() === 'validation'
