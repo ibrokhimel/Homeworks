@@ -64,7 +64,19 @@
     ],
     throwOnError: false,
     ignoredTags: ['script','noscript','style','textarea','pre','code','option','input'],
-    ignoredClasses: ['katex','katex-display','no-math','rich-field','mono-input'],
+    // Preserve raw LaTeX (and surrounding $...$ delimiters) inside any rich
+    // editor surface so authors keep typing the literal source while editing
+    // — KaTeX only renders OUTSIDE these editors. Top-level contenteditable
+    // elements are already filtered by `renderInChildren`, but auto-render
+    // recurses past that filter once it's inside `<main>`, so we list the
+    // class names KaTeX itself recognizes.
+    //   - rich-field      : compact toolbar editor wrapper (_rich-field.js)
+    //   - js-rich-editor  : Preview phase editor (preview.js)  ← added 2026-05-07
+    //                       to support the equation picker. Without this, an
+    //                       inserted `$\alpha$` was being live-rendered into
+    //                       the editor, corrupting block.text on save.
+    //   - js-rich-mini    : compact contenteditable used by every other phase
+    ignoredClasses: ['katex','katex-display','no-math','rich-field','js-rich-editor','js-rich-mini','mono-input'],
   };
 
   function isInsideEditable(el) {

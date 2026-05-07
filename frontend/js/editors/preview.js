@@ -585,6 +585,7 @@
         <button type="button" class="js-rich-btn" data-cmd="ul" title="Bullet list">• List</button>
         <button type="button" class="js-rich-btn" data-cmd="ol" title="Numbered list">1. List</button>
         <span class="rich-sep"></span>
+        <button type="button" class="js-rich-btn rich-btn-wide" data-cmd="equation" title="Insert equation (Σ)" aria-haspopup="dialog">Σ Math</button>
         <button type="button" class="js-rich-btn rich-btn-wide" data-cmd="image" title="Insert image">🖼 Image</button>
         <button type="button" class="js-rich-btn rich-btn-wide" data-cmd="svg" title="Insert SVG">◆ SVG</button>
       </div>
@@ -1035,6 +1036,26 @@
           r2.collapse(true);
           sel.addRange(r2);
         }
+      } else if (cmd === "equation") {
+        // Save selection BEFORE the picker opens (picker steals focus to its
+        // search input). The picker handles its own insertion + dispatches
+        // `input` on the editor; syncEditor runs from the input listener.
+        if (!window.EquationPicker || !window.EquationSymbols) {
+          return; // module not loaded — fail silently rather than alert
+        }
+        const savedRange = saveSelection(editor);
+        // Locate the trigger button so the popover anchors under it. Cmd
+        // is dispatched from the click handler, but the button isn't passed
+        // through; reach into the closest toolbar inside the same page-card.
+        const card = editor.closest(".page-card");
+        const trigger = card && card.querySelector('.js-rich-btn[data-cmd="equation"]');
+        window.EquationPicker.open({
+          anchor: trigger || editor,
+          editor,
+          savedRange,
+          onInsert: () => syncEditor(editor),
+        });
+        return; // async, sync happens in onInsert
       } else if (cmd === "image") {
         // Save selection BEFORE the modal opens.
         const savedRange = saveSelection(editor);
