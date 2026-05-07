@@ -183,6 +183,41 @@ async def _boss_repetition_signal(window_hours: int) -> dict[str, Any]:
         await db.close()
 
 
+async def _screen_context_sanitization_signal(window_hours: int) -> dict[str, Any]:
+    """Count tutor-context builds where the screen context sanitizer ran.
+
+    A row is "sanitized to empty" when the request shipped non-empty
+    screen context but every line was scrubbed by the v2 sanitizer (PII /
+    answer-key markers / redaction). Rate denominator is the total number
+    of sanitization runs in the window — runs where no screen context was
+    provided at all are NOT counted (nothing to sanitize, would dilute the
+    signal).
+    """
+    db = await connect()
+    try:
+        async with db.execute(
+            f"""
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN payload_json LIKE '%"sanitized_to_empty": true%' THEN 1 ELSE 0 END) AS sanitized_empty
+            FROM session_events
+            WHERE event_type = 'screen_context_sanitized'
+              AND created_at >= datetime('now', '-{int(window_hours)} hours')
+            """,
+        ) as cursor:
+            row = await cursor.fetchone()
+            total = int(row["total"] or 0) if row else 0
+            sanitized_empty = int(row["sanitized_empty"] or 0) if row else 0
+            rate = sanitized_empty / total if total else 0.0
+            return {
+                "total": total,
+                "sanitized_to_empty": sanitized_empty,
+                "rate": round(rate, 4),
+            }
+    finally:
+        await db.close()
+
+
 async def _question_resolution_failures(window_hours: int) -> dict[str, Any]:
     """Count tutor-chat session events whose payload reports a resolution failure."""
     db = await connect()
@@ -270,6 +305,7 @@ async def regression_dashboard(window_hours: int = 24) -> dict[str, Any]:
     review_size = await _review_queue_size()
     boss_rep = await _boss_repetition_signal(window_hours)
     qres = await _question_resolution_failures(window_hours)
+    screen_ctx = await _screen_context_sanitization_signal(window_hours)
     evals = await _eval_runs_summary()
 
     provider_failure_rate = _ratio(ai_calls["failures"], ai_calls["total"])
@@ -288,9 +324,11 @@ async def regression_dashboard(window_hours: int = 24) -> dict[str, Any]:
             "generic_fallback_rate": fallback_rate,
             "question_resolution_failure_rate": qres["rate"],
             "boss_repetition_rate": boss_rep["rate"],
+            "screen_context_sanitized_to_empty_rate": screen_ctx["rate"],
         },
         "boss_repetition": boss_rep,
         "question_resolution": qres,
+        "screen_context_sanitization": screen_ctx,
         "eval_runs": evals,
         "alert_thresholds": dict(ALERT_THRESHOLDS),
     }

@@ -296,6 +296,7 @@ def test_regression_dashboard_returns_all_required_rate_keys(client):
         "generic_fallback_rate",
         "question_resolution_failure_rate",
         "boss_repetition_rate",
+        "screen_context_sanitized_to_empty_rate",
     }
     assert expected_keys.issubset(rates.keys()), (
         f"missing rate keys: {expected_keys - rates.keys()}"
@@ -342,6 +343,99 @@ def test_dashboard_eval_runs_includes_seeded_run(client):
     payload = asyncio.run(ai_metrics.regression_dashboard(window_hours=24))
     names = {r["eval_name"] for r in payload["eval_runs"]}
     assert "dashboard_seed_test" in names
+
+
+def test_regression_dashboard_flags_screen_context_sanitized_to_empty_rate(client):
+    """Regression: ``screen_context_sanitized_to_empty_rate`` is configured in
+    ALERT_THRESHOLDS but was missing from ``regression_dashboard()`` rates,
+    making the alert a dead switch. Guard against the rate being dropped
+    again — the dashboard must compute it from session_events and the
+    threshold must actually fire when exceeded."""
+    from server.db.connection import connect
+
+    sid = f"plan8_scse_{uuid.uuid4().hex[:8]}"
+    hwid = f"hw_scse_{uuid.uuid4().hex[:6]}"
+
+    # Snapshot the pre-existing screen_context_sanitized event counts in the
+    # 24h window so the assertion is deterministic even when other tests in
+    # the same session emit the same event. The session-scoped temp DB lives
+    # for the whole pytest run, so prior tutor-route tests can pollute it.
+    async def _snapshot_existing() -> tuple[int, int]:
+        db = await connect()
+        try:
+            async with db.execute(
+                """
+                SELECT
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN payload_json LIKE '%"sanitized_to_empty": true%' THEN 1 ELSE 0 END) AS empties
+                FROM session_events
+                WHERE event_type = 'screen_context_sanitized'
+                  AND created_at >= datetime('now', '-24 hours')
+                """,
+            ) as cursor:
+                row = await cursor.fetchone()
+                return (
+                    int(row["total"] or 0) if row else 0,
+                    int(row["empties"] or 0) if row else 0,
+                )
+        finally:
+            await db.close()
+
+    pre_total, pre_empties = asyncio.run(_snapshot_existing())
+
+    # N rows where screen context was sanitized to empty (the "bad" signal).
+    n_empty = 8
+    # M rows where screen context survived sanitization (the "ok" signal).
+    m_ok = 2
+
+    async def _seed():
+        for _ in range(n_empty):
+            await session_events_repo.add_session_event(
+                sid, hwid, "screen_context_sanitized",
+                {"sanitized_to_empty": True, "raw_len": 120, "clean_len": 0, "redacted": True},
+            )
+        for _ in range(m_ok):
+            await session_events_repo.add_session_event(
+                sid, hwid, "screen_context_sanitized",
+                {"sanitized_to_empty": False, "raw_len": 80, "clean_len": 60, "redacted": True},
+            )
+    asyncio.run(_seed())
+
+    payload = asyncio.run(ai_metrics.regression_dashboard(window_hours=24))
+    rates = payload["rates"]
+
+    # (a) Rate key exists.
+    assert "screen_context_sanitized_to_empty_rate" in rates
+
+    # (c) Rate matches (pre-existing + seeded) / (pre-existing + seeded total).
+    # Computed against the actual 24h-window state since the session DB is
+    # shared. The seeded ratio is n_empty/(n_empty+m_ok) = 8/10 = 0.8, which
+    # well exceeds the 0.05 threshold even when diluted by other rows.
+    total_total = pre_total + n_empty + m_ok
+    total_empties = pre_empties + n_empty
+    expected_rate = round(total_empties / total_total, 4)
+    assert rates["screen_context_sanitized_to_empty_rate"] == pytest.approx(
+        expected_rate, abs=1e-4
+    ), (
+        f"expected {expected_rate} (pre={pre_empties}/{pre_total} + seed={n_empty}/{n_empty + m_ok}), "
+        f"got {rates['screen_context_sanitized_to_empty_rate']}"
+    )
+
+    # The detail payload must echo the raw counts so dashboard UI can render them.
+    detail = payload["screen_context_sanitization"]
+    assert detail["total"] == total_total
+    assert detail["sanitized_to_empty"] == total_empties
+
+    # (d) The alert flag must fire when rate exceeds the threshold. The seed
+    # contribution alone is 0.8, so unless pre-existing data is overwhelmingly
+    # "ok" (impossible at this scale), the combined rate stays above 0.05.
+    threshold = ai_metrics.ALERT_THRESHOLDS["screen_context_sanitized_to_empty_rate"]
+    assert expected_rate > threshold, (
+        f"combined rate {expected_rate} did not exceed threshold {threshold}; "
+        f"adjust seed counts so the alert is exercised"
+    )
+    assert payload["alerts"]["screen_context_sanitized_to_empty_rate"] is True
+    assert payload["any_alert"] is True
 
 
 # ---------------------------------------------------------------------------
