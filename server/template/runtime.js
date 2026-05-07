@@ -154,12 +154,77 @@
     function isAvailable() { return isBackendHosted; }
 
     // ─── Plan 3 — runtime context collector ──────────────────
+    // Unified answer-key scrub list. Mirrors sanitizeScreenContext in the
+    // tutor widget IIFE (perfect_homework.html ~L20502) so any selector
+    // added in one place is honored in the other. Sigma #197 follow-up:
+    // expanded with .correct-answer, broader [data-correct], and
+    // [data-answer-spec] for forward-compat with backend answer-spec leaks.
+    var _ANSWER_SCRUB_SELECTORS = [
+        '[data-answer]',
+        '[data-expected]',
+        '[data-correct]',
+        '[data-answer-spec]',
+        '.answer-key',
+        '.correct',
+        '.is-correct',
+        '.correct-answer',
+        '.gb-aq-answer',
+        'script',
+        'style',
+    ].join(', ');
+
+    // Strip leaky attributes from surviving nodes too (e.g., a question
+    // wrapper that holds data-expected on the same node as the prompt).
+    function _stripAnswerAttrs(clone) {
+        clone.querySelectorAll('[data-answer], [data-expected], [data-correct], [data-answer-spec]')
+            .forEach(function(n) {
+                n.removeAttribute('data-answer');
+                n.removeAttribute('data-expected');
+                n.removeAttribute('data-correct');
+                n.removeAttribute('data-answer-spec');
+            });
+    }
+
     function _extractVisibleText(root) {
         const el = root || document.querySelector('main') || document.body;
         if (!el) return '';
         const clone = el.cloneNode(true);
-        clone.querySelectorAll('[data-answer], [data-expected], .answer-key, script, style').forEach(function(n) { n.remove(); });
+        clone.querySelectorAll(_ANSWER_SCRUB_SELECTORS).forEach(function(n) { n.remove(); });
+        _stripAnswerAttrs(clone);
         return (clone.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 1800);
+    }
+
+    // FE-4: richer screen_context. Pulls from the active element AND its
+    // nearest panel/section ancestor so the tutor sees what the student is
+    // actually looking at — not just the active input. Falls back to body
+    // first 2000 chars when no active element is supplied. Strips answer-key
+    // markup so the AI never gets the answer leaked through context.
+    function _extractScreenContext(activeEl) {
+        const parts = [];
+        const seen = new Set();
+        function _absorb(el) {
+            if (!el || seen.has(el)) return;
+            seen.add(el);
+            const clone = el.cloneNode(true);
+            clone.querySelectorAll(_ANSWER_SCRUB_SELECTORS).forEach(function(n) { n.remove(); });
+            _stripAnswerAttrs(clone);
+            const txt = (clone.innerText || clone.textContent || '').replace(/\s+/g, ' ').trim();
+            if (txt) parts.push(txt);
+        }
+        if (activeEl) {
+            _absorb(activeEl);
+            // Closest containing panel/section gives the broader window.
+            const ancestor = activeEl.closest('.screen.active, [data-phase], section')
+                || activeEl.closest('main')
+                || null;
+            if (ancestor && ancestor !== activeEl) _absorb(ancestor);
+        }
+        if (!parts.length) {
+            // Fallback: whole body, capped.
+            const body = document.body;
+            if (body) _absorb(body);
+        }
+        return parts.join(' ').replace(/\s+/g, ' ').trim().slice(0, 2000);
     }
 
     function _extractStudentWork(root) {
@@ -187,6 +252,24 @@
             });
     }
 
+    // FE-4: capture phase-level dataset crumbs (e.g. data-flashcard-index,
+    // data-stage). Forward-looking metadata — empty-result is fine.
+    function _extractPhaseArtifacts(activeEl) {
+        const out = {};
+        if (!activeEl || !activeEl.dataset) return out;
+        try {
+            const allow = ['flashcardIndex', 'stage', 'subphase', 'turn', 'attempt', 'difficulty'];
+            Object.entries(activeEl.dataset).forEach(function(pair) {
+                const k = pair[0];
+                const v = pair[1];
+                if (allow.indexOf(k) !== -1 && v != null && String(v).length) {
+                    out[k] = v;
+                }
+            });
+        } catch (e) { /* defensive */ }
+        return out;
+    }
+
     function collectRuntimeContext(opts) {
         opts = opts || {};
         const active = document.querySelector('[data-nets-active="true"]')
@@ -201,8 +284,11 @@
             phase: opts.phase || (document.body && document.body.dataset.phase) || (window.NETS_STATE && window.NETS_STATE.phase) || 'preview',
             subphase: opts.subphase || (active && active.dataset.subphase) || (window.NETS_STATE && window.NETS_STATE.subphase) || null,
             question_id: opts.question_id || (active && active.dataset.questionId) || (window.NETS_STATE && window.NETS_STATE.questionId) || null,
-            screen_context: opts.screen_context || _extractVisibleText(active),
+            // FE-4: richer context window — active element + nearest panel/section.
+            screen_context: opts.screen_context || _extractScreenContext(active),
             student_work_text: opts.student_work_text || _extractStudentWork(active),
+            // FE-4: forward-looking phase-level metadata. Empty when absent.
+            phase_artifacts: opts.phase_artifacts || _extractPhaseArtifacts(active),
             ui_state: {
                 has_active_element: !!active,
                 url_path: window.location.pathname,
