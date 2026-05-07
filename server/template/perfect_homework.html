@@ -17181,6 +17181,13 @@ Prezident ertaga hisobot kutmoqda.`,
             busy: false,            // gates concurrent submits (TM/RLC pattern)
             lastDamage: 0,          // damage dealt last turn (for visual flash)
             damageDealt: 0,         // running total — for result summary
+            // FE-5 — Plan 5 dynamic boss loop fields.
+            bossSessionId: null,        // returned by bossStart (server-side arc id)
+            trialsLeft: null,           // mirrored from server submit-answer
+            currentQuestion: null,      // last bossGenerateQuestion response (whitelisted)
+            currentDifficulty: null,    // server-side difficulty signal
+            recentBossPhrases: [],      // last ≤5 question_text snippets — anti-repetition
+            useDynamicBoss: true,       // feature flag — falls back to BOSS_QUESTIONS path on failure
         };
 
         // Wave F3 — load personalised boss plan (ordering + framing + persona).
@@ -17280,15 +17287,29 @@ Prezident ertaga hisobot kutmoqda.`,
             if (victory) victory.style.display   = 'none';
             if (defeat)  defeat.style.display    = 'none';
 
-            // Wave F3 — kick off boss-plan personalisation alongside the intro.
-            // Cap the wait at 3 s so a slow Kimi response can't stall the boss
-            // forever; on timeout we fall back to default order with empty
-            // framing (initBossPlan's own try/catch already does this).
+            // FE-5 — Plan-5 dynamic boss arc kickoff. We race a 3 s timeout
+            // against bossDynamicStart()+bossFetchNextQuestion() so a slow
+            // server can't stall the boss forever. On any failure inside the
+            // helpers, useDynamicBoss flips to false and we fall through to
+            // the legacy initBossPlan() / BOSS_QUESTIONS[0] path below.
+            // Wave F3 — boss-plan personalisation runs in parallel as a
+            // legacy-mode fallback.
             const planPromise = initBossPlan().catch(e => {
                 console.warn('[F3] initBossPlan error:', e);
             });
+            const dynamicReady = (async () => {
+                try {
+                    await bossDynamicStart();
+                    if (bossState.useDynamicBoss) {
+                        await bossFetchNextQuestion();
+                    }
+                } catch (e) {
+                    console.warn('[FE-5] dynamic kickoff threw, falling back:', e);
+                    bossState.useDynamicBoss = false;
+                }
+            })();
             const planReady = Promise.race([
-                planPromise,
+                Promise.all([planPromise, dynamicReady]),
                 new Promise(r => setTimeout(r, 3000))
             ]);
 
@@ -17297,7 +17318,7 @@ Prezident ertaga hisobot kutmoqda.`,
                 setTimeout(async () => {
                     if (intro) { intro.style.cssText = 'display:none;'; }
                     if (battle) battle.style.display = '';
-                    bossUpdateHP(100, false);
+                    bossUpdateHP(bossState.hp, false);
                     // Wait for the plan (or 3 s cap) before rendering Q0 so the
                     // first question always reflects the personalised order +
                     // framing rather than racing the intro animation.
@@ -17350,9 +17371,145 @@ Prezident ertaga hisobot kutmoqda.`,
             bossUpdateLowHpPulse();
         }
 
+        // FE-5 — Plan 5 dynamic boss arc bootstrap. Mints a server-side
+        // boss_session_id via NETS_AI.bossStart and mirrors the returned
+        // hp/trials/difficulty into bossState. On any error/_offline/_error
+        // we flip useDynamicBoss=false and fall back to the legacy
+        // BOSS_QUESTIONS path so older homeworks keep rendering.
+        async function bossDynamicStart() {
+            if (!window.NETS_AI || typeof window.NETS_AI.bossStart !== 'function') {
+                bossState.useDynamicBoss = false;
+                return null;
+            }
+            const ctx = window.NETS_CTX || {};
+            const sessionId = (typeof state !== 'undefined' && state.sessionId)
+                ? state.sessionId
+                : (localStorage.getItem('nets_tutor_session') || null);
+            const hwId = ctx.hwId || ctx.homework_id || ctx.homeworkId
+                || (typeof state !== 'undefined' && state.hwId) || null;
+            try {
+                const res = await window.NETS_AI.bossStart({
+                    session_id: sessionId,
+                    homework_id: hwId,
+                    max_hp: bossState.maxHp,
+                    trials_left: 7,
+                });
+                if (!res || res._error || res._offline || res._cap) {
+                    console.warn('[FE-5] bossDynamicStart fell back to legacy:', res);
+                    bossState.useDynamicBoss = false;
+                    return null;
+                }
+                bossState.bossSessionId = res.boss_session_id || null;
+                if (typeof res.max_hp === 'number' && res.max_hp >= 10) {
+                    bossState.maxHp = res.max_hp;
+                    bossState.hp = res.max_hp;
+                }
+                if (typeof res.trials_left === 'number') {
+                    bossState.trialsLeft = res.trials_left;
+                }
+                if (res.current_difficulty) {
+                    bossState.currentDifficulty = res.current_difficulty;
+                }
+                if (!bossState.bossSessionId) {
+                    bossState.useDynamicBoss = false;
+                    return null;
+                }
+                try { bossUpdateHP(bossState.hp, false); } catch (e) {}
+                return res;
+            } catch (err) {
+                console.warn('[FE-5] bossDynamicStart threw, falling back:', err);
+                bossState.useDynamicBoss = false;
+                return null;
+            }
+        }
+
+        // FE-5 — Pulls the next dynamic boss question from the server
+        // (NETS_AI.bossGenerateQuestion). Whitelists the response per FE-6:
+        // we render only question_id / question_text / target_skill /
+        // difficulty / why_this_question. expected_answer / acceptable /
+        // rubric / hints are explicitly stripped here even if the backend
+        // ever leaks them — defense in depth. On failure we flip
+        // useDynamicBoss=false so subsequent calls fall back to the legacy
+        // BOSS_QUESTIONS index path.
+        async function bossFetchNextQuestion() {
+            if (!bossState.useDynamicBoss) return null;
+            if (!window.NETS_AI || typeof window.NETS_AI.bossGenerateQuestion !== 'function') {
+                bossState.useDynamicBoss = false;
+                return null;
+            }
+            if (!bossState.bossSessionId) {
+                bossState.useDynamicBoss = false;
+                return null;
+            }
+            try {
+                const res = await window.NETS_AI.bossGenerateQuestion({
+                    boss_session_id: bossState.bossSessionId,
+                    recent_boss_phrases: bossState.recentBossPhrases.slice(-5),
+                });
+                if (!res || res._error || res._offline || res._cap) {
+                    console.warn('[FE-5] bossFetchNextQuestion fell back to legacy:', res);
+                    bossState.useDynamicBoss = false;
+                    return null;
+                }
+                // Whitelist — strip expected_answer / acceptable / rubric /
+                // hints if backend ever leaks them. Frontend never renders them.
+                const safe = {
+                    question_id: res.question_id || null,
+                    question_text: res.question_text || '',
+                    target_skill: res.target_skill || '',
+                    difficulty: res.difficulty || bossState.currentDifficulty || '',
+                    why_this_question: res.why_this_question || '',
+                };
+                // Defense in depth: explicitly drop the forbidden fields.
+                // (No-op if absent; just guarantees nothing leaks downstream.)
+                delete safe.expected_answer;
+                delete safe.acceptable;
+                delete safe.rubric;
+                delete safe.hints;
+                bossState.currentQuestion = safe;
+                if (res.difficulty) bossState.currentDifficulty = res.difficulty;
+                // Track a short snippet for anti-repetition (cap at 5 entries).
+                const snippet = (safe.question_text || '').split(/\s+/).slice(0, 8).join(' ');
+                if (snippet) {
+                    bossState.recentBossPhrases.push(snippet);
+                    if (bossState.recentBossPhrases.length > 5) {
+                        bossState.recentBossPhrases.shift();
+                    }
+                }
+                return safe;
+            } catch (err) {
+                console.warn('[FE-5] bossFetchNextQuestion threw, falling back:', err);
+                bossState.useDynamicBoss = false;
+                return null;
+            }
+        }
+
         // FB redesign — single network swap-point. Mirrors gbTMCheckPair / rlcCheckStep.
         // Reads ctx.hwId FIRST per TM #140 / SF lesson, then snake_case alternates.
+        // FE-5 — branches on bossState.useDynamicBoss: dynamic path goes through
+        // window.NETS_AI.bossSubmitAnswer (Plan 5 endpoint), legacy path keeps
+        // the /api/ai/check-answer fetch so older homework templates keep working.
         async function bossSubmitAnswer(questionId, studentAnswer, attemptNumber) {
+            // FE-5 dynamic branch — Plan 5 boss arc.
+            if (bossState.useDynamicBoss && bossState.bossSessionId
+                && window.NETS_AI && typeof window.NETS_AI.bossSubmitAnswer === 'function') {
+                try {
+                    const res = await window.NETS_AI.bossSubmitAnswer({
+                        boss_session_id: bossState.bossSessionId,
+                        question_id: questionId,
+                        student_answer: studentAnswer,
+                    });
+                    if (!res || res._error || res._offline || res._cap) {
+                        console.warn('[FE-5] bossSubmitAnswer (dynamic) failed:', res);
+                        return null;
+                    }
+                    return res;
+                } catch (err) {
+                    console.warn('[FE-5] bossSubmitAnswer (dynamic) threw:', err);
+                    return null;
+                }
+            }
+            // Legacy branch — pre-Plan-5 contract via /api/ai/check-answer.
             const ctx = window.NETS_CTX || {};
             const meta = (typeof BOSS_META !== 'undefined' && BOSS_META) ? BOSS_META : null;
             try {
@@ -17381,16 +17538,27 @@ Prezident ertaga hisobot kutmoqda.`,
         }
 
         // FB redesign — server-driven response handler. Replaces local match logic.
+        // FE-5 — accepts both Plan-5 (`is_correct`, `trials_left`,
+        // `current_difficulty`, `feedback`) and legacy (`correct`,
+        // `boss_response`) shapes. Plan-5 takes precedence when present.
         function bossHandleResponse(resp, q, fbEl) {
             if (!resp) {
                 if (fbEl) { fbEl.className = 'boss-feedback wrong'; fbEl.textContent = RT('boss.toast.wrong'); }
                 bossImpactFlash();
                 return;
             }
-            const isCorrect = resp.correct === true;
+            // FE-5: prefer resp.is_correct (Plan-5), fall back to resp.correct (legacy).
+            const isCorrect = (resp.is_correct === true) || (resp.correct === true);
             // Mirror server-side counters when present.
             if (typeof resp.attempts_used === 'number') {
                 bossState.attemptsUsed = resp.attempts_used;
+            }
+            // FE-5 — mirror Plan-5 trials_left + current_difficulty.
+            if (typeof resp.trials_left === 'number') {
+                bossState.trialsLeft = resp.trials_left;
+            }
+            if (resp.current_difficulty) {
+                bossState.currentDifficulty = resp.current_difficulty;
             }
             if (isCorrect) {
                 // Use server values for damage + HP (no client recompute).
@@ -17425,7 +17593,8 @@ Prezident ertaga hisobot kutmoqda.`,
                 bossImpactFlash();
                 if (fbEl) {
                     fbEl.className = 'boss-feedback wrong';
-                    const aiMsg = resp.boss_response || resp.feedback || RT('boss.toast.wrong');
+                    // FE-5 — Plan-5 returns `feedback`; legacy returns `boss_response`.
+                    const aiMsg = resp.feedback || resp.boss_response || RT('boss.toast.wrong');
                     fbEl.innerHTML = aiMsg + ' <span class="screen-reading-ai-badge">AI baho</span>';
                 }
                 bossUpdateAttemptPill();
@@ -17561,8 +17730,16 @@ Prezident ertaga hisobot kutmoqda.`,
                 xpEl.textContent = RT('boss.result.xp').replace('{n}', String(bossState.outcomeXp));
             }
             if (sumEl) {
-                const total = (typeof BOSS_QUESTIONS !== 'undefined' && Array.isArray(BOSS_QUESTIONS))
-                    ? BOSS_QUESTIONS.length : 0;
+                // FE-5 — dynamic mode counts attempted questions (qIndex+1) since
+                // the server controls arc length and there's no fixed BOSS_QUESTIONS
+                // total; legacy mode keeps the original BOSS_QUESTIONS.length.
+                let total;
+                if (bossState.useDynamicBoss) {
+                    total = Math.max(bossState.correct || 0, (bossState.qIndex || 0) + 1);
+                } else {
+                    total = (typeof BOSS_QUESTIONS !== 'undefined' && Array.isArray(BOSS_QUESTIONS))
+                        ? BOSS_QUESTIONS.length : 0;
+                }
                 sumEl.textContent = RT('boss.result.summary')
                     .replace('{correct}', String(bossState.correct || 0))
                     .replace('{total}', String(total))
@@ -17578,8 +17755,55 @@ Prezident ertaga hisobot kutmoqda.`,
         }
 
         function bossRenderQuestion(idx) {
-            const q = BOSS_QUESTIONS[idx];
             const el = (id) => document.getElementById(id);
+            // FE-5 — dynamic branch reads from bossState.currentQuestion (server-supplied,
+            // whitelisted in bossFetchNextQuestion). Legacy branch keeps reading
+            // BOSS_QUESTIONS[idx] so older homework templates still render.
+            if (bossState.useDynamicBoss && bossState.currentQuestion) {
+                const dq = bossState.currentQuestion;
+                // Hide legacy framing banner (Plan-4 personalisation doesn't apply
+                // to the Plan-5 dynamic loop — server-side prompt drives tone).
+                const framingEl = el('boss-framing');
+                if (framingEl) { framingEl.textContent = ''; framingEl.style.display = 'none'; }
+                if (el('boss-q-text'))    el('boss-q-text').innerHTML      = dq.question_text || '';
+                if (el('boss-q-tags')) {
+                    const parts = [];
+                    if (dq.target_skill) parts.push(dq.target_skill);
+                    if (dq.difficulty) parts.push(dq.difficulty);
+                    let tagText = parts.length ? ('[' + parts.join(' · ') + ']') : '';
+                    if (dq.why_this_question) {
+                        tagText = tagText ? (tagText + ' — ' + dq.why_this_question) : dq.why_this_question;
+                    }
+                    el('boss-q-tags').textContent = tagText;
+                }
+                if (el('boss-q-counter')) {
+                    let counterText = RT('boss.question_of') + ' ' + (idx + 1);
+                    if (typeof bossState.trialsLeft === 'number') {
+                        counterText += ' · ' + bossState.trialsLeft;
+                    }
+                    el('boss-q-counter').textContent = counterText;
+                }
+                const inp = el('boss-input');
+                if (inp) { inp.value = ''; inp.disabled = false; inp.style.borderColor = ''; }
+                // FE-5 — hint flow is disabled in dynamic mode (server-driven prompts;
+                // hints aren't part of the Plan-5 contract).
+                if (el('boss-hint-text')) {
+                    el('boss-hint-text').textContent = '';
+                    el('boss-hint-text').style.display = 'none';
+                }
+                const hb = el('boss-hint-btn');
+                if (hb) {
+                    if (bossState.useDynamicBoss) { hb.disabled = true; hb.style.display = 'none'; }
+                    else { hb.disabled = false; hb.style.display = ''; }
+                }
+                const fb = el('boss-feedback'); if (fb) { fb.className = 'boss-feedback'; fb.textContent = ''; }
+                bossState.answered = false;
+                bossState.hintStep = 0;
+                bossUpdateCombo();
+                return;
+            }
+            // Legacy branch — pre-Plan-5 BOSS_QUESTIONS rendering (preserved).
+            const q = BOSS_QUESTIONS[idx];
             // Wave F3 — personalized framing banner (purely additive; stems untouched).
             const framingEl = el('boss-framing');
             if (framingEl) {
@@ -17615,7 +17839,13 @@ Prezident ertaga hisobot kutmoqda.`,
             bossState.correct++;
             bossState.combo++;
             const doubled = bossState.combo >= 3;
-            const dmg = doubled ? q.damage * 2 : q.damage;
+            // FE-5 — in dynamic mode q.damage is undefined; default to 0 here.
+            // bossHandleResponse mirrors the authoritative resp.damage_dealt /
+            // resp.hp_remaining values from the server immediately after this
+            // function returns (subtracting bossState.lastDamage to avoid the
+            // double-count fixed by FB-1).
+            const baseDamage = (q && typeof q.damage === 'number') ? q.damage : 0;
+            const dmg = doubled ? baseDamage * 2 : baseDamage;
             bossState.hp = Math.max(0, bossState.hp - dmg);
             bossState.lastDamage = dmg;
             bossState.damageDealt = (bossState.damageDealt || 0) + dmg;
@@ -17676,9 +17906,24 @@ Prezident ertaga hisobot kutmoqda.`,
 
             if (bossState.answered) {
                 bossState.qIndex++;
-                // Real student action: just resolved a boss question and is
-                // moving on. Mirror qIndex into completion progress so the
-                // dot 6 segment partial-fills as the boss progresses.
+                // FE-5 — dynamic mode: fetch the next server-generated question.
+                // The server signals end-of-arc via resp.done in bossRenderResult,
+                // so there is NO BOSS_QUESTIONS.length boundary here — we just
+                // pull the next question and render it. If the fetch fails the
+                // helper flips useDynamicBoss=false and we fall through to the
+                // legacy index path.
+                if (bossState.useDynamicBoss) {
+                    setPhaseProgress('boss', bossState.qIndex, bossState.qIndex + 1);
+                    await bossFetchNextQuestion();
+                    if (!bossState.useDynamicBoss) {
+                        // Fetch failed; fall back into legacy path.
+                        if (bossState.qIndex >= BOSS_QUESTIONS.length) { bossEnd(false); return; }
+                    }
+                    bossRenderQuestion(bossState.qIndex);
+                    setBtnText(RT('btn.check_answer'));
+                    return;
+                }
+                // Legacy mode — index into BOSS_QUESTIONS.
                 setPhaseProgress('boss', bossState.qIndex, BOSS_QUESTIONS.length);
                 if (bossState.qIndex >= BOSS_QUESTIONS.length) { bossEnd(false); return; }
                 bossRenderQuestion(bossState.qIndex);
@@ -17694,7 +17939,11 @@ Prezident ertaga hisobot kutmoqda.`,
             }
             if (bossState.busy) return; // Concurrency gate (mirrors TM/RLC).
 
-            const q = BOSS_QUESTIONS[bossState.qIndex];
+            // FE-5 — dynamic question carries question_id from server; legacy uses BOSS_QUESTIONS[idx].id.
+            const q = (bossState.useDynamicBoss && bossState.currentQuestion)
+                ? bossState.currentQuestion
+                : BOSS_QUESTIONS[bossState.qIndex];
+            const questionId = q ? (q.question_id || q.id) : null;
             const fb = document.getElementById('boss-feedback');
             if (inp) inp.disabled = true;
             // Tentative "thinking..." UI while we await the server.
@@ -17702,7 +17951,7 @@ Prezident ertaga hisobot kutmoqda.`,
 
             bossState.busy = true;
             const attemptNumber = (bossState.attemptsUsed || 0) + 1;
-            const resp = await bossSubmitAnswer(q.id, val, attemptNumber);
+            const resp = await bossSubmitAnswer(questionId, val, attemptNumber);
             bossState.busy = false;
 
             // Fail-soft: null response means network/HTTP error — keep wrong state, allow retry.
@@ -17720,7 +17969,12 @@ Prezident ertaga hisobot kutmoqda.`,
 
         function bossUseHint() {
             if (bossState.answered) return;
+            // FE-5 — hints are not part of the Plan-5 dynamic boss contract.
+            // Hint button is hidden in bossRenderQuestion's dynamic branch;
+            // belt-and-suspenders early exit here in case it's reached anyway.
+            if (bossState.useDynamicBoss) return;
             const q = BOSS_QUESTIONS[bossState.qIndex];
+            if (!q || !Array.isArray(q.hints)) return;
             if (bossState.hintStep >= q.hints.length) return;
             const hint = q.hints[bossState.hintStep++];
             bossState.hintsUsed++;
