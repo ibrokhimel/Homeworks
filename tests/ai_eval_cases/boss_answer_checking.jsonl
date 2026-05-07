@@ -1,0 +1,3 @@
+{"id": "boss_check_correct_001", "task_type": "boss_answer_check", "input": {"question": "What does 'according to' mean?", "expected": "as stated by", "student_answer": "as stated by"}, "expected": {"is_correct": true, "score_min": 0.9}}
+{"id": "boss_check_partial_002", "task_type": "boss_answer_check", "input": {"question": "Solve x + 5 = 12", "expected": "7", "student_answer": "Maybe 7?"}, "expected": {"is_correct": true, "score_min": 0.7}}
+{"id": "boss_check_wrong_003", "task_type": "boss_answer_check", "input": {"question": "Translate: kitob", "expected": "book", "student_answer": "pen"}, "expected": {"is_correct": false, "must_include_any": ["incorrect", "noto'g'ri", "wrong"]}}

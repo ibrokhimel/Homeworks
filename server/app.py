@@ -12,6 +12,7 @@ from server.routes.homework import router as hw_router
 from server.routes.homework_page import router as homework_page_router
 from server.routes.ai import router as ai_router
 from server.routes.ai_plan5 import router as ai_plan5_router
+from server.routes.ai_plan8 import router as ai_plan8_router
 from server.routes.library import router as library_router
 from server.routes.grading import router as grading_router
 from server.routes.notebook import router as notebook_router
@@ -112,6 +113,7 @@ app.include_router(hw_router, prefix="/api")
 app.include_router(homework_page_router)
 app.include_router(ai_router, prefix="/api")
 app.include_router(ai_plan5_router, prefix="/api")
+app.include_router(ai_plan8_router, prefix="/api")
 app.include_router(library_router, prefix="/api")
 app.include_router(grading_router, prefix="/api")
 app.include_router(notebook_router, prefix="/api")

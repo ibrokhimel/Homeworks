@@ -14,6 +14,7 @@ from server.db.session_repo import get_session
 from server.db.attempts_repo import list_phase_attempts
 from server.db.session_metrics_repo import get_session_metrics
 from server.db.tutor_repo import list_tutor_turns
+from server.db import session_events_repo
 
 _log = logging.getLogger("nets.ai_context")
 
@@ -285,8 +286,34 @@ async def build_tutor_context(
     if screen_context:
         sanitized = sanitize_screen_context_v2(screen_context, expected_values)
         visible_screen_text = sanitized["text"]
-        if not visible_screen_text:
+        sanitized_to_empty = not visible_screen_text
+        if sanitized_to_empty:
             flags.append("empty_screen_context")
+        # Plan 8 §8 dashboard signal: emit a session event so the regression
+        # dashboard can compute screen_context_sanitized_to_empty_rate. Only
+        # fired when the request actually carried screen_context (otherwise
+        # there's nothing to sanitize and the denominator would be polluted).
+        try:
+            if session_id and hw_id:
+                await session_events_repo.add_session_event(
+                    session_id=session_id,
+                    hw_id=hw_id,
+                    event_type="screen_context_sanitized",
+                    payload={
+                        "sanitized_to_empty": bool(sanitized_to_empty),
+                        "raw_len": int(sanitized.get("raw_len") or 0),
+                        "clean_len": int(sanitized.get("clean_len") or 0),
+                        "redacted": bool(sanitized.get("redacted") or False),
+                    },
+                    phase=resolved_phase,
+                    subphase=resolved_subphase,
+                    question_id=resolved_question_id,
+                )
+        except Exception as exc:
+            _log.warning(
+                "build_tutor_context: failed to emit screen_context_sanitized event: %s",
+                exc,
+            )
     else:
         flags.append("empty_screen_context")
 
