@@ -17,6 +17,15 @@ class ResolvedAnswerTarget(BaseModel):
     trusted_source_path: str
     answer_spec: Optional[dict[str, Any]] = None
 
+
+def _trusted_question_text(item: dict[str, Any]) -> str:
+    for key in ("text", "q", "prompt", "question"):
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return ""
+
+
 async def resolve_runtime_answer(request: Any) -> ResolvedAnswerTarget:
     hw = await db.get_homework(request.homework_id)
     if hw is None:
@@ -47,7 +56,7 @@ async def resolve_runtime_answer(request: Any) -> ResolvedAnswerTarget:
     items = phase_data.get("items", []) if isinstance(phase_data, dict) else []
     for i, item in enumerate(items):
         if item.get("id") == request.question_id:
-            question_text = item.get("text", "")
+            question_text = _trusted_question_text(item)
             expected_answers = item.get("expected_answers", [])
             rubric = item.get("rubric", {})
             answer_spec = item.get("answer_spec", None)

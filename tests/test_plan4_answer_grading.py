@@ -111,6 +111,43 @@ async def test_resolve_runtime_answer_success(monkeypatch):
     assert target.expected_answers == ["4"]
     assert target.trusted_source_path == "content_json.practice.items[0]"
 
+@pytest.mark.parametrize(
+    ("text_key", "question_text"),
+    [
+        ("text", "What is 2+2?"),
+        ("q", "What is 3+3?"),
+        ("prompt", "What is 4+4?"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_resolve_runtime_answer_accepts_trusted_question_text_aliases(
+    monkeypatch,
+    text_key,
+    question_text,
+):
+    async def mock_get_homework(hw_id):
+        return {
+            "content_json": {
+                "practice": {
+                    "items": [
+                        {
+                            "id": "q1",
+                            text_key: question_text,
+                            "expected_answers": ["answer"],
+                        }
+                    ]
+                }
+            }
+        }
+    monkeypatch.setattr("server.db.get_homework", mock_get_homework)
+
+    req = DummyRequest(session_id="sess1", homework_id="hw1", phase="practice", question_id="q1")
+
+    target = await resolve_runtime_answer(req)
+
+    assert target.question_text == question_text
+    assert target.trusted_source_path == "content_json.practice.items[0]"
+
 @pytest.mark.asyncio
 async def test_process_runtime_answer_deterministic_correct(monkeypatch):
     from server.services.tutor import process_runtime_answer
@@ -172,6 +209,7 @@ async def test_process_runtime_answer_ai_judge_tiers(monkeypatch):
     assert res["confidence"] == 0.95
     assert res["is_correct"] is True
     assert res["requires_review"] is False
+    assert res["feedback"] == "test"
 
     # 0.75 - 0.89 confidence
     res = await run_tier(0.85, 0.80)

@@ -1458,6 +1458,7 @@ async def process_runtime_answer(target: dict, student_answer: str, attempt_numb
             raw_feedback = ai_res.get("feedback", "")
             misconception_tags = ai_res.get("misconception_tags", [])
             next_hint = ai_res.get("next_hint", "")
+            feedback = raw_feedback
             
             # Tiered Confidence Policy
             if raw_confidence >= 0.90:
@@ -1481,8 +1482,6 @@ async def process_runtime_answer(target: dict, student_answer: str, attempt_numb
                 score = 0.0
                 confidence = raw_confidence
                 requires_review = True
-                
-            feedback = raw_feedback
         except Exception as e:
             _log.error("AI Judge failed: %s", e)
             is_correct = False
