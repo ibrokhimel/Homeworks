@@ -1,0 +1,4 @@
+{"id": "math_correct_001", "task_type": "answer_check", "input": {"question": "Solve: x + 2 = 5", "expected_answer": "3", "student_answer": "3"}, "expected": {"is_correct": true, "score_min": 0.95}}
+{"id": "math_sign_error_002", "task_type": "answer_check", "input": {"question": "Solve: x - 4 = 7", "expected_answer": "11", "student_answer": "-11"}, "expected": {"is_correct": false, "must_include_any": ["sign", "negative", "minus", "ishora"]}}
+{"id": "math_equivalent_form_003", "task_type": "answer_check", "input": {"question": "Simplify: 2/4", "expected_answer": "1/2", "student_answer": "0.5"}, "expected": {"is_correct": true, "score_min": 0.85}}
+{"id": "math_method_partial_004", "task_type": "answer_check", "input": {"question": "Solve: 2(x+3) = 10", "expected_answer": "2", "student_answer": "5"}, "expected": {"is_correct": false, "must_include_any": ["check", "method", "step"]}}

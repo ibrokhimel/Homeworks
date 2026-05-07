@@ -263,6 +263,22 @@ CREATE TABLE IF NOT EXISTS ai_call_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_ai_calls_session ON ai_call_logs(session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_calls_task ON ai_call_logs(task_type, created_at);
+
+CREATE TABLE IF NOT EXISTS ai_eval_runs (
+    id TEXT PRIMARY KEY,
+    eval_name TEXT NOT NULL,
+    task_type TEXT NOT NULL,
+    prompt_version TEXT,
+    model TEXT,
+    total_cases INTEGER NOT NULL,
+    passed_cases INTEGER NOT NULL,
+    failed_cases INTEGER NOT NULL,
+    score REAL,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_ai_eval_runs_name ON ai_eval_runs(eval_name, created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_eval_runs_task ON ai_eval_runs(task_type, created_at);
 """
 
 

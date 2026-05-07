@@ -75,6 +75,39 @@ async def mark_boss_question_used(question_id: str, session_id: str, hw_id: str)
     finally:
         await db.close()
 
+async def list_generated_boss_questions(
+    session_id: str, hw_id: str, limit: int = 50
+) -> list[dict]:
+    """Plan 8 debug: list generated boss questions for a session/hw.
+
+    The frontend-facing payload strips ``expected_answer`` / ``rubric``;
+    this helper preserves them because the debug surface is admin-gated
+    (Plan 8 §4 security note).
+    """
+    db = await connect()
+    try:
+        async with db.execute(
+            """
+            SELECT * FROM generated_boss_questions
+            WHERE session_id = ? AND hw_id = ?
+            ORDER BY created_at ASC LIMIT ?
+            """,
+            (session_id, hw_id, limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            out = []
+            for row in rows:
+                d = dict(row)
+                d["topic_tags"] = json.loads(d.get("topic_tags_json") or "[]")
+                d["expected_answer"] = json.loads(d.get("expected_answer_json") or "{}")
+                d["rubric"] = json.loads(d.get("rubric_json") or "{}")
+                d["source_context"] = json.loads(d.get("source_context_json") or "{}")
+                out.append(d)
+            return out
+    finally:
+        await db.close()
+
+
 async def list_used_boss_topics(session_id: str, hw_id: str) -> list[str]:
     db = await connect()
     try:

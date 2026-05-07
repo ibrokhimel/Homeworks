@@ -42,6 +42,7 @@ DOCS_API = REPO_ROOT / "docs" / "API.md"
 _ROUTER_PREFIXES: dict[str, str] = {
     "ai.py":            "/api",
     "ai_plan5.py":      "/api",
+    "ai_plan8.py":      "/api",
     "grading.py":       "/api/grading",
     "homework.py":      "/api/homeworks",
     "homework_page.py": "",

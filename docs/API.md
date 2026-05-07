@@ -1624,3 +1624,136 @@ Task:
 ```
 
 `status` is one of `"open" | "done"`. `task_type` is one of `"general" | "development" | "design" | "research" | "ops"`. Counts are bounded `0 ≤ n ≤ 999`. `cover_url` may be `null`; renderer (frontend) only displays http(s) URLs even though the server stores any string ≤ 500 chars.
+
+---
+
+## Plan 8 — Evaluation, Logging, and Rollout (admin-only)
+
+All endpoints below are gated by either `AI_DEBUG_CONTEXT` truthy (dev) or a matching `X-Debug-Token` header equal to `AI_DEBUG_ADMIN_TOKEN` (prod). Pytest-running processes are auto-allowed. Missing or wrong creds return **403** with `{"detail": {"code": "DEBUG_FORBIDDEN"}}`.
+
+The debug context endpoint deliberately returns **only metadata** (lengths, presence flags, counts) — never raw question text, chat history, or screen context. This is the difference between a useful diagnostic surface and a silent leak.
+
+### GET /api/ai/debug/session/{session_id}/context
+
+Query: `hw_id=<homework id>` (required).
+
+**200** — `DebugContextResponse`. Length-only fields, no raw text.
+
+```json
+{
+  "session_id": "s1",
+  "hw_id": "hw_42",
+  "phase": "practice",
+  "subphase": "memory-sprint",
+  "current_question_id": "q12",
+  "homework_found": true,
+  "session_found": true,
+  "homework_title": "Algebra basics",
+  "subject": "math-algebra",
+  "grade": 8,
+  "homework_summary_chars": 412,
+  "current_phase_content_chars": 1820,
+  "current_question_text_chars": 84,
+  "visible_screen_text_chars": 230,
+  "student_work_text_chars": 0,
+  "recent_chat_history_count": 5,
+  "recent_attempts_count": 3,
+  "metrics_present": true,
+  "missing_context_flags": [],
+  "context_packet_version": "tutor.v2",
+  "notes": []
+}
+```
+
+### GET /api/ai/debug/session/{session_id}/events
+
+Query: `hw_id` (required), `limit` (1-500, default 100), `event_type` (optional filter).
+
+**200** `{ "session_id": "...", "hw_id": "...", "count": N, "events": [...] }`
+
+### GET /api/ai/debug/session/{session_id}/ai-calls
+
+Query: `task_type` (optional), `limit` (1-500, default 100).
+
+**200** `{ "session_id": "...", "count": N, "ai_calls": [...] }` — rows from `ai_call_logs`.
+
+### GET /api/ai/debug/session/{session_id}/metrics
+
+Query: `hw_id` (required).
+
+**200** `{ "session_id": "...", "hw_id": "...", "metrics": {...}, "attempts_count": N }`.
+
+### GET /api/ai/debug/boss/{boss_session_id}
+
+**200** Boss session row + every generated question (with rubric/expected_answer; admin-only by design).
+**404** if `boss_session_id` does not exist.
+
+### GET /api/ai/eval/cases/{eval_name}
+
+**200** Loaded fixture case index (id + task_type + expected-rule keys) for `tests/ai_eval_cases/<eval_name>.jsonl`.
+**404** when fixture file is missing.
+**422** when fixture JSONL is corrupt.
+
+### GET /api/ai/eval/runs
+
+Query: `eval_name` (optional), `task_type` (optional), `limit` (1-200, default 20).
+
+**200** `{ "count": N, "runs": [...] }` from the `ai_eval_runs` table.
+
+### POST /api/ai/eval/run
+
+```json
+{
+  "eval_name": "live_tutor_context_questions",
+  "stub_response": "according to ...",
+  "persist": true
+}
+```
+
+Runs every fixture case through the supplied `stub_response` (single string judged against every case). Used for harness smoke-checks; CI / production-grade evals should call `ai_evaluator.run_eval` directly with a real candidate fn.
+
+**200** `{ "report": {...}, "gate_threshold": 0.95, "gate_passed": true|false|null, "case_count": N }`.
+
+### GET /api/ai/sim/list
+
+**200** `{ "simulations": [{ "name": "...", "purpose": "...", "task_type": "...", "turn_count": N, "gate_threshold": 0.95 }, ...] }`.
+
+### POST /api/ai/sim/run
+
+```json
+{
+  "name": "student_confused_vocab",
+  "initial_state": null,
+  "persist": true
+}
+```
+
+Runs the named simulation through the in-process default candidate stub. Real-backend simulations call `ai_simulator.run_simulation(...)` directly with a custom `candidate_fn`.
+
+**200** `{ "report": {...}, "gate_threshold": 0.95, "gate_passed": true|false|null }`.
+
+### GET /api/ai/metrics/regression-dashboard
+
+Query: `window_hours` (1-720, default 24).
+
+**200** Plan 8 §8 dashboard payload — provider failure rates, schema validation failures, fallback rates, question-resolution failures, boss repetition, per-task latency, latest eval run scoreboards, and per-metric `alerts` flags using `ALERT_THRESHOLDS`.
+
+```json
+{
+  "window_hours": 24,
+  "ai_calls": {"total": 1234, "failures": 3, "fallbacks": 1, "schema_failures": 0, "avg_latency_ms": 820, "avg_input_chars": 4200, "avg_output_chars": 350},
+  "per_task": [{"task_type": "tutor_chat", "total": 800, "failures": 2, "avg_latency_ms": 900}, ...],
+  "attempts": {"total": 412, "correct_count": 280, "avg_confidence": 0.87, "low_conf_ai": 3},
+  "review_queue_pending": 7,
+  "rates": {
+    "provider_failure_rate": 0.0024,
+    "schema_validation_failure_rate": 0.0,
+    "generic_fallback_rate": 0.0008,
+    "question_resolution_failure_rate": 0.012,
+    "boss_repetition_rate": 0.0
+  },
+  "alerts": {"provider_failure_rate": false, ...},
+  "any_alert": false,
+  "eval_runs": [...]
+}
+```
