@@ -154,11 +154,43 @@
     function isAvailable() { return isBackendHosted; }
 
     // ─── Plan 3 — runtime context collector ──────────────────
+    // Unified answer-key scrub list. Mirrors sanitizeScreenContext in the
+    // tutor widget IIFE (perfect_homework.html ~L20502) so any selector
+    // added in one place is honored in the other. Sigma #197 follow-up:
+    // expanded with .correct-answer, broader [data-correct], and
+    // [data-answer-spec] for forward-compat with backend answer-spec leaks.
+    var _ANSWER_SCRUB_SELECTORS = [
+        '[data-answer]',
+        '[data-expected]',
+        '[data-correct]',
+        '[data-answer-spec]',
+        '.answer-key',
+        '.correct',
+        '.is-correct',
+        '.correct-answer',
+        '.gb-aq-answer',
+        'script',
+        'style',
+    ].join(', ');
+
+    // Strip leaky attributes from surviving nodes too (e.g., a question
+    // wrapper that holds data-expected on the same node as the prompt).
+    function _stripAnswerAttrs(clone) {
+        clone.querySelectorAll('[data-answer], [data-expected], [data-correct], [data-answer-spec]')
+            .forEach(function(n) {
+                n.removeAttribute('data-answer');
+                n.removeAttribute('data-expected');
+                n.removeAttribute('data-correct');
+                n.removeAttribute('data-answer-spec');
+            });
+    }
+
     function _extractVisibleText(root) {
         const el = root || document.querySelector('main') || document.body;
         if (!el) return '';
         const clone = el.cloneNode(true);
-        clone.querySelectorAll('[data-answer], [data-expected], .answer-key, script, style').forEach(function(n) { n.remove(); });
+        clone.querySelectorAll(_ANSWER_SCRUB_SELECTORS).forEach(function(n) { n.remove(); });
+        _stripAnswerAttrs(clone);
         return (clone.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 1800);
     }
 
@@ -174,7 +206,8 @@
             if (!el || seen.has(el)) return;
             seen.add(el);
             const clone = el.cloneNode(true);
-            clone.querySelectorAll('[data-answer], [data-expected], .answer-key, script, style').forEach(function(n) { n.remove(); });
+            clone.querySelectorAll(_ANSWER_SCRUB_SELECTORS).forEach(function(n) { n.remove(); });
+            _stripAnswerAttrs(clone);
             const txt = (clone.innerText || clone.textContent || '').replace(/\s+/g, ' ').trim();
             if (txt) parts.push(txt);
         }

@@ -124,26 +124,100 @@ def test_extract_screen_context_caps_at_2000_chars(runtime_js: str):
 
 
 REQUIRED_STRIP_SELECTORS = (
+    # Original FE-4 set
     "[data-answer]",
     "[data-expected]",
     ".answer-key",
     "script",
     "style",
+    # Sigma #197 follow-up — defensive expansion (PR #197 non-blocking).
+    # Matches the broader scrub list already used by sanitizeScreenContext
+    # in the tutor widget IIFE (perfect_homework.html ~L20502).
+    "[data-correct]",
+    "[data-answer-spec]",
+    ".correct",
+    ".is-correct",
+    ".correct-answer",
+    ".gb-aq-answer",
 )
 
 
+def _scrub_constant_body(runtime_js: str) -> str:
+    """Locate the unified _ANSWER_SCRUB_SELECTORS constant and return its
+    array literal body. Both _extractVisibleText and _extractScreenContext
+    must consume this constant — refactored so adding a selector in one
+    place is honored everywhere.
+    """
+    decl = "_ANSWER_SCRUB_SELECTORS"
+    idx = runtime_js.find(decl)
+    assert idx != -1, "runtime.js missing _ANSWER_SCRUB_SELECTORS constant"
+    # Window from declaration through end of array literal.
+    return runtime_js[idx : idx + 800]
+
+
 @pytest.mark.parametrize("selector", REQUIRED_STRIP_SELECTORS)
-def test_extract_screen_context_strips_required_selectors(runtime_js: str, selector: str):
-    """The helper must remove answer-key markup so the AI never sees the
-    expected answer through screen_context.
+def test_answer_scrub_constant_includes_required_selectors(runtime_js: str, selector: str):
+    """The unified scrub constant must include every selector the tutor
+    cannot be allowed to see, including Sigma #197's defensive additions.
+    """
+    body = _scrub_constant_body(runtime_js)
+    # Match exact quoted string ('selector' or "selector").
+    quoted_single = f"'{selector}'"
+    quoted_double = f'"{selector}"'
+    assert quoted_single in body or quoted_double in body, (
+        f"_ANSWER_SCRUB_SELECTORS must include `{selector}` so neither "
+        "_extractVisibleText nor _extractScreenContext leaks it."
+    )
+
+
+def test_extract_screen_context_uses_unified_scrub_constant(runtime_js: str):
+    """_extractScreenContext must reference _ANSWER_SCRUB_SELECTORS (not
+    inline a separate list) so the unified constant is the single source
+    of truth.
     """
     decl = "function _extractScreenContext("
     idx = runtime_js.find(decl)
     assert idx != -1, "runtime.js missing function _extractScreenContext"
     body = runtime_js[idx : idx + 1500]
-    assert selector in body, (
-        f"_extractScreenContext must strip `{selector}` from cloned DOM "
-        "before extracting innerText."
+    assert "_ANSWER_SCRUB_SELECTORS" in body, (
+        "_extractScreenContext must reference the unified _ANSWER_SCRUB_SELECTORS "
+        "constant rather than inlining a separate selector list."
+    )
+
+
+def test_extract_visible_text_uses_unified_scrub_constant(runtime_js: str):
+    """_extractVisibleText (legacy helper kept for back-compat) must also
+    consume the unified constant so it doesn't drift behind.
+    """
+    decl = "function _extractVisibleText("
+    idx = runtime_js.find(decl)
+    assert idx != -1, "runtime.js missing function _extractVisibleText"
+    body = runtime_js[idx : idx + 800]
+    assert "_ANSWER_SCRUB_SELECTORS" in body, (
+        "_extractVisibleText must also reference _ANSWER_SCRUB_SELECTORS."
+    )
+
+
+def test_strip_answer_attrs_helper_present(runtime_js: str):
+    """A node may carry data-answer / data-expected as ATTRIBUTES rather
+    than as nested elements (e.g., a question wrapper that holds the
+    expected answer in a data-* attribute for client-side checking). The
+    _stripAnswerAttrs helper removes those attributes from surviving nodes.
+    """
+    assert "function _stripAnswerAttrs(" in runtime_js, (
+        "runtime.js must define _stripAnswerAttrs(clone) helper to strip "
+        "leaky data-* attributes from surviving DOM nodes."
+    )
+    # Both extractors must call it.
+    decl_screen = runtime_js.find("function _extractScreenContext(")
+    decl_visible = runtime_js.find("function _extractVisibleText(")
+    body_screen = runtime_js[decl_screen : decl_screen + 1500]
+    body_visible = runtime_js[decl_visible : decl_visible + 800]
+    assert "_stripAnswerAttrs(" in body_screen, (
+        "_extractScreenContext must call _stripAnswerAttrs(clone)."
+    )
+    assert "_stripAnswerAttrs(" in body_visible, (
+        "_extractVisibleText must call _stripAnswerAttrs(clone)."
     )
 
 
