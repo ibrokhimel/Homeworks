@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any
 
 from server import db
 from server.schemas.content import ContentJSON
+from server.services.content_json_compat import normalize_homework_row_for_runtime
 from server.services.progress import compute_progress
 from server.services.routing import SUBJECTS, ALWAYS_HARD, SUBJECT_GRADES, SUBJECT_TO_FAMILY
 
@@ -266,7 +267,11 @@ async def get_homework(hw_id: str):
     hw = await db.get_homework(hw_id)
     if not hw:
         raise HTTPException(status_code=404, detail={"error": "Not found", "code": "NOT_FOUND"})
-    return hw
+    # Normalize legacy aliases on read so downstream consumers (builder
+    # iframe, AI services that call this route) see modern keys without
+    # rewriting the stored DB row. The compat layer is additive and
+    # idempotent — every legacy key remains present in the response.
+    return normalize_homework_row_for_runtime(hw)
 
 @router.put("/{hw_id}")
 async def update_homework(hw_id: str, hw_update: HomeworkUpdate):
