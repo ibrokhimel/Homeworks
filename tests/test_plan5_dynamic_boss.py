@@ -646,3 +646,28 @@ def test_prompt_version_constant_matches_files():
     assert "boss-answer-checker" in boss_dynamic.PROMPT_VERSION
     assert "boss-tutor" in boss_dynamic.PROMPT_VERSION
     assert boss_dynamic.PROMPT_VERSION["boss-tutor"] == "v2"
+
+
+def test_boss_answer_checker_prompt_json_example_validates_against_schema():
+    """Plan 7 contract guard — the JSON example in boss-answer-checker.md must
+    validate against BossAnswerCheckResult.
+
+    Regression: PR #186 originally taught the model to emit the key
+    `feedback_to_student`, but the schema field is `feedback`. The first
+    model call would always fail Pydantic validation, wasting the gateway's
+    one repair retry. This test fails on pre-fix code.
+    """
+    import re
+    from server.config import PROMPTS_DIR
+
+    text = (PROMPTS_DIR / "runtime" / "boss-answer-checker.md").read_text(encoding="utf-8")
+
+    match = re.search(
+        r"## Required JSON output\s*```json\s*(\{.*?\})\s*```",
+        text,
+        re.DOTALL,
+    )
+    assert match, "boss-answer-checker.md missing JSON example under '## Required JSON output'"
+
+    parsed = json.loads(match.group(1))
+    BossAnswerCheckResult(**parsed)
