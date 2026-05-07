@@ -2499,14 +2499,9 @@
         /* ── Stats row ── */
         .gb-tm-stats {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 8px;
-        }
-        .gb-tm-stats.demo-no-timer {
+
             grid-template-columns: 1fr 1fr;
-        }
-        .gb-tm-stats.demo-no-timer #gb-tm-stat-timer-card {
-            display: none;
+            gap: 8px;
         }
         .gb-tm-stat {
             border-radius: 20px;
@@ -2538,11 +2533,11 @@
         .gb-tm-board-card {
             border-radius: 30px;
             padding: 16px;
-            background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.20));
-            border: 1px solid var(--surface-border);
-            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.50);
-            backdrop-filter: blur(28px) saturate(170%);
-            -webkit-backdrop-filter: blur(28px) saturate(170%);
+            background: linear-gradient(135deg, rgba(255,255,255,.92), rgba(248,251,255,.82));
+            border: 1px solid rgba(15,23,42,.10);
+            box-shadow: 0 18px 40px rgba(24,38,64,.12), inset 0 1px 0 rgba(255,255,255,.82);
+            backdrop-filter: blur(18px) saturate(145%);
+            -webkit-backdrop-filter: blur(18px) saturate(145%);
         }
         .gb-tm-board-head {
             display: flex;
@@ -2581,25 +2576,28 @@
         .gb-tm-col-tiles {
             display: grid;
             gap: 9px;
+            grid-auto-rows: minmax(64px, auto);
         }
 
         /* ── Tiles ── */
         .gb-tm-tile {
             width: 100%;
-            min-height: 58px;
-            border: 1px solid rgba(255,255,255,.42);
+            min-height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            border: 1px solid rgba(15,23,42,.12);
             border-radius: 19px;
-            background: rgba(255,255,255,.25);
+            background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,255,.94));
             color: var(--text);
             padding: 12px 13px;
             text-align: left;
-            font-size: 13.2px;
+            font-size: 13.8px;
             line-height: 1.35;
-            font-weight: 500;
+            font-weight: 590;
+            overflow-wrap: anywhere;
             cursor: pointer;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.44);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 9px 18px rgba(24,38,64,.08), inset 0 1px 0 rgba(255,255,255,.95);
             transition:
                 transform .18s ease,
                 box-shadow .18s ease,
@@ -2617,31 +2615,33 @@
 
         .gb-tm-tile:hover:not(.matched):not(.correct):not(.wrong) {
             transform: translateY(-1px);
-            box-shadow: 0 9px 22px rgba(31,38,135,.07), inset 0 1px 0 rgba(255,255,255,.46);
+            border-color: rgba(0,102,204,.22);
+            background: linear-gradient(180deg, #ffffff, rgba(239,247,255,.98));
+            box-shadow: 0 12px 24px rgba(24,38,64,.12), inset 0 1px 0 rgba(255,255,255,.98);
         }
         .gb-tm-tile.selected {
-            border-color: rgba(0,102,204,.32);
-            background: linear-gradient(135deg, rgba(0,102,204,.12), rgba(255,255,255,.22));
-            box-shadow: 0 10px 26px rgba(0,102,204,.11), inset 0 1px 0 rgba(255,255,255,.46);
+            border-color: rgba(0,102,204,.72);
+            background: linear-gradient(180deg, rgba(235,246,255,.98), rgba(215,236,255,.94));
+            box-shadow: 0 0 0 3px rgba(0,102,204,.14), 0 12px 28px rgba(0,102,204,.18), inset 0 1px 0 rgba(255,255,255,.98);
         }
         .gb-tm-tile.correct {
             color: #1f6f2e;
-            border-color: rgba(52,199,89,.28);
-            background: linear-gradient(135deg, rgba(52,199,89,.15), rgba(255,255,255,.18));
+            border-color: rgba(36,138,61,.46);
+            background: linear-gradient(180deg, rgba(232,250,238,.98), rgba(211,245,222,.94));
         }
         .gb-tm-tile.wrong {
             color: #9f241d;
-            border-color: rgba(255,69,58,.25);
-            background: linear-gradient(135deg, rgba(255,69,58,.12), rgba(255,255,255,.18));
+            border-color: rgba(213,55,48,.42);
+            background: linear-gradient(180deg, rgba(255,239,238,.98), rgba(255,225,223,.94));
             animation: gbTmShake .32s ease;
         }
         .gb-tm-tile.matched {
-            opacity: 0.34;
+            opacity: 0.52;
             pointer-events: none;
             overflow: hidden;
             position: relative;
-            border-color: rgba(52,199,89,.30);
-            background: linear-gradient(135deg, rgba(52,199,89,.10), rgba(255,255,255,.16));
+            border-color: rgba(36,138,61,.38);
+            background: linear-gradient(180deg, rgba(232,250,238,.78), rgba(211,245,222,.70));
         }
         .gb-tm-hint {
             display: block;
@@ -7693,24 +7693,24 @@
             color: var(--text);
         }
         [data-theme="dark"] .gb-tm-board-card {
-            background: linear-gradient(135deg, rgba(30,41,59,.68), rgba(15,23,42,.52));
-            border-color: var(--surface-border);
-            box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,.06);
+            background: linear-gradient(135deg, rgba(15,23,42,.94), rgba(23,37,61,.86));
+            border-color: rgba(148,163,184,.24);
+            box-shadow: 0 18px 44px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.07);
         }
         [data-theme="dark"] .gb-tm-tile {
-            background: var(--surface);
-            border-color: var(--surface-border);
+            background: linear-gradient(180deg, rgba(30,41,59,.96), rgba(20,31,50,.92));
+            border-color: rgba(148,163,184,.30);
             color: var(--text);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+            box-shadow: 0 10px 22px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.08);
         }
         [data-theme="dark"] .gb-tm-tile:hover:not(.matched):not(.correct):not(.wrong) {
-            background: rgba(0, 111, 224, 0.14);
-            border-color: rgba(0, 111, 224, 0.38);
+            background: linear-gradient(180deg, rgba(35,53,83,.98), rgba(25,40,65,.94));
+            border-color: rgba(76,201,240,.45);
         }
         [data-theme="dark"] .gb-tm-tile.selected {
-            border-color: rgba(0,111,224,.48);
-            background: linear-gradient(135deg, rgba(0,111,224,.18), rgba(30,41,59,.36));
-            box-shadow: 0 10px 26px rgba(0,111,224,.18), inset 0 1px 0 rgba(255,255,255,.08);
+            border-color: rgba(76,201,240,.72);
+            background: linear-gradient(180deg, rgba(0,111,224,.34), rgba(30,41,59,.92));
+            box-shadow: 0 0 0 3px rgba(76,201,240,.18), 0 12px 28px rgba(0,111,224,.22), inset 0 1px 0 rgba(255,255,255,.10);
         }
         [data-theme="dark"] .gb-tm-tile.correct {
             color: #86efac;
@@ -7721,6 +7721,10 @@
             color: #fca5a5;
             border-color: rgba(255,69,58,.30);
             background: linear-gradient(135deg, rgba(255,69,58,.16), rgba(15,23,42,.40));
+        }
+        [data-theme="dark"] .gb-tm-tile.matched {
+            border-color: rgba(52,199,89,.36);
+            background: linear-gradient(180deg, rgba(22,101,52,.28), rgba(20,31,50,.72));
         }
         [data-theme="dark"] .gb-tm-result-card {
             background: linear-gradient(135deg, rgba(30,41,59,.68), rgba(15,23,42,.52));
@@ -8166,10 +8170,6 @@
                             <p class="gb-tm-subtitle" id="gb-tm-subtitle"></p>
                         </article>
                         <section class="gb-tm-stats" aria-label="Tile Match stats">
-                            <div class="gb-tm-stat" id="gb-tm-stat-timer-card">
-                                <span class="gb-tm-stat-label" id="gb-tm-stat-timer-label"></span>
-                                <strong class="gb-tm-stat-value" id="gb-tm-timer">02:00</strong>
-                            </div>
                             <div class="gb-tm-stat" id="gb-tm-stat-matched-card">
                                 <span class="gb-tm-stat-label" id="gb-tm-stat-matched-label"></span>
                                 <strong class="gb-tm-stat-value" id="gb-tm-matched-stat">0/0</strong>
@@ -8865,12 +8865,11 @@
                 'tm.subtitle':           "Chapdan bitta plitkani, so'ng o'ngdan unga mos keluvchini tanlang. To'g'ri juftliklar yo'qoladi, noto'g'rilari titraydi.",
                 'tm.col_left':           'Tushuncha',
                 'tm.col_right':          "Ma'no",
-                'tm.stats_timer':        'Vaqt',
                 'tm.stats_matched':      'Topildi',
                 'tm.stats_wrong':        'Xato',
-                'tm.toast_correct':      '+100 XP. Vaqt +3s.',
+                'tm.toast_correct':      "To'g'ri! +100 XP.",
                 'tm.toast_streak':       '3 ta ketma-ket! +50 XP',
-                'tm.toast_wrong':        'Mos kelmadi. Vaqt -5s.',
+                'tm.toast_wrong':        'Mos kelmadi.',
                 'tm.toast_pick_left':    "Avval chap plitkadan tanlang.",
                 'tm.toast_perfect_clear': "Mukammal! Birorta xato yo'q.",
                 'tm.result_perfect':     'Mukammal!',
@@ -9198,12 +9197,11 @@
                 'tm.subtitle':           'Выберите плитку слева, затем ту, что подходит ей справа. Верные пары исчезают, неверные мягко вздрагивают.',
                 'tm.col_left':           'Понятие',
                 'tm.col_right':          'Значение',
-                'tm.stats_timer':        'Время',
                 'tm.stats_matched':      'Совпало',
                 'tm.stats_wrong':        'Ошибки',
-                'tm.toast_correct':      '+100 XP. Время +3 сек.',
+                'tm.toast_correct':      'Верно! +100 XP.',
                 'tm.toast_streak':       '3 подряд! +50 XP',
-                'tm.toast_wrong':        'Не совпало. Время -5 сек.',
+                'tm.toast_wrong':        'Не совпало.',
                 'tm.toast_pick_left':    'Сначала выберите плитку слева.',
                 'tm.toast_perfect_clear': 'Идеально! Без ошибок.',
                 'tm.result_perfect':     'Идеально!',
@@ -9525,12 +9523,11 @@
                 'tm.subtitle':           'Pick one tile from the left, then one from the right. Correct pairs fade away, wrong pairs gently shake.',
                 'tm.col_left':           'Concept',
                 'tm.col_right':          'Definition',
-                'tm.stats_timer':        'Timer',
                 'tm.stats_matched':      'Matched',
                 'tm.stats_wrong':        'Wrong',
-                'tm.toast_correct':      '+100 XP. Timer +3s.',
+                'tm.toast_correct':      'Correct! +100 XP.',
                 'tm.toast_streak':       '3-match streak! +50 XP',
-                'tm.toast_wrong':        'Not a match. Timer -5s.',
+                'tm.toast_wrong':        'Not a match.',
                 'tm.toast_pick_left':    'Pick a left tile first.',
                 'tm.toast_perfect_clear': 'Perfect! Zero wrong.',
                 'tm.result_perfect':     'Perfect Clear',
@@ -12250,6 +12247,7 @@
         };
 
         // ── Registry-driven game-break order ─────────────────────────────
+
         // Every Phase-3 game is OPTIONAL: it appears only when its content
         // array has items. The runtime walks gbActiveGameOrder() in order,
         // skipping any empty slot. If all five are empty, Stage 5 is skipped
@@ -12263,7 +12261,7 @@
         }
 
         function gbDemoSkippedGames() {
-            return gbIsGrade8MathDemo() ? new Set(['aq', 'pl']) : new Set();
+            return gbIsGrade8MathDemo() ? new Set(['aq', 'wc', 'pl']) : new Set();
         }
 
         function gbActiveGameOrder() {
@@ -13872,8 +13870,6 @@
                 gbSetButtonNext(RT('tm.dock_select'));
             }
 
-            const stats = document.querySelector('#gb-panel-tm .gb-tm-stats');
-            if (stats) stats.classList.toggle('demo-no-timer', gbIsGrade8MathDemo());
 
             tm.startedAt = Date.now();
         }
@@ -13886,7 +13882,6 @@
             setText('gb-tm-eyebrow', 'tm.eyebrow');
             setText('gb-tm-title', 'tm.title');
             setText('gb-tm-subtitle', 'tm.subtitle');
-            setText('gb-tm-stat-timer-label', 'tm.stats_timer');
             setText('gb-tm-stat-matched-label', 'tm.stats_matched');
             setText('gb-tm-stat-wrong-label', 'tm.stats_wrong');
             setText('gb-tm-board-copy', 'tm.subtitle');
@@ -14033,10 +14028,7 @@
                 return;
             }
 
-            // Sync timer + XP from server truth (defensive against missing fields).
-            if (resp.timer && typeof resp.timer.remaining_seconds === 'number') {
-                gbTMSetTimerDisplay(resp.timer.remaining_seconds);
-            }
+            // Sync XP from server truth (defensive against missing fields).
             if (resp.xp && typeof resp.xp.total === 'number') {
                 // Server returns per-attempt sum (base+bonuses on correct, 0 on
                 // wrong). Accumulate locally so the pill shows session total.
@@ -14157,16 +14149,6 @@
         function gbTMUpdateXp(total) {
             const pill = document.getElementById('gb-tm-xp-pill');
             if (pill) pill.textContent = (total || 0) + ' XP';
-        }
-
-        function gbTMSetTimerDisplay(seconds) {
-            const el = document.getElementById('gb-tm-timer');
-            if (!el) return;
-            const s = Math.max(0, Math.floor(seconds || 0));
-            const mm = Math.floor(s / 60);
-            const ss = s % 60;
-            const pad = function (n) { return n < 10 ? '0' + n : String(n); };
-            el.textContent = pad(mm) + ':' + pad(ss);
         }
 
         function gbTMRenderResult(outcome, completionBonus) {
