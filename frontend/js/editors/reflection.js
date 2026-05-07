@@ -6,6 +6,13 @@
 
   window.Editors = window.Editors || {};
 
+  function t(key, fallback) {
+    if (window.i18n && typeof window.i18n.t === "function") {
+      return window.i18n.t(key, fallback);
+    }
+    return typeof fallback !== "undefined" ? fallback : key;
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -43,10 +50,10 @@
           <section class="editor-card">
             <div class="editor-header">
               <div>
-                <p class="eyebrow">Reflection</p>
-                <h3>Final summary and spaced repetition</h3>
+                <p class="eyebrow">${escapeHtml(t("editor.refl.eyebrow"))}</p>
+                <h3>${escapeHtml(t("editor.refl.intro"))}</h3>
               </div>
-              <button class="btn btn-ghost js-clear" type="button">Clear</button>
+              <button class="btn btn-ghost js-clear" type="button">${escapeHtml(t("editor.clear"))}</button>
             </div>
             <p class="muted-text">
               Reflection maps to <strong>content_json.reflection</strong>. Keep it short, formal Uzbek, and useful for review.
@@ -56,17 +63,17 @@
           <section class="editor-card">
             <div class="editor-grid">
               <div class="field full-span">
-                <span>Summary</span>
+                <span>${escapeHtml(t("editor.refl.summary"))}</span>
                 <div class="js-rich-host" data-key="summary"></div>
               </div>
 
               <div class="field full-span">
-                <span>Reflection question</span>
+                <span>${escapeHtml(t("editor.refl.prompt"))}</span>
                 <div class="js-rich-host" data-key="question"></div>
               </div>
 
               <div class="field full-span">
-                <span>Spaced repetition</span>
+                <span>${escapeHtml(t("editor.refl.spaced_rep"))}</span>
                 <div class="js-rich-host" data-key="spaced_rep"></div>
               </div>
 

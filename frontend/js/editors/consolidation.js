@@ -8,6 +8,13 @@
 
   window.Editors = window.Editors || {};
 
+  function t(key, fallback) {
+    if (window.i18n && typeof window.i18n.t === "function") {
+      return window.i18n.t(key, fallback);
+    }
+    return typeof fallback !== "undefined" ? fallback : key;
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -60,8 +67,8 @@
         <section class="editor-card">
           <div class="editor-header">
             <div>
-              <p class="eyebrow">Consolidation</p>
-              <h3>Mnemonic lock and review checkpoint</h3>
+              <p class="eyebrow">${escapeHtml(t("editor.cons.eyebrow"))}</p>
+              <h3>${escapeHtml(t("editor.cons.intro"))}</h3>
             </div>
             <button class="btn btn-ghost js-clear" type="button">Clear</button>
           </div>

@@ -17,6 +17,13 @@
 
   window.Editors = window.Editors || {};
 
+  function t(key, fallback) {
+    if (window.i18n && typeof window.i18n.t === "function") {
+      return window.i18n.t(key, fallback);
+    }
+    return typeof fallback !== "undefined" ? fallback : key;
+  }
+
   const TYPES = [
     { value: "MC",   label: "Ko'p variantli (MC)" },
     { value: "TF",   label: "To'g'ri / Noto'g'ri (TF)" },
@@ -242,10 +249,10 @@
           <section class="editor-card">
             <div class="editor-header">
               <div>
-                <p class="eyebrow">Memory Sprint</p>
-                <h3>${state.length} question${state.length === 1 ? "" : "s"}</h3>
+                <p class="eyebrow">${escapeHtml(t("editor.ms.eyebrow"))}</p>
+                <h3>${state.length} ${escapeHtml(t(state.length === 1 ? "editor.ms.question_count" : "editor.ms.questions_count"))}</h3>
               </div>
-              <button class="btn btn-primary js-add-question" type="button">Add question</button>
+              <button class="btn btn-primary js-add-question" type="button">${escapeHtml(t("editor.ms.add_question"))}</button>
             </div>
             <p class="muted-text">
               Tap-only formats: <strong>MC</strong>, <strong>TF</strong>, <strong>YNNG</strong>. Mix at least two formats.
@@ -263,15 +270,15 @@
                     return `
                       <section class="flashcard-builder-card" data-index="${index}" style="--fc-bar:${colors.fg};">
                         <div class="fc-card-head">
-                          <span class="fc-card-num">Question ${index + 1}</span>
+                          <span class="fc-card-num">${escapeHtml(t("editor.ms.question"))} ${index + 1}</span>
                           <span class="fc-cluster-pill" style="background:${colors.bg};color:${colors.fg};">
                             ${escapeHtml(question.type)}
                           </span>
-                          <button class="btn btn-ghost btn-small js-remove-question" type="button" aria-label="Remove question">Remove</button>
+                          <button class="btn btn-ghost btn-small js-remove-question" type="button" aria-label="${escapeHtml(t("editor.ms.remove"))}">${escapeHtml(t("editor.ms.remove"))}</button>
                         </div>
 
                         <div class="fc-face">
-                          <span class="fc-face-label">Prompt</span>
+                          <span class="fc-face-label">${escapeHtml(t("editor.ms.question"))}</span>
                           <div class="js-rich-host" data-path="prompt" data-index="${index}"></div>
                         </div>
 
@@ -336,9 +343,9 @@
                   .join("")
               : `<div class="empty-state glass-card inline-empty">
                   <div class="empty-orb" aria-hidden="true">⚡</div>
-                  <h3>No sprint questions yet</h3>
-                  <p>Add quick recall questions for the memory sprint stage.</p>
-                  <button class="btn btn-primary js-add-question" type="button">Add first question</button>
+                  <h3>${escapeHtml(t("editor.ms.empty_h3"))}</h3>
+                  <p>${escapeHtml(t("editor.ms.empty_text"))}</p>
+                  <button class="btn btn-primary js-add-question" type="button">${escapeHtml(t("editor.ms.add_first_question"))}</button>
                 </div>`
           }
         </div>

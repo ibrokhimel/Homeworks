@@ -16,12 +16,24 @@
 
   window.Editors = window.Editors || {};
 
+  // i18n shortcut. Falls back to the key/fallback if i18n hasn't loaded.
+  function t(key, fallback) {
+    if (window.i18n && typeof window.i18n.t === "function") {
+      return window.i18n.t(key, fallback);
+    }
+    return typeof fallback !== "undefined" ? fallback : key;
+  }
+
   const CLUSTERS = [
     { value: "QOIDA", label: "Qoida" },
     { value: "MISOL", label: "Misol" },
     { value: "TAHLIL", label: "Tahlil" },
     { value: "METOD", label: "Metod" },
   ];
+
+  function escapeAttr(value) {
+    return String(value ?? "").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+  }
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -103,7 +115,7 @@
       return `
         <div class="fc-media-empty">
           <span class="fc-media-icon" aria-hidden="true">🖼</span>
-          <span class="fc-media-msg">No media yet — add a visual for the front of the card (optional).</span>
+          <span class="fc-media-msg">${escapeHtml(t("editor.fc.media_msg"))}</span>
         </div>
       `;
     }
@@ -130,17 +142,12 @@
           <section class="editor-card">
             <div class="editor-header">
               <div>
-                <p class="eyebrow">Flashcards</p>
-                <h3>${state.length} card${state.length === 1 ? "" : "s"}</h3>
+                <p class="eyebrow">${escapeHtml(t("editor.fc.eyebrow"))}</p>
+                <h3>${state.length} ${escapeHtml(t(state.length === 1 ? "editor.fc.card_count" : "editor.fc.cards_count"))}</h3>
               </div>
-              <button class="btn btn-primary js-add-card" type="button">Add card</button>
+              <button class="btn btn-primary js-add-card" type="button">${escapeHtml(t("editor.fc.add_card"))}</button>
             </div>
-            <p class="muted-text">
-              Each card has a <strong>front</strong> (term/formula), <strong>back</strong> (explanation),
-              optional <strong>media</strong> (image/SVG) shown above the front, a <strong>cluster</strong>
-              tag (Qoida / Misol / Tahlil / Metod), and an optional <strong>hint</strong>
-              ("🧠 Yodlash usuli" mnemonic).
-            </p>
+            <p class="muted-text">${escapeHtml(t("editor.fc.intro"))}</p>
           </section>
 
           ${
@@ -152,52 +159,52 @@
                     return `
                       <section class="flashcard-builder-card" data-index="${index}" style="--fc-bar:${accent.bar};">
                         <div class="fc-card-head">
-                          <span class="fc-card-num">Card ${index + 1}</span>
+                          <span class="fc-card-num">${escapeHtml(t("editor.fc.card_n"))} ${index + 1}</span>
                           <span class="fc-cluster-pill" style="background:${accent.bg};color:${accent.text};">
                             ${escapeHtml(card.cluster)}
                           </span>
-                          <button class="btn btn-ghost btn-small js-remove-card" type="button" aria-label="Remove card">Remove</button>
+                          <button class="btn btn-ghost btn-small js-remove-card" type="button" aria-label="${escapeAttr(t("editor.fc.remove"))}">${escapeHtml(t("editor.fc.remove"))}</button>
                         </div>
 
                         <div class="fc-media-zone">
                           <div class="fc-media-toolbar">
-                            <span class="fc-media-label">Media (optional)</span>
+                            <span class="fc-media-label">${escapeHtml(t("editor.fc.media_label"))}</span>
                             <div class="fc-media-actions">
                               <button type="button" class="btn btn-ghost btn-small js-fc-media-image">🖼 Image</button>
                               <button type="button" class="btn btn-ghost btn-small js-fc-media-svg">◆ SVG</button>
-                              ${hasMedia ? '<button type="button" class="btn btn-ghost btn-small js-fc-media-clear">Clear</button>' : ""}
+                              ${hasMedia ? `<button type="button" class="btn btn-ghost btn-small js-fc-media-clear">${escapeHtml(t("editor.clear"))}</button>` : ""}
                             </div>
                           </div>
                           ${renderMediaPreview(card.media)}
                         </div>
 
                         <div class="fc-face">
-                          <span class="fc-face-label">FRONT</span>
+                          <span class="fc-face-label">${escapeHtml(t("editor.fc.front"))}</span>
                           <div class="js-rich-host" data-key="term" data-index="${index}"></div>
                         </div>
 
                         <div class="fc-divider" aria-hidden="true">
                           <span class="fc-divider-line"></span>
-                          <span class="fc-divider-chip">↻ back</span>
+                          <span class="fc-divider-chip">↻ ${escapeHtml(t("editor.fc.back").toLowerCase())}</span>
                           <span class="fc-divider-line"></span>
                         </div>
 
                         <div class="fc-face">
-                          <span class="fc-face-label">BACK</span>
+                          <span class="fc-face-label">${escapeHtml(t("editor.fc.back"))}</span>
                           <div class="js-rich-host" data-key="def" data-index="${index}"></div>
                         </div>
 
                         <div class="fc-meta-row">
                           <div class="fc-meta-field">
-                            <span class="fc-meta-label">Cluster</span>
+                            <span class="fc-meta-label">${escapeHtml(t("editor.fc.cluster"))}</span>
                             <select class="js-field" data-key="cluster">
                               ${renderClusterOptions(card.cluster)}
                             </select>
                           </div>
                           <div class="fc-meta-field fc-meta-hint">
-                            <span class="fc-meta-label">🧠 Hint (Yodlash usuli)</span>
+                            <span class="fc-meta-label">🧠 ${escapeHtml(t("editor.fc.hint"))}</span>
                             <textarea class="js-field" data-key="hint" rows="2"
-                              placeholder="Mnemonic / memory trick shown at the bottom of the back face">${escapeHtml(card.hint)}</textarea>
+                              placeholder="${escapeAttr(t("editor.fc.hint_placeholder"))}">${escapeHtml(card.hint)}</textarea>
                           </div>
                         </div>
                       </section>
@@ -206,9 +213,9 @@
                   .join("")
               : `<div class="empty-state glass-card inline-empty">
                   <div class="empty-orb" aria-hidden="true">🃏</div>
-                  <h3>No flashcards yet</h3>
-                  <p>Add front/back cards grouped by cluster type.</p>
-                  <button class="btn btn-primary js-add-card" type="button">Add first card</button>
+                  <h3>${escapeHtml(t("editor.fc.empty_h3"))}</h3>
+                  <p>${escapeHtml(t("editor.fc.empty_text"))}</p>
+                  <button class="btn btn-primary js-add-card" type="button">${escapeHtml(t("editor.fc.add_first_card"))}</button>
                 </div>`
           }
         </div>

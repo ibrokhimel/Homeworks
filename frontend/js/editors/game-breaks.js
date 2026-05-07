@@ -15,6 +15,13 @@
   window.Editors = window.Editors || {};
   window.GameBreakEditors = window.GameBreakEditors || {};
 
+  function t(key, fallback) {
+    if (window.i18n && typeof window.i18n.t === "function") {
+      return window.i18n.t(key, fallback);
+    }
+    return typeof fallback !== "undefined" ? fallback : key;
+  }
+
   const GAME_TABS = [
     {
       id: "adaptive_quiz",
@@ -401,13 +408,10 @@
           <section class="editor-card">
             <div class="editor-header">
               <div>
-                <p class="eyebrow">Game Breaks</p>
-                <h3>Production games only</h3>
+                <p class="eyebrow">${escapeHtml(t("editor.gb.eyebrow"))}</p>
+                <h3>${escapeHtml(t("editor.gb.intro"))}</h3>
               </div>
             </div>
-            <p class="muted-text">
-              Split by production game: Adaptive Quiz, Why Chain, Sentence Fill, Tile Match, Puzzle Lock, Mystery Box, Tic Tac Toe, and Memory Palace. Each game owns its own JS editor.
-            </p>
           </section>
 
           <section class="editor-card game-break-layout">

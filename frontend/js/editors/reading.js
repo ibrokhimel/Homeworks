@@ -8,6 +8,13 @@
 
   window.Editors = window.Editors || {};
 
+  function t(key, fallback) {
+    if (window.i18n && typeof window.i18n.t === "function") {
+      return window.i18n.t(key, fallback);
+    }
+    return typeof fallback !== "undefined" ? fallback : key;
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -85,9 +92,9 @@
       return `
         <div class="empty-state glass-card inline-empty">
           <div class="empty-orb" aria-hidden="true">📖</div>
-          <h3>No reading checkpoints yet</h3>
-          <p>Add checkpoint questions for the reading passage.</p>
-          <button class="btn btn-primary js-add-checkpoint" type="button">Add first checkpoint</button>
+          <h3>${escapeHtml(t("editor.reading.empty_h3"))}</h3>
+          <p>${escapeHtml(t("editor.reading.empty_text"))}</p>
+          <button class="btn btn-primary js-add-checkpoint" type="button">${escapeHtml(t("editor.reading.add_first_checkpoint"))}</button>
         </div>
       `;
     }
@@ -98,25 +105,25 @@
           <section class="editor-card" data-index="${index}">
             <div class="editor-header">
               <div>
-                <p class="eyebrow">Checkpoint ${index + 1}</p>
-                <h3>${escapeHtml(stripHtml(checkpoint.prompt) || "Untitled checkpoint")}</h3>
+                <p class="eyebrow">${escapeHtml(t("editor.reading.checkpoint_n"))} ${index + 1}</p>
+                <h3>${escapeHtml(stripHtml(checkpoint.prompt) || t("editor.reading.checkpoint_n"))}</h3>
               </div>
-              <button class="btn btn-danger js-remove-checkpoint" type="button">Remove</button>
+              <button class="btn btn-danger js-remove-checkpoint" type="button">${escapeHtml(t("editor.reading.remove"))}</button>
             </div>
 
             <div class="editor-grid">
               <div class="field full-span">
-                <span>Prompt</span>
+                <span>${escapeHtml(t("editor.reading.checkpoint_question"))}</span>
                 <div class="js-rich-host" data-path="checkpoints.${index}.prompt"></div>
               </div>
 
               <label class="field full-span">
-                <span>Accepted answer</span>
-                <input class="js-checkpoint-field" data-key="ans" type="text" value="${escapeHtml(checkpoint.ans)}" placeholder="Expected answer" />
+                <span>${escapeHtml(t("editor.reading.checkpoint_answer"))}</span>
+                <input class="js-checkpoint-field" data-key="ans" type="text" value="${escapeHtml(checkpoint.ans)}" placeholder="${escapeHtml(t("editor.reading.checkpoint_answer"))}" />
               </label>
 
               <div class="field full-span">
-                <span>Feedback</span>
+                <span>${escapeHtml(t("editor.reading.checkpoints_label"))}</span>
                 <div class="js-rich-host" data-path="checkpoints.${index}.fb"></div>
               </div>
             </div>
@@ -132,24 +139,22 @@
         <section class="editor-card">
           <div class="editor-header">
             <div>
-              <p class="eyebrow">Reading</p>
-              <h3>Passage and checkpoints</h3>
+              <p class="eyebrow">${escapeHtml(t("editor.reading.eyebrow"))}</p>
+              <h3>${escapeHtml(t("editor.reading.passage_label"))}</h3>
             </div>
-            <button class="btn btn-primary js-add-checkpoint" type="button">Add checkpoint</button>
+            <button class="btn btn-primary js-add-checkpoint" type="button">${escapeHtml(t("editor.reading.add_checkpoint"))}</button>
           </div>
 
-          <p class="muted-text">
-            Temporary editor. This phase is visible for English hard pipeline, but it is not contract-backed yet.
-          </p>
+          <p class="muted-text">${escapeHtml(t("editor.reading.intro"))}</p>
 
           <div class="editor-grid">
             <label class="field full-span">
-              <span>Reading title</span>
-              <input class="js-root-field" data-key="title" type="text" value="${escapeHtml(state.title)}" placeholder="Reading title" />
+              <span>${escapeHtml(t("editor.reading.passage_label"))}</span>
+              <input class="js-root-field" data-key="title" type="text" value="${escapeHtml(state.title)}" placeholder="${escapeHtml(t("editor.reading.passage_label"))}" />
             </label>
 
             <div class="field full-span">
-              <span>Passage</span>
+              <span>${escapeHtml(t("editor.reading.passage_label"))}</span>
               <div class="js-rich-host" data-path="passage"></div>
             </div>
           </div>

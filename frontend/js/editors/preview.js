@@ -14,6 +14,16 @@
 
   // ---------- helpers ----------
 
+  // i18n shortcut. Falls back to the key itself if i18n hasn't loaded yet
+  // OR if the key isn't in the current language's table — matches the
+  // behavior of window.i18n.t (defined in /js/i18n.js).
+  function t(key, fallback) {
+    if (window.i18n && typeof window.i18n.t === "function") {
+      return window.i18n.t(key, fallback);
+    }
+    return typeof fallback !== "undefined" ? fallback : key;
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -671,16 +681,16 @@
               </div>
             </div>
             <div class="inline-actions">
-              <button class="btn btn-ghost js-gq-pick" type="button">Boshqasini tanlash…</button>
-              <button class="btn btn-ghost js-gq-clear" type="button">Avtomatga qaytish</button>
+              <button class="btn btn-ghost js-gq-pick" type="button">${escapeHtml(t("editor.preview.quote_pick_other"))}</button>
+              <button class="btn btn-ghost js-gq-clear" type="button">${escapeHtml(t("editor.preview.quote_clear"))}</button>
             </div>
           </div>
         `;
       } else {
         body = `
           <div class="gate-quote-body gate-quote-body--pinned-empty">
-            <p class="muted-text">Hech narsa biriktirilmagan. Kutubxonadan iqtibos tanlang.</p>
-            <button class="btn btn-primary js-gq-pick" type="button">Kutubxonani ochish</button>
+            <p class="muted-text">${escapeHtml(t("editor.preview.quote_none"))}</p>
+            <button class="btn btn-primary js-gq-pick" type="button">${escapeHtml(t("editor.preview.quote_pick"))}</button>
           </div>
         `;
       }
@@ -690,12 +700,12 @@
       body = `
         <div class="gate-quote-body gate-quote-body--custom">
           <label class="field">
-            <span>Iqtibos matni</span>
-            <textarea class="js-gq-custom-text form-input" rows="3" placeholder="Iqtibos matnini yozing">${escapeHtml(c.text)}</textarea>
+            <span>${escapeHtml(t("editor.preview.quote_text"))}</span>
+            <textarea class="js-gq-custom-text form-input" rows="3" placeholder="${escapeAttr(t("editor.preview.quote_text_placeholder"))}">${escapeHtml(c.text)}</textarea>
           </label>
           <label class="field">
-            <span>Muallif (ixtiyoriy)</span>
-            <input class="js-gq-custom-author form-input" type="text" value="${escapeHtml(c.author)}" placeholder="Muallif ismi" />
+            <span>${escapeHtml(t("editor.preview.quote_author"))}</span>
+            <input class="js-gq-custom-author form-input" type="text" value="${escapeHtml(c.author)}" placeholder="${escapeAttr(t("editor.preview.quote_author_placeholder"))}" />
           </label>
         </div>
       `;
@@ -703,9 +713,9 @@
 
     return `
       <div class="gate-quote-modes" role="tablist">
-        ${tab("auto", "Avtomatik")}
-        ${tab("pinned", "Kutubxonadan")}
-        ${tab("custom", "Maxsus")}
+        ${tab("auto", t("editor.preview.quote_auto"))}
+        ${tab("pinned", t("editor.preview.quote_pinned"))}
+        ${tab("custom", t("editor.preview.quote_custom"))}
       </div>
       ${body}
     `;
@@ -738,11 +748,11 @@
       <div class="editor-card page-card" data-panel-index="${panelIndex}" data-page-index="${pageIndex}">
         <div class="editor-header compact-header">
           <div>
-            <p class="eyebrow">Page ${pageIndex + 1}</p>
-            <h3>Rich content</h3>
+            <p class="eyebrow">${escapeHtml(t("editor.preview.page_label"))} ${pageIndex + 1}</p>
+            <h3>${escapeHtml(t("editor.preview.rich_content"))}</h3>
           </div>
           <div class="inline-actions">
-            <button class="btn btn-danger js-remove-page" type="button">Remove page</button>
+            <button class="btn btn-danger js-remove-page" type="button">${escapeHtml(t("editor.preview.remove_page"))}</button>
           </div>
         </div>
         ${renderToolbar()}
@@ -750,7 +760,7 @@
           class="rich-editor js-rich-editor"
           contenteditable="true"
           spellcheck="true"
-          data-placeholder="Bosqich matnini yozing..."
+          data-placeholder="${escapeAttr(t("editor.preview.editor_placeholder"))}"
           data-panel-index="${panelIndex}"
           data-page-index="${pageIndex}"
         >${html}</div>
@@ -764,21 +774,21 @@
       <section class="editor-card panel-editor-card" data-panel-index="${panelIndex}">
         <div class="editor-header">
           <div>
-            <p class="eyebrow">Panel ${panelIndex + 1}</p>
-            <h3>${escapeHtml(panel.title || "Untitled panel")}</h3>
+            <p class="eyebrow">${escapeHtml(t("editor.preview.panel_label"))} ${panelIndex + 1}</p>
+            <h3>${escapeHtml(panel.title || t("editor.preview.panel_title"))}</h3>
           </div>
           <div class="inline-actions">
-            <button class="btn btn-ghost js-add-page" type="button">Add page</button>
-            <button class="btn btn-danger js-remove-panel" type="button">Remove panel</button>
+            <button class="btn btn-ghost js-add-page" type="button">${escapeHtml(t("editor.preview.add_page"))}</button>
+            <button class="btn btn-danger js-remove-panel" type="button">${escapeHtml(t("editor.preview.remove_panel"))}</button>
           </div>
         </div>
         <div class="editor-grid">
           <label class="field">
-            <span>Panel ID</span>
+            <span>${escapeHtml(t("editor.preview.panel_id"))}</span>
             <input class="js-panel-id" type="number" min="1" value="${escapeHtml(panel.id)}" />
           </label>
           <label class="field">
-            <span>Panel title</span>
+            <span>${escapeHtml(t("editor.preview.panel_title"))}</span>
             <input class="js-panel-title" type="text" value="${escapeHtml(panel.title)}" />
           </label>
         </div>
@@ -796,37 +806,37 @@
     backdrop.className = "svg-insert-modal";
     backdrop.innerHTML = `
       <div class="svg-insert-modal-card" role="dialog" aria-modal="true">
-        <h3 style="margin:0 0 8px 0;">Insert Image</h3>
-        <p class="muted-text" style="margin:0 0 16px 0;">Upload a file or paste an image URL.</p>
+        <h3 style="margin:0 0 8px 0;">${escapeHtml(t("editor.preview.image_modal_h3"))}</h3>
+        <p class="muted-text" style="margin:0 0 16px 0;">${escapeHtml(t("editor.preview.image_modal_intro"))}</p>
 
         <div class="image-upload-dropzone js-image-drop">
           <input type="file" class="js-image-file" accept="image/*" hidden />
           <div class="image-upload-cta">
             <div style="font-size:28px;line-height:1;">🖼</div>
-            <div style="margin-top:8px;font-weight:600;">Click to choose or drop an image</div>
-            <div class="muted-text" style="margin-top:4px;font-size:12px;">PNG, JPG, GIF, WEBP, SVG — stored as data URI</div>
+            <div style="margin-top:8px;font-weight:600;">${escapeHtml(t("editor.preview.image_modal_cta"))}</div>
+            <div class="muted-text" style="margin-top:4px;font-size:12px;">${escapeHtml(t("editor.preview.image_modal_hint"))}</div>
           </div>
           <img class="js-image-preview" alt="" hidden />
         </div>
 
         <div style="display:flex;align-items:center;gap:10px;margin:14px 0;">
           <div style="flex:1;height:1px;background:var(--border);"></div>
-          <div class="muted-text" style="font-size:11px;letter-spacing:.08em;">OR</div>
+          <div class="muted-text" style="font-size:11px;letter-spacing:.08em;">${escapeHtml((window.i18n && window.i18n.t && window.i18n.t("common.or")) || "OR")}</div>
           <div style="flex:1;height:1px;background:var(--border);"></div>
         </div>
 
         <label class="field" style="margin-bottom:10px;">
-          <span>Image URL</span>
+          <span>${escapeHtml(t("editor.preview.image_modal_url"))}</span>
           <input type="text" class="js-image-url form-input" placeholder="https://…" />
         </label>
         <label class="field">
-          <span>Alt text (optional)</span>
-          <input type="text" class="js-image-alt form-input" placeholder="Describe the image" />
+          <span>${escapeHtml(t("editor.preview.image_modal_alt"))}</span>
+          <input type="text" class="js-image-alt form-input" placeholder="${escapeAttr(t("editor.preview.image_modal_alt_placeholder"))}" />
         </label>
 
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
-          <button type="button" class="btn btn-ghost js-image-cancel">Cancel</button>
-          <button type="button" class="btn btn-primary js-image-insert">Insert</button>
+          <button type="button" class="btn btn-ghost js-image-cancel">${escapeHtml(t("editor.cancel"))}</button>
+          <button type="button" class="btn btn-primary js-image-insert">${escapeHtml(t("editor.insert"))}</button>
         </div>
       </div>`;
     document.body.appendChild(backdrop);
@@ -896,12 +906,12 @@
     backdrop.className = "svg-insert-modal";
     backdrop.innerHTML = `
       <div class="svg-insert-modal-card" role="dialog" aria-modal="true">
-        <h3 style="margin:0 0 12px 0;">Insert SVG</h3>
-        <p class="muted-text" style="margin:0 0 12px 0;">Paste raw SVG code. &lt;script&gt; tags will be stripped.</p>
+        <h3 style="margin:0 0 12px 0;">${escapeHtml(t("editor.preview.svg_modal_h3"))}</h3>
+        <p class="muted-text" style="margin:0 0 12px 0;">${t("editor.preview.svg_modal_intro").replace(/<script>/g, "&lt;script&gt;")}</p>
         <textarea placeholder='<svg xmlns="http://www.w3.org/2000/svg" ...>...</svg>'></textarea>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
-          <button type="button" class="btn btn-ghost js-svg-cancel">Cancel</button>
-          <button type="button" class="btn btn-primary js-svg-insert">Insert</button>
+          <button type="button" class="btn btn-ghost js-svg-cancel">${escapeHtml(t("editor.cancel"))}</button>
+          <button type="button" class="btn btn-primary js-svg-insert">${escapeHtml(t("editor.insert"))}</button>
         </div>
       </div>`;
     document.body.appendChild(backdrop);
@@ -1012,25 +1022,25 @@
           <section class="editor-card">
             <div class="editor-header">
               <div>
-                <p class="eyebrow">Preview metadata</p>
-                <h3>Title and caption</h3>
+                <p class="eyebrow">${escapeHtml(t("editor.preview.eyebrow_meta"))}</p>
+                <h3>${escapeHtml(t("editor.preview.h_meta"))}</h3>
               </div>
             </div>
             <div class="editor-grid">
               <label class="field">
-                <span>Title</span>
+                <span>${escapeHtml(t("editor.preview.title"))}</span>
                 <input class="js-meta" data-meta-key="title" type="text" value="${escapeHtml(state.meta.title)}" placeholder="Kvadrat tenglama" />
               </label>
               <label class="field">
-                <span>Subject display</span>
+                <span>${escapeHtml(t("editor.preview.subject_display"))}</span>
                 <input class="js-meta" data-meta-key="subject_display" type="text" value="${escapeHtml(state.meta.subject_display)}" placeholder="Algebra" />
               </label>
               <label class="field">
-                <span>Section</span>
+                <span>${escapeHtml(t("editor.preview.section"))}</span>
                 <input class="js-meta" data-meta-key="section" type="text" value="${escapeHtml(state.meta.section)}" placeholder="22-§" />
               </label>
               <label class="field">
-                <span>CEFR level</span>
+                <span>${escapeHtml(t("editor.preview.cefr_level"))}</span>
                 <input class="js-meta" data-meta-key="cefr_level" type="text" value="${escapeHtml(state.meta.cefr_level)}" placeholder="B1" />
               </label>
             </div>
@@ -1039,8 +1049,8 @@
           <section class="editor-card gate-quote-slot">
             <div class="editor-header">
               <div>
-                <p class="eyebrow">Phase 0-A · Gate Quote</p>
-                <h3>Ochilish iqtibosi</h3>
+                <p class="eyebrow">${escapeHtml(t("editor.preview.eyebrow_quote"))}</p>
+                <h3>${escapeHtml(t("editor.preview.h_quote"))}</h3>
               </div>
             </div>
             ${renderGateQuoteSlot(state.gate_quote)}
@@ -1049,10 +1059,10 @@
           <section class="editor-card">
             <div class="editor-header">
               <div>
-                <p class="eyebrow">Panels</p>
-                <h3>${state.panels.length} panel${state.panels.length === 1 ? "" : "s"}</h3>
+                <p class="eyebrow">${escapeHtml(t("editor.preview.eyebrow_panels"))}</p>
+                <h3>${state.panels.length} ${escapeHtml(t("editor.preview.panel_label"))}${state.panels.length === 1 ? "" : "s"}</h3>
               </div>
-              <button class="btn btn-primary js-add-panel" type="button">Add panel</button>
+              <button class="btn btn-primary js-add-panel" type="button">${escapeHtml(t("editor.preview.add_panel"))}</button>
             </div>
           </section>
 
@@ -1061,9 +1071,9 @@
               ? state.panels.map((panel, i) => renderPanel(panel, i)).join("")
               : `<div class="empty-state glass-card inline-empty">
                   <div class="empty-orb" aria-hidden="true">📋</div>
-                  <h3>No panels yet</h3>
-                  <p>Add a panel to start building the preview section.</p>
-                  <button class="btn btn-primary js-add-panel" type="button">Add first panel</button>
+                  <h3>${escapeHtml(t("editor.preview.empty_h3"))}</h3>
+                  <p>${escapeHtml(t("editor.preview.empty_text"))}</p>
+                  <button class="btn btn-primary js-add-panel" type="button">${escapeHtml(t("editor.preview.add_first_panel"))}</button>
                 </div>`
           }
         </div>`;

@@ -20,6 +20,13 @@
 
   window.Editors = window.Editors || {};
 
+  function t(key, fallback) {
+    if (window.i18n && typeof window.i18n.t === "function") {
+      return window.i18n.t(key, fallback);
+    }
+    return typeof fallback !== "undefined" ? fallback : key;
+  }
+
   const DAMAGE_VALUES = [10, 20, 30];
   const ANSWER_TYPES = [
     { value: "numeric", label: "Numeric" },
@@ -396,7 +403,7 @@
           <section class="editor-card boss-meta-card">
             <div class="editor-header compact-header">
               <div>
-                <p class="eyebrow">Boss meta</p>
+                <p class="eyebrow">${escapeHtml(t("editor.boss.eyebrow_meta"))}</p>
                 <h3>${ui.metaOpen ? "Editing meta" : "Boss configuration (collapsed)"}</h3>
               </div>
               <button class="btn btn-ghost js-toggle-meta" type="button">
@@ -461,7 +468,7 @@
           <section class="editor-card">
             <div class="editor-header">
               <div>
-                <p class="eyebrow">Final Challenge</p>
+                <p class="eyebrow">${escapeHtml(t("editor.boss.eyebrow"))}</p>
                 <h3>${state.length} boss question${state.length === 1 ? "" : "s"}</h3>
               </div>
               <button class="btn btn-primary js-add-question" type="button">Add boss question</button>
@@ -480,7 +487,7 @@
                       <section class="editor-card" data-index="${index}">
                         <div class="editor-header">
                           <div>
-                            <p class="eyebrow">Boss ${index + 1}</p>
+                            <p class="eyebrow">${escapeHtml(t("editor.boss.question_n"))} ${index + 1}</p>
                             <h3>${escapeHtml(stripHtml(question.q) || "Untitled boss question")}</h3>
                           </div>
                           <button class="btn btn-danger js-remove-question" type="button">Remove</button>
@@ -550,7 +557,7 @@
                   .join("")
               : `<div class="empty-state glass-card inline-empty">
                   <div class="empty-orb" aria-hidden="true">👾</div>
-                  <h3>No boss questions yet</h3>
+                  <h3>${escapeHtml(t("editor.boss.empty_h3"))}</h3>
                   <p>Add final challenge questions for the homework battle.</p>
                   <button class="btn btn-primary js-add-question" type="button">Add first boss question</button>
                 </div>`

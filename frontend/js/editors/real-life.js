@@ -6,6 +6,13 @@
 
   window.Editors = window.Editors || {};
 
+  function t(key, fallback) {
+    if (window.i18n && typeof window.i18n.t === "function") {
+      return window.i18n.t(key, fallback);
+    }
+    return typeof fallback !== "undefined" ? fallback : key;
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -280,8 +287,8 @@
         <section class="editor-card">
           <div class="editor-header">
             <div>
-              <p class="eyebrow">Real Life</p>
-              <h3>Scenario and 6 questions</h3>
+              <p class="eyebrow">${escapeHtml(t("editor.rl.eyebrow"))}</p>
+              <h3>${escapeHtml(t("editor.rl.intro"))}</h3>
             </div>
           </div>
 
