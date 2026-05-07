@@ -15,7 +15,7 @@ All responses JSON unless marked **HTML**. Errors: `{ "detail": { "error": "..."
 | Quotes | GET /api/quotes |
 | AI tutor | POST /api/ai/check-answer, /api/ai/boss-turn, /api/ai/reflection, /api/ai/tutor |
 | AI live tutor (Wave F1) | POST /api/ai/tutor/chat, /api/ai/tutor/boss-plan, GET /api/ai/tutor/history |
-| AI meta | GET /api/ai/status |
+| AI meta | GET /api/ai/status, POST /api/ai/session/final-report |
 | Review queue | GET /api/ai/review-queue, POST /api/ai/review-queue/{id}/decide |
 | Answer-spec | POST /api/ai/answer-spec/preview |
 | Notebook | POST /api/notebook/grade, GET /api/notebook/captures |
@@ -510,6 +510,8 @@ Evaluates a student's answer using a phase-aware grading pipeline and persists t
   "attempt_number": 1
 }
 ```
+
+**400** `MISSING_QUESTION_ID` when `question_id` is absent. **404** `HW_NOT_FOUND` or `QUESTION_NOT_RESOLVED`. **422** `ANSWER_TARGET_NOT_GRADABLE` when the resolved backend item lacks trusted question text or answer material. AI judging routes through `ai_gateway` task `ANSWER_CHECK`; deterministic grading can still answer without an AI call.
 
 ### POST /api/ai/check-answer
 
@@ -1687,6 +1689,41 @@ Query: `hw_id` (required).
 
 **200** Boss session row + every generated question (with rubric/expected_answer; admin-only by design).
 **404** if `boss_session_id` does not exist.
+
+### POST /api/ai/session/final-report
+
+Generates and stores the final AI session report from trusted backend metrics, phase attempts, and Boss state. The service routes through `ai_gateway` task `FINAL_REPORT` and does not include raw student answers in the report prompt.
+
+**Request Body:**
+```json
+{
+  "session_id": "sess-uuid",
+  "hw_id": "HW-20260507-001"
+}
+```
+
+`homework_id` may be sent instead of `hw_id`.
+
+**200**
+```json
+{
+  "ok": true,
+  "session_id": "sess-uuid",
+  "hw_id": "HW-20260507-001",
+  "prompt_version": "final-report:v1",
+  "report": {
+    "summary": "Concise session summary.",
+    "weak_topics": ["fractions"],
+    "strong_topics": ["equations"],
+    "recommendation": "Review equivalent fractions before the next boss round.",
+    "mastery_score": 0.72
+  },
+  "metrics": { "mastery_score": 0.72 },
+  "attempts_count": 8
+}
+```
+
+**400** `MISSING_HOMEWORK_ID` or `SESSION_HOMEWORK_MISMATCH`. **404** `HW_NOT_FOUND` or `SESSION_NOT_FOUND`.
 
 ### GET /api/ai/eval/cases/{eval_name}
 

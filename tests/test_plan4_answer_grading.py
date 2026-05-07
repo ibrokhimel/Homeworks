@@ -1,7 +1,11 @@
 import pytest
 from fastapi import HTTPException
 from pydantic import BaseModel
+from typing import Optional
+from unittest.mock import patch
 
+from server.schemas.ai_contracts import AnswerCheckResult
+from server.services import ai_gateway
 from server.services.runtime_answer_resolver import resolve_runtime_answer, ResolvedAnswerTarget
 
 class DummyRequest(BaseModel):
@@ -9,7 +13,7 @@ class DummyRequest(BaseModel):
     homework_id: str
     phase: str
     phase_index: int = 1
-    question_id: str
+    question_id: Optional[str]
     answer_type: str = "text"
     student_answer: str = "test"
     student_work_text: str = ""
@@ -41,6 +45,44 @@ async def test_resolve_runtime_answer_question_not_found(monkeypatch):
         
     assert excinfo.value.status_code == 404
     assert excinfo.value.detail["error_code"] == "QUESTION_NOT_RESOLVED"
+
+@pytest.mark.asyncio
+async def test_resolve_runtime_answer_requires_question_id(monkeypatch):
+    async def mock_get_homework(hw_id):
+        return {"content_json": {"practice": {"items": []}}}
+    monkeypatch.setattr("server.db.get_homework", mock_get_homework)
+
+    req = DummyRequest(session_id="sess1", homework_id="hw1", phase="practice", question_id=None)
+
+    with pytest.raises(HTTPException) as excinfo:
+        await resolve_runtime_answer(req)
+
+    assert excinfo.value.status_code == 400
+    assert excinfo.value.detail["error_code"] == "MISSING_QUESTION_ID"
+    assert "missing_question_id" in excinfo.value.detail["missing_context_flags"]
+
+@pytest.mark.asyncio
+async def test_resolve_runtime_answer_rejects_ungradable_question(monkeypatch):
+    async def mock_get_homework(hw_id):
+        return {
+            "content_json": {
+                "practice": {
+                    "items": [
+                        {"id": "q1", "text": "Explain photosynthesis."}
+                    ]
+                }
+            }
+        }
+    monkeypatch.setattr("server.db.get_homework", mock_get_homework)
+
+    req = DummyRequest(session_id="sess1", homework_id="hw1", phase="practice", question_id="q1")
+
+    with pytest.raises(HTTPException) as excinfo:
+        await resolve_runtime_answer(req)
+
+    assert excinfo.value.status_code == 422
+    assert excinfo.value.detail["error_code"] == "ANSWER_TARGET_NOT_GRADABLE"
+    assert "missing_answer_material" in excinfo.value.detail["missing_context_flags"]
 
 @pytest.mark.asyncio
 async def test_resolve_runtime_answer_success(monkeypatch):
@@ -106,12 +148,24 @@ async def test_process_runtime_answer_ai_judge_tiers(monkeypatch):
         "phase": "practice"
     }
 
-    # Helper to mock orchestrator returning specific confidence
+    gateway_calls = []
+
+    # Helper to mock gateway returning specific confidence
     async def run_tier(score, confidence):
-        async def mock_generate(*args, **kwargs):
-            return {"score": score, "confidence": confidence, "feedback": "test"}
-        monkeypatch.setattr("server.services.ai_orchestrator.generate_json", mock_generate)
-        return await process_runtime_answer(target, "test")
+        async def mock_generate_structured(*args, **kwargs):
+            gateway_calls.append(kwargs)
+            return AnswerCheckResult(
+                score=score,
+                confidence=confidence,
+                feedback="test",
+            )
+        monkeypatch.setattr("server.services.tutor.ai_gateway.generate_structured", mock_generate_structured)
+        with patch("server.services.tutor.ai_orchestrator.generate_json") as legacy_generate_json:
+            result = await process_runtime_answer(target, "test")
+        legacy_generate_json.assert_not_called()
+        assert gateway_calls[-1]["task"] == ai_gateway.AITask.ANSWER_CHECK
+        assert gateway_calls[-1]["schema"] is AnswerCheckResult
+        return result
 
     # >= 0.90 confidence
     res = await run_tier(0.95, 0.95)

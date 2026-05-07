@@ -673,8 +673,8 @@ def test_tutor_chat_uses_pro_model_for_math(mock_generate, client):
 
 
 @patch("server.services.ai_orchestrator.generate")
-def test_tutor_chat_uses_fast_model_for_non_math(mock_generate, client):
-    """Non-math subjects like English use FAST_MODEL for cost efficiency."""
+def test_tutor_chat_uses_gateway_model_policy_for_non_math(mock_generate, client):
+    """Tutor Chat routing is now centralized in ai_gateway task policy."""
     captured: dict[str, str] = {}
 
     def _fake_generate(prompt: str, model: str = None, **kwargs):
@@ -723,8 +723,8 @@ def test_tutor_chat_uses_fast_model_for_non_math(mock_generate, client):
 
     model = captured.get("model")
     from server.services import ai_orchestrator
-    assert model == ai_orchestrator.FAST_MODEL, (
-        f"english should use FAST_MODEL, got {model}"
+    assert model == ai_orchestrator.PRO_MODEL, (
+        f"tutor_chat should use gateway PRO_MODEL policy, got {model}"
     )
 
 

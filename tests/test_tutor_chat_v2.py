@@ -17,7 +17,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from server.services import ai_context, tutor
+from server.services import ai_context, ai_gateway, tutor
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +99,7 @@ def test_route_resolves_phase_from_session_when_omitted(client):
         )
     assert resp.status_code == 200
     # Verify the prompt included PHASE: boss
-    prompt = mock_gen.call_args[0][0]
+    prompt = mock_gen.call_args.args[0] if mock_gen.call_args.args else mock_gen.call_args.kwargs["prompt"]
     assert "PHASE: boss" in prompt
 
 
@@ -126,7 +126,7 @@ async def test_tutor_chat_v2_includes_screen_context_in_prompt():
     with patch("server.services.tutor.db.count_session_messages", return_value=0):
         with patch("server.services.tutor.db.add_tutor_turn", return_value=1):
             with patch("server.services.tutor.db.list_tutor_turns", return_value=[]):
-                with patch("server.services.tutor.ai_orchestrator.generate") as mock_gen:
+                with patch("server.services.tutor.ai_gateway.generate_text") as mock_gen:
                     mock_gen.return_value = "Good start!"
                     result = await tutor.tutor_chat_v2(
                         context=ctx,
@@ -134,7 +134,11 @@ async def test_tutor_chat_v2_includes_screen_context_in_prompt():
                     )
 
     assert result["response"] == "Good start!"
-    prompt = mock_gen.call_args[0][0]
+    assert mock_gen.call_args.kwargs["task"] == ai_gateway.AITask.TUTOR_CHAT
+    assert mock_gen.call_args.kwargs["session_id"] == "sess_v2_01"
+    assert mock_gen.call_args.kwargs["homework_id"] == "hw_v2_01"
+    assert mock_gen.call_args.kwargs["prompt_version"] == "tutor-assistant:v2"
+    prompt = mock_gen.call_args.kwargs["prompt"]
     assert "SCREEN_CONTEXT:" in prompt
     assert "2x + 3 = 7" in prompt
     assert "STUDENT_ATTEMPT:" in prompt
@@ -155,14 +159,14 @@ async def test_tutor_chat_v2_includes_missing_context_flags():
     with patch("server.services.tutor.db.count_session_messages", return_value=0):
         with patch("server.services.tutor.db.add_tutor_turn", return_value=1):
             with patch("server.services.tutor.db.list_tutor_turns", return_value=[]):
-                with patch("server.services.tutor.ai_orchestrator.generate") as mock_gen:
+                with patch("server.services.tutor.ai_gateway.generate_text") as mock_gen:
                     mock_gen.return_value = "Which question do you mean?"
                     result = await tutor.tutor_chat_v2(
                         context=ctx,
                         message="help",
                     )
 
-    prompt = mock_gen.call_args[0][0]
+    prompt = mock_gen.call_args.kwargs["prompt"]
     assert "MISSING_CONTEXT_FLAGS:" in prompt
     assert "empty_screen_context" in prompt
     assert "missing_question_id" in prompt

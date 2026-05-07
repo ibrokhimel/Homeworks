@@ -15,10 +15,11 @@ import json
 from fastapi import HTTPException
 
 from ..config import PROMPTS_DIR
-from . import ai_orchestrator, ai_debug
+from . import ai_orchestrator, ai_debug, ai_gateway
 from . import answer_checker
 from . import ai_context
 from .. import db
+from ..schemas.ai_contracts import AnswerCheckResult
 
 # Server-side log channel for the tutor — full provider errors land here while
 # the client receives a scrubbed friendly message.
@@ -960,8 +961,11 @@ async def tutor_chat_v2(
         metrics=context.metrics or None,
     )
 
-    # Step 5 — call the LLM.
-    model = _model_for_subject(context.subject)
+    # Step 5 — call the LLM through the canonical gateway.
+    gateway_task = ai_gateway.AITask.TUTOR_CHAT
+    gateway_task_status = ai_gateway.get_status().get("tasks", {}).get(gateway_task.value, {})
+    provider = gateway_task_status.get("provider")
+    model = gateway_task_status.get("model")
 
     _PROMPT_SIZE_CAP = 60000
     prompt_cap_exceeded = False
@@ -978,7 +982,13 @@ async def tutor_chat_v2(
         )
     else:
         try:
-            response_text = await ai_orchestrator.generate(full_prompt, model=model)
+            response_text = await ai_gateway.generate_text(
+                task=gateway_task,
+                prompt=full_prompt,
+                session_id=context.session_id,
+                homework_id=context.hw_id,
+                prompt_version="tutor-assistant:v2",
+            )
         except HTTPException:
             raise
         except Exception as exc:
@@ -1015,7 +1025,7 @@ async def tutor_chat_v2(
             "screen_context_clean_len": ai_debug.text_len(context.visible_screen_text),
             "student_work_text_len": ai_debug.text_len(context.student_work_text),
             "chat_history_count": len(chat_history),
-            "provider": ai_orchestrator._active_backend(),
+            "provider": provider,
             "model": model,
             "prompt_size": len(full_prompt),
             "prompt_cap": _PROMPT_SIZE_CAP,
@@ -1410,8 +1420,8 @@ async def process_runtime_answer(target: dict, student_answer: str, attempt_numb
         feedback = det_result.get("reason", "Hali emas, qayta urinib ko'ring.")
     else:
         # 3. AI Judge
-        # We invoke the orchestrator directly to avoid the legacy `check_answer`'s 
-        # hard 0.90 confidence gate, allowing us to enforce the new tiered policy.
+        # Route through the gateway for canonical model policy, telemetry, and retries
+        # while preserving the tiered confidence policy in this runtime layer.
         grading_method = "ai_judge"
         try:
             # Decide which prompt to use based on target info
@@ -1432,22 +1442,16 @@ async def process_runtime_answer(target: dict, student_answer: str, attempt_numb
                 "answer_spec": answer_spec,
             }
             
-            schema = {
-                "score": "float between 0.0 and 1.0",
-                "confidence": "float between 0.0 and 1.0",
-                "feedback": "string, helpful feedback for the student",
-                "misconception_tags": "array of strings",
-                "next_hint": "string, a hint for the next attempt if incorrect",
-            }
-            if prompt_name == "answer-checker-math":
-                schema["math_error_type"] = "string, e.g., 'calculation', 'conceptual', 'format', 'none'"
-                
             input_section = ai_orchestrator.build_input_section(payload)
-            ai_res = await ai_orchestrator.generate_json(
-                f"{prompt}\n\n{input_section}",
-                schema_hint=schema,
-                model=ai_orchestrator.PRO_MODEL if prompt_name == "answer-checker-boss" else ai_orchestrator.FAST_MODEL
+            ai_response = await ai_gateway.generate_structured(
+                task=ai_gateway.AITask.ANSWER_CHECK,
+                prompt=f"{prompt}\n\n{input_section}",
+                schema=AnswerCheckResult,
+                session_id=session_id,
+                homework_id=hw_id,
+                prompt_version=f"{prompt_name}:runtime",
             )
+            ai_res = ai_response.model_dump()
             
             raw_score = float(ai_res.get("score", 0.0))
             raw_confidence = float(ai_res.get("confidence", 1.0))

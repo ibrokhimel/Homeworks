@@ -38,7 +38,7 @@ from ..db import (
     session_events_repo,
     session_metrics_repo,
 )
-from ..services import ai_context, ai_evaluator, ai_metrics, ai_simulator
+from ..services import ai_context, ai_evaluator, ai_metrics, ai_simulator, final_report
 
 router = APIRouter(tags=["ai-plan8-eval"])
 _log = logging.getLogger("nets.ai_plan8")
@@ -109,6 +109,12 @@ class SimulationRunRequest(BaseModel):
     name: str
     initial_state: Optional[dict] = None
     persist: bool = True
+
+
+class FinalReportRequest(BaseModel):
+    session_id: str
+    hw_id: Optional[str] = None
+    homework_id: Optional[str] = None
 
 
 class EvalRunRequest(BaseModel):
@@ -277,6 +283,23 @@ async def debug_boss_session(
         "generated_questions_count": len(questions),
         "generated_questions": questions,
     }
+
+
+# ---- /ai/session/* -------------------------------------------------------
+
+
+@router.post("/ai/session/final-report")
+async def generate_session_final_report(req: FinalReportRequest) -> dict[str, Any]:
+    hw_id = req.hw_id or req.homework_id
+    if not hw_id:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error_code": "MISSING_HOMEWORK_ID",
+                "message": "hw_id or homework_id is required.",
+            },
+        )
+    return await final_report.generate_final_report(req.session_id, hw_id)
 
 
 # ---- /ai/eval/* ----------------------------------------------------------
