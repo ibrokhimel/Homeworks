@@ -1,0 +1,26 @@
+{
+  "name": "boss answer checker grades against rubric",
+  "prompt_file": "boss-answer-checker.md",
+  "context": {
+    "question_text": "What does 'according to' indicate?",
+    "expected_answer": {
+      "canonical": "the source",
+      "accepted_variants": ["the source", "as stated by"],
+      "notes": "Must cite where information comes from"
+    },
+    "rubric": {
+      "full_credit": ["mentions source or origin"],
+      "partial_credit": ["close but vague reference"],
+      "common_mistakes": ["confuses with 'because of'"]
+    },
+    "student_answer": "it shows the source",
+    "target_skill": "meaning_in_context",
+    "difficulty": "medium"
+  },
+  "expected": {
+    "output_must_include_fields": ["is_correct", "score", "confidence", "feedback_to_student", "damage_multiplier", "difficulty_recommendation"],
+    "is_correct_should_be": true,
+    "score_should_be_at_least": 0.9,
+    "damage_multiplier_should_be_at_most": 1.5
+  }
+}

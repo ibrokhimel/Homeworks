@@ -1,0 +1,41 @@
+{
+  "name": "boss generator targets weakest skill",
+  "prompt_file": "boss-question-generator.md",
+  "context": {
+    "homework_id": "hw-001",
+    "homework_title": "English B1",
+    "subject": "english",
+    "grade": 8,
+    "phase_summaries": [
+      {
+        "phase": "practice",
+        "attempts": 5,
+        "correct": 2,
+        "score": 0.4,
+        "accuracy": 0.4,
+        "weak_topics": ["according_to", "meaning_in_context"],
+        "strong_topics": ["basic_translation"]
+      }
+    ],
+    "overall_metrics": {
+      "accuracy": 0.4,
+      "mastery_score": 0.35
+    },
+    "weak_topics": ["according_to", "meaning_in_context"],
+    "strong_topics": ["basic_translation"],
+    "asked_questions": [],
+    "recent_boss_phrases": [],
+    "boss_policy": {
+      "target_weak_topics_first": true,
+      "avoid_repetition": true,
+      "max_question_length": 900,
+      "language": "uzbek"
+    },
+    "target_difficulty": "medium"
+  },
+  "expected": {
+    "output_must_include_fields": ["question_text", "expected_answer", "rubric", "target_skill", "difficulty"],
+    "target_skill_should_be": "according_to",
+    "difficulty_should_be": "medium"
+  }
+}

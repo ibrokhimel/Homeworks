@@ -1,8 +1,9 @@
-"""Plan 5 — Dynamic Boss AI regression tests.
+"""Plan 5 + Plan 7 — Dynamic Boss AI regression tests.
 
-Each test guards a specific Plan 5 contract that, if regressed, would
+Each test guards a specific Plan 5/7 contract that, if regressed, would
 either silently break the boss flow or weaken the answer-leak / state-ownership
-invariants. Test names describe the regression they guard, not the happy path.
+/ prompt-contract invariants. Test names describe the regression they guard,
+not the happy path.
 """
 from __future__ import annotations
 
@@ -18,6 +19,12 @@ from server.services.boss_context_builder import (
     _scrub_dict,
 )
 from server.db import boss_session_repo, attempts_repo
+from server.schemas.ai_contracts import (
+    BossQuestionGenerated,
+    BossAnswerCheckResult,
+    BossExpectedAnswer,
+    BossRubric,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -67,14 +74,15 @@ def test_next_difficulty_de_escalates_on_two_wrong_streak():
 def test_generated_question_rejected_when_missing_expected_answer():
     raw = {
         "question_text": "What is 2+2?",
-        "expected_answer": {},  # empty
+        "expected_answer": {},  # empty — Pydantic will reject (canonical required)
         "rubric": {"full_credit": ["4"]},
         "target_skill": "addition",
         "difficulty": "easy",
     }
     with pytest.raises(boss_dynamic.BossQuestionRejected) as exc:
         boss_dynamic._validate_generated_question(raw, asked_questions=[])
-    assert "missing_expected_answer" in str(exc.value)
+    # Plan 7: Pydantic validation now catches this before the manual check.
+    assert "pydantic_validation" in str(exc.value) or "missing_expected_answer" in str(exc.value)
 
 
 def test_generated_question_rejected_when_paraphrase_of_previous():
@@ -97,11 +105,12 @@ def test_generated_question_rejects_invalid_difficulty_token():
         "expected_answer": {"canonical": "as stated by"},
         "rubric": {"full_credit": ["as stated by"]},
         "target_skill": "meaning_in_context",
-        "difficulty": "TRIVIAL",  # not in allowed
+        "difficulty": "TRIVIAL",  # not in allowed — Pydantic Literal rejects
     }
     with pytest.raises(boss_dynamic.BossQuestionRejected) as exc:
         boss_dynamic._validate_generated_question(raw, asked_questions=[])
-    assert "invalid_difficulty" in str(exc.value)
+    # Plan 7: Pydantic Literal catches invalid enum values.
+    assert "pydantic_validation" in str(exc.value) or "invalid_difficulty" in str(exc.value)
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +188,45 @@ def _seed_attempts(session_id: str, hw_id: str) -> None:
     asyncio.run(go())
 
 
-@patch("server.services.boss_dynamic.ai_orchestrator.generate_json")
+def _boss_question_factory(**overrides) -> BossQuestionGenerated:
+    """Return a valid BossQuestionGenerated with optional overrides."""
+    defaults = {
+        "question_text": "What does 'according to' indicate in a sentence?",
+        "expected_answer": BossExpectedAnswer(
+            canonical="the source",
+            accepted_variants=["the source", "as stated by"],
+        ),
+        "rubric": BossRubric(
+            full_credit=["the source"],
+            partial_credit=["source"],
+            common_mistakes=[],
+        ),
+        "target_skill": "according_to",
+        "difficulty": "medium",
+        "source_phase_ids": ["preview"],
+        "why_this_question": "Student missed two according_to items in practice",
+    }
+    defaults.update(overrides)
+    return BossQuestionGenerated(**defaults)
+
+
+def _boss_check_factory(**overrides) -> BossAnswerCheckResult:
+    """Return a valid BossAnswerCheckResult with optional overrides."""
+    defaults = {
+        "is_correct": True,
+        "score": 1.0,
+        "confidence": 0.95,
+        "feedback": "Correct.",
+        "misconception_tags": [],
+        "damage_multiplier": 1.0,
+        "difficulty_recommendation": "increase",
+        "should_retry_same_skill": False,
+    }
+    defaults.update(overrides)
+    return BossAnswerCheckResult(**defaults)
+
+
+@patch("server.services.boss_dynamic.ai_gateway.generate_structured")
 def test_boss_starts_without_static_boss_questions(mock_gen, client):
     """Plan 5 acceptance test 1 — homework with no boss_questions but
     completed phase metrics must still start a boss session."""
@@ -206,7 +253,7 @@ def test_boss_starts_without_static_boss_questions(mock_gen, client):
     mock_gen.assert_not_called()
 
 
-@patch("server.services.boss_dynamic.ai_orchestrator.generate_json")
+@patch("server.services.boss_dynamic.ai_gateway.generate_structured")
 def test_boss_start_is_idempotent_for_session_refresh(mock_gen, client):
     """Plan 5 acceptance test 5 — refresh during boss should not spawn a
     new boss session; re-calling /start returns the existing one."""
@@ -224,7 +271,7 @@ def test_boss_start_is_idempotent_for_session_refresh(mock_gen, client):
     assert a.json()["boss_session_id"] == b.json()["boss_session_id"]
 
 
-@patch("server.services.boss_dynamic.ai_orchestrator.generate_json")
+@patch("server.services.boss_dynamic.ai_gateway.generate_structured")
 def test_boss_generate_question_targets_weak_topics_first(mock_gen, client):
     """Plan 5 acceptance test 2 — generated question should target a weak
     topic. We assert the LLM was given the weak-topic list, since the
@@ -233,15 +280,7 @@ def test_boss_generate_question_targets_weak_topics_first(mock_gen, client):
     sess = "plan5sess0002"
     _seed_attempts(sess, hw_id)
 
-    mock_gen.return_value = {
-        "question_text": "What does 'according to' indicate in a sentence?",
-        "expected_answer": {"canonical": "the source", "accepted_variants": ["the source", "as stated by"]},
-        "rubric": {"full_credit": ["the source"], "partial_credit": ["source"], "common_mistakes": []},
-        "target_skill": "according_to",
-        "difficulty": "medium",
-        "source_phase_ids": ["preview"],
-        "why_this_question": "Student missed two according_to items in practice",
-    }
+    mock_gen.return_value = _boss_question_factory()
 
     started = client.post("/api/ai/boss/start", json={
         "session_id": sess, "homework_id": hw_id,
@@ -256,7 +295,7 @@ def test_boss_generate_question_targets_weak_topics_first(mock_gen, client):
     assert body["difficulty"] == "medium"
 
     # The prompt sent to the LLM must include the student's weak topics.
-    prompt_str = mock_gen.call_args[0][0]
+    prompt_str = mock_gen.call_args[1]["prompt"]
     assert "weak_topics" in prompt_str
     assert "according_to" in prompt_str or "meaning_in_context" in prompt_str
 
@@ -265,7 +304,7 @@ def test_boss_generate_question_targets_weak_topics_first(mock_gen, client):
     assert "rubric" not in body
 
 
-@patch("server.services.boss_dynamic.ai_orchestrator.generate_json")
+@patch("server.services.boss_dynamic.ai_gateway.generate_structured")
 def test_boss_generate_question_does_not_leak_prior_expected_answers_to_llm(mock_gen, client):
     """Anti-leak invariant — even after asking one question, the next
     generation prompt must NOT contain the prior question's expected_answer
@@ -276,15 +315,15 @@ def test_boss_generate_question_does_not_leak_prior_expected_answers_to_llm(mock
     _seed_attempts(sess, hw_id)
 
     leak_canary = "ZQXLEAKCANARY"
-    mock_gen.return_value = {
-        "question_text": "What does 'concerning' mean?",
-        "expected_answer": {"canonical": leak_canary, "accepted_variants": [leak_canary]},
-        "rubric": {"full_credit": [leak_canary], "partial_credit": [], "common_mistakes": []},
-        "target_skill": "meaning_in_context",
-        "difficulty": "medium",
-        "source_phase_ids": ["preview"],
-        "why_this_question": "weak topic follow-up",
-    }
+    mock_gen.return_value = _boss_question_factory(
+        question_text="What does 'concerning' mean?",
+        expected_answer=BossExpectedAnswer(
+            canonical=leak_canary, accepted_variants=[leak_canary]
+        ),
+        rubric=BossRubric(full_credit=[leak_canary]),
+        target_skill="meaning_in_context",
+        why_this_question="weak topic follow-up",
+    )
     started = client.post("/api/ai/boss/start", json={
         "session_id": sess, "homework_id": hw_id,
     }).json()
@@ -294,28 +333,28 @@ def test_boss_generate_question_does_not_leak_prior_expected_answers_to_llm(mock
     assert r1.status_code == 200, r1.text
 
     # Second generation — check the prompt does NOT contain the canary.
-    mock_gen.return_value = {
-        "question_text": "Use 'according to' in a sentence about sources.",
-        "expected_answer": {"canonical": "any sentence with according to", "accepted_variants": []},
-        "rubric": {"full_credit": ["uses according to citing source"], "partial_credit": [], "common_mistakes": []},
-        "target_skill": "according_to",
-        "difficulty": "medium",
-        "source_phase_ids": ["preview"],
-        "why_this_question": "second item",
-    }
+    mock_gen.return_value = _boss_question_factory(
+        question_text="Use 'according to' in a sentence about sources.",
+        expected_answer=BossExpectedAnswer(
+            canonical="any sentence with according to", accepted_variants=[]
+        ),
+        rubric=BossRubric(full_credit=["uses according to citing source"]),
+        target_skill="according_to",
+        why_this_question="second item",
+    )
     mock_gen.reset_mock()
     # Adjust return so the new question_text isn't a paraphrase.
     r2 = client.post("/api/ai/boss/generate-question", json={"boss_session_id": bsid})
     assert r2.status_code == 200, r2.text
 
-    second_prompt = mock_gen.call_args[0][0]
+    second_prompt = mock_gen.call_args[1]["prompt"]
     assert leak_canary not in second_prompt, (
         "prior expected_answer canary leaked into the generator prompt — "
         "asked_questions context must scrub answer keys"
     )
 
 
-@patch("server.services.boss_dynamic.ai_orchestrator.generate_json")
+@patch("server.services.boss_dynamic.ai_gateway.generate_structured")
 def test_boss_submit_answer_backend_owns_hp_not_model(mock_gen, client):
     """Plan 5 acceptance test 4 — the model cannot set HP. Even when the
     answer-checker returns a wild damage_multiplier, backend HP delta is
@@ -330,29 +369,29 @@ def test_boss_submit_answer_backend_owns_hp_not_model(mock_gen, client):
     bsid = started["boss_session_id"]
 
     # Step 1: generate question
-    mock_gen.return_value = {
-        "question_text": "Define 'according to'.",
-        "expected_answer": {"canonical": "as stated by", "accepted_variants": []},
-        "rubric": {"full_credit": ["as stated by"], "partial_credit": [], "common_mistakes": []},
-        "target_skill": "according_to",
-        "difficulty": "medium",
-        "source_phase_ids": ["preview"],
-        "why_this_question": "weak topic",
-    }
+    mock_gen.return_value = _boss_question_factory(
+        question_text="Define 'according to'.",
+        expected_answer=BossExpectedAnswer(canonical="as stated by"),
+        rubric=BossRubric(full_credit=["as stated by"]),
+        target_skill="according_to",
+        why_this_question="weak topic",
+    )
     g = client.post("/api/ai/boss/generate-question", json={"boss_session_id": bsid}).json()
     qid = g["question_id"]
 
-    # Step 2: submit — checker returns inflated damage_multiplier; backend clamps
-    mock_gen.return_value = {
-        "is_correct": True,
-        "score": 1.0,
-        "confidence": 0.95,
-        "feedback_to_student": "Correct.",
-        "misconception_tags": [],
-        "damage_multiplier": 99.0,  # absurd; must be clamped
-        "difficulty_recommendation": "increase",
-        "should_retry_same_skill": False,
-    }
+    # Step 2: submit — simulate model returning inflated damage_multiplier.
+    # We bypass Pydantic validation here to test backend clamping as defense
+    # in depth (Plan 5 §7). In production, the gateway schema prevents >1.5.
+    class _FakeCheckResult:
+        is_correct = True
+        score = 1.0
+        confidence = 0.95
+        feedback = "Correct."
+        misconception_tags = []
+        damage_multiplier = 99.0  # absurd; backend must clamp
+        difficulty_recommendation = "increase"
+        should_retry_same_skill = False
+    mock_gen.return_value = _FakeCheckResult()
     resp = client.post("/api/ai/boss/submit-answer", json={
         "boss_session_id": bsid,
         "question_id": qid,
@@ -367,7 +406,7 @@ def test_boss_submit_answer_backend_owns_hp_not_model(mock_gen, client):
     assert body["boss_status"] == "active"
 
 
-@patch("server.services.boss_dynamic.ai_orchestrator.generate_json")
+@patch("server.services.boss_dynamic.ai_gateway.generate_structured")
 def test_boss_state_persists_across_request_for_refresh(mock_gen, client):
     """Plan 5 acceptance test 5 — /state must return the same HP / trials
     as set by submit-answer. Guards the database round-trip."""
@@ -380,24 +419,22 @@ def test_boss_state_persists_across_request_for_refresh(mock_gen, client):
     }).json()
     bsid = started["boss_session_id"]
 
-    mock_gen.return_value = {
-        "question_text": "Pick the synonym of 'concerning'.",
-        "expected_answer": {"canonical": "about", "accepted_variants": ["regarding"]},
-        "rubric": {"full_credit": ["about"], "partial_credit": [], "common_mistakes": []},
-        "target_skill": "meaning_in_context",
-        "difficulty": "medium",
-        "source_phase_ids": ["preview"],
-        "why_this_question": "weak topic",
-    }
+    mock_gen.return_value = _boss_question_factory(
+        question_text="Pick the synonym of 'concerning'.",
+        expected_answer=BossExpectedAnswer(canonical="about", accepted_variants=["regarding"]),
+        rubric=BossRubric(full_credit=["about"]),
+        target_skill="meaning_in_context",
+        why_this_question="weak topic",
+    )
     q = client.post("/api/ai/boss/generate-question", json={"boss_session_id": bsid}).json()
 
-    mock_gen.return_value = {
-        "is_correct": False, "score": 0.0, "confidence": 0.9,
-        "feedback_to_student": "Try again.",
-        "misconception_tags": ["meaning_in_context"],
-        "damage_multiplier": 1.0, "difficulty_recommendation": "stay",
-        "should_retry_same_skill": True,
-    }
+    mock_gen.return_value = _boss_check_factory(
+        is_correct=False, score=0.0, confidence=0.9,
+        feedback="Try again.",
+        misconception_tags=["meaning_in_context"],
+        damage_multiplier=1.0, difficulty_recommendation="stay",
+        should_retry_same_skill=True,
+    )
     client.post("/api/ai/boss/submit-answer", json={
         "boss_session_id": bsid, "question_id": q["question_id"], "student_answer": "wrong",
     })
@@ -408,7 +445,7 @@ def test_boss_state_persists_across_request_for_refresh(mock_gen, client):
     assert state["boss_session_id"] == bsid
 
 
-@patch("server.services.boss_dynamic.ai_orchestrator.generate_json")
+@patch("server.services.boss_dynamic.ai_gateway.generate_structured")
 def test_boss_give_up_marks_abandoned_and_blocks_further_actions(mock_gen, client):
     hw_id = _make_homework(client, hw_id_hint="t_giveup")
     sess = "plan5give001"
@@ -427,7 +464,7 @@ def test_boss_give_up_marks_abandoned_and_blocks_further_actions(mock_gen, clien
     assert rg.status_code == 409
 
 
-@patch("server.services.boss_dynamic.ai_orchestrator.generate_json")
+@patch("server.services.boss_dynamic.ai_gateway.generate_structured")
 def test_legacy_boss_turn_endpoint_still_intact(mock_gen, client):
     """Plan 5 §4 + CLAUDE.md — the legacy /ai/boss-turn route must keep
     working while Plan 5 ships, so old generated homework HTML keeps
@@ -448,3 +485,189 @@ def test_legacy_boss_turn_endpoint_still_intact(mock_gen, client):
     })
     assert resp.status_code == 200, resp.text
     assert resp.json()["correct"] is True
+
+
+# ---------------------------------------------------------------------------
+# Plan 7 — Prompt contract + Pydantic validation
+# ---------------------------------------------------------------------------
+
+
+def test_pydantic_boss_question_output_validates_full_contract():
+    """Plan 7 §10 Test 2 — BossQuestionOutput must enforce types, ranges, literals."""
+    valid = {
+        "question_text": "What is 2+2?",
+        "expected_answer": {"canonical": "4", "accepted_variants": ["four"]},
+        "rubric": {"full_credit": ["4"], "partial_credit": [], "common_mistakes": []},
+        "target_skill": "addition",
+        "difficulty": "easy",
+        "source_phase_ids": ["preview"],
+        "why_this_question": "Basic arithmetic check",
+    }
+    out = boss_dynamic.BossQuestionOutput.model_validate(valid)
+    assert out.difficulty == "easy"
+    assert out.expected_answer.canonical == "4"
+
+
+def test_pydantic_boss_question_output_rejects_empty_question():
+    """Plan 7 §10 Test 2 — empty question_text must fail Pydantic validation."""
+    bad = {
+        "question_text": "   ",
+        "expected_answer": {"canonical": "4"},
+        "rubric": {"full_credit": ["4"]},
+        "target_skill": "addition",
+        "difficulty": "easy",
+    }
+    with pytest.raises(Exception):
+        boss_dynamic.BossQuestionOutput.model_validate(bad)
+
+
+def test_pydantic_boss_question_output_rejects_too_long_question():
+    """Plan 7 §10 Test 2 — question_text > 900 chars must fail."""
+    bad = {
+        "question_text": "x" * 901,
+        "expected_answer": {"canonical": "x"},
+        "rubric": {"full_credit": ["x"]},
+        "target_skill": "overflow",
+        "difficulty": "easy",
+    }
+    with pytest.raises(Exception):
+        boss_dynamic.BossQuestionOutput.model_validate(bad)
+
+
+def test_pydantic_boss_answer_verdict_output_clamps_multiplier():
+    """Plan 7 §10 Test 2 — damage_multiplier outside [0, 1.5] must fail."""
+    bad = {
+        "is_correct": True,
+        "score": 1.0,
+        "confidence": 0.95,
+        "feedback_to_student": "Nice!",
+        "misconception_tags": [],
+        "damage_multiplier": 99.0,
+        "difficulty_recommendation": "increase",
+        "should_retry_same_skill": False,
+    }
+    with pytest.raises(Exception):
+        boss_dynamic.BossAnswerVerdictOutput.model_validate(bad)
+
+
+def test_pydantic_boss_answer_verdict_output_accepts_valid():
+    """Plan 7 §10 Test 2 — valid verdict parses correctly."""
+    valid = {
+        "is_correct": False,
+        "score": 0.3,
+        "confidence": 0.8,
+        "feedback_to_student": "Try again.",
+        "misconception_tags": ["sign_error"],
+        "damage_multiplier": 1.0,
+        "difficulty_recommendation": "stay",
+        "should_retry_same_skill": True,
+    }
+    out = boss_dynamic.BossAnswerVerdictOutput.model_validate(valid)
+    assert out.is_correct is False
+    assert out.damage_multiplier == 1.0
+
+
+def test_build_boss_input_section_wraps_student_answer_in_untrusted_delimiters():
+    """Plan 7 Rule 2 — student_answer must be wrapped in <UNTRUSTED_STUDENT_MESSAGE>."""
+    payload = {
+        "question_text": "x?",
+        "student_answer": "my answer",
+        "target_skill": "test",
+    }
+    section = boss_dynamic._build_boss_input_section(payload)
+    assert "<UNTRUSTED_STUDENT_MESSAGE>" in section
+    assert "my answer" in section
+    assert "</UNTRUSTED_STUDENT_MESSAGE>" in section
+
+
+def test_build_boss_input_section_leaves_other_fields_intact():
+    """Plan 7 Rule 2 — only student_answer gets wrapped; other fields stay plain."""
+    payload = {
+        "question_text": "plain",
+        "student_answer": "untrusted",
+    }
+    section = boss_dynamic._build_boss_input_section(payload)
+    assert section.count("<UNTRUSTED_STUDENT_MESSAGE>") == 1
+    # The plain field should NOT be wrapped.
+    assert "plain" in section
+
+
+def test_boss_tutor_prompt_has_no_chat_history_ghost_variable():
+    """Plan 7 §10 Test 1 — boss-tutor.md must not reference CHAT_HISTORY
+    unless the backend provides it. After Plan 7 rewrite, it uses
+    RECENT_BOSS_HISTORY instead."""
+    from server.config import PROMPTS_DIR
+
+    text = (PROMPTS_DIR / "runtime" / "boss-tutor.md").read_text(encoding="utf-8")
+    # CHAT_HISTORY is a ghost variable in the old prompt; v2 removes it.
+    assert "CHAT_HISTORY" not in text, (
+        "boss-tutor.md still references CHAT_HISTORY — backend does not provide it. "
+        "Use RECENT_BOSS_HISTORY instead (Plan 7 §6)."
+    )
+    # v2 should reference the new variable.
+    assert "RECENT_BOSS_HISTORY" in text, (
+        "boss-tutor.md v2 must reference RECENT_BOSS_HISTORY (Plan 7 §6)."
+    )
+
+
+def test_boss_tutor_prompt_uses_boss_state_and_answer_result():
+    """Plan 7 §6 — boss-tutor.md v2 must consume BOSS_STATE, CURRENT_BOSS_QUESTION,
+    ANSWER_RESULT, PERSONA_TRAITS."""
+    from server.config import PROMPTS_DIR
+
+    text = (PROMPTS_DIR / "runtime" / "boss-tutor.md").read_text(encoding="utf-8")
+    for var in ("BOSS_STATE", "CURRENT_BOSS_QUESTION", "ANSWER_RESULT", "PERSONA_TRAITS"):
+        assert var in text, f"boss-tutor.md v2 missing required variable: {var}"
+
+
+def test_boss_question_generator_has_prompt_version_header():
+    """Plan 7 §8 — every prompt file must carry a machine-readable version."""
+    from server.config import PROMPTS_DIR
+
+    text = (PROMPTS_DIR / "runtime" / "boss-question-generator.md").read_text(encoding="utf-8")
+    assert "prompt-version:" in text or "prompt version" in text.lower(), (
+        "boss-question-generator.md missing version header (Plan 7 §8)."
+    )
+
+
+def test_boss_answer_checker_has_prompt_version_header():
+    """Plan 7 §8 — every prompt file must carry a machine-readable version."""
+    from server.config import PROMPTS_DIR
+
+    text = (PROMPTS_DIR / "runtime" / "boss-answer-checker.md").read_text(encoding="utf-8")
+    assert "prompt-version:" in text or "prompt version" in text.lower(), (
+        "boss-answer-checker.md missing version header (Plan 7 §8)."
+    )
+
+
+def test_prompt_version_constant_matches_files():
+    """Plan 7 §8 — PROMPT_VERSION dict must declare versions for all boss prompts."""
+    assert "boss-question-generator" in boss_dynamic.PROMPT_VERSION
+    assert "boss-answer-checker" in boss_dynamic.PROMPT_VERSION
+    assert "boss-tutor" in boss_dynamic.PROMPT_VERSION
+    assert boss_dynamic.PROMPT_VERSION["boss-tutor"] == "v2"
+
+
+def test_boss_answer_checker_prompt_json_example_validates_against_schema():
+    """Plan 7 contract guard — the JSON example in boss-answer-checker.md must
+    validate against BossAnswerCheckResult.
+
+    Regression: PR #186 originally taught the model to emit the key
+    `feedback_to_student`, but the schema field is `feedback`. The first
+    model call would always fail Pydantic validation, wasting the gateway's
+    one repair retry. This test fails on pre-fix code.
+    """
+    import re
+    from server.config import PROMPTS_DIR
+
+    text = (PROMPTS_DIR / "runtime" / "boss-answer-checker.md").read_text(encoding="utf-8")
+
+    match = re.search(
+        r"## Required JSON output\s*```json\s*(\{.*?\})\s*```",
+        text,
+        re.DOTALL,
+    )
+    assert match, "boss-answer-checker.md missing JSON example under '## Required JSON output'"
+
+    parsed = json.loads(match.group(1))
+    BossAnswerCheckResult(**parsed)

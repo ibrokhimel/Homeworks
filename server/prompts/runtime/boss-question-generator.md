@@ -1,4 +1,5 @@
-# Boss Question Generator (Plan 5 §6)
+<!-- prompt-version: boss-question-generator:v1 -->
+# Boss Question Generator (Plan 7 §6)
 
 You are the Boss Question Generator for one homework session.
 
