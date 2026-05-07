@@ -282,12 +282,14 @@ KIMI_MODEL_FAST=moonshot-v1-32k
 KIMI_MODEL_PRO=moonshot-v1-128k
 ```
 
-Post Plan 6, these are still the defaults in `server/config.py` and `.env.example`. Vision now defaults to `KIMI_MODEL_VISION=kimi-k2.6`, which matches the user's [Always use Kimi K2.6 for vision] memory rule.
+Post Plan 6, these are still the defaults in `server/config.py` and `.env.example`. Vision currently defaults to `KIMI_MODEL_VISION=kimi-k2.6` (verified at `server/config.py:26` and `server/services/ai_providers/kimi.py:53`).
+
+⚠️ **Config drift from memory-locked invariant.** The user's [Always use Kimi K2.6 for vision] memory rule (2026-05-01) specifies the default should be the explicit preview model ID `kimi-k2.6-preview` (discoverable via `GET /v1/models`). The current code default `kimi-k2.6` does not include the `-preview` suffix — this is config drift, not an architectural decision. Resolution belongs in a separate config-fix PR; out of Plan 10's scope.
 
 ```env
-KIMI_MODEL_FAST=kimi-k2.6     # not the default; override per .env
-KIMI_MODEL_PRO=kimi-k2.6      # not the default; override per .env
-KIMI_MODEL_VISION=kimi-k2.6   # IS the default
+KIMI_MODEL_FAST=kimi-k2.6              # not the default; override per .env
+KIMI_MODEL_PRO=kimi-k2.6               # not the default; override per .env
+KIMI_MODEL_VISION=kimi-k2.6            # current default — invariant says kimi-k2.6-preview
 ```
 
 This is now an environment/config decision, not a legacy Gemini mapping issue. Switching text tasks to K2.6 remains a deferred env-config change with no code dependency.
