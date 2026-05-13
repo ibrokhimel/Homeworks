@@ -5504,6 +5504,73 @@
             border-color: rgba(99, 184, 255, 0.35);
         }
 
+        /* Boss-shell contrast pass — the shell forces a dark battle
+           backdrop via !important regardless of `data-theme`, so its
+           sub-cards live on dark ground in BOTH light and dark mode.
+           The default sub-card rules above pull `var(--surface)` which
+           is translucent WHITE in light mode → white cards on a dark
+           scene, with dark-on-white text washing out and amber/grey
+           muted text becoming unreadable. Pin a dark-glass background
+           + light text on every label, counter, tag, input, hint, and
+           feedback string scoped under .boss-shell so all text reads
+           cleanly regardless of theme. */
+        .boss-shell .boss-hp-section,
+        .boss-shell .boss-q-card {
+            background: rgba(15, 23, 42, 0.72);
+            border-color: rgba(147, 197, 253, 0.30);
+            color: #f1f5f9;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+        .boss-shell .boss-name-label {
+            color: #fca5a5;
+            text-shadow: 0 0 12px rgba(248, 113, 113, 0.30);
+        }
+        .boss-shell .boss-hp-num    { color: #fca5a5; }
+        .boss-shell .boss-q-text    { color: #f8fafc; }
+        .boss-shell .boss-q-counter { color: rgba(226, 232, 240, 0.88); }
+        .boss-shell .boss-q-tags    { color: rgba(186, 210, 232, 0.85); }
+        .boss-shell .boss-combo     { color: #fcd34d; }
+        .boss-shell .boss-framing {
+            background: rgba(255, 255, 255, 0.06);
+            border-left-color: #93c5fd;
+            color: #e0e7ff;
+            opacity: 1;
+        }
+        .boss-shell .boss-input {
+            background: rgba(15, 23, 42, 0.72);
+            border-color: rgba(96, 165, 250, 0.42);
+            color: #f1f5f9;
+        }
+        .boss-shell .boss-input::placeholder {
+            color: rgba(226, 232, 240, 0.55);
+        }
+        .boss-shell .boss-hint-btn {
+            color: #fcd34d;
+            background: rgba(245, 158, 11, 0.16);
+            border-color: rgba(245, 158, 11, 0.42);
+        }
+        .boss-shell .boss-hint-text { color: #fcd34d; }
+        .boss-shell .boss-feedback.correct {
+            background: rgba(34, 197, 94, 0.22);
+            color: #86efac;
+        }
+        .boss-shell .boss-feedback.wrong {
+            background: rgba(239, 68, 68, 0.22);
+            color: #fca5a5;
+        }
+        .boss-shell .boss-feedback.loading {
+            background: rgba(96, 165, 250, 0.18);
+            color: #93c5fd;
+            border-color: rgba(147, 197, 253, 0.34);
+        }
+        .boss-shell .boss-feedback.correct::before,
+        .boss-shell .boss-feedback.wrong::before {
+            /* checkmark / cross inherit color via parent — pin so the
+               glyph stays the same hue as the surrounding text. */
+            color: inherit;
+        }
+
         /* ── Non-color correctness affordances ──────────────────────
            Color alone fails WCAG 1.4.1 for the ~8% of red-green
            colorblind students. A leading ✓ / ✗ / ◐ glyph (with the
