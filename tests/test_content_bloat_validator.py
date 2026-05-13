@@ -12,6 +12,9 @@ Each test asserts the BAD pre-PR-2 state cannot return:
 """
 from __future__ import annotations
 
+import base64
+from pathlib import Path
+
 import pytest
 from fastapi import HTTPException
 
@@ -19,6 +22,9 @@ from server.routes.homework import (
     _MAX_FIELD_CHARS,
     _check_no_inline_bloat,
 )
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 # ── _check_no_inline_bloat — direct unit tests ───────────────────────────────
@@ -253,3 +259,47 @@ def test_patch_does_not_block_clean_patches_on_existing_bloated_rows(client):
         f"Clean patch should not be blocked by pre-existing bloat in another "
         f"field. Got {resp.status_code}: {resp.text}"
     )
+
+
+def test_patch_extracts_structured_image_data_uri_before_bloat_check(client):
+    """Structured image media is migrated to /generated instead of rejected.
+
+    Text fields with base64 still fail closed; this path only applies to an
+    authored image block where the server can preserve the visual safely.
+    """
+    seed = client.post(
+        "/api/homeworks",
+        json={
+            "title": "[structured-image-upload]",
+            "subject": "math-algebra",
+            "grade": 8,
+            "mode": "hard",
+            "content_json": {"meta": {"title": "x"}},
+        },
+    )
+    assert seed.status_code == 200, seed.text
+    hw_id = seed.json()["id"]
+    tiny_png = base64.b64encode(
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+        b"\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06"
+        b"\x00\x00\x00\x1f\x15\xc4\x89"
+    ).decode("ascii")
+
+    resp = client.patch(
+        f"/api/homeworks/{hw_id}/content",
+        json={
+            "content_json": {
+                "panels": [
+                    {"pages": [{"blocks": [{"type": "image", "src": f"data:image/png;base64,{tiny_png}"}]}]}
+                ]
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    src = resp.json()["content_json"]["panels"][0]["pages"][0]["blocks"][0]["src"]
+    written = ROOT / "frontend" / src.lstrip("/")
+    try:
+        assert src.startswith(f"/generated/{hw_id}__media_")
+        assert written.exists()
+    finally:
+        written.unlink(missing_ok=True)

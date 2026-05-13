@@ -25,6 +25,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from server.config import DB_PATH
+from server.services.content_media_migration import migrate_content_media
 
 
 TARGET_SUBJECTS = {"math-algebra", "geometriya-g7-11"}
@@ -298,14 +299,23 @@ def _repair_node(node: Any, subject: str, breadcrumbs: list[str], stats: RepairS
     return node
 
 
-def _repair_homework(content_json: str, subject: str) -> tuple[str, bool, RepairStats]:
+def _repair_homework(content_json: str, subject: str, hw_id: str | None = None) -> tuple[str, bool, RepairStats]:
     stats = RepairStats(rows_seen=1)
     data = json.loads(content_json)
     before = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
 
     repaired = data
     if len(content_json) >= HOMEWORK_BLOAT_THRESHOLD or _needs_media_repair(data):
-        repaired = _repair_node(data, subject, [], stats)
+        repaired, _, media_stats = migrate_content_media(data, subject=subject, hw_id=hw_id, write_files=True)
+        stats.src_replaced += (
+            media_stats.generated_urls_normalized
+            + media_stats.svg_data_uris_decoded
+            + media_stats.bitmap_data_uris_extracted
+        )
+        stats.html_replaced += (
+            media_stats.image_html_blocks_lifted
+            + media_stats.generic_svgs_rewritten
+        )
     meta = repaired.setdefault("meta", {})
     expected_display = _subject_display(subject)
     if _needs_subject_display_fix(subject, meta.get("subject_display")):
@@ -366,7 +376,7 @@ def main() -> int:
             print(f"{hw_id}: skipped empty content_json")
             continue
 
-        repaired_json, changed, stats = _repair_homework(content_json, subject)
+        repaired_json, changed, stats = _repair_homework(content_json, subject, hw_id=hw_id)
         total.src_replaced += stats.src_replaced
         total.html_replaced += stats.html_replaced
         total.metadata_fixed += stats.metadata_fixed

@@ -77,17 +77,17 @@ def test_repair_homework_moves_generated_img_html_to_image_block_without_changin
 
     assert changed is True
     assert stats.html_replaced == 1
-    assert stats.src_replaced == 1
+    assert stats.src_replaced == 2
     assert _generated_url() not in repaired_json
     quote_repair = repaired["panels"][0]["pages"][0]["blocks"][0]
     image_repair = repaired["panels"][0]["pages"][0]["blocks"][1]
     assert quote_repair == {
         "type": "image",
-        "src": "/generated/HW-20260505-008_factorization_methods.svg",
-        "alt": "Diagram",
+        "src": "/generated/HW-20260505-008__panels_1_pages_0_blocks_4_text__handdrawn.png",
+        "alt": "Handdrawn diagram",
     }
     assert image_repair["type"] == "image"
-    assert image_repair["src"] == "/generated/HW-20260505-008_factorization_methods.svg"
+    assert image_repair["src"] == "/generated/HW-20260505-008__panels_1_pages_0_blocks_4_text__handdrawn.png"
     assert "data:image/svg+xml;utf8," not in repaired_json
 
 
@@ -107,7 +107,7 @@ def test_repair_homework_rewrites_previous_svg_data_uri_img_to_svg_block():
 
     assert changed is True
     assert stats.html_replaced == 1
-    assert stats.src_replaced == 1
+    assert stats.src_replaced == 2
     assert "data:image/svg+xml;utf8," not in repaired_json
     assert repaired["panels"][0]["pages"][0]["blocks"][0]["type"] == "svg"
     assert repaired["panels"][0]["pages"][0]["blocks"][0]["html"].startswith("<svg")
