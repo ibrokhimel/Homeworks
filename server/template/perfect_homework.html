@@ -12139,6 +12139,33 @@
             }
         }
 
+        // Estimate the time a student needs to actually READ the
+        // explanation card before auto-advancing. 220 wpm is the
+        // mid-range adult silent-reading speed; commas / sentence
+        // terminators add the small natural pauses a reader takes;
+        // +3 s is a base "saw it land + recognised the verdict"
+        // buffer. Returns milliseconds. The text may arrive as HTML
+        // (explainer uses innerHTML for inline images / SVG / bold),
+        // so strip tags before counting words.
+        function msReadingDelayMs(rawHtml) {
+            const text = String(rawHtml || '').replace(/<[^>]*>/g, ' ').trim();
+            if (!text) return 900;
+            const words = text.split(/\s+/).filter(Boolean);
+            const wordCount = words.length;
+            const commas = (text.match(/,/g) || []).length;
+            const periods = (text.match(/[.!?]/g) || []).length;
+            const seconds =
+                (wordCount / 220) * 60 +
+                commas * 0.15 +
+                periods * 0.3 +
+                3;
+            // Clamp so a one-word explanation still gets the base buffer
+            // and an unreasonably long one can't soft-lock the UI without
+            // user input — click-to-skip is always available either way.
+            const ms = Math.round(seconds * 1000);
+            return Math.max(3000, Math.min(ms, 15000));
+        }
+
         // Layout positions for N visible option buttons inside the
         // 88vw / 640px answer zone. Counts < 4 used to share the static
         // 4-quad layout, leaving "undefined" buttons in the empty slots
@@ -12408,7 +12435,16 @@
                     document.addEventListener('click', msState.skipHandler, true);
                     document.addEventListener('touchstart', msState.skipHandler, true);
                     document.addEventListener('keydown', msState.skipHandler, true);
-                    msState.advanceTimer = setTimeout(advanceNow, 4200);
+                    // Auto-advance delay scales with how long the
+                    // explanation actually takes to read — short hints
+                    // get the 3 s base buffer, paragraph-length recaps
+                    // get the time their words + punctuation deserve.
+                    // Click-to-skip is still bound above, so the cap
+                    // here only matters when the student doesn't tap.
+                    msState.advanceTimer = setTimeout(
+                        advanceNow,
+                        msReadingDelayMs(item.explain)
+                    );
                 }, 320);
             } else {
                 msState.advanceTimer = setTimeout(advanceNow, 900);
