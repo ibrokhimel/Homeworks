@@ -10,6 +10,7 @@ from server.services.content_json_compat import (
     normalize_content_json_for_runtime,
     normalize_homework_row_for_runtime,
 )
+from server.services.content_media_migration import migrate_content_media
 from server.services.progress import compute_progress
 from server.services.routing import SUBJECTS, ALWAYS_HARD, SUBJECT_GRADES, SUBJECT_TO_FAMILY
 
@@ -210,9 +211,21 @@ def _deep_merge_content(base: dict, patch: dict) -> dict:
     return out
 
 
-def _migration_delta(raw_content: Any) -> tuple[dict, bool, list[str], list[str]]:
+def _migration_delta(
+    raw_content: Any,
+    *,
+    subject: str = "",
+    hw_id: str | None = None,
+    write_files: bool = False,
+) -> tuple[dict, bool, list[str], list[str], dict[str, int]]:
     raw = raw_content if isinstance(raw_content, dict) else {}
-    normalized = normalize_content_json_for_runtime(raw)
+    schema_normalized = normalize_content_json_for_runtime(raw)
+    normalized, media_changed, media_stats = migrate_content_media(
+        schema_normalized,
+        subject=subject,
+        hw_id=hw_id,
+        write_files=write_files,
+    )
     raw_json = json_dumps_compact(raw)
     normalized_json = json_dumps_compact(normalized)
     added_keys = sorted(set(normalized.keys()) - set(raw.keys()))
@@ -221,7 +234,13 @@ def _migration_delta(raw_content: Any) -> tuple[dict, bool, list[str], list[str]
         for key in set(raw.keys()) & set(normalized.keys())
         if json_dumps_compact(raw.get(key)) != json_dumps_compact(normalized.get(key))
     )
-    return normalized, raw_json != normalized_json, added_keys, changed_keys
+    return (
+        normalized,
+        (raw_json != normalized_json or media_changed or media_stats.total > 0),
+        added_keys,
+        changed_keys,
+        media_stats.to_dict(),
+    )
 
 
 def json_dumps_compact(value: Any) -> str:
@@ -327,13 +346,18 @@ async def get_homework_migration_status(hw_id: str):
     hw = await db.get_homework(hw_id)
     if not hw:
         raise HTTPException(status_code=404, detail={"error": "Not found", "code": "NOT_FOUND"})
-    normalized, needs_migration, added_keys, changed_keys = _migration_delta(hw.get("content_json"))
+    normalized, needs_migration, added_keys, changed_keys, media_stats = _migration_delta(
+        hw.get("content_json"),
+        subject=str(hw.get("subject") or ""),
+        hw_id=hw_id,
+    )
     return {
         "ok": True,
         "id": hw_id,
         "needs_migration": needs_migration,
         "added_keys": added_keys,
         "changed_keys": changed_keys,
+        "media": media_stats,
         "normalized_key_count": len(normalized),
     }
 
@@ -349,7 +373,12 @@ async def migrate_homework_content(hw_id: str):
             detail={"error": "Cannot migrate a trashed homework. Restore it first.", "code": "TRASHED"},
         )
 
-    normalized, needs_migration, added_keys, changed_keys = _migration_delta(hw.get("content_json"))
+    normalized, needs_migration, added_keys, changed_keys, media_stats = _migration_delta(
+        hw.get("content_json"),
+        subject=str(hw.get("subject") or ""),
+        hw_id=hw_id,
+        write_files=True,
+    )
     if not needs_migration:
         return {
             "ok": True,
@@ -358,6 +387,7 @@ async def migrate_homework_content(hw_id: str):
             "needs_migration": False,
             "added_keys": [],
             "changed_keys": [],
+            "media": media_stats,
             "homework": normalize_homework_row_for_runtime(hw),
         }
 
@@ -371,6 +401,7 @@ async def migrate_homework_content(hw_id: str):
         "needs_migration": False,
         "added_keys": added_keys,
         "changed_keys": changed_keys,
+        "media": media_stats,
         "homework": normalize_homework_row_for_runtime(updated),
     }
 
@@ -391,6 +422,12 @@ async def update_homework(hw_id: str, hw_update: HomeworkUpdate):
         return hw
 
     if "content_json" in updates:
+        updates["content_json"], _, _ = migrate_content_media(
+        updates["content_json"],
+        subject=str(hw.get("subject") or ""),
+        hw_id=hw_id,
+        write_files=True,
+    )
         _normalize_boss_question_advisory_levels(updates["content_json"])
         _validate_content_json(updates["content_json"])
         # PR 2 — bloat check on the FULL content_json (PUT is full overwrite).
@@ -416,7 +453,13 @@ async def patch_homework_content(hw_id: str, body: ContentPatch):
         )
 
     existing = hw.get("content_json") or {}
-    merged = _deep_merge_content(existing, body.content_json)
+    incoming_patch, _, _ = migrate_content_media(
+        body.content_json,
+        subject=str(hw.get("subject") or ""),
+        hw_id=hw_id,
+        write_files=True,
+    )
+    merged = _deep_merge_content(existing, incoming_patch)
     _normalize_boss_question_advisory_levels(merged)
     # Validate the *merged* result, not just the patch — otherwise an
     # accidental key drop in the patch wouldn't be caught.
@@ -424,7 +467,7 @@ async def patch_homework_content(hw_id: str, body: ContentPatch):
     # PR 2 — bloat check on the INCOMING patch only (not the merged result).
     # Existing rows may carry pre-fix bloat; we don't want to block authors
     # from patching them with clean values. Only NEW bloat is rejected.
-    _check_no_inline_bloat(body.content_json, path="content_json (patch)")
+    _check_no_inline_bloat(incoming_patch, path="content_json (patch)")
     # Normalize on the merged result so any id-less boss_questions get stable
     # ids on save — both freshly-patched questions and any pre-existing
     # id-less ones the author touched indirectly.
