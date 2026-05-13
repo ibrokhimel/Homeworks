@@ -1683,6 +1683,33 @@
             color: var(--text);
         }
 
+        .ms-question-explainer {
+            display: block;
+            align-self: center;
+            width: fit-content;
+            max-width: 100%;
+            margin: 12px auto 0;
+            padding: 14px 18px;
+            border-radius: 16px;
+            background: var(--surface-strong, rgba(255, 255, 255, 0.92));
+            box-shadow: 0 0 0 rgba(15, 23, 42, 0);
+            text-align: center;
+            opacity: 0;
+            transform: translateY(8px);
+            pointer-events: none;
+            will-change: opacity, transform;
+            transition:
+                opacity 320ms ease,
+                transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 320ms ease;
+        }
+        .ms-question-explainer.is-shown {
+            opacity: 1;
+            transform: translateY(0);
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+            pointer-events: auto;
+        }
+
         .ms-answer-zone {
             position: relative;
             width: min(88vw, 640px);
@@ -12011,8 +12038,23 @@
         const msState = {
             index: 0,
             score: 0,
-            isAnimating: false
+            isAnimating: false,
+            revealTimer: null,
+            advanceTimer: null,
+            skipHandler: null
         };
+
+        function msClearAdvanceTimers() {
+            if (msState.revealTimer) { clearTimeout(msState.revealTimer); msState.revealTimer = null; }
+            if (msState.advanceTimer) { clearTimeout(msState.advanceTimer); msState.advanceTimer = null; }
+            if (msState.skipHandler) {
+                document.removeEventListener('pointerdown', msState.skipHandler, true);
+                document.removeEventListener('click', msState.skipHandler, true);
+                document.removeEventListener('touchstart', msState.skipHandler, true);
+                document.removeEventListener('keydown', msState.skipHandler, true);
+                msState.skipHandler = null;
+            }
+        }
 
         // Layout positions for N visible option buttons inside the
         // 88vw / 640px answer zone. Counts < 4 used to share the static
@@ -12129,7 +12171,13 @@
             // innerHTML \u2014 prompt/explain may contain inline images/SVGs/bold/italic.
             if (titleEl) titleEl.innerHTML = item.prompt || '';
             if (subtitleEl) subtitleEl.textContent = item.subtitle;
-            if (explainerEl) explainerEl.innerHTML = item.explain || '';
+            // Explanation MUST start hidden on every render — no leakage
+            // from the previous question's revealed state.
+            msClearAdvanceTimers();
+            if (explainerEl) {
+                explainerEl.classList.remove('is-shown');
+                explainerEl.innerHTML = item.explain || '';
+            }
 
             const opts = Array.isArray(item.options) ? item.options : [];
             const zone = document.getElementById('ms-answer-zone');
@@ -12253,10 +12301,41 @@
                 document.addEventListener('nets:result', onResult);
             })();
 
-            setTimeout(() => msCollapseToLoader(), 900);
+            // Options are locked + correctness shown above. Reveal the
+            // explanation card after a short beat, then auto-advance —
+            // unless the user taps anywhere to skip the wait early.
+            const explainerEl = document.getElementById('ms-question-explainer');
+            const hasExplain = !!(explainerEl && (item.explain || '').trim());
+
+            const advanceNow = () => {
+                msClearAdvanceTimers();
+                msCollapseToLoader();
+            };
+
+            if (hasExplain) {
+                msState.revealTimer = setTimeout(() => {
+                    msState.revealTimer = null;
+                    explainerEl.classList.add('is-shown');
+                    // Bind skip-to-next AFTER reveal so the user input that
+                    // triggered this flow can't immediately fire the skip.
+                    // Use pointerdown so any tap/click anywhere skips on the
+                    // very first input (capture phase, before bubbling).
+                    msState.skipHandler = (ev) => { advanceNow(); };
+                    document.addEventListener('pointerdown', msState.skipHandler, true);
+                    document.addEventListener('click', msState.skipHandler, true);
+                    document.addEventListener('touchstart', msState.skipHandler, true);
+                    document.addEventListener('keydown', msState.skipHandler, true);
+                    msState.advanceTimer = setTimeout(advanceNow, 4200);
+                }, 320);
+            } else {
+                msState.advanceTimer = setTimeout(advanceNow, 900);
+            }
         }
 
         function msCollapseToLoader() {
+            msClearAdvanceTimers();
+            const explainerEl = document.getElementById('ms-question-explainer');
+            if (explainerEl) explainerEl.classList.remove('is-shown');
             const optBtns = document.querySelectorAll('.ms-option-btn');
             optBtns.forEach(b => {
                 if (b.classList.contains('is-hidden')) return;
