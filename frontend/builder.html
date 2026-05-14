@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- viewport-fit=cover lets env(safe-area-inset-*) resolve to non-zero
+       on notched iPhones. The mobile FAB rule in app.css adds
+       env(safe-area-inset-bottom) so the home indicator does not cover
+       the "Add" button — that env() would be 0 without this attribute. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title data-i18n="builder.page_title">NETS Builder · Homework Editor</title>
   <link rel="stylesheet" href="/css/app.css?v=__VERSION__" />
   <script src="/js/theme.js?v=__VERSION__"></script>
