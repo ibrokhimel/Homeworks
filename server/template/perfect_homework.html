@@ -2,7 +2,16 @@
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover is REQUIRED for env(safe-area-inset-*) to
+         return non-zero values on notched iPhones (X / 11 / 12 / 13 /
+         14 / 15 / 16). Without it, our --safe-bottom plumbing on the
+         action button, state-line, state-pill, and tutor FAB silently
+         degrades to 0 → the home indicator can cover the CTA. The page
+         already opts into safe-area handling via env(...) elsewhere in
+         this <style>; this attribute is the unlock.
+         user-scalable defaults to yes — explicitly leaving it that way
+         preserves pinch-zoom for accessibility (WCAG 1.4.4). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>NETS · Kvadrat tenglama</title>
     <style>
         :root {
@@ -1145,6 +1154,39 @@
             animation: none;
         }
 
+        /* Tile Match dock-prompt hide. While the user is mid-game, the
+           morph button only carries label text ("Juftlikni tanlang" /
+           "Ma'noni tanlang") and is NOT a valid input — progress comes
+           from tapping tiles in #gb-panel-tm. Painting a pulsing pill
+           there invited mistaken taps and crowded the small-viewport
+           layout. The hide is opacity-based so the absolute-positioned
+           pill's transition target stays stable (no jank when
+           gbTMFinish removes the class to reveal "Keyingi …"). The
+           class is applied via gbSetButtonNext(text, hidden=true) and
+           auto-cleared by the same helper on the next call.
+           NOTE: do NOT write nested CSS comment markers anywhere
+           inside this block — CSS comments are not nestable; an inner
+           closer would terminate this comment early and the rule below
+           would be silently dropped. The first version of this comment
+           wrote a slash-star-hidden-star-slash sequence as a literal
+           example and the rule never applied — the button stayed
+           visible during play. Quoting the sequence with English words
+           keeps the comment safe. */
+        #action-button.tm-dock-hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            animation: none !important;
+            /* The base #action-button rule sets `transition: all 600ms`,
+               so adding this class otherwise fades opacity from 1 to 0
+               over 0.6s. That's visible flicker on the TM start panel,
+               and worse: if the iframe pauses animations (DevTools,
+               background tab) the transition stalls at opacity:1 and
+               the button stays visible. Pin transition to none so the
+               hide is instant. Reveal (class removal) still fades in
+               via the base rule. */
+            transition: none !important;
+        }
+
         @keyframes pulse {
             0%   { transform: translateX(-50%) scale(1.00); box-shadow: 0 4px 20px rgba(0,122,255,0.38); }
             50%  { transform: translateX(-50%) scale(1.02); box-shadow: 0 6px 28px rgba(0,122,255,0.48); }
@@ -1734,6 +1776,16 @@
             font-weight: 600;
             line-height: 1.35;
             text-align: center;
+            /* Long Uzbek/transliterated words like "Misonceptsion" or
+               compound phrases like "Kombinatorika o'rniga..." used to
+               push the button wider than its `width` cap on small screens,
+               making the two columns overlap. `overflow-wrap: anywhere`
+               forces a break inside any token if no normal break point
+               fits; `hyphens: auto` lets the browser hyphenate where it
+               can to keep the wrap visually clean. */
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            hyphens: auto;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1834,15 +1886,60 @@
                 font-size: 20px;
             }
 
+            /* Answer-zone is taller than before (was 250px) so the JS
+               positioner — which puts row centres at 28%/74% of this
+               height — leaves enough clear gap between rows when option
+               text wraps to 3+ lines on phones. With 250px and 74px
+               buttons, 4-line answers like "Kombinatorika o'rniga
+               arifmetika qo'llanildi — ko'paytirish kerak edi" overflowed
+               into the row below and into the question-box's annotations. */
             .ms-answer-zone {
-                height: 250px;
+                height: 300px;
+            }
+
+            /* Width tightened 42vw → 40vw so the two columns have a real
+               gap (4vw of empty space between right-edge of col-1 and
+               left-edge of col-2 at the 25%/75% centres) instead of
+               touching. min-height bumped to fit 3-line answers without
+               clipping. */
+            .ms-option-btn {
+                width: 40vw;
+                min-height: 80px;
+                font-size: 14px;
+                padding: 12px 14px;
+                line-height: 1.3;
+            }
+        }
+
+        /* Very small phones (≤ 400px wide — iPhone SE / many budget
+           Androids / browser address bar visible). The 640px breakpoint
+           still leaves the cards cramped at this size: 40vw is ~144px
+           on a 360px screen, but 3-line answers wrap to ~76px of text
+           height that crowds the 80px button. This tier shrinks the
+           font / padding and gives the answer zone more vertical room
+           so adjacent rows do not overlap. */
+        @media (max-width: 400px) {
+            .ms-question-box {
+                padding: 14px 16px;
+                min-height: 180px;
+            }
+
+            .ms-question-title {
+                font-size: 18px;
+                line-height: 1.25;
+            }
+
+            .ms-answer-zone {
+                height: 340px;
             }
 
             .ms-option-btn {
                 width: 42vw;
-                min-height: 74px;
-                font-size: 14px;
-                padding: 14px;
+                min-height: 88px;
+                font-size: 13px;
+                padding: 10px 11px;
+                border-radius: 18px;
+                line-height: 1.22;
             }
         }
 
@@ -13124,11 +13221,21 @@
             btn.classList.add('pulse');
         }
 
-        function gbSetButtonNext(text) {
-            btn.classList.remove('pulse','state-pill','state-line');
+        function gbSetButtonNext(text, hidden) {
+            // The optional `hidden` flag visually conceals the morph button
+            // while preserving its DOM (text, aria-label) so screen readers
+            // still announce the prompt. Used by Tile Match dock prompts
+            // ("Juftlikni tanlang" / "Ma'noni tanlang") which are pure
+            // labels — the user can't progress by tapping the button,
+            // only by tapping tiles. Showing a tappable-looking pill is
+            // misleading there. The flag is reset on EVERY call to this
+            // helper, so the button auto-reappears the moment any phase
+            // calls gbSetButtonNext('<next>') (e.g. gbTMFinish).
+            btn.classList.remove('pulse','state-pill','state-line','tm-dock-hidden');
             btn.classList.add('state-pill');
             setBtnText(text || RT('btn.next'));
             btn.classList.add('pulse');
+            if (hidden) btn.classList.add('tm-dock-hidden');
         }
 
         function gbHandleAction() {
@@ -14507,7 +14614,9 @@
             if (resultCard) resultCard.classList.remove('show');
 
             if (typeof gbSetButtonNext === 'function') {
-                gbSetButtonNext(RT('tm.dock_select'));
+                // Hide the action button during play — the dock label is
+                // informational and the user advances by tapping tiles.
+                gbSetButtonNext(RT('tm.dock_select'), /*hidden*/ true);
             }
 
 
@@ -14594,7 +14703,7 @@
                 el.classList.remove('selected');
                 tm.selectedLeft = null;
                 if (typeof gbSetButtonNext === 'function') {
-                    gbSetButtonNext(RT('tm.dock_select'));
+                    gbSetButtonNext(RT('tm.dock_select'), /*hidden*/ true);
                 }
                 return;
             }
@@ -14609,7 +14718,7 @@
             el.classList.add('selected');
             tm.selectedLeft = { id: pairId, el: el };
             if (typeof gbSetButtonNext === 'function') {
-                gbSetButtonNext(RT('tm.dock_choose_meaning'));
+                gbSetButtonNext(RT('tm.dock_choose_meaning'), /*hidden*/ true);
             }
         }
 
@@ -14740,7 +14849,7 @@
                 tm.selectedLeft = null;
                 tm.busy = false;
                 if (typeof gbSetButtonNext === 'function') {
-                    gbSetButtonNext(RT('tm.dock_select'));
+                    gbSetButtonNext(RT('tm.dock_select'), /*hidden*/ true);
                 }
 
                 if (resp.complete === true) {

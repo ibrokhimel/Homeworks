@@ -80,7 +80,14 @@ body {
         radial-gradient(circle at 100% 100%, rgba(52, 199, 89, 0.08), transparent 45%),
         radial-gradient(circle at 0% 100%, rgba(255, 149, 0, 0.08), transparent 45%);
     background-attachment: fixed;
+    /* 100vh on iOS Safari is the LARGEST viewport (URL bar collapsed),
+       so when the URL bar is showing the body floor sits below the
+       visible area — content scrolled to the bottom can be hidden behind
+       the URL bar. 100dvh tracks the dynamic visible viewport on iOS 15+
+       and modern Chrome/Firefox. The vh value remains as a fallback for
+       browsers that don't support dvh. */
     min-height: 100vh;
+    min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -187,7 +194,12 @@ code {
     display: flex;
     flex-direction: row;
     width: 100%;
+    /* dvh fallback chain — see body{} comment above. The builder shell
+       is the height ceiling the editor + preview compete for, so a
+       too-tall ceiling on iOS would push the FAB and "Save" controls
+       below the visible viewport. */
     min-height: 100vh;
+    min-height: 100dvh;
     padding: 16px;
     gap: 16px;
 }
@@ -2806,11 +2818,15 @@ textarea:disabled {
   letter-spacing: 0.04em;
 }
 
-/* Keep FAB out of the way on narrow screens — still visible, smaller */
+/* Keep FAB out of the way on narrow screens — still visible, smaller.
+   On iPhones with a home indicator, a bare `bottom: 16px` puts the FAB
+   under the indicator's swipe region (~34px). `env(safe-area-inset-bottom)`
+   only resolves to non-zero when the page sets `viewport-fit=cover` on
+   its <meta viewport>; that has been added to builder.html. */
 @media (max-width: 639px) {
   .fab-add {
-    bottom: 16px;
-    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    right: calc(16px + env(safe-area-inset-right, 0px));
     height: 52px;
     padding: 0 18px;
     font-size: 14px;
