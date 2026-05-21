@@ -157,12 +157,16 @@ export function submitGameAnswer<T = unknown>(
 }
 
 /**
- * Submit a single Tile Match pairing. The client sends only the two tapped
- * tile ids — the server holds the answer key (a match is correct iff
- * left_id === right_id, since each pair shares one id) and returns
+ * Submit a single Tile Match pairing. The client sends the two tapped OPAQUE
+ * per-side tokens (`lid` + `rid`) — there is no shared id, so the client never
+ * holds the answer key. The server inverts each token to its pair index and
+ * grades by `left_index === right_index`, returning
  * {correct, hint?, matched_count, total_pairs, complete, outcome?, …}.
  * The wrong-match `hint` is the LEFT-side text of the picked right tile's TRUE
  * partner — already visible in the DOM, so not a new leak surface.
+ *
+ * Param names stay `leftId`/`rightId` for call-site stability; they now carry
+ * the opaque tokens, not pair ids.
  */
 export function submitTileMatch(
   hwId: string,

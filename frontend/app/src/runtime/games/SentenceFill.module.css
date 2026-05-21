@@ -1,0 +1,324 @@
+/* ============================================================
+   SentenceFill.module.css — Apple-glass cloze passage game.
+   Uses the shared design tokens from _tokens.css exclusively.
+   ============================================================ */
+
+.wrap {
+  animation: fadeIn 320ms var(--landing-spring) both;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- header ---- */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.counter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-subtle);
+}
+.sub {
+  margin-top: 6px;
+}
+
+/* ---- difficulty badges ---- */
+.badges {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ---- passage ---- */
+.passage {
+  margin-top: 24px;
+  padding: 20px 22px;
+  background: var(--v2-card-bg);
+  border: 1px solid var(--v2-ring);
+  border-radius: 16px;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 2.2;
+  color: var(--v2-text);
+  box-shadow: var(--landing-shadow-soft);
+}
+
+/* ---- locked blank display ---- */
+.blankLocked {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 4px;
+  transition: background 200ms var(--landing-spring);
+}
+.blankCorrect {
+  background: rgba(4, 120, 87, 0.12);
+  color: var(--landing-emerald-700);
+  border: 1px solid rgba(4, 120, 87, 0.22);
+}
+.blankWrong {
+  background: rgba(217, 70, 239, 0.08);
+  color: var(--landing-fuchsia-500);
+  border: 1px solid rgba(217, 70, 239, 0.2);
+  text-decoration: line-through;
+  text-decoration-color: rgba(217, 70, 239, 0.4);
+}
+
+/* ---- word-bank blank target (tap to focus) ---- */
+.blankTarget {
+  display: inline-flex;
+  align-items: center;
+  min-width: 72px;
+  padding: 3px 10px;
+  margin: 0 4px;
+  border-radius: 8px;
+  background: var(--v2-card-tinted);
+  border: 1.5px dashed var(--v2-ring);
+  color: var(--v2-text-muted);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 180ms var(--landing-spring),
+    background 180ms var(--landing-spring),
+    box-shadow 180ms var(--landing-spring);
+  vertical-align: middle;
+}
+.blankTarget:not(:disabled):hover {
+  border-color: var(--v2-accent-soft);
+  background: rgba(96, 165, 250, 0.06);
+}
+.blankTargetFocused {
+  border-color: var(--landing-blue-600);
+  border-style: solid;
+  background: rgba(37, 99, 235, 0.07);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+.blankPlaceholder {
+  color: var(--v2-text-subtle);
+  font-weight: 400;
+  font-size: 13px;
+}
+
+/* ---- free recall input ---- */
+.inputWrap {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 4px;
+  vertical-align: middle;
+  position: relative;
+}
+.blankInput {
+  min-width: 88px;
+  max-width: 160px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: var(--v2-card-tinted);
+  border: 1.5px solid var(--v2-ring);
+  color: var(--v2-text);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 180ms var(--landing-spring),
+    box-shadow 180ms var(--landing-spring);
+}
+.blankInput:focus {
+  border-color: var(--landing-blue-600);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+.submitMini {
+  position: absolute;
+  right: -28px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: var(--landing-blue-600);
+  color: #fff;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 150ms ease;
+}
+.submitMini:hover {
+  opacity: 1;
+}
+
+/* ---- flash states (correct / wrong) ---- */
+.blankFlashCorrect {
+  animation: flashCorrect 560ms var(--landing-spring) both;
+}
+.blankFlashWrong {
+  animation: flashWrong 560ms var(--landing-spring) both;
+}
+@keyframes flashCorrect {
+  0%   { box-shadow: 0 0 0 0 rgba(4, 120, 87, 0); }
+  25%  { box-shadow: 0 0 0 6px rgba(4, 120, 87, 0.28); background: rgba(4, 120, 87, 0.12); }
+  100% { box-shadow: 0 0 0 0 rgba(4, 120, 87, 0); }
+}
+@keyframes flashWrong {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-5px); }
+  40%  { transform: translateX(5px); }
+  60%  { transform: translateX(-3px); }
+  80%  { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+
+/* ---- submitting state ---- */
+.blankSubmitting {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+/* ---- word bank ---- */
+.bankWrap {
+  margin-top: 24px;
+  padding: 16px 18px;
+  background: var(--v2-card-bg);
+  border: 1px solid var(--v2-ring);
+  border-radius: 16px;
+  box-shadow: var(--landing-shadow-soft);
+}
+.bankLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v2-text-subtle);
+  margin-bottom: 12px;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--v2-card-tinted);
+  border: 1.5px solid var(--v2-ring);
+  color: var(--v2-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 180ms var(--landing-spring),
+    border-color 180ms var(--landing-spring),
+    background 180ms var(--landing-spring),
+    box-shadow 180ms var(--landing-spring),
+    opacity 180ms ease;
+}
+.chipAvailable:not(:disabled):hover {
+  transform: translateY(-2px);
+  border-color: var(--landing-blue-600);
+  background: rgba(37, 99, 235, 0.07);
+  box-shadow: var(--landing-shadow-card);
+}
+.chipAvailable:not(:disabled) {
+  border-color: var(--v2-accent-soft);
+}
+.chipUsed {
+  opacity: 0.38;
+  cursor: default;
+  text-decoration: line-through;
+}
+.chip:disabled:not(.chipUsed) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---- explanation panel ---- */
+.explanations {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+  animation: fadeIn 280ms var(--landing-spring) both;
+}
+.explanationRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--v2-card-tinted);
+  border: 1px solid var(--v2-ring);
+}
+.explanationText {
+  font-size: 14px;
+  color: var(--v2-text-muted);
+  line-height: 1.5;
+}
+
+/* ---- error ---- */
+.error {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ---- complete screen ---- */
+.done {
+  display: grid;
+  gap: 12px;
+  padding: 12px 0;
+  animation: fadeIn 360ms var(--landing-spring) both;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* ---- responsive ---- */
+@media (max-width: 560px) {
+  .passage {
+    font-size: 15px;
+    padding: 16px 14px;
+    line-height: 2;
+  }
+  .blankInput {
+    min-width: 64px;
+    font-size: 14px;
+  }
+  .blankTarget {
+    min-width: 56px;
+    font-size: 14px;
+  }
+}
+
+/* ---- reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .wrap,
+  .done,
+  .explanations {
+    animation: none;
+  }
+  .blankFlashCorrect,
+  .blankFlashWrong {
+    animation: none;
+  }
+  .chip:not(:disabled):hover,
+  .blankTarget:not(:disabled):hover {
+    transform: none;
+  }
+}

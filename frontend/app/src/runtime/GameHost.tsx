@@ -48,10 +48,15 @@ export const GAME_LABELS: Record<string, string> = {
   story_mode: "Story Mode",
 };
 
-// The registry. v1: tile_match + boss are live; everything else falls through
-// to the "coming soon" skip card via the `undefined` lookup.
+// The registry. tile_match + boss + the four backend-backed games are live;
+// the remaining keys (adaptive_quiz, mystery_box, puzzle_lock, story_mode)
+// fall through to the "coming soon" skip card until their resolvers land.
 const GAME_REGISTRY: Record<string, ComponentType<GameProps>> = {
   tile_match: lazy(() => import("./games/TileMatch")),
+  sentence_fill: lazy(() => import("./games/SentenceFill")),
+  real_life_challenge: lazy(() => import("./games/RealLifeChallenge")),
+  ttt: lazy(() => import("./games/Ttt")),
+  memory_palace: lazy(() => import("./games/MemoryPalace")),
   boss: lazy(() => import("./BossArena")),
 };
 

@@ -19,10 +19,14 @@ export const BOSS_KEY = "boss";
 // Maps a content_json gb_* array name → its Practice Arc game key. Only
 // tile_match is wired in v1; the other 8 keys are registered here so deriving
 // the order picks them up the moment their gb_* array + GameHost entry land.
+// NOTE: keys here are the ACTUAL content_json field names. Most games store an
+// array under a `gb_*` field, but real_life_challenge stores an OBJECT under
+// `real_life_challenge` (no gb_ prefix) and memory_palace stores an OBJECT under
+// `gb_memory_palace` — hasContent() below detects both arrays and objects.
 const GB_ARRAY_TO_KEY: Record<string, string> = {
   gb_tile_match: "tile_match",
   gb_sentence_fill: "sentence_fill",
-  gb_real_life_challenge: "real_life_challenge",
+  real_life_challenge: "real_life_challenge",
   gb_ttt: "ttt",
   gb_memory_palace: "memory_palace",
   gb_mystery_box: "mystery_box",
@@ -42,12 +46,16 @@ const DERIVED_ORDER: string[] = [
   "gb_memory_palace",
   "gb_story_mode",
   "gb_ttt",
-  "gb_real_life_challenge",
+  "real_life_challenge",
 ];
 
-function hasArray(content: ContentJson, key: string): boolean {
+// True when the content field holds a non-empty array OR a non-empty object.
+// (Most games are arrays; real_life_challenge + memory_palace are objects.)
+function hasContent(content: ContentJson, key: string): boolean {
   const v = content[key];
-  return Array.isArray(v) && v.length > 0;
+  if (Array.isArray(v)) return v.length > 0;
+  if (v && typeof v === "object") return Object.keys(v as object).length > 0;
+  return false;
 }
 
 /**
@@ -73,7 +81,7 @@ export function resolveGameOrder(content: ContentJson | undefined): string[] {
   // 2) Derive from the gb_* arrays that exist, in canonical order.
   const order: string[] = [];
   for (const arrayName of DERIVED_ORDER) {
-    if (hasArray(content, arrayName)) order.push(GB_ARRAY_TO_KEY[arrayName]);
+    if (hasContent(content, arrayName)) order.push(GB_ARRAY_TO_KEY[arrayName]);
   }
   if (hasBoss) order.push(BOSS_KEY);
   return order;

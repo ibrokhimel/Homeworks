@@ -1,0 +1,394 @@
+/* RealLifeChallenge.module.css
+   Apple-glass style, mirrors TileMatch layout conventions.
+   Variables come from _tokens.css / the design system.
+*/
+
+.wrap {
+  animation: fadeIn 320ms var(--landing-spring) both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- header row ---- */
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.progress {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-subtle);
+}
+
+/* ---- intro box (step 1 only) ---- */
+
+.introBox {
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--v2-card-tinted);
+  border: 1px solid var(--v2-ring);
+  margin-bottom: 16px;
+}
+
+.introText {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--v2-text-muted);
+  margin: 0;
+}
+
+/* ---- step card ---- */
+
+.stepCard {
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.stepTitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v2-text-subtle);
+  margin: 0 0 8px;
+}
+
+.stepPrompt {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--v2-text);
+  margin: 0 0 20px;
+}
+
+/* ---- decision / info_request / final_decision options ---- */
+
+.optionList {
+  display: grid;
+  gap: 10px;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--v2-card-bg);
+  border: 1px solid var(--v2-ring);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--v2-text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 180ms var(--landing-spring),
+    border-color 180ms var(--landing-spring),
+    background 180ms var(--landing-spring),
+    box-shadow 180ms var(--landing-spring);
+}
+
+.option:not(:disabled):hover {
+  transform: translateY(-2px);
+  border-color: var(--v2-accent-soft);
+  box-shadow: var(--landing-shadow-card);
+}
+
+.optionBullet {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 2px solid var(--v2-ring);
+  background: transparent;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.optionLabel {
+  flex: 1;
+}
+
+.optionPicked .optionBullet {
+  border-color: var(--landing-blue-600);
+  background: var(--landing-blue-600);
+}
+
+.optionPicked {
+  border-color: var(--landing-blue-600);
+  background: rgba(37, 99, 235, 0.06);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.optionCorrect {
+  border-color: var(--landing-emerald-700);
+  background: rgba(4, 120, 87, 0.08);
+}
+
+.optionWrong {
+  border-color: var(--landing-fuchsia-500);
+  animation: shake 420ms var(--landing-spring) both;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-5px); }
+  40%       { transform: translateX(5px); }
+  60%       { transform: translateX(-3px); }
+  80%       { transform: translateX(3px); }
+}
+
+/* ---- concept_select chips ---- */
+
+.chipGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip {
+  padding: 10px 18px;
+  border-radius: 100px;
+  background: var(--v2-card-bg);
+  border: 1px solid var(--v2-ring);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text);
+  cursor: pointer;
+  transition:
+    transform 150ms var(--landing-spring),
+    border-color 150ms var(--landing-spring),
+    background 150ms var(--landing-spring),
+    box-shadow 150ms var(--landing-spring);
+}
+
+.chip:not(:disabled):hover {
+  transform: translateY(-2px);
+  border-color: var(--v2-accent-soft);
+  box-shadow: var(--landing-shadow-card);
+}
+
+.chipPicked {
+  border-color: var(--landing-blue-600);
+  background: rgba(37, 99, 235, 0.08);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.chipCorrect {
+  border-color: var(--landing-emerald-700);
+  background: rgba(4, 120, 87, 0.1);
+}
+
+.chipWrong {
+  border-color: var(--landing-fuchsia-500);
+  animation: shake 420ms var(--landing-spring) both;
+}
+
+/* ---- reasoning textarea ---- */
+
+.reasoningWrap {
+  display: grid;
+  gap: 8px;
+}
+
+.reasoningBox {
+  width: 100%;
+  min-height: 120px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--v2-card-bg);
+  border: 1px solid var(--v2-ring);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--v2-text);
+  resize: vertical;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+  box-sizing: border-box;
+}
+
+.reasoningBox:focus {
+  outline: none;
+  border-color: var(--landing-blue-600);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.reasoningBox:disabled {
+  opacity: 0.6;
+  cursor: default;
+  resize: none;
+}
+
+.charHint {
+  font-size: 12px;
+  color: var(--v2-text-subtle);
+  text-align: right;
+  margin: 0;
+}
+
+.charHintWarn {
+  color: #d97706;
+}
+
+/* ---- feedback panel ---- */
+
+.feedback {
+  padding: 16px 20px;
+  border-radius: 16px;
+  background: var(--v2-card-tinted);
+  border: 1px solid var(--v2-ring);
+  display: grid;
+  gap: 10px;
+  animation: fadeIn 280ms var(--landing-spring) both;
+}
+
+.feedbackRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scoreLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-subtle);
+}
+
+.consequenceText {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--v2-text-muted);
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(251, 146, 60, 0.06);
+  border-left: 3px solid #f97316;
+}
+
+.hintText {
+  font-size: 14px;
+  color: var(--v2-text-muted);
+  margin: 0;
+}
+
+.reasoningFeedbackText {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--v2-text-muted);
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.06);
+  border-left: 3px solid #6366f1;
+}
+
+.feedbackActions {
+  margin-top: 4px;
+}
+
+/* ---- completion screen ---- */
+
+.done {
+  display: grid;
+  gap: 14px;
+  padding: 12px 0;
+  animation: fadeIn 360ms var(--landing-spring) both;
+}
+
+.rubricCard {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.rubricRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--v2-text-muted);
+  margin: 0;
+}
+
+.rubricRow strong {
+  color: var(--v2-text);
+}
+
+/* ---- shared ---- */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.error {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ---- responsive ---- */
+
+@media (max-width: 560px) {
+  .stepCard {
+    padding: 16px;
+  }
+
+  .option {
+    font-size: 14px;
+    padding: 12px 14px;
+  }
+
+  .chip {
+    font-size: 13px;
+    padding: 9px 15px;
+  }
+
+  .reasoningBox {
+    font-size: 14px;
+  }
+}
+
+/* ---- reduced motion ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap,
+  .feedback,
+  .done {
+    animation: none;
+  }
+
+  .option:not(:disabled):hover,
+  .chip:not(:disabled):hover {
+    transform: none;
+  }
+
+  .optionWrong,
+  .chipWrong {
+    animation: none;
+  }
+
+  .reasoningBox {
+    transition: none;
+  }
+}

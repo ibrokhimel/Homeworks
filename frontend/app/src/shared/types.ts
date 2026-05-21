@@ -21,7 +21,10 @@ export interface ContentJson {
   // list of game keys ("tile_match", "boss", …); when absent the arc derives
   // its order from whichever gb_* arrays exist + boss last.
   practice_arc?: PracticeArc;
-  gb_tile_match?: TileMatchTile[];
+  // Opaque per-side tile-match payload — the server replaces the leaky
+  // `[{id,left,right}]` pair list with independently-shuffled token columns so
+  // the DOM can't recover the pairing. See TileMatchPayload.
+  gb_tile_match?: TileMatchPayload;
   boss_questions?: BossQuestion[];
   boss_meta?: BossMeta;
   // Other gb_* arrays land as the remaining 8 games ship — kept open.
@@ -179,19 +182,40 @@ export interface PracticeArc {
 }
 
 /**
- * One Tile Match tile as it arrives in the redacted hydration payload. The
- * server-only `explanation` is stripped; `id` is the per-pair key. The client
- * matches a left tile to a right tile by submitting their two ids — a match is
- * correct only when both ids are equal (each pair shares one id). The client
- * never decides correctness; the server does.
+ * One LEFT-column tile in the redacted hydration payload. `lid` is an opaque
+ * per-side token (HMAC, server-held mapping) — it does NOT reveal which right
+ * tile it pairs with. `text` is the concept label.
  */
-export interface TileMatchTile {
-  id: string;
-  left: string;
-  right: string;
-  tier?: "basic" | "premium";
-  concept_family?: string;
-  // Leak guard — the redactor strips the premium "why this is wrong" note.
+export interface TileMatchLeft {
+  lid: string;
+  text: string;
+}
+
+/**
+ * One RIGHT-column tile. `rid` is an opaque per-side token; `text` is the
+ * meaning/definition. There is deliberately NO field linking a right to its
+ * left — the pairing lives only on the server.
+ */
+export interface TileMatchRight {
+  rid: string;
+  text: string;
+}
+
+/**
+ * The student-safe tile-match payload. The server replaced the leaky
+ * `[{id,left,right}]` pair list (both sides shared one `id`, so the DOM encoded
+ * every answer) with two independently-shuffled token columns. The client
+ * submits a tapped `lid` + `rid`; the server inverts the tokens to pair indices
+ * and grades by `left_index === right_index`. The client never decides
+ * correctness, and no shared id is ever present to recover the mapping.
+ */
+export interface TileMatchPayload {
+  lefts: TileMatchLeft[];
+  rights: TileMatchRight[];
+  // Leak guards — the legacy pairing shape must never reappear.
+  id?: never;
+  left?: never;
+  right?: never;
   explanation?: never;
 }
 

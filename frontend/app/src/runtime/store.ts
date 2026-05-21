@@ -212,7 +212,7 @@ interface RuntimeState {
   enterUnlockGate: () => void;
 
   // ---- Practice Arc (F4) ----
-  enterPracticeArc: () => void;
+  enterPracticeArc: () => Promise<void>;
   advanceGame: () => void; // mark current node done, move to next (or finish)
   setGameIndex: (index: number) => void;
 
@@ -551,11 +551,31 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
   // ---- Practice Arc (F4) ----
 
   // Enter the arc: resolve the game order ONCE (author order, else derived from
-  // gb_* arrays + Boss last), size the completion vector, reset to node 0. We
-  // do NOT gate on practice_arc_unlocked here — the UnlockGate CTA is the only
-  // entry point and it only renders when unlocked, so the gate already passed.
-  enterPracticeArc: () => {
-    const { payload } = get();
+  // gb_* arrays + Boss last), size the completion vector, reset to node 0.
+  //
+  // BLOCKER #3 (defense-in-depth): re-fetch server-authoritative gate state and
+  // only proceed when `practice_arc_unlocked`. If a stale/tampered client tries
+  // to enter while still locked, route back to the hub. The REAL enforcement is
+  // server-side (the practice-arc check-answer branches 403 on a locked
+  // session); this just keeps the UI honest. A network failure fails closed
+  // (we don't enter the arc on an unconfirmed gate).
+  enterPracticeArc: async () => {
+    const { payload, hwId, sessionId } = get();
+    if (hwId && sessionId) {
+      try {
+        const gate = await getGateState(hwId, sessionId);
+        set({ gateState: gate });
+        if (!gate.practice_arc_unlocked) {
+          set({ screen: "hub" });
+          return;
+        }
+      } catch {
+        // Could not confirm the gate — fail closed back to the hub rather than
+        // optimistically entering a possibly-locked arc.
+        set({ screen: "hub" });
+        return;
+      }
+    }
     const gameOrder = resolveGameOrder(payload?.content_json);
     set({
       screen: "practice",
@@ -813,7 +833,7 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
   // Practice Arc from the top (which re-resolves the game order and resets the
   // Boss); the backend serves fresh questions for the same concepts.
   retakeFromReflection: () => {
-    get().enterPracticeArc();
+    void get().enterPracticeArc();
   },
 
   // ---- Docked tutor (F5) ----

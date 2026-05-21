@@ -1,65 +1,49 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRuntimeStore } from "../store";
 import { submitTileMatch } from "../../shared/api";
 import type { GameProps } from "../GameHost";
-import type { TileMatchTile } from "../../shared/types";
+import type { TileMatchPayload } from "../../shared/types";
 import { Eyebrow, Title, Lead, Pill, Button } from "../../shared/ui/primitives";
 import s from "./TileMatch.module.css";
 
 // ---------------------------------------------------------------------------
 // Tile Match — the F4 reference game (proves the GameHost registry).
 //
-// `gb_tile_match` arrives as pairs with a shared `id`, a `left` (concept) and a
-// `right` (definition). We render two shuffled columns of tiles. The student
-// taps a left tile, then a right tile; we submit BOTH tile ids to the server,
-// which holds the answer key — a match is correct iff left_id === right_id
-// (each pair shares one id). Correctness is ALWAYS the server's call; the
+// `gb_tile_match` now arrives as TWO independently-shuffled token columns:
+// `{ lefts: [{lid, text}], rights: [{rid, text}] }`. The `lid`/`rid` are opaque
+// per-side HMAC tokens — there is NO shared id, so the DOM can't reveal which
+// left matches which right (the old `[{id,left,right}]` shape leaked exactly
+// that). The student taps a left tile, then a right tile; we submit the two
+// tokens to the server, which inverts them to pair indices and grades by
+// `left_index === right_index`. Correctness is ALWAYS the server's call; the
 // client never compares strings. Complete when the server reports all pairs
 // matched. On a wrong match the server returns a `hint` (the left text of the
 // picked right tile's TRUE partner — already on screen, so not a new leak).
+//
+// Both columns are already shuffled server-side (stable per hw_id), so the
+// client renders them in delivery order — no client-side reshuffle needed.
 // ---------------------------------------------------------------------------
 
-interface SideTile {
-  pairId: string;
-  text: string;
-}
-
-// Stable shuffle seeded off the pair ids so a re-render doesn't re-order tiles
-// mid-game (which would feel broken). Fisher–Yates over a copy.
-function shuffle<T>(arr: T[], seed: number): T[] {
-  const out = [...arr];
-  let s = seed || 1;
-  const rand = () => {
-    s = (s * 1103515245 + 12345) & 0x7fffffff;
-    return s / 0x7fffffff;
-  };
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
+const EMPTY_PAYLOAD: TileMatchPayload = { lefts: [], rights: [] };
 
 export default function TileMatch({ onComplete }: GameProps) {
   const hwId = useRuntimeStore((st) => st.hwId);
   const sessionId = useRuntimeStore((st) => st.sessionId);
   const payload = useRuntimeStore((st) => st.payload);
 
-  const tiles = (payload?.content_json.gb_tile_match ?? []) as TileMatchTile[];
-  const totalPairs = tiles.length;
+  const tm = (payload?.content_json.gb_tile_match ?? EMPTY_PAYLOAD) as TileMatchPayload;
+  const lefts = tm.lefts ?? [];
+  const rights = tm.rights ?? [];
+  const totalPairs = lefts.length;
 
-  // Side columns, shuffled once (seeded off pair count so it's stable).
-  const { lefts, rights } = useMemo(() => {
-    const seed = tiles.reduce((acc, t) => acc + (t.id?.length ?? 0) + 7, totalPairs);
-    const l: SideTile[] = tiles.map((t) => ({ pairId: t.id, text: t.left }));
-    const r: SideTile[] = tiles.map((t) => ({ pairId: t.id, text: t.right }));
-    return { lefts: shuffle(l, seed), rights: shuffle(r, seed + 31) };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalPairs]);
-
-  const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
-  const [matched, setMatched] = useState<Set<string>>(new Set());
-  const [wrongFlash, setWrongFlash] = useState<string | null>(null); // right pairId
+  // Selection + match state keyed by the OPAQUE per-side tokens. `matchedLeft`
+  // / `matchedRight` track which tokens are locked so both columns gray out the
+  // resolved tiles (we don't know the pairing client-side, so they're tracked
+  // independently — a correct submit locks the picked lid + rid together).
+  const [selectedLid, setSelectedLid] = useState<string | null>(null);
+  const [matchedLefts, setMatchedLefts] = useState<Set<string>>(new Set());
+  const [matchedRights, setMatchedRights] = useState<Set<string>>(new Set());
+  const [wrongFlash, setWrongFlash] = useState<string | null>(null); // rid
   const [hint, setHint] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,36 +69,39 @@ export default function TileMatch({ onComplete }: GameProps) {
     );
   }
 
-  const onPickLeft = (pairId: string) => {
-    if (submitting || complete || matched.has(pairId)) return;
+  const onPickLeft = (lid: string) => {
+    if (submitting || complete || matchedLefts.has(lid)) return;
     setHint(null);
-    setSelectedLeft((cur) => (cur === pairId ? null : pairId));
+    setSelectedLid((cur) => (cur === lid ? null : lid));
   };
 
-  const onPickRight = async (rightPairId: string) => {
-    if (submitting || complete || selectedLeft === null) return;
-    if (matched.has(rightPairId)) return;
+  const onPickRight = async (rid: string) => {
+    if (submitting || complete || selectedLid === null) return;
+    if (matchedRights.has(rid)) return;
 
     setSubmitting(true);
     setError(null);
     try {
-      // The server grades by ids only — a match is correct iff the two ids are
-      // equal. We send what the student tapped; the verdict comes back.
-      const res = await submitTileMatch(hwId, sessionId, selectedLeft, rightPairId);
+      // The server inverts the opaque tokens to pair indices and grades by
+      // index equality. We send the two tapped tokens; the verdict comes back.
+      const res = await submitTileMatch(hwId, sessionId, selectedLid, rid);
       if (res.correct) {
-        const next = new Set(matched);
-        next.add(selectedLeft);
-        setMatched(next);
-        setSelectedLeft(null);
+        const nextL = new Set(matchedLefts);
+        nextL.add(selectedLid);
+        const nextR = new Set(matchedRights);
+        nextR.add(rid);
+        setMatchedLefts(nextL);
+        setMatchedRights(nextR);
+        setSelectedLid(null);
         setHint(null);
         // Server is authoritative on completion (matched_count vs total_pairs).
-        if (res.complete || next.size >= totalPairs) {
+        if (res.complete || nextL.size >= totalPairs) {
           setComplete(true);
         }
       } else {
-        setWrongFlash(rightPairId);
+        setWrongFlash(rid);
         setHint(res.hint ?? null);
-        setSelectedLeft(null);
+        setSelectedLid(null);
       }
     } catch (err) {
       setError((err as Error).message || "Couldn’t check that match.");
@@ -123,7 +110,7 @@ export default function TileMatch({ onComplete }: GameProps) {
     }
   };
 
-  const matchedCount = matched.size;
+  const matchedCount = matchedLefts.size;
 
   return (
     <div className={s.wrap} data-testid="tile-match">
@@ -142,11 +129,11 @@ export default function TileMatch({ onComplete }: GameProps) {
           <div className={s.board}>
             <div className={s.column} role="group" aria-label="Concepts">
               {lefts.map((t) => {
-                const isMatched = matched.has(t.pairId);
-                const isSel = selectedLeft === t.pairId;
+                const isMatched = matchedLefts.has(t.lid);
+                const isSel = selectedLid === t.lid;
                 return (
                   <button
-                    key={`l-${t.pairId}`}
+                    key={`l-${t.lid}`}
                     type="button"
                     className={[
                       s.tile,
@@ -157,9 +144,9 @@ export default function TileMatch({ onComplete }: GameProps) {
                       .filter(Boolean)
                       .join(" ")}
                     disabled={isMatched || submitting || complete}
-                    onClick={() => onPickLeft(t.pairId)}
+                    onClick={() => onPickLeft(t.lid)}
                     aria-pressed={isSel}
-                    data-testid={`tm-left-${t.pairId}`}
+                    data-testid={`tm-left-${t.lid}`}
                   >
                     {t.text}
                   </button>
@@ -169,11 +156,11 @@ export default function TileMatch({ onComplete }: GameProps) {
 
             <div className={s.column} role="group" aria-label="Meanings">
               {rights.map((t) => {
-                const isMatched = matched.has(t.pairId);
-                const isWrong = wrongFlash === t.pairId;
+                const isMatched = matchedRights.has(t.rid);
+                const isWrong = wrongFlash === t.rid;
                 return (
                   <button
-                    key={`r-${t.pairId}`}
+                    key={`r-${t.rid}`}
                     type="button"
                     className={[
                       s.tile,
@@ -183,9 +170,9 @@ export default function TileMatch({ onComplete }: GameProps) {
                     ]
                       .filter(Boolean)
                       .join(" ")}
-                    disabled={isMatched || submitting || complete || selectedLeft === null}
-                    onClick={() => onPickRight(t.pairId)}
-                    data-testid={`tm-right-${t.pairId}`}
+                    disabled={isMatched || submitting || complete || selectedLid === null}
+                    onClick={() => onPickRight(t.rid)}
+                    data-testid={`tm-right-${t.rid}`}
                   >
                     {t.text}
                   </button>
