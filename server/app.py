@@ -168,6 +168,19 @@ app.mount(
 # Vite content-hashes its own filenames, so this is intentionally OUTSIDE the
 # __VERSION__ cache-bust system. Mounted before the "/" catch-all.
 _SPA_DIST = os.path.join(_FRONTEND_DIR, "app", "dist")
+_SPA_INDEX = os.path.join(_SPA_DIST, "index.html")
+
+# SPA client-route fallback: StaticFiles only serves index.html at the mount
+# root, so client-side routes (e.g. /app/builder) 404. Serve the shell for the
+# known client routes BEFORE the static mount so the React router takes over.
+# (/h/{id} is server-routed in homework_page; this covers the builder route.)
+if os.path.isfile(_SPA_INDEX):
+    async def _spa_shell():
+        with open(_SPA_INDEX, "r", encoding="utf-8") as f:
+            return HTMLResponse(f.read())
+    for _spa_route in ("/app/builder", "/app/builder/"):
+        app.get(_spa_route)(_spa_shell)
+
 if os.path.isdir(_SPA_DIST):
     app.mount("/app", StaticFiles(directory=_SPA_DIST, html=True), name="spa")
 
