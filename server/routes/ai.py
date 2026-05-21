@@ -102,6 +102,13 @@ class CheckAnswerRequest(BaseModel):
     recall_results: Optional[list[dict[str, Any]]] = None
     mp_hints_used: Optional[int] = 0
 
+    # Case-Based Preview / Memory Check phase fields.
+    # `item_index` is the 0-based index of the checkpoint (case_based_preview)
+    # or item (memory_check) within the homework's content_json array.
+    # The server resolves the matching answer_spec from content_json — the
+    # client NEVER sends the expected answer value.
+    item_index: Optional[int] = None
+
 
 class FinalizeCheckAnswerRequest(BaseModel):
     phase: str
@@ -2079,6 +2086,206 @@ async def _check_answer_memory_palace(req: CheckAnswerRequest) -> dict:
     }
 
 
+async def _check_answer_case_based_preview(req: CheckAnswerRequest) -> dict:
+    """Per-checkpoint grading branch for Case-Based Preview (v2 React runtime).
+
+    No-leak invariants:
+      - `answer_spec.expected` / `accepted_answers` from content_json are NEVER
+        included in the response, even on a wrong answer.
+      - `learning_block` (the teaching text) IS returned after submit — this is
+        the "feedback from response" pattern, not hydration.
+      - On wrong answer, a generic hint is returned, never the expected value.
+    """
+    if not req.homework_id:
+        raise HTTPException(400, detail={
+            "error": "homework_id required for phase=case_based_preview",
+            "code": "CBP_MISSING_HW",
+        })
+    if req.item_index is None:
+        raise HTTPException(400, detail={
+            "error": "item_index required for phase=case_based_preview",
+            "code": "CBP_MISSING_ITEM_INDEX",
+        })
+
+    hw = await db.get_homework(req.homework_id)
+    if hw is None:
+        raise HTTPException(404, detail={
+            "error": f"homework {req.homework_id} not found",
+            "code": "HW_NOT_FOUND",
+        })
+
+    content = hw.get("content_json") or {}
+    cbp = content.get("case_based_preview")
+    if not isinstance(cbp, dict):
+        raise HTTPException(404, detail={
+            "error": "case_based_preview content not found on this homework",
+            "code": "CBP_NO_CONTENT",
+        })
+
+    checkpoints = cbp.get("checkpoints") or []
+    idx = req.item_index
+    if not isinstance(idx, int) or idx < 0 or idx >= len(checkpoints):
+        raise HTTPException(400, detail={
+            "error": (
+                f"item_index {idx} out of range — "
+                f"case_based_preview has {len(checkpoints)} checkpoint(s)"
+            ),
+            "code": "CBP_BAD_INDEX",
+        })
+
+    checkpoint = checkpoints[idx]
+    if not isinstance(checkpoint, dict):
+        raise HTTPException(400, detail={
+            "error": f"checkpoint at index {idx} is malformed",
+            "code": "CBP_BAD_CHECKPOINT",
+        })
+
+    answer_spec = checkpoint.get("answer_spec") or {}
+    learning_block: Optional[str] = checkpoint.get("learning_block")
+    question_id = req.question_id or f"cbp_{idx}"
+
+    # Grade deterministically using the shared checker.
+    from ..services import answer_checker as _answer_checker
+    det = _answer_checker.check(answer_spec, req.student_answer or "")
+    verdict = det.get("verdict", "incorrect")
+    is_correct = verdict == "correct"
+
+    # Build feedback — never include the expected value on wrong answer.
+    if is_correct:
+        feedback = det.get("format_tip") or "To'g'ri!"
+    else:
+        # Provide a pedagogical hint without leaking the expected answer.
+        feedback = "Qayta urinib ko'ring." if verdict == "unsure" else "Noto'g'ri javob."
+
+    # Persist attempt.
+    import json as _json
+    session_id = req.session_id or "default"
+    try:
+        from ..db.attempts_repo import add_phase_attempt as _add_phase_attempt
+        await _add_phase_attempt(
+            session_id=session_id,
+            hw_id=req.homework_id,
+            phase="case_based_preview",
+            subphase=f"checkpoint_{idx}",
+            question_id=question_id,
+            item_id=req.item_id,
+            attempt_number=req.attempt_number or 1,
+            student_answer=str(req.student_answer or ""),
+            answer_spec_json=_json.dumps(answer_spec),
+            checker_source="phase_adapter:case_based_preview",
+            correct=1 if is_correct else 0,
+            score=1.0 if is_correct else 0.0,
+            feedback=feedback,
+        )
+    except Exception as _e:  # noqa: BLE001 — attempt persistence is best-effort
+        _log.warning("CBP: failed to persist attempt: %s", _e)
+
+    result: dict[str, Any] = {
+        "correct": is_correct,
+        "feedback": feedback,
+    }
+    if learning_block is not None:
+        result["learning_block"] = learning_block
+    return result
+
+
+async def _check_answer_memory_check(req: CheckAnswerRequest) -> dict:
+    """Per-item grading branch for Memory Check (v2 React runtime).
+
+    No-leak invariants:
+      - `answer_spec.expected` / `accepted_answers` from content_json are NEVER
+        included in the response body.
+      - On wrong answer, generic feedback is returned without revealing the
+        expected value.
+    """
+    if not req.homework_id:
+        raise HTTPException(400, detail={
+            "error": "homework_id required for phase=memory_check",
+            "code": "MC_MISSING_HW",
+        })
+    if req.item_index is None:
+        raise HTTPException(400, detail={
+            "error": "item_index required for phase=memory_check",
+            "code": "MC_MISSING_ITEM_INDEX",
+        })
+
+    hw = await db.get_homework(req.homework_id)
+    if hw is None:
+        raise HTTPException(404, detail={
+            "error": f"homework {req.homework_id} not found",
+            "code": "HW_NOT_FOUND",
+        })
+
+    content = hw.get("content_json") or {}
+    mc = content.get("memory_check")
+    if not isinstance(mc, dict):
+        raise HTTPException(404, detail={
+            "error": "memory_check content not found on this homework",
+            "code": "MC_NO_CONTENT",
+        })
+
+    items = mc.get("items") or []
+    idx = req.item_index
+    if not isinstance(idx, int) or idx < 0 or idx >= len(items):
+        raise HTTPException(400, detail={
+            "error": (
+                f"item_index {idx} out of range — "
+                f"memory_check has {len(items)} item(s)"
+            ),
+            "code": "MC_BAD_INDEX",
+        })
+
+    item = items[idx]
+    if not isinstance(item, dict):
+        raise HTTPException(400, detail={
+            "error": f"item at index {idx} is malformed",
+            "code": "MC_BAD_ITEM",
+        })
+
+    answer_spec = item.get("answer_spec") or {}
+    question_id = req.question_id or f"mc_{idx}"
+
+    # Grade deterministically using the shared checker.
+    from ..services import answer_checker as _answer_checker
+    det = _answer_checker.check(answer_spec, req.student_answer or "")
+    verdict = det.get("verdict", "incorrect")
+    is_correct = verdict == "correct"
+
+    # Build feedback — never include the expected value.
+    if is_correct:
+        feedback = det.get("format_tip") or "To'g'ri!"
+    else:
+        feedback = "Qayta urinib ko'ring." if verdict == "unsure" else "Noto'g'ri javob."
+
+    # Persist attempt.
+    import json as _json
+    session_id = req.session_id or "default"
+    try:
+        from ..db.attempts_repo import add_phase_attempt as _add_phase_attempt
+        await _add_phase_attempt(
+            session_id=session_id,
+            hw_id=req.homework_id,
+            phase="memory_check",
+            subphase=f"item_{idx}",
+            question_id=question_id,
+            item_id=req.item_id,
+            attempt_number=req.attempt_number or 1,
+            student_answer=str(req.student_answer or ""),
+            answer_spec_json=_json.dumps(answer_spec),
+            checker_source="phase_adapter:memory_check",
+            correct=1 if is_correct else 0,
+            score=1.0 if is_correct else 0.0,
+            feedback=feedback,
+        )
+    except Exception as _e:  # noqa: BLE001 — attempt persistence is best-effort
+        _log.warning("MC: failed to persist attempt: %s", _e)
+
+    return {
+        "correct": is_correct,
+        "feedback": feedback,
+    }
+
+
 @router.post("/ai/runtime/submit-answer")
 async def submit_runtime_answer(req: RuntimeAnswerSubmitRequest):
     from ..services.runtime_answer_resolver import resolve_runtime_answer
@@ -2197,6 +2404,34 @@ async def check_answer(req: CheckAnswerRequest):
             result = await _check_answer_memory_palace(req)
             return _attach_check_answer_debug(
                 req, result, checker_path="phase_adapter:memory-palace"
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            _handle_exc(e)
+
+    # Case-Based Preview per-checkpoint grading branch (v2 React runtime).
+    # Resolves the checkpoint's answer_spec from content_json server-side;
+    # the client NEVER sends the expected answer value.
+    if req.phase == "case_based_preview" and req.homework_id:
+        try:
+            result = await _check_answer_case_based_preview(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:case_based_preview"
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            _handle_exc(e)
+
+    # Memory Check per-item grading branch (v2 React runtime).
+    # Resolves the item's answer_spec from content_json server-side;
+    # the client NEVER sends the expected answer value.
+    if req.phase == "memory_check" and req.homework_id:
+        try:
+            result = await _check_answer_memory_check(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:memory_check"
             )
         except HTTPException:
             raise

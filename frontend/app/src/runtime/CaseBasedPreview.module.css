@@ -1,0 +1,211 @@
+/* Spring entrance for each sub-stage. */
+.stage {
+  animation: stageIn var(--landing-dur-md, 480ms) var(--landing-spring) both;
+}
+@keyframes stageIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-muted);
+  transition: color 180ms var(--landing-spring), transform 180ms var(--landing-spring);
+}
+.back:hover {
+  color: var(--v2-text);
+  transform: translateX(-3px);
+}
+
+/* ---- setup hero ---- */
+.hero {
+  padding: 40px 36px;
+}
+.heroFacts {
+  display: grid;
+  gap: 14px;
+  margin-top: 28px;
+}
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.factLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--landing-cyan-300);
+}
+.factValue {
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.9);
+}
+.heroCta {
+  margin-top: 32px;
+}
+
+/* ---- checkpoint progress dots ---- */
+.progress {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.dot {
+  width: 28px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--v2-ring);
+  transition: background 300ms var(--landing-spring), width 300ms var(--landing-spring);
+}
+.dotActive {
+  width: 44px;
+  background: var(--landing-blue-600);
+}
+.dotDone {
+  background: var(--landing-emerald-700);
+}
+
+/* ---- options ---- */
+.options {
+  display: grid;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.error {
+  margin-top: 18px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ---- learning block ---- */
+.lbHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.lbCounter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-subtle);
+}
+.lbCardGood {
+  border-color: var(--landing-emerald-700);
+}
+.lbCardWarn {
+  border-color: var(--landing-fuchsia-500);
+}
+.lbText {
+  margin-top: 12px;
+}
+.lbBlock {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--v2-ring);
+}
+.lbBlockLabel {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--landing-blue-600);
+}
+.lbBlockBody {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--v2-text-muted);
+}
+
+/* ---- simulation ---- */
+.simGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 28px;
+}
+.simWrong {
+  border-color: var(--landing-fuchsia-500);
+}
+.simRight {
+  border-color: var(--landing-emerald-700);
+}
+.simBody {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--v2-text-muted);
+}
+
+/* ---- feedback summary ---- */
+.summaryCard {
+  margin-top: 28px;
+  display: grid;
+  gap: 18px;
+}
+.summaryRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.summaryLabel {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--landing-blue-600);
+}
+.summaryValue {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--v2-text);
+}
+
+@media (max-width: 640px) {
+  .simGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage {
+    animation: none;
+  }
+  .back:hover {
+    transform: none;
+  }
+}

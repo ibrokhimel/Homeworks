@@ -1,0 +1,115 @@
+.tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 40px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
+  transition: transform 220ms var(--landing-spring), box-shadow 220ms var(--landing-spring);
+}
+.tile:hover {
+  transform: translateY(-7px) scale(1.02);
+}
+
+.tileHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.tileMeta {
+  margin-top: 16px;
+}
+.meta {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-subtle);
+}
+.metaInverse {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.tileCta {
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+/* ---- Unlock-Gate strip ---- */
+.gate {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 36px;
+  padding: 22px 24px;
+  border-radius: var(--v2-radius-card);
+  border: 1px solid var(--v2-ring);
+  transition: border-color 300ms var(--landing-spring), background 300ms var(--landing-spring);
+}
+.gateLocked {
+  background: var(--v2-card-tinted);
+}
+.gateOpen {
+  background: var(--landing-emerald-50);
+  border-color: transparent;
+}
+
+.gateIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--v2-card-bg);
+  border: 1px solid var(--v2-ring);
+  color: var(--v2-text-muted);
+}
+.gateOpen .gateIcon {
+  color: var(--landing-emerald-700);
+  border-color: transparent;
+}
+
+.gateText {
+  flex: 1;
+  min-width: 0;
+}
+.gateTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--v2-text);
+}
+.gateSub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--v2-text-muted);
+}
+.gateAction {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .tiles {
+    grid-template-columns: 1fr;
+  }
+  .gate {
+    flex-wrap: wrap;
+  }
+  .gateAction {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile:hover {
+    transform: none;
+  }
+}
