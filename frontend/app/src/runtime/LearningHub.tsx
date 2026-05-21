@@ -139,7 +139,7 @@ export function LearningHub() {
 
   return (
     <main
-      className={`v2-shell ${s.shell}`}
+      className={s.shell}
       data-hub-theme="light"
       data-unlock={unlockState}
       data-testid="screen-hub"
