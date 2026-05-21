@@ -172,3 +172,130 @@ def test_final_boss_locked_session_raises_403_practice_locked(client, monkeypatc
 
     assert ei.value.status_code == 403
     assert ei.value.detail["code"] == "PRACTICE_LOCKED"
+
+
+# ---------------------------------------------------------------------------
+# Gate consistency — the OTHER practice-arc games are now server-gated too.
+#
+# Each game's check-answer branch must raise 403 PRACTICE_LOCKED for a locked
+# session BEFORE grading. The gate is placed after the 400 field-presence
+# checks and before homework resolution, so each request below populates the
+# minimum fields required to clear validation but supplies a bare (existing)
+# homework — the gate fires regardless of its content.
+# ---------------------------------------------------------------------------
+
+def _bare_hw(client, title: str) -> str:
+    return client.post(
+        "/api/homeworks",
+        json={"title": title, "subject": "math-algebra", "grade": 6, "mode": "hard"},
+    ).json()["id"]
+
+
+def test_sentence_fill_locked_session_raises_403_practice_locked(client, monkeypatch):
+    hw_id = _bare_hw(client, "SF gate HW")
+    monkeypatch.setattr(ai_routes, "is_practice_unlocked", _locked_gate)
+    req = ai_routes.CheckAnswerRequest(
+        phase="sentence-fill", homework_id=hw_id, session_id="sf-locked-sess",
+        item_id="sf_0", blank_idx=0, student_value="x",
+    )
+    with pytest.raises(HTTPException) as ei:
+        _run(ai_routes._check_answer_sentence_fill(req))
+    assert ei.value.status_code == 403
+    assert ei.value.detail["code"] == "PRACTICE_LOCKED"
+
+
+def test_real_life_challenge_locked_session_raises_403_practice_locked(client, monkeypatch):
+    hw_id = _bare_hw(client, "RLC gate HW")
+    monkeypatch.setattr(ai_routes, "is_practice_unlocked", _locked_gate)
+    req = ai_routes.CheckAnswerRequest(
+        phase="real-life-challenge", homework_id=hw_id, session_id="rlc-locked-sess",
+        step_id="step_1", selected_option_id="opt_a",
+    )
+    with pytest.raises(HTTPException) as ei:
+        _run(ai_routes._check_answer_real_life_challenge(req))
+    assert ei.value.status_code == 403
+    assert ei.value.detail["code"] == "PRACTICE_LOCKED"
+
+
+def test_ttt_locked_session_raises_403_practice_locked(client, monkeypatch):
+    hw_id = _bare_hw(client, "TTT gate HW")
+    monkeypatch.setattr(ai_routes, "is_practice_unlocked", _locked_gate)
+    req = ai_routes.CheckAnswerRequest(
+        phase="ttt", homework_id=hw_id, session_id="ttt-locked-sess",
+        item_id="ttt_0", picked="42",
+    )
+    with pytest.raises(HTTPException) as ei:
+        _run(ai_routes._check_answer_ttt(req))
+    assert ei.value.status_code == 403
+    assert ei.value.detail["code"] == "PRACTICE_LOCKED"
+
+
+def test_ttt_session_locked_session_raises_403_practice_locked(client, monkeypatch):
+    hw_id = _bare_hw(client, "TTT-session gate HW")
+    monkeypatch.setattr(ai_routes, "is_practice_unlocked", _locked_gate)
+    req = ai_routes.CheckAnswerRequest(
+        phase="ttt-session", homework_id=hw_id, session_id="ttts-locked-sess",
+        results=[{"outcome": "win"}, {"outcome": "draw"}, {"outcome": "loss"}],
+    )
+    with pytest.raises(HTTPException) as ei:
+        _run(ai_routes._check_answer_ttt_session(req))
+    assert ei.value.status_code == 403
+    assert ei.value.detail["code"] == "PRACTICE_LOCKED"
+
+
+def test_memory_palace_locked_session_raises_403_practice_locked(client, monkeypatch):
+    hw_id = _bare_hw(client, "MP gate HW")
+    monkeypatch.setattr(ai_routes, "is_practice_unlocked", _locked_gate)
+    req = ai_routes.CheckAnswerRequest(
+        phase="memory-palace", homework_id=hw_id, session_id="mp-locked-sess",
+        palace_key="route_0",
+        placements=[{"location_idx": 0, "concept_id": "c0"}],
+        recall_results=[{"location_idx": 0, "picked_concept_id": "c0", "elapsed_ms": 100}],
+    )
+    with pytest.raises(HTTPException) as ei:
+        _run(ai_routes._check_answer_memory_palace(req))
+    assert ei.value.status_code == 403
+    assert ei.value.detail["code"] == "PRACTICE_LOCKED"
+
+
+# ---------------------------------------------------------------------------
+# The three NEW Phase-2B games are server-gated as well.
+# ---------------------------------------------------------------------------
+
+def test_adaptive_quiz_locked_session_raises_403_practice_locked(client, monkeypatch):
+    hw_id = _bare_hw(client, "AQ gate HW")
+    monkeypatch.setattr(ai_routes, "is_practice_unlocked", _locked_gate)
+    req = ai_routes.CheckAnswerRequest(
+        phase="adaptive-quiz", homework_id=hw_id, session_id="aq-locked-sess",
+        item_index=0, student_answer="x",
+    )
+    with pytest.raises(HTTPException) as ei:
+        _run(ai_routes._check_answer_adaptive_quiz(req))
+    assert ei.value.status_code == 403
+    assert ei.value.detail["code"] == "PRACTICE_LOCKED"
+
+
+def test_mystery_box_locked_session_raises_403_practice_locked(client, monkeypatch):
+    hw_id = _bare_hw(client, "MB gate HW")
+    monkeypatch.setattr(ai_routes, "is_practice_unlocked", _locked_gate)
+    req = ai_routes.CheckAnswerRequest(
+        phase="mystery-box", homework_id=hw_id, session_id="mb-locked-sess",
+        item_index=0, student_answer="x",
+    )
+    with pytest.raises(HTTPException) as ei:
+        _run(ai_routes._check_answer_mystery_box(req))
+    assert ei.value.status_code == 403
+    assert ei.value.detail["code"] == "PRACTICE_LOCKED"
+
+
+def test_puzzle_lock_locked_session_raises_403_practice_locked(client, monkeypatch):
+    hw_id = _bare_hw(client, "PL gate HW")
+    monkeypatch.setattr(ai_routes, "is_practice_unlocked", _locked_gate)
+    req = ai_routes.CheckAnswerRequest(
+        phase="puzzle-lock", homework_id=hw_id, session_id="pl-locked-sess",
+        item_index=0, student_answer="x",
+    )
+    with pytest.raises(HTTPException) as ei:
+        _run(ai_routes._check_answer_puzzle_lock(req))
+    assert ei.value.status_code == 403
+    assert ei.value.detail["code"] == "PRACTICE_LOCKED"

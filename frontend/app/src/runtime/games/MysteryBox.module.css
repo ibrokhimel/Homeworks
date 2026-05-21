@@ -1,0 +1,300 @@
+/* ============================================================
+   MysteryBox.module.css — Apple-glass mystery-box game.
+   Uses the shared design tokens from _tokens.css exclusively.
+   ============================================================ */
+
+.wrap {
+  animation: fadeIn 320ms var(--landing-spring) both;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- header ---- */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.counter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-subtle);
+}
+.sub {
+  margin-top: 6px;
+}
+
+/* ---- box grid ---- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* Individual box button */
+.box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 96px;
+  padding: 14px 10px;
+  border-radius: 16px;
+  background: var(--v2-card-bg);
+  border: 1.5px solid var(--v2-ring);
+  cursor: pointer;
+  transition:
+    transform 220ms var(--landing-spring),
+    border-color 220ms var(--landing-spring),
+    background 220ms var(--landing-spring),
+    box-shadow 220ms var(--landing-spring),
+    opacity 200ms ease;
+  /* hardware-accelerate the lift */
+  will-change: transform;
+}
+.box:not(:disabled):hover {
+  transform: translateY(-4px) scale(1.03);
+  border-color: var(--v2-accent-soft);
+  box-shadow: var(--landing-shadow-card);
+}
+
+/* Sealed: default; slightly pulsing "pick me" ring while none selected */
+.box.boxOpen {
+  border-color: var(--landing-blue-400);
+  background: rgba(96, 165, 250, 0.06);
+}
+
+.box.boxActive {
+  border-color: var(--landing-blue-600);
+  background: rgba(37, 99, 235, 0.08);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  transform: translateY(-2px);
+}
+
+.box.boxSolved {
+  border-color: var(--landing-emerald-700);
+  background: rgba(4, 120, 87, 0.1);
+  opacity: 0.8;
+  cursor: default;
+}
+.box.boxSolved:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.box.boxMissed {
+  border-color: var(--landing-fuchsia-500);
+  background: rgba(217, 70, 239, 0.07);
+  opacity: 0.8;
+  cursor: default;
+}
+.box.boxMissed:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.boxIcon {
+  font-size: 28px;
+  line-height: 1;
+  /* pop-open animation fires when the box transitions to non-sealed */
+}
+.boxSolved .boxIcon,
+.boxMissed .boxIcon {
+  font-size: 22px;
+  font-weight: 700;
+}
+.boxSolved .boxIcon {
+  color: var(--landing-emerald-700);
+}
+.boxMissed .boxIcon {
+  color: var(--landing-fuchsia-500);
+}
+
+.boxLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--v2-text-subtle);
+  text-align: center;
+}
+
+/* "Pop open" animation plays once when a sealed box opens */
+.boxOpen .boxIcon,
+.boxActive .boxIcon {
+  animation: popOpen 380ms var(--landing-spring) both;
+}
+@keyframes popOpen {
+  0%   { transform: scale(0.6) rotate(-8deg); opacity: 0.4; }
+  60%  { transform: scale(1.18) rotate(4deg);  opacity: 1;   }
+  100% { transform: scale(1)    rotate(0deg);  opacity: 1;   }
+}
+
+/* ---- active question panel ---- */
+.panel {
+  margin-top: 20px;
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: var(--v2-card-bg);
+  border: 1.5px solid var(--v2-ring);
+  box-shadow: var(--landing-shadow-card);
+  display: grid;
+  gap: 14px;
+  animation: panelSlide 340ms var(--landing-spring) both;
+}
+@keyframes panelSlide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.panel.panelSolved {
+  border-color: var(--landing-emerald-700);
+  background: rgba(4, 120, 87, 0.04);
+}
+.panel.panelMissed {
+  border-color: var(--landing-fuchsia-500);
+  background: rgba(217, 70, 239, 0.04);
+}
+
+.categoryRow {
+  display: flex;
+  gap: 8px;
+}
+
+.question {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--v2-text);
+  margin: 0;
+}
+
+/* ---- answer input row ---- */
+.answerRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.answerInput {
+  flex: 1 1 180px;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--v2-card-tinted);
+  border: 1.5px solid var(--v2-ring);
+  color: var(--v2-text);
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  outline: none;
+  transition:
+    border-color 180ms var(--landing-spring),
+    box-shadow 180ms var(--landing-spring);
+}
+.answerInput:focus {
+  border-color: var(--landing-blue-600);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+.answerInput.inputSubmitting {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+/* ---- feedback row (post-submission) ---- */
+.feedbackRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  animation: fadeIn 300ms var(--landing-spring) both;
+}
+.feedbackText {
+  font-size: 14px;
+  color: var(--v2-text-muted);
+  line-height: 1.5;
+  flex: 1 1 200px;
+}
+
+/* ---- error banner ---- */
+.error {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ---- complete screen ---- */
+.done {
+  display: grid;
+  gap: 12px;
+  padding: 12px 0;
+  animation: fadeIn 360ms var(--landing-spring) both;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* ---- responsive ---- */
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 8px;
+  }
+  .box {
+    min-height: 80px;
+    padding: 10px 8px;
+  }
+  .boxIcon {
+    font-size: 22px;
+  }
+  .panel {
+    padding: 16px 14px;
+  }
+  .question {
+    font-size: 15px;
+  }
+}
+
+/* ---- reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .wrap,
+  .panel,
+  .done,
+  .feedbackRow {
+    animation: none;
+  }
+  .box:not(:disabled):hover {
+    transform: none;
+  }
+  .box.boxActive {
+    transform: none;
+  }
+  .boxOpen .boxIcon,
+  .boxActive .boxIcon {
+    animation: none;
+  }
+}

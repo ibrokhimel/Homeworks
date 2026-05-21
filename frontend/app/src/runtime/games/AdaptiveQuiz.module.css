@@ -1,0 +1,297 @@
+/* ============================================================
+   AdaptiveQuiz.module.css — Apple-glass adaptive question game.
+   Uses the shared design tokens from _tokens.css exclusively.
+   ============================================================ */
+
+.wrap {
+  animation: fadeIn 320ms var(--landing-spring) both;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- header ---- */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.counter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-subtle);
+}
+
+/* ---- question card ---- */
+.questionCard {
+  margin-top: 20px;
+  padding: 20px 22px;
+  background: var(--v2-card-bg);
+  border: 1px solid var(--v2-ring);
+  border-radius: 16px;
+  box-shadow: var(--landing-shadow-soft);
+}
+.questionText {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--v2-text);
+  margin: 0;
+}
+
+/* ---- options list ---- */
+.optionsList {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+.optionBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--v2-card-bg);
+  border: 1.5px solid var(--v2-ring);
+  color: var(--v2-text);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 180ms var(--landing-spring),
+    background 180ms var(--landing-spring),
+    box-shadow 180ms var(--landing-spring),
+    transform 180ms var(--landing-spring);
+  will-change: transform;
+}
+.optionBtn:not(:disabled):hover {
+  border-color: var(--v2-accent-soft);
+  background: rgba(96, 165, 250, 0.06);
+  transform: translateY(-1px);
+  box-shadow: var(--landing-shadow-card);
+}
+.optionIndex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--v2-card-tinted);
+  border: 1px solid var(--v2-ring);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--v2-text-subtle);
+  flex-shrink: 0;
+  transition: background 180ms var(--landing-spring),
+    color 180ms var(--landing-spring),
+    border-color 180ms var(--landing-spring);
+}
+.optionText {
+  flex: 1;
+}
+
+/* ---- option states ---- */
+.optionSelected {
+  border-color: var(--landing-blue-600);
+  background: rgba(37, 99, 235, 0.07);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+.optionSelected .optionIndex {
+  background: var(--landing-blue-600);
+  color: #fff;
+  border-color: var(--landing-blue-600);
+}
+.optionCorrect {
+  border-color: rgba(4, 120, 87, 0.55);
+  background: rgba(4, 120, 87, 0.08);
+  box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.14);
+  animation: flashCorrect 560ms var(--landing-spring) both;
+}
+.optionCorrect .optionIndex {
+  background: var(--landing-emerald-700);
+  color: #fff;
+  border-color: var(--landing-emerald-700);
+}
+.optionWrong {
+  border-color: rgba(217, 70, 239, 0.45);
+  background: rgba(217, 70, 239, 0.06);
+  animation: flashWrong 560ms var(--landing-spring) both;
+}
+.optionWrong .optionIndex {
+  background: rgba(217, 70, 239, 0.14);
+  color: var(--landing-fuchsia-500);
+  border-color: rgba(217, 70, 239, 0.3);
+}
+.optionDimmed {
+  opacity: 0.42;
+  cursor: default;
+}
+.optionSubmitting {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* ---- flash keyframes ---- */
+@keyframes flashCorrect {
+  0%   { box-shadow: 0 0 0 0 rgba(4, 120, 87, 0); }
+  30%  { box-shadow: 0 0 0 6px rgba(4, 120, 87, 0.26); }
+  100% { box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.14); }
+}
+@keyframes flashWrong {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-5px); }
+  40%  { transform: translateX(5px); }
+  60%  { transform: translateX(-3px); }
+  80%  { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+
+/* ---- text input area ---- */
+.textInputWrap {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.textInput {
+  flex: 1;
+  min-width: 0;
+  padding: 13px 16px;
+  border-radius: 12px;
+  background: var(--v2-card-bg);
+  border: 1.5px solid var(--v2-ring);
+  color: var(--v2-text);
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 180ms var(--landing-spring),
+    box-shadow 180ms var(--landing-spring);
+}
+.textInput:focus {
+  border-color: var(--landing-blue-600);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+.textInputCorrect {
+  border-color: rgba(4, 120, 87, 0.55);
+  background: rgba(4, 120, 87, 0.06);
+}
+.textInputWrong {
+  border-color: rgba(217, 70, 239, 0.45);
+  background: rgba(217, 70, 239, 0.04);
+}
+.textInput:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+/* ---- feedback panel ---- */
+.feedback {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--v2-ring);
+  background: var(--v2-card-tinted);
+  display: grid;
+  gap: 10px;
+  animation: slideUp 300ms var(--landing-spring) both;
+  box-shadow: var(--landing-shadow-soft);
+}
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.feedbackCorrect {
+  border-color: rgba(4, 120, 87, 0.3);
+  background: rgba(4, 120, 87, 0.05);
+}
+.feedbackWrong {
+  border-color: rgba(217, 70, 239, 0.25);
+  background: rgba(217, 70, 239, 0.04);
+}
+.feedbackText {
+  font-size: 14px;
+  color: var(--v2-text-muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ---- error ---- */
+.error {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ---- complete screen ---- */
+.done {
+  display: grid;
+  gap: 12px;
+  padding: 12px 0;
+  animation: fadeIn 360ms var(--landing-spring) both;
+}
+
+/* ---- actions row ---- */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+/* ---- responsive ---- */
+@media (max-width: 560px) {
+  .questionCard {
+    padding: 16px 14px;
+  }
+  .questionText {
+    font-size: 15px;
+  }
+  .optionBtn {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  .textInputWrap {
+    flex-direction: column;
+  }
+  .textInput {
+    width: 100%;
+  }
+}
+
+/* ---- reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .wrap,
+  .done,
+  .feedback {
+    animation: none;
+  }
+  .optionCorrect,
+  .optionWrong {
+    animation: none;
+  }
+  .optionBtn:not(:disabled):hover {
+    transform: none;
+  }
+}

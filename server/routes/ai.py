@@ -518,6 +518,10 @@ async def _check_answer_sentence_fill(req: CheckAnswerRequest) -> dict:
         })
     student_value = req.student_value if req.student_value is not None else ""
 
+    # BLOCKER #3 — Practice Arc must be server-enforced before grading.
+    # Sentence-Fill is a practice-arc game; refuse to grade for a locked session.
+    await _enforce_practice_unlocked(req)
+
     hw = await db.get_homework(req.homework_id)
     if hw is None:
         raise HTTPException(404, detail={
@@ -1106,6 +1110,10 @@ async def _check_answer_real_life_challenge(req: CheckAnswerRequest) -> dict:
             "error": "step_id required for phase=real-life-challenge",
             "code": "RLC_MISSING_STEP_ID",
         })
+
+    # BLOCKER #3 — Practice Arc must be server-enforced before grading.
+    # Real-Life Challenge is a practice-arc game; refuse to grade for a locked session.
+    await _enforce_practice_unlocked(req)
 
     hw = await db.get_homework(req.homework_id)
     if hw is None:
@@ -1819,6 +1827,10 @@ async def _check_answer_ttt(req: CheckAnswerRequest) -> dict:
             "code": "TTT_MISSING_HW",
         })
 
+    # BLOCKER #3 — Practice Arc must be server-enforced before grading.
+    # Tic Tac Toe is a practice-arc game; refuse to grade for a locked session.
+    await _enforce_practice_unlocked(req)
+
     hw = await db.get_homework(req.homework_id)
     if hw is None:
         raise HTTPException(404, detail={
@@ -1882,6 +1894,10 @@ async def _check_answer_ttt_session(req: CheckAnswerRequest) -> dict:
             "error": "homework_id required for phase=ttt-session",
             "code": "TTT_MISSING_HW",
         })
+
+    # BLOCKER #3 — Practice Arc must be server-enforced before grading.
+    # Tic Tac Toe (session tally) is a practice-arc game; refuse for a locked session.
+    await _enforce_practice_unlocked(req)
 
     hw = await db.get_homework(req.homework_id)
     if hw is None:
@@ -2064,6 +2080,10 @@ async def _check_answer_memory_palace(req: CheckAnswerRequest) -> dict:
             "error": "recall_results required for phase=memory-palace",
             "code": "MP_MISSING_RECALL",
         })
+
+    # BLOCKER #3 — Practice Arc must be server-enforced before grading.
+    # Memory Palace is a practice-arc game; refuse to grade for a locked session.
+    await _enforce_practice_unlocked(req)
 
     hw = await db.get_homework(req.homework_id)
     if hw is None:
@@ -2334,6 +2354,233 @@ async def _check_answer_memory_check(req: CheckAnswerRequest) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Phase 2B games — Adaptive Quiz / Mystery Box / Puzzle Lock check-answer
+# branches (v2 React runtime). All three follow the Case-Based Preview
+# template: resolve the item by `item_index` from a content_json array, grade
+# via the shared deterministic checker, strip the expected value from the
+# response, persist a server-derived `subphase`, and return the minimal
+# {correct, feedback} contract.
+# ---------------------------------------------------------------------------
+
+# Wrong-answer feedback never echoes the expected value (no-leak invariant).
+_2B_WRONG_FEEDBACK = "Noto'g'ri javob."
+_2B_RETRY_FEEDBACK = "Qayta urinib ko'ring."
+
+
+def _grade_with_accepted_list(accepted: list[str], student_answer: str) -> tuple[bool, str]:
+    """Grade a student answer against an accepted-answer LIST via text_fuzzy.
+
+    The shared answer_checker has no native accepted-list type, so we run one
+    `text_fuzzy` check per accepted string and treat the answer as correct if
+    ANY matches. Returns ``(is_correct, verdict_of_best)``. The expected values
+    are NEVER returned to the caller — only the boolean + verdict label.
+    """
+    from ..services import answer_checker as _answer_checker
+
+    best_verdict = "incorrect"
+    for candidate in accepted:
+        det = _answer_checker.check(
+            {"type": "text_fuzzy", "expected": str(candidate)}, student_answer
+        )
+        verdict = det.get("verdict", "incorrect")
+        if verdict == "correct":
+            return True, "correct"
+        if verdict == "unsure":
+            best_verdict = "unsure"
+    return False, best_verdict
+
+
+async def _check_answer_phase2b_item(
+    req: CheckAnswerRequest,
+    *,
+    phase: str,
+    array_key: str,
+    no_content_code: str,
+    bad_index_code: str,
+    answer_str_fields: tuple[str, ...],
+) -> dict:
+    """Shared resolver body for the three Phase-2B games.
+
+    Mirrors `_check_answer_case_based_preview` exactly:
+      - 400 if no homework_id / item_index None.
+      - 404 if homework / array missing.
+      - 400 if item_index out of range.
+      - `_enforce_practice_unlocked(req)` BEFORE grading (these ARE practice-arc
+        games, unlike CBP/MC which are the unlock path).
+      - Resolve the item, build / read an answer_spec, grade via the shared
+        deterministic checker, and NEVER return the expected value.
+    """
+    if not req.homework_id:
+        raise HTTPException(400, detail={
+            "error": f"homework_id required for phase={phase}",
+            "code": "HW_REQUIRED",
+        })
+    if req.item_index is None:
+        raise HTTPException(400, detail={
+            "error": f"item_index required for phase={phase}",
+            "code": "MISSING_ITEM_INDEX",
+        })
+
+    # BLOCKER #3 — Practice Arc must be server-enforced before grading.
+    await _enforce_practice_unlocked(req)
+
+    hw = await db.get_homework(req.homework_id)
+    if hw is None:
+        raise HTTPException(404, detail={
+            "error": f"homework {req.homework_id} not found",
+            "code": "HW_NOT_FOUND",
+        })
+
+    content = hw.get("content_json") or {}
+    array = content.get(array_key)
+    if not isinstance(array, list) or not array:
+        raise HTTPException(404, detail={
+            "error": f"{array_key} content not found on this homework",
+            "code": no_content_code,
+        })
+
+    idx = req.item_index
+    if not isinstance(idx, int) or isinstance(idx, bool) or idx < 0 or idx >= len(array):
+        raise HTTPException(400, detail={
+            "error": (
+                f"item_index {idx} out of range — "
+                f"{array_key} has {len(array)} item(s)"
+            ),
+            "code": bad_index_code,
+        })
+
+    item = array[idx]
+    if not isinstance(item, dict):
+        raise HTTPException(400, detail={
+            "error": f"item at index {idx} is malformed",
+            "code": bad_index_code,
+        })
+
+    # Resolve the grading rule. Priority: an authored `answer_spec`, else build
+    # a text_fuzzy spec on the fly from the game's answer field(s). For
+    # adaptive-quiz, an `accepted_answers`/`ans` LIST is supported via the
+    # any-match accepted-list helper.
+    from ..services import answer_checker as _answer_checker
+
+    answer_spec = item.get("answer_spec")
+    student_answer = req.student_answer or ""
+
+    if isinstance(answer_spec, dict) and answer_spec:
+        det = _answer_checker.check(answer_spec, student_answer)
+        verdict = det.get("verdict", "incorrect")
+        is_correct = verdict == "correct"
+        format_tip = det.get("format_tip")
+        spec_for_persist = answer_spec
+    else:
+        # Build an accepted list from the game-specific answer fields. The first
+        # populated string field (or accepted_answers/ans list) wins.
+        accepted: list[str] = []
+        raw_accepted = item.get("accepted_answers") or item.get("ans")
+        if isinstance(raw_accepted, list):
+            accepted = [str(x) for x in raw_accepted if x is not None and str(x) != ""]
+        elif isinstance(raw_accepted, str) and raw_accepted:
+            accepted = [raw_accepted]
+        if not accepted:
+            for field in answer_str_fields:
+                val = item.get(field)
+                if isinstance(val, str) and val:
+                    accepted = [val]
+                    break
+        is_correct, verdict = _grade_with_accepted_list(accepted, student_answer)
+        format_tip = None
+        # Persist a sanitized spec marker (no expected value) — the real value
+        # never leaves the server. We store an opaque type tag for audit only.
+        spec_for_persist = {"type": "text_fuzzy"}
+
+    # Feedback — never include the expected value, even on a wrong answer.
+    if is_correct:
+        feedback = format_tip or "To'g'ri!"
+    else:
+        feedback = _2B_RETRY_FEEDBACK if verdict == "unsure" else _2B_WRONG_FEEDBACK
+
+    # Persist attempt with a SERVER-DERIVED subphase (range-validated index).
+    import json as _json
+    session_id = req.session_id or "default"
+    question_id = req.question_id or f"{phase}_{idx}"
+    try:
+        from ..db.attempts_repo import add_phase_attempt as _add_phase_attempt
+        await _add_phase_attempt(
+            session_id=session_id,
+            hw_id=req.homework_id,
+            phase=phase,
+            subphase=f"item_{idx}",
+            question_id=question_id,
+            item_id=req.item_id,
+            attempt_number=req.attempt_number or 1,
+            student_answer=str(student_answer),
+            answer_spec_json=_json.dumps(spec_for_persist),
+            checker_source=f"phase_adapter:{phase}",
+            correct=1 if is_correct else 0,
+            score=1.0 if is_correct else 0.0,
+            feedback=feedback,
+        )
+    except Exception as _e:  # noqa: BLE001 — attempt persistence is best-effort
+        _log.warning("%s: failed to persist attempt: %s", phase, _e)
+
+    return {
+        "correct": is_correct,
+        "feedback": feedback,
+    }
+
+
+async def _check_answer_adaptive_quiz(req: CheckAnswerRequest) -> dict:
+    """Per-item grading for Adaptive Quiz (phase=adaptive-quiz, v2 runtime).
+
+    Array: ``gb_adaptive_quiz``. Each item carries either an authored
+    ``answer_spec`` (used directly) or an ``accepted_answers``/``ans`` list
+    graded any-match via text_fuzzy. The expected value is NEVER returned.
+    """
+    return await _check_answer_phase2b_item(
+        req,
+        phase="adaptive-quiz",
+        array_key="gb_adaptive_quiz",
+        no_content_code="AQ_NO_CONTENT",
+        bad_index_code="AQ_BAD_INDEX",
+        answer_str_fields=("a", "answer"),
+    )
+
+
+async def _check_answer_mystery_box(req: CheckAnswerRequest) -> dict:
+    """Per-item grading for Mystery Box (phase=mystery-box, v2 runtime).
+
+    Array: ``gb_mystery_box``. The accepted answer rides on ``a`` (string).
+    An on-the-fly ``{type: text_fuzzy}`` spec is built when no authored
+    ``answer_spec`` is present. The expected value is NEVER returned.
+    """
+    return await _check_answer_phase2b_item(
+        req,
+        phase="mystery-box",
+        array_key="gb_mystery_box",
+        no_content_code="MB_NO_CONTENT",
+        bad_index_code="MB_BAD_INDEX",
+        answer_str_fields=("a", "answer"),
+    )
+
+
+async def _check_answer_puzzle_lock(req: CheckAnswerRequest) -> dict:
+    """Per-item grading for Puzzle Lock (phase=puzzle-lock, v2 runtime).
+
+    Array: ``gb_puzzle_lock``. The accepted answer rides on ``a`` or
+    ``answer`` (string). An on-the-fly ``{type: text_fuzzy}`` spec is built
+    when no authored ``answer_spec`` is present. The expected value is
+    NEVER returned.
+    """
+    return await _check_answer_phase2b_item(
+        req,
+        phase="puzzle-lock",
+        array_key="gb_puzzle_lock",
+        no_content_code="PL_NO_CONTENT",
+        bad_index_code="PL_BAD_INDEX",
+        answer_str_fields=("a", "answer"),
+    )
+
+
 @router.post("/ai/runtime/submit-answer")
 async def submit_runtime_answer(req: RuntimeAnswerSubmitRequest):
     from ..services.runtime_answer_resolver import resolve_runtime_answer
@@ -2480,6 +2727,45 @@ async def check_answer(req: CheckAnswerRequest):
             result = await _check_answer_memory_check(req)
             return _attach_check_answer_debug(
                 req, result, checker_path="phase_adapter:memory_check"
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            _handle_exc(e)
+
+    # Adaptive Quiz per-item grading branch (v2 React runtime, phase 2B).
+    # Practice-arc game — server-gated; resolves answer_spec from content_json.
+    if req.phase == "adaptive-quiz" and req.homework_id:
+        try:
+            result = await _check_answer_adaptive_quiz(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:adaptive-quiz"
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            _handle_exc(e)
+
+    # Mystery Box per-item grading branch (v2 React runtime, phase 2B).
+    # Practice-arc game — server-gated; resolves answer_spec from content_json.
+    if req.phase == "mystery-box" and req.homework_id:
+        try:
+            result = await _check_answer_mystery_box(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:mystery-box"
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            _handle_exc(e)
+
+    # Puzzle Lock per-item grading branch (v2 React runtime, phase 2B).
+    # Practice-arc game — server-gated; resolves answer_spec from content_json.
+    if req.phase == "puzzle-lock" and req.homework_id:
+        try:
+            result = await _check_answer_puzzle_lock(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:puzzle-lock"
             )
         except HTTPException:
             raise

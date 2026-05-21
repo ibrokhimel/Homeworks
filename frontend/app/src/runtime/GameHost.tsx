@@ -57,6 +57,9 @@ const GAME_REGISTRY: Record<string, ComponentType<GameProps>> = {
   real_life_challenge: lazy(() => import("./games/RealLifeChallenge")),
   ttt: lazy(() => import("./games/Ttt")),
   memory_palace: lazy(() => import("./games/MemoryPalace")),
+  adaptive_quiz: lazy(() => import("./games/AdaptiveQuiz")),
+  mystery_box: lazy(() => import("./games/MysteryBox")),
+  puzzle_lock: lazy(() => import("./games/PuzzleLock")),
   boss: lazy(() => import("./BossArena")),
 };
 

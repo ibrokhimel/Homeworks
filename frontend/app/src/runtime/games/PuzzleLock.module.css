@@ -1,0 +1,385 @@
+/* ============================================================
+   PuzzleLock.module.css — Combination lock game (Practice Arc)
+   Apple-glass aesthetic; hardware-accelerated animations.
+   Respects prefers-reduced-motion globally via _tokens.css.
+   ============================================================ */
+
+.wrap {
+  animation: fadeIn 320ms var(--landing-spring) both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- Header row ---- */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.counter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-subtle);
+}
+
+.sub {
+  margin-top: 6px;
+}
+
+/* ---- Lock body ---- */
+.lockBody {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin: 28px 0 24px;
+}
+
+/* Shackle — the curved bar above the lock body */
+.shackle {
+  width: 44px;
+  height: 28px;
+  border: 3px solid var(--v2-ring);
+  border-bottom: none;
+  border-radius: 22px 22px 0 0;
+  margin-bottom: -2px;
+  transition: transform 380ms var(--landing-spring),
+    border-color 380ms var(--landing-spring);
+  transform-origin: left bottom;
+  /* hardware accelerate */
+  will-change: transform;
+}
+
+.shackleOpen {
+  transform: rotate(-55deg) translateY(-6px);
+  border-color: var(--landing-emerald-700);
+}
+
+/* Tumbler strip — horizontal row of segments */
+.tumblerStrip {
+  display: flex;
+  gap: 6px;
+  padding: 14px 18px;
+  background: var(--v2-card-bg);
+  border: 1.5px solid var(--v2-ring);
+  border-radius: 16px;
+  box-shadow: var(--landing-shadow-soft);
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+}
+
+/* Single tumbler segment */
+.tumbler {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--v2-card-tinted);
+  border: 1.5px solid var(--v2-ring);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 260ms var(--landing-spring),
+    border-color 260ms var(--landing-spring),
+    transform 260ms var(--landing-spring),
+    box-shadow 260ms var(--landing-spring);
+  will-change: transform;
+}
+
+/* Currently active tumbler (pulsing ring) */
+.tumblerActive {
+  border-color: var(--landing-blue-600);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  background: rgba(37, 99, 235, 0.06);
+  animation: activePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes activePulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18); }
+  50%       { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.08); }
+}
+
+/* Opened tumbler — green + click-open pop */
+.tumblerOpen {
+  background: rgba(4, 120, 87, 0.12);
+  border-color: var(--landing-emerald-700);
+  animation: tumblerClick 360ms var(--landing-spring) both;
+}
+
+@keyframes tumblerClick {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.22); }
+  65%  { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+/* Wrong answer — fuchsia tint */
+.tumblerWrong {
+  border-color: var(--landing-fuchsia-500);
+  background: rgba(217, 70, 239, 0.08);
+}
+
+.tumblerCheckmark {
+  font-size: 18px;
+  color: var(--landing-emerald-700);
+  line-height: 1;
+  font-weight: 700;
+}
+
+.tumblerDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--v2-text-subtle);
+}
+
+/* ---- Question card ---- */
+.questionCard {
+  background: var(--v2-card-bg);
+  border: 1px solid var(--v2-ring);
+  border-radius: 20px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  box-shadow: var(--landing-shadow-card);
+  display: grid;
+  gap: 14px;
+  animation: fadeIn 260ms var(--landing-spring) both;
+  will-change: transform;
+}
+
+/* Wrong-answer shake applied to the card */
+.questionCardShake {
+  animation: shake 460ms var(--landing-spring) both;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-7px); }
+  40%       { transform: translateX(7px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+
+/* Content / clue block */
+.clue {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--v2-text);
+  padding: 12px 14px;
+  background: var(--v2-card-tinted);
+  border-radius: 10px;
+  border: 1px solid var(--v2-ring);
+  white-space: pre-wrap;
+}
+
+/* Question prompt */
+.question {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--v2-text);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Input + submit row */
+.inputRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.answerInput {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--v2-ring);
+  background: var(--v2-card-tinted);
+  font-size: 16px;
+  color: var(--v2-text);
+  outline: none;
+  transition: border-color 180ms var(--landing-spring),
+    box-shadow 180ms var(--landing-spring);
+  font-family: inherit;
+}
+
+.answerInput::placeholder {
+  color: var(--v2-text-subtle);
+}
+
+.answerInput:focus {
+  border-color: var(--landing-blue-600);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.answerInput:disabled {
+  opacity: 0.5;
+}
+
+.submitBtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--landing-blue-600);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 160ms var(--landing-spring),
+    transform 160ms var(--landing-spring),
+    opacity 160ms var(--landing-spring);
+}
+
+.submitBtn:not(:disabled):hover {
+  background: var(--accent-hover, #0056b3);
+  transform: translateY(-1px);
+}
+
+.submitBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---- Feedback band (wrong answer) ---- */
+.feedbackBand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--v2-card-tinted);
+  border: 1px solid var(--v2-ring);
+  animation: fadeIn 240ms var(--landing-spring) both;
+}
+
+.feedbackText {
+  font-size: 14px;
+  color: var(--v2-text-muted);
+  line-height: 1.4;
+}
+
+/* ---- Error ---- */
+.error {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* ---- Completion screen ---- */
+.done {
+  display: grid;
+  gap: 12px;
+  padding: 12px 0;
+  animation: fadeIn 360ms var(--landing-spring) both;
+}
+
+.lockOpenWrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 4px;
+  animation: lockPopOpen 600ms var(--landing-spring) both;
+}
+
+@keyframes lockPopOpen {
+  0%   { opacity: 0; transform: scale(0.6) rotate(-20deg); }
+  60%  { transform: scale(1.15) rotate(8deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+.lockOpenSvg {
+  color: var(--landing-emerald-700);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 560px) {
+  .tumbler {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+  }
+  .tumblerStrip {
+    padding: 10px 12px;
+    gap: 5px;
+  }
+  .questionCard {
+    padding: 16px 16px;
+  }
+  .question {
+    font-size: 15px;
+  }
+  .answerInput {
+    font-size: 15px;
+  }
+}
+
+/* ---- Reduced motion overrides ---- */
+@media (prefers-reduced-motion: reduce) {
+  .wrap,
+  .done,
+  .questionCard,
+  .feedbackBand,
+  .lockOpenWrap {
+    animation: none;
+  }
+
+  .tumblerOpen {
+    animation: none;
+  }
+
+  .tumblerActive {
+    animation: none;
+  }
+
+  .questionCardShake {
+    animation: none;
+  }
+
+  .shackle {
+    transition: none;
+  }
+
+  .tumbler {
+    transition: none;
+  }
+
+  .answerInput {
+    transition: none;
+  }
+
+  .submitBtn {
+    transition: none;
+  }
+
+  .submitBtn:not(:disabled):hover {
+    transform: none;
+  }
+}
