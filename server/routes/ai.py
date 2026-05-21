@@ -1851,6 +1851,15 @@ async def _check_answer_ttt(req: CheckAnswerRequest) -> dict:
         })
 
     answer_key = injector.get_ttt_answer_key(req.homework_id) or {}
+    if not answer_key:
+        # React-served (v2) homeworks never pass through the legacy injector
+        # render that populates _TTT_ANSWER_KEY, so resolve the key directly
+        # from content_json with the same serializer (identical id logic).
+        content = hw.get("content_json") or {}
+        if content.get("gb_ttt"):
+            _wire, answer_key = injector._serialize_ttt(
+                content.get("gb_ttt"), content.get("gb_ttt_config") or {}
+            )
     correct = answer_key.get(item_id)
     if not correct:
         raise HTTPException(404, detail="ttt_item_not_found")
