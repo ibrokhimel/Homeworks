@@ -314,10 +314,12 @@ function HubBackdrop() {
     if (!ctx) return;
 
     // NETS blue-brand cool trail — the hue glides through one cohesive
-    // blue family (azure → cyan → brand-blue → indigo → periwinkle) so the
-    // trail still shifts as the pointer travels but reads as OUR blue, not a
-    // Duolingo rainbow. Tones echo the --hub-* vars on .shell.
-    const PALETTE = ["#33a7e6", "#22c3d8", "#0a72e0", "#5b6cff", "#9aa9ff"];
+    // blue family (sky → light azure → soft cornflower → soft indigo →
+    // periwinkle) so the trail still shifts as the pointer travels but reads
+    // as a LIGHT, airy cousin of OUR blue — softened tints that sit next to
+    // the --hub-* division blues rather than the deep/saturated brand hue.
+    // (Lightened from the old #0a72e0/#22c3d8/#5b6cff set, which read dark.)
+    const PALETTE = ["#6db8ef", "#79c7ec", "#5b9fe6", "#8aa6f5", "#aeb9ff"];
     const hexToRgb = (hex: string): [number, number, number] => {
       const n = parseInt(hex.slice(1), 16);
       return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -476,14 +478,14 @@ function HubBackdrop() {
           ctx.lineCap = "round";
           ctx.lineJoin = "round";
 
-          ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.16)`;
+          ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.20)`;
           ctx.lineWidth = lineWidth + 12;
           ctx.beginPath();
           ctx.moveTo(phx, phy);
           ctx.lineTo(hx, hy);
           ctx.stroke();
 
-          ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.42)`;
+          ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.50)`;
           ctx.lineWidth = lineWidth;
           ctx.beginPath();
           ctx.moveTo(phx, phy);
@@ -501,7 +503,7 @@ function HubBackdrop() {
         bu.r += 2.7;
         bu.life -= 0.03;
         const [r, g, b] = sampleColor(bu.hue);
-        const ringAlpha = Math.max(0, bu.life) * 0.62;
+        const ringAlpha = Math.max(0, bu.life) * 0.70;
         const grad = ctx.createRadialGradient(
           bu.x,
           bu.y,
