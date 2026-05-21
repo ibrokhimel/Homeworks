@@ -804,20 +804,60 @@ _TUTOR_CONTEXT_SAFE_KEYS: frozenset[str] = frozenset({
     "dmg",
 })
 
+# Answer-bearing field names. If a question dict contains ANY of these (at any
+# depth), it carries a gradeable answer and MUST be scrubbed before entering an
+# LLM prompt — regardless of the client-claimed phase. This closes the
+# "phase=preview" answer-escape hatch.
+#
+# Kept in lockstep with `ai_context._ANSWER_BEARING_KEYS` and the bare-alias
+# subset of the hydration redactor (`redaction_constants.ANSWER_BEARING_KEYS`):
+# the two leak boundaries (browser hydration + tutor LLM context) must agree.
+# Bare `answer` / `expected_answer` are included for that reason. Teaching/
+# feedback fields (explanation, learning_block, consequence) are EXCLUDED —
+# they are legitimately allowed in preview teaching. `work` is display-tier and
+# is not in this set.
+_ANSWER_BEARING_KEYS: frozenset[str] = frozenset({
+    "answer_spec",
+    "ans",
+    "answer",
+    "accepted",
+    "accepted_answers",
+    "expected",
+    "expected_answer",
+    "correct",
+    "correct_answer",
+    "correct_option",
+    "is_correct",
+    "solution",
+})
+
+
+def _question_has_answer_bearing_field(value: Any) -> bool:
+    """True if `value` (recursively) contains any answer-bearing key."""
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if k in _ANSWER_BEARING_KEYS:
+                return True
+            if _question_has_answer_bearing_field(v):
+                return True
+    elif isinstance(value, list):
+        return any(_question_has_answer_bearing_field(item) for item in value)
+    return False
+
 
 def _redact_question_for_tutor(question: dict, phase: str) -> dict:
     """Return a safe copy of `question` for LLM prompt context.
 
-    Preview phase passes through unchanged so the tutor can explain why X is the
-    answer. Practice/boss phases use an allow-list instead of a leak-key
-    deny-list, so newly introduced fields like work/hints/solution_text fail
-    closed by default.
+    Redaction is driven by the QUESTION CONTENT, not the client-claimed phase.
+    Any question carrying an answer-bearing field (answer_spec/ans/expected/…)
+    is always scrubbed to the allow-list — even when phase="preview" — so a
+    tampered client cannot tag a gated question as preview to leak its answer.
+    Practice/boss phases use an allow-list instead of a leak-key deny-list, so
+    newly introduced fields like work/hints/solution_text fail closed by
+    default. Pure teaching content (no gradeable answer) passes through.
     """
     if not isinstance(question, dict):
         return {}
-    if phase == "preview":
-        # Preview is the only phase where the answer is allowed in context.
-        return dict(question)
 
     def scrub(value: Any) -> Any:
         if isinstance(value, dict):
@@ -829,6 +869,11 @@ def _redact_question_for_tutor(question: dict, phase: str) -> dict:
         if isinstance(value, list):
             return [scrub(item) for item in value]
         return value
+
+    # Preview teaching content with no gradeable answer is allowed through so
+    # the tutor can explain the panel. Anything carrying an answer is scrubbed.
+    if phase == "preview" and not _question_has_answer_bearing_field(question):
+        return dict(question)
 
     return scrub(question)
 

@@ -1,15 +1,23 @@
 """Regression tests for `/api/ai/check-answer` with phase=tile-match.
 
-Pins the per-pair grading branch added in Chunk B:
+Pins the per-pair grading branch (Chunk B) AFTER the opaque-token rewrite:
+- The board no longer ships shared pair ids; the client sends opaque per-side
+  tokens (`left_token`/`right_token`) and the grader recovers the pair index
+  via HMAC and grades by `left_index == right_index`. These tests therefore
+  address pairs by INDEX (tm_001→0 … tm_004→3) and translate to tokens.
 - Correct match: base XP 100, speed bonus by timer tier, streak bonus on 3rds,
   palace bonus on Memory Palace tile, branch bonus on family complete.
-- Wrong match: hint = LEFT-side text of the wrongly-picked right_id's TRUE
+- Wrong match: hint = LEFT-side text of the wrongly-picked right-token's TRUE
   partner; timer -5s; no XP.
 - Outcome tiers on completion: perfect_clear (200) / flawless (100) / cleared (0).
 - Back-compat gate: phase=tile-match WITHOUT homework_id falls through to
-  legacy tutor.check_answer (no regression).
+  legacy tutor.check_answer (no regression) — never reaches the practice gate.
 - Answer-leak guard: response on a CORRECT match never includes any other
   pair's right-side text.
+
+The practice-arc unlock check is patched always-True here (these are XP/streak/
+outcome unit tests, not gating tests; the gate itself is pinned by
+tests/test_practice_gate_server_enforced.py).
 """
 from __future__ import annotations
 
@@ -18,11 +26,29 @@ from unittest.mock import patch
 import pytest
 
 import server.routes.ai as _ai_routes
+from server.services.tile_match_tokens import left_token, right_token
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+# The default board orders tm_001..tm_004 at indices 0..3. The grader keys off
+# the canonical pair index (resolve_tm_pairs ordering), so tests address pairs
+# by their authored ordinal and translate to opaque tokens at the boundary.
+_PID_INDEX = {"tm_001": 0, "tm_002": 1, "tm_003": 2, "tm_004": 3}
+
+
+async def _always_unlocked(*a, **k):
+    return True
+
+
+@pytest.fixture(autouse=True)
+def _unlock_practice_arc(monkeypatch):
+    """These are grading unit tests, not gating tests — make the server-side
+    Practice Arc unlock check always pass so they exercise the grader, not the
+    403 PRACTICE_LOCKED guard. Patches the symbol as imported into ai.py."""
+    monkeypatch.setattr("server.routes.ai.is_practice_unlocked", _always_unlocked)
 
 
 @pytest.fixture(autouse=True)
@@ -74,11 +100,28 @@ def _seed_homework(
 
 
 def _post_check(client, hw_id: str, **overrides) -> tuple[int, dict]:
+    """POST a tile-match check.
+
+    Accepts either authored pair ids (`tm_00X`, translated to opaque tokens) or
+    explicit integer indices via `left_idx`/`right_idx`. Defaults to a correct
+    match on pair index 0.
+    """
+    left_idx = overrides.pop("left_idx", None)
+    right_idx = overrides.pop("right_idx", None)
+    if left_idx is None:
+        left_idx = _PID_INDEX[overrides.pop("left_id", "tm_001")]
+    else:
+        overrides.pop("left_id", None)
+    if right_idx is None:
+        right_idx = _PID_INDEX[overrides.pop("right_id", "tm_001")]
+    else:
+        overrides.pop("right_id", None)
+
     body = {
         "phase": "tile-match",
         "homework_id": hw_id,
-        "left_id": overrides.pop("left_id", "tm_001"),
-        "right_id": overrides.pop("right_id", "tm_001"),
+        "left_id": left_token(hw_id, left_idx),
+        "right_id": right_token(hw_id, right_idx),
         "session_id": overrides.pop("session_id", "sess-A"),
     }
     body.update(overrides)
@@ -132,7 +175,8 @@ def test_tm_check_answer_wrong_pair_returns_correct_false_and_hint(client):
     )
     assert code == 200, data
     assert data["correct"] is False
-    # The wrong-picked right-tile is tm_002 → its true partner's LEFT text.
+    # The wrong-picked right-tile is pair 1 (tm_002) → its true partner's LEFT
+    # text (pairs[1]['left']).
     assert data["hint"] == "F1 = -F2"
     assert data["timer"]["delta_seconds"] == -5
     assert data["xp"]["base"] == 0
@@ -150,6 +194,7 @@ def _seed_state(hw_id: str, *, remaining_seconds: int, session_id: str = "sess-A
 
     Note: speed bonus is computed on the post-delta (+3 on correct) timer.
     To hit tier T after a correct match, seed the timer to T - 3.
+    `matched_pair_ids` is now keyed by canonical pair INDEX (int), not id.
     """
     _ai_routes._TM_ATTEMPTS[(hw_id, session_id)] = {
         "matched_pair_ids": set(),
@@ -228,8 +273,8 @@ def test_tm_check_answer_streak_bonus_premium_at_3(client):
 
 def test_tm_check_answer_streak_resets_on_wrong(client):
     hw_id = _seed_homework(client)
-    # correct, correct, WRONG, correct, correct, correct → streak=3 only on
-    # the final attempt.
+    # correct, correct, WRONG, correct, correct → streak resets on the wrong
+    # match, so no pre-final attempt earns a streak bonus.
     sequences = [
         ("tm_001", "tm_001", True),
         ("tm_002", "tm_002", True),
@@ -346,7 +391,7 @@ def test_tm_check_answer_cleared_outcome(client):
 def test_tm_check_answer_legacy_route_back_compat(mock_generate, client):
     """phase=tile-match WITHOUT homework_id flows through tutor.check_answer
     (legacy AMR-shape path) — guards against the new branch swallowing
-    pre-existing callers.
+    pre-existing callers. This path never reaches the practice gate.
     """
     payload = {
         "phase": "tile-match",
@@ -385,8 +430,8 @@ def test_tm_check_answer_no_answer_leak_in_response(client):
     resp = client.post("/api/ai/check-answer", json={
         "phase": "tile-match",
         "homework_id": hw_id,
-        "left_id": "tm_001",
-        "right_id": "tm_001",
+        "left_id": left_token(hw_id, 0),
+        "right_id": right_token(hw_id, 0),
         "session_id": "sess-leak",
     })
     body = resp.text

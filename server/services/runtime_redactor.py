@@ -24,6 +24,7 @@ import copy
 from typing import Any
 
 from .redaction_constants import ANSWER_BEARING_KEYS
+from .tile_match_tokens import build_hydration_tiles
 
 
 def _scrub(node: Any) -> Any:
@@ -40,14 +41,27 @@ def _scrub(node: Any) -> Any:
     return node
 
 
-def redact_for_runtime(content_json: dict | None) -> dict:
+def redact_for_runtime(content_json: dict | None, hw_id: str = "") -> dict:
     """Return a deep-copied, student-safe view of content_json.
 
     The input is never mutated (the DB row + builder read path keep the full
     answers). Safe to call on any flow_version — it only removes answer fields,
     leaving all display content intact.
+
+    Tile-match special-case: the legacy `gb_tile_match` shape leaks the pairing
+    (both sides share a pair `id`). After the generic scrub we REPLACE it with
+    opaque per-side tokens (`tile_match_tokens.build_hydration_tiles`) so the
+    DOM can't recover which left matches which right. `gb_memory_match` (the
+    legacy shim source) is deleted from the hydration payload entirely. `hw_id`
+    seeds the token HMAC + the stable per-side shuffle.
     """
     if not content_json:
         return {}
     safe = copy.deepcopy(content_json)
-    return _scrub(safe)
+    safe = _scrub(safe)
+
+    # Tile-match: replace the leaky pair list with opaque per-side tokens.
+    if isinstance(safe, dict) and (safe.get("gb_tile_match") or safe.get("gb_memory_match")):
+        safe["gb_tile_match"] = build_hydration_tiles(hw_id, content_json)
+        safe.pop("gb_memory_match", None)
+    return safe

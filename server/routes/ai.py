@@ -13,6 +13,8 @@ from typing import Optional, Any
 from ..services import tutor, ai_orchestrator, injector, ai_debug, ai_context, ai_gateway
 from ..services.slur_filter import classify, detect_slurs
 from ..services import warnings as warnings_svc
+from ..services.gate_state import is_practice_unlocked
+from ..services.tile_match_tokens import resolve_tm_pairs, build_token_maps
 from .. import db
 
 router = APIRouter(tags=["ai-tutor"])
@@ -589,6 +591,26 @@ async def _check_answer_sentence_fill(req: CheckAnswerRequest) -> dict:
     }
 
 
+async def _enforce_practice_unlocked(req: "CheckAnswerRequest") -> None:
+    """Server-side Practice Arc gate (BLOCKER #3 — defense in depth).
+
+    The practice-arc games (tile-match / final-boss / future games) must not
+    grade an answer unless the student actually unlocked the arc by completing
+    both learning sections. The frontend gate is presentation-only; a tampered
+    client can call these endpoints directly after hydrating display content.
+    This is the authoritative enforcement.
+
+    Raises HTTPException(403, code="PRACTICE_LOCKED") when the arc is still
+    locked for this session+homework. Do NOT call this from the CBP/MC learning
+    phases — those ARE the unlock path.
+    """
+    if not await is_practice_unlocked(req.session_id, req.homework_id):
+        raise HTTPException(403, detail={
+            "error": "Practice Arc is locked — complete both learning sections first",
+            "code": "PRACTICE_LOCKED",
+        })
+
+
 # ---------------------------------------------------------------------------
 # Tile Match — phase=tile-match check-answer branch (Chunk B).
 #
@@ -724,6 +746,10 @@ async def _check_answer_tile_match(req: CheckAnswerRequest) -> dict:
             "code": "TM_MISSING_IDS",
         })
 
+    # BLOCKER #3 — Practice Arc must be server-enforced before grading. Tile
+    # Match is a practice-arc game; refuse to grade for a locked session.
+    await _enforce_practice_unlocked(req)
+
     hw = await db.get_homework(req.homework_id)
     if hw is None:
         raise HTTPException(404, detail={
@@ -731,32 +757,44 @@ async def _check_answer_tile_match(req: CheckAnswerRequest) -> dict:
             "code": "HW_NOT_FOUND",
         })
     content = hw.get("content_json") or {}
-    pairs = _resolve_tm_pairs(content)
+    # Opaque-token scheme: `resolve_tm_pairs` gives the canonical, display-only
+    # ({left, right}) order used to mint the per-side tokens; the token maps
+    # translate the client-supplied opaque left_id/right_id back to a pair
+    # INDEX. The pair index is never exposed to the client, so a tampered
+    # client can no longer match by submitting `left_id == right_id`.
+    #
+    # The XP-bonus logic (tier / palace / concept_family / explanation) needs
+    # the full authored pair, which the token resolver strips. `_resolve_tm_pairs`
+    # preserves those fields in the SAME canonical order (contract: identical
+    # ordering), so we index the authored list by the same ordinal.
+    pairs = resolve_tm_pairs(content)
+    authored_pairs = _resolve_tm_pairs(content)
     if not pairs:
         raise HTTPException(404, detail={
             "error": "tile-match content not found on this homework",
             "code": "TM_NO_CONTENT",
         })
+    lid_map, rid_map = build_token_maps(req.homework_id, len(pairs))
 
-    # Build id-keyed lookups. The student picked left_id + right_id; we need
-    # to (a) verify left_id maps to right_id (correct match) and (b) on wrong,
-    # return the LEFT text of right_id's TRUE partner.
-    by_left_id = {p.get("id"): p for p in pairs if p.get("id")}
-    by_right_id_true_left_text = {
-        p.get("id"): p.get("left", "") for p in pairs if p.get("id")
-    }
-
-    pair = by_left_id.get(req.left_id)
-    if pair is None:
+    i_left = lid_map.get(req.left_id)
+    if i_left is None:
         raise HTTPException(400, detail={
             "error": f"left_id {req.left_id} not found in this tile-match board",
             "code": "TM_BAD_LEFT_ID",
         })
-    if req.right_id not in by_right_id_true_left_text:
+    i_right = rid_map.get(req.right_id)
+    if i_right is None:
         raise HTTPException(400, detail={
             "error": f"right_id {req.right_id} not found in this tile-match board",
             "code": "TM_BAD_RIGHT_ID",
         })
+
+    # The matched-pair-id state machine keys off the canonical pair INDEX (the
+    # left tile's pair). Indexing is stable across requests and independent of
+    # whether the resolver carries an authored `id`. The bonus metadata comes
+    # from the authored pair at the same ordinal.
+    pair = authored_pairs[i_left] if i_left < len(authored_pairs) else pairs[i_left]
+    matched_key = i_left
 
     # Get-or-create per-session state.
     session_id = req.session_id or "default"
@@ -782,9 +820,11 @@ async def _check_answer_tile_match(req: CheckAnswerRequest) -> dict:
         _TM_ATTEMPTS[state_key] = state
 
     # If this pair has already been matched, treat it as a no-op (defensive).
-    already_matched = req.left_id in state["matched_pair_ids"]
+    already_matched = matched_key in state["matched_pair_ids"]
 
-    is_correct = (req.left_id == req.right_id) and not already_matched
+    # Correct when the left tile's pair index equals the right tile's pair
+    # index (both resolved from opaque tokens above).
+    is_correct = (i_left == i_right) and not already_matched
 
     # Initialize XP components.
     xp_base = 0
@@ -801,7 +841,7 @@ async def _check_answer_tile_match(req: CheckAnswerRequest) -> dict:
         # per plan §3c. Clamp at >=0 (timer can't go negative).
         delta = 3
         state["remaining_seconds"] = max(0, state["remaining_seconds"] + delta)
-        state["matched_pair_ids"].add(req.left_id)
+        state["matched_pair_ids"].add(matched_key)
         state["streak"] += 1
         state["wrong_count"] = state["wrong_count"]  # no change
         xp_base = 100
@@ -816,14 +856,16 @@ async def _check_answer_tile_match(req: CheckAnswerRequest) -> dict:
         if isinstance(pair, dict) and pair.get("is_palace_tile"):
             xp_palace = 50
 
-        # Branch-complete bonus: this match drains the concept_family.
+        # Branch-complete bonus: this match drains the concept_family. Compute
+        # the family's member set by canonical INDEX (matched_pair_ids stores
+        # indices) so the comparison is consistent with the new token scheme.
         family = pair.get("concept_family") if isinstance(pair, dict) else None
         if family and family not in state["completed_families"]:
-            family_pair_ids = {
-                p.get("id") for p in pairs
-                if isinstance(p, dict) and p.get("concept_family") == family and p.get("id")
+            family_pair_indices = {
+                idx for idx, p in enumerate(authored_pairs)
+                if isinstance(p, dict) and p.get("concept_family") == family
             }
-            if family_pair_ids and family_pair_ids.issubset(state["matched_pair_ids"]):
+            if family_pair_indices and family_pair_indices.issubset(state["matched_pair_ids"]):
                 xp_branch = 100
                 state["completed_families"].add(family)
 
@@ -842,8 +884,10 @@ async def _check_answer_tile_match(req: CheckAnswerRequest) -> dict:
         state["remaining_seconds"] = max(0, state["remaining_seconds"] + delta)
         state["streak"] = 0
         state["wrong_count"] += 1
-        # Hint = the LEFT-side concept text of the right-tile's true partner.
-        hint = by_right_id_true_left_text.get(req.right_id) or None
+        # Hint = the LEFT-side concept text of the wrongly-picked right tile's
+        # TRUE partner (already visible on screen — not a new leak surface).
+        right_pair = pairs[i_right]
+        hint = (right_pair.get("left", "") if isinstance(right_pair, dict) else "") or None
 
     xp_total = xp_base + xp_speed + xp_streak + xp_palace + xp_branch
 
@@ -1525,6 +1569,10 @@ async def _check_answer_final_boss(req: CheckAnswerRequest) -> dict:
             "error": "homework_id required for phase=final-boss",
             "code": "FB_MISSING_HW",
         })
+
+    # BLOCKER #3 — Final Boss is a practice-arc game; refuse to grade for a
+    # session that has not unlocked the arc (server-side enforcement).
+    await _enforce_practice_unlocked(req)
 
     hw = await db.get_homework(req.homework_id)
     if hw is None:

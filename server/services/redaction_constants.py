@@ -50,5 +50,19 @@ ANSWER_BEARING_KEYS = frozenset(
         "correct_path",
         "correct_answer",
         "correct_option",
+        # CBP teaching text — post-submit only (returned by /check-answer
+        # response in ai.py); never in hydration.
+        "learning_block",
+        # short answer aliases + invariants the grader keys on
+        "a",
+        "answer",
+        "inv",
+        "invariant",
+        "expect",
+        "expected_answer",
+        "acceptable",
+        "ans_all",
+        # distractors enumerate the wrong options' grading metadata
+        "distractors",
     }
 )

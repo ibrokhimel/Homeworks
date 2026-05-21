@@ -25,7 +25,20 @@ LEAK_TOKENS = [
     "LEAK_MC_EXPECTED",
     "LEAK_MC_ACCEPTED",
 ]
-FORBIDDEN_KEYS = ["answer_spec", "expected", "accepted_answers", "correct_path"]
+# NOTE: wrong_path + feedback_summary are STUDENT-VISIBLE narrative (rendered by
+# CaseBasedPreview.tsx from the hydration payload), so they intentionally SURVIVE
+# — see test_hydration_preserves_display_content. correct_path stays stripped
+# (server-only right-decision), learning_block stays stripped (arrives via the
+# submit RESPONSE, not hydration).
+FORBIDDEN_KEYS = [
+    "answer_spec",
+    "expected",
+    "accepted_answers",
+    "correct_path",
+    "learning_block",
+    "inv",
+    "answer",
+]
 
 
 @pytest.fixture
@@ -44,13 +57,25 @@ def v2_homework_with_secrets(client):
                     "question": "Which operation splits a quantity equally?",
                     "options": ["multiply", "divide"],
                     "answer_spec": {"expected": "LEAK_CBP_EXPECTED", "accepted_answers": ["LEAK_CBP_ACCEPTED"]},
+                    # CBP teaching text — post-submit only, must not hydrate.
+                    "learning_block": "LEAK_LEARNING_BLOCK teaching text",
+                    "inv": "LEAK_CBP_INV",
+                    "answer": "LEAK_CBP_ANSWER",
                 },
                 {"question": "Q2", "answer_spec": {"expected": "x"}},
                 {"question": "Q3", "answer_spec": {"expected": "y"}},
             ],
             "final_simulation": {
+                # correct_path is server-only (the right decision); stripped.
                 "correct_path": "LEAK_CBP_PATH",
+                # wrong_path is STUDENT-VISIBLE simulation narrative; survives.
                 "wrong_path": "This wrong-path text is shown to the student",
+            },
+            # feedback_summary is the STUDENT-VISIBLE debrief; survives hydration.
+            "feedback_summary": {
+                "student_understood": "You grasped the core idea",
+                "mistake_appeared": "A sign slip on the second step",
+                "what_to_review": "Revisit distributing the negative",
             },
         },
         "memory_check": {
@@ -64,6 +89,14 @@ def v2_homework_with_secrets(client):
                 }
             ],
         },
+        # Tile-match: the leak shape — both sides share a pair id, so the DOM
+        # would encode every answer. Hydration must replace this with opaque
+        # per-side tokens (no shared id).
+        "gb_tile_match": [
+            {"id": "p0", "left": "atom", "right": "smallest unit"},
+            {"id": "p1", "left": "molecule", "right": "two or more atoms"},
+            {"id": "p2", "left": "ion", "right": "charged particle"},
+        ],
     }
     resp = client.put(f"/api/homeworks/{hw_id}", json={"content_json": content})
     assert resp.status_code == 200, resp.text
@@ -89,8 +122,98 @@ def test_hydration_preserves_display_content(client, v2_homework_with_secrets):
     resp = client.get(f"/api/runtime/homeworks/{v2_homework_with_secrets}")
     blob = json.dumps(resp.json())
     assert "Which operation splits a quantity equally?" in blob
-    assert "This wrong-path text is shown to the student" in blob
     assert "Term for splitting equally?" in blob
+    # Tile-match display text (concept + meaning sides) still ships — only the
+    # pairing is hidden.
+    assert "atom" in blob and "smallest unit" in blob
+
+
+def test_hydration_preserves_simulation_and_debrief_narrative(client, v2_homework_with_secrets):
+    """wrong_path + feedback_summary are STUDENT-VISIBLE (CaseBasedPreview.tsx
+    renders them straight from hydration). They must SURVIVE redaction."""
+    resp = client.get(f"/api/runtime/homeworks/{v2_homework_with_secrets}")
+    data = resp.json()
+    blob = json.dumps(data)
+
+    sim = data["content_json"]["case_based_preview"]["final_simulation"]
+    assert sim.get("wrong_path") == "This wrong-path text is shown to the student"
+
+    fb = data["content_json"]["case_based_preview"]["feedback_summary"]
+    assert fb.get("student_understood") == "You grasped the core idea"
+    assert fb.get("mistake_appeared") == "A sign slip on the second step"
+    assert fb.get("what_to_review") == "Revisit distributing the negative"
+
+    # Both keys present in the payload (the UI reads them by name).
+    assert '"wrong_path"' in blob and '"feedback_summary"' in blob
+
+
+def _walk_keys_and_strings(node, keys: set, strings: list):
+    """Recurse a JSON tree collecting every dict key + every string leaf."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            keys.add(k)
+            _walk_keys_and_strings(v, keys, strings)
+    elif isinstance(node, list):
+        for item in node:
+            _walk_keys_and_strings(item, keys, strings)
+    elif isinstance(node, str):
+        strings.append(node)
+
+
+def test_hydration_deep_walk_no_answer_keys_or_tokens(client, v2_homework_with_secrets):
+    """Recursive walk: no forbidden key + no LEAK_* token survives at ANY depth."""
+    resp = client.get(f"/api/runtime/homeworks/{v2_homework_with_secrets}")
+    payload = resp.json()
+    keys: set = set()
+    strings: list = []
+    _walk_keys_and_strings(payload, keys, strings)
+
+    # NB: wrong_path + feedback_summary are intentionally NOT here — they are
+    # student-visible narrative the UI renders from hydration.
+    forbidden_keys = {
+        "answer_spec", "expected", "accepted_answers", "correct_path",
+        "learning_block", "inv", "answer",
+        "invariant", "expected_answer", "distractors",
+    }
+    leaked_keys = forbidden_keys & keys
+    assert not leaked_keys, f"answer-bearing keys survived hydration: {leaked_keys}"
+
+    blob = "\n".join(strings)
+    leaked_tokens = [t for t in strings if t.startswith("LEAK_")]
+    assert not leaked_tokens, f"answer tokens survived hydration: {leaked_tokens}"
+    assert "LEAK_LEARNING_BLOCK" not in blob
+
+
+def test_hydration_tile_match_has_no_recoverable_pairing(client, v2_homework_with_secrets):
+    """Tile-match hydrates as {lefts,rights} with opaque tokens — no shared id."""
+    resp = client.get(f"/api/runtime/homeworks/{v2_homework_with_secrets}")
+    tm = resp.json()["content_json"]["gb_tile_match"]
+
+    # New shape: a dict with two independent token columns, NOT a pair list.
+    assert isinstance(tm, dict), f"tile-match should be {{lefts,rights}} dict, got {type(tm)}"
+    assert set(tm.keys()) <= {"lefts", "rights"}
+    lefts, rights = tm["lefts"], tm["rights"]
+    assert len(lefts) == len(rights) == 3
+
+    # No tile carries id/left/right (the recoverable-pairing fields).
+    for tile in lefts:
+        assert set(tile.keys()) == {"lid", "text"}, tile
+        assert "id" not in tile and "right" not in tile
+    for tile in rights:
+        assert set(tile.keys()) == {"rid", "text"}, tile
+        assert "id" not in tile and "left" not in tile
+
+    # The left/right tokens must be DISJOINT (no token appears on both sides),
+    # so a left tile can never be matched to a right by id-equality.
+    lids = {t["lid"] for t in lefts}
+    rids = {t["rid"] for t in rights}
+    assert lids.isdisjoint(rids), "left/right tokens overlap — pairing recoverable"
+
+    # The display texts are present but split across columns with no link.
+    left_texts = {t["text"] for t in lefts}
+    right_texts = {t["text"] for t in rights}
+    assert left_texts == {"atom", "molecule", "ion"}
+    assert right_texts == {"smallest unit", "two or more atoms", "charged particle"}
 
 
 def test_gate_state_fresh_session_locked(client, v2_homework_with_secrets):
