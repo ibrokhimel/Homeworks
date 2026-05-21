@@ -65,6 +65,27 @@
   --v2-accent-soft: var(--landing-blue-400);
   --v2-radius-card: 20px;
   --v2-radius-pill: 999px;
+
+  /* ── Onest / Apple typography foundation ────────────────────────────── */
+  --font-onest: 'Onest', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+
+  /* Apple ink/contrast tokens (additive — do not shadow --text / --text-muted above) */
+  --ink: #1d1d1f;
+  --text-secondary: #86868b;
+
+  /* Category accent solids */
+  --c-purple: #8a5fc8;
+  --c-blue:   #5e9ed6;
+  --c-yellow: #f4a261;
+  --c-green:  #74aa9c;
+  --c-red:    #c93a3a;
+
+  /* Category accent gradients */
+  --grad-game:        linear-gradient(135deg, #b388eb, #8a5fc8);
+  --grad-interaction: linear-gradient(135deg, #5e9ed6, #4677b8);
+  --grad-content:     linear-gradient(135deg, #ffd166, #f4a261);
+  --grad-language:    linear-gradient(135deg, #74aa9c, #4a8576);
+  --grad-security:    linear-gradient(135deg, #e26d6d, #c93a3a);
 }
 
 /* Dark mode — manual ([data-theme="dark"]) OR system preference */

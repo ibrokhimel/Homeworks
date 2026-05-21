@@ -1,166 +1,113 @@
 /* ============================================================
-   Learning Hub — TOP-DOWN FLOWCHART in the LIGHT Apple-glass
-   language of landing.css. Two white frosted-glass entry nodes
-   (top) converge via blue SVG connector lines into a gated
-   "Homework Practices" block, which drops an arrow to a terminal
-   "Reflection" node.
+   Learning Hub — TOP-DOWN FLOWCHART in the high-contrast Apple
+   language of apple.com/iphone + the owner's issues-inventory.
 
-   Aesthetic match to landing.css:
-   · #f5f5f7-family page surface (NEVER flat near-black)
-   · white frosted glass: rgba(255,255,255,.72) + backdrop blur+saturate
-   · #0066CC / blue-600 accents, colorful radial glows for depth
-     (blue + fuchsia + emerald, like .hero-bg-glow / .preview-glow tints)
-   · the signature animations replicated verbatim — cube-enter (1.2s),
-     cube-bobble (6.5s float), spring var(--landing-spring), button
-     hover scale(1.045)/translateY(-1px) (inherited from primitives),
-     connector draw-in, all on the no-overshoot Apple spring curve.
+   THE REJECTION FIX (contrast): the previous build leaned on the
+   theme-flipping --v2-text token for every title, so a dark-OS
+   visitor inherited a near-white ink on a forced-light surface —
+   the page title + division titles washed out into invisibility.
+   Here, the shell PINS its own light text tokens (so nothing can
+   inherit the dark-mode white) and every heading is hard ink
+   #1d1d1f. Color is reserved for CTAs + subtle per-category
+   gradient accents on the cards — never poured over text.
 
-   The view is FORCED LIGHT for judging regardless of system dark mode;
-   a tasteful dark variant is wired under [data-theme="dark"] at the end.
+   Palette (Apple): bg #fbfbfd / #f5f5f7 · ink #1d1d1f ·
+   secondary #86868b · primary blue #0071e3.
+   Font: Onest via inherit (the shared layer loads it).
+   Category accents (subtle top-bar + corner glow, NOT full fills):
+     game --grad-game (purple) · interaction --grad-interaction (blue)
+     content --grad-content (yellow) · language --grad-language (green)
+     security --grad-security (red).
+   Surfaces: ~20px radius, soft diffusion shadow (no heavy borders),
+   gentle hover scale(1.03)/translateY(-4px). Honors reduced-motion.
    ============================================================ */
 
-/* ---- Shell + layered LIGHT background ----------------------------- */
+/* ---- Shell: forced light + PINNED ink tokens (contrast guarantee) -- */
 .shell {
   position: relative;
   max-width: 920px;
   isolation: isolate;
-  /* Force the light surface for this view — soft warm-white wash over the
-     page bg so the glass cards sit on something luminous, never flat dark. */
+
+  /* Hard-pin the text tokens to the LIGHT values regardless of the OS
+     theme. This is the core of the contrast fix: titles below read
+     --hub-ink (#1d1d1f), and even the imported primitives that resolve
+     --v2-text now get the dark ink instead of the dark-mode white. */
+  --hub-ink: #1d1d1f;
+  --hub-secondary: #86868b;
+  --hub-subtle: #a1a1a6;
+  --hub-blue: #0071e3;
+  --hub-line: #c7c7cc;
+  --hub-line-live: #0071e3;
+  --v2-text: #1d1d1f;
+  --v2-text-muted: #6e6e73;
+  --v2-text-subtle: #86868b;
+
   background:
-    radial-gradient(130% 70% at 50% -6%, rgba(255, 255, 255, 0.9) 0%, transparent 55%),
-    linear-gradient(180deg, #f7f8fb 0%, #f1f3f8 100%);
-  color: var(--landing-zinc-950);
+    radial-gradient(120% 64% at 50% -8%, #ffffff 0%, transparent 58%),
+    linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 100%);
+  color: var(--hub-ink);
 }
 
-/* The luminous hero glow behind the title — identical recipe to
-   landing.css .hero-bg-glow (dbeafe → ede9fe → transparent, blurred). */
+/* A single, very subtle warm hero glow behind the header — depth without
+   ever competing with the ink text. */
 .heroGlow {
   position: absolute;
   left: 50%;
-  top: -40px;
-  width: 1100px;
-  height: 520px;
-  max-width: 150vw;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: radial-gradient(circle, #dbeafe 0%, #ede9fe 35%, transparent 70%);
-  filter: blur(40px);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Three colorful radial glow blobs (blue / fuchsia / emerald) for Apple-glass
-   depth — same tint palette as landing's .preview-glow / .glass-cube tints.
-   Pointer-events none + GPU-only drift so they never repaint on scroll. */
-.auraBlob {
-  position: absolute;
-  width: 420px;
+  top: -60px;
+  width: 980px;
   height: 420px;
+  max-width: 140vw;
+  transform: translateX(-50%);
   border-radius: 999px;
-  filter: blur(72px);
+  background: radial-gradient(circle, rgba(0, 113, 227, 0.06) 0%, transparent 68%);
+  filter: blur(50px);
   pointer-events: none;
   z-index: 0;
-  opacity: 0.85;
-}
-.auraBlue {
-  left: -140px;
-  top: 120px;
-  background: rgba(37, 99, 235, 0.2);
-  animation: hubAuraDrift 15s ease-in-out infinite alternate;
-}
-.auraFuchsia {
-  right: -150px;
-  top: 60px;
-  background: rgba(217, 70, 239, 0.16);
-  animation: hubAuraDrift 18s ease-in-out 1.5s infinite alternate-reverse;
-}
-.auraEmerald {
-  left: 50%;
-  bottom: 40px;
-  transform: translateX(-50%);
-  background: rgba(52, 211, 153, 0.16);
-  animation: hubAuraDriftY 20s ease-in-out infinite alternate;
-}
-@keyframes hubAuraDrift {
-  0% { transform: translate3d(-3%, 0, 0) scale(1); }
-  100% { transform: translate3d(4%, 2%, 0) scale(1.08); }
-}
-@keyframes hubAuraDriftY {
-  0% { transform: translateX(-50%) translateY(0) scale(1); }
-  100% { transform: translateX(-50%) translateY(-4%) scale(1.07); }
 }
 
-/* ---- Signature bobbing glass cube (landing .glass-cube, verbatim recipe) -- */
-.floatingCube {
-  position: absolute;
-  right: 4%;
-  top: 6px;
-  pointer-events: none;
-  z-index: 1;
-  display: none;
-  opacity: 0;
-  transform: scale(0.75);
-  animation: cube-enter 1.2s var(--landing-spring) 0.4s forwards;
-}
-@media (min-width: 940px) {
-  .floatingCube { display: block; }
-}
-@keyframes cube-enter {
-  to { opacity: 1; transform: scale(1); }
-}
-
-.glassCube {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 92px;
-  height: 92px;
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  overflow: hidden;
-  animation: cube-bobble 6.5s ease-in-out infinite;
-}
-@keyframes cube-bobble {
-  0%, 100% { transform: translateY(0) rotateZ(0deg); }
-  50%      { transform: translateY(-14px) rotateZ(3deg); }
-}
-.glassCubeTint {
-  position: absolute;
-  inset: 0;
-  border-radius: 28px;
-  /* blue → cyan, the landing glass-cube--blue tint */
-  background: linear-gradient(to bottom right, rgba(96, 165, 250, 0.5), rgba(34, 211, 238, 0.22));
-  pointer-events: none;
-}
-.glassCubeIcon {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--landing-blue-600);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
-}
-
+/* ---- Homework-theme header ---------------------------------------- */
 .intro {
   position: relative;
   z-index: 1;
   text-align: center;
-  max-width: 660px;
+  max-width: 680px;
   margin: 0 auto;
+}
+
+/* Subject eyebrow — small, blue, the only color on the header. */
+.eyebrow {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--hub-blue);
+  margin: 0 0 12px;
+}
+
+/* The homework's real title — large, bold, HARD INK. The contrast win. */
+.pageTitle {
+  font-size: clamp(34px, 5.4vw, 60px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+  margin: 0;
+  color: var(--hub-ink);
+}
+
+/* Topic / section subtitle — secondary gray, generous and quiet. */
+.pageSub {
+  font-size: clamp(17px, 1.7vw, 21px);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--hub-secondary);
+  margin: 16px auto 0;
+  max-width: 56ch;
 }
 
 /* ---- The flow column: connectors behind, rows stacked above -------- */
 .flow {
   position: relative;
   z-index: 1;
-  margin-top: 48px;
+  margin-top: 56px;
   display: flex;
   flex-direction: column;
   gap: clamp(56px, 8vw, 92px); /* generous vertical breathing room for lines */
@@ -183,7 +130,12 @@
   z-index: 1; /* above the connector layer */
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* clip the colorful corner glow inside the rounded card */
+  overflow: hidden; /* clip the accent bar + corner glow inside the radius */
+  border-radius: 20px;
+  background: #ffffff;
+  /* Minimal border, soft diffusion shadow (Apple depth, not heavy outlines). */
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
 }
 .nodeBody {
   position: relative;
@@ -193,48 +145,81 @@
   flex: 1;
 }
 
-/* A soft colorful glow tucked in the card's top-right corner — same idea as
-   landing's .quick-card__glow / .safe-card__glow, tinted per division. */
+/* Per-category accent bar across the very top of the card — the tasteful
+   gradient accent. Thin, so it never reduces text contrast. */
+.cardAccent {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 20px 20px 0 0;
+}
+/* A faint matching corner glow for depth — kept low-opacity behind content. */
 .cardGlow {
   position: absolute;
-  right: -56px;
-  top: -56px;
-  width: 184px;
-  height: 184px;
+  right: -64px;
+  top: -64px;
+  width: 188px;
+  height: 188px;
   border-radius: 999px;
-  filter: blur(46px);
+  filter: blur(52px);
+  opacity: 0.5;
   pointer-events: none;
   z-index: 0;
 }
-.cardGlowBlue { background: rgba(96, 165, 250, 0.28); }
-.cardGlowFuchsia { background: rgba(217, 70, 239, 0.22); }
-.cardGlowEmerald { background: rgba(52, 211, 153, 0.2); }
+
+/* Category accent tokens. The bar uses the gradient; the glow a soft tint. */
+.accentInteraction .cardAccent { background: var(--grad-interaction, linear-gradient(135deg, #5e9ed6, #4677b8)); }
+.accentInteraction .cardGlow { background: rgba(94, 158, 214, 0.28); }
+.accentContent .cardAccent { background: var(--grad-content, linear-gradient(135deg, #ffd166, #f4a261)); }
+.accentContent .cardGlow { background: rgba(244, 162, 97, 0.24); }
+.accentGame .cardAccent { background: var(--grad-game, linear-gradient(135deg, #b388eb, #8a5fc8)); }
+.accentGame .cardGlow { background: rgba(179, 136, 235, 0.26); }
+.accentSecurity .reflectionDot { background: #c93a3a; }
 
 .nodeHead {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
+/* Division label — neutral ink (NOT colorful), small + tracked. */
 .divisionLabel {
   display: inline-flex;
   align-items: baseline;
   gap: 7px;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--landing-blue-600);
+  color: var(--hub-secondary);
 }
-.divisionLabelBlue { color: var(--landing-blue-600); }
-.divisionLabelFuchsia { color: var(--landing-fuchsia-500); }
 .divisionNum {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.01em;
+  color: var(--hub-ink);
   font-variant-numeric: tabular-nums;
+}
+
+/* Card title — HARD INK, bold. The second half of the contrast fix. */
+.cardTitle {
+  font-size: clamp(21px, 2.6vw, 27px);
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  line-height: 1.12;
+  margin: 0;
+  color: var(--hub-ink);
+}
+.cardLead {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--hub-secondary);
+  margin: 12px 0 0;
+  max-width: 46ch;
 }
 
 .nodeFoot {
@@ -248,8 +233,8 @@
 }
 .meta {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--v2-text-subtle);
+  font-weight: 500;
+  color: var(--hub-subtle);
 }
 
 .glyph,
@@ -257,11 +242,11 @@
   flex-shrink: 0;
 }
 
-/* ---- TOP ROW: two white frosted-glass entry boxes side by side ----- */
+/* ---- TOP ROW: two Apple cards side by side ------------------------- */
 .entries {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: 24px;
   align-items: stretch;
 }
 @media (min-width: 680px) {
@@ -270,46 +255,33 @@
   }
 }
 
-/* Frosted-glass node: white translucent surface + backdrop blur + saturate,
-   exactly the landing .stat-card / glass vocabulary. The FeatureCard primitive
-   gives the base radius/shadow/spring; we layer the glass + glow over it. */
 .entryNode {
-  min-height: 252px;
-  padding: 26px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: var(--landing-shadow-card);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  /* draw-in: cube-enter-style rise + fade on mount, staggered per column */
-  animation: hubNodeIn 700ms var(--landing-spring) both;
-  transition: transform 320ms var(--landing-spring), box-shadow 320ms var(--landing-spring),
-    border-color 320ms var(--landing-spring);
+  min-height: 256px;
+  padding: 28px;
+  /* draw-in: gentle rise + fade on mount, staggered per column */
+  animation: hubNodeIn 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.entryBlue { animation-delay: 80ms; }
-.entryFuchsia { animation-delay: 200ms; }
+.entries .entryNode:nth-child(1) { animation-delay: 80ms; }
+.entries .entryNode:nth-child(2) { animation-delay: 200ms; }
 .entryNode:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: var(--landing-shadow-card-hover);
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.1);
 }
 
-/* ---- MIDDLE: gated Homework Practices block (frosted glass) -------- */
+/* ---- MIDDLE: gated Homework Practices block ----------------------- */
 .practicesRow {
   display: flex;
   justify-content: center;
 }
 .practices {
   width: 100%;
-  max-width: 470px;
-  padding: 24px 26px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: var(--landing-shadow-card);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  animation: hubNodeIn 700ms var(--landing-spring) 320ms both;
-  transition: transform 320ms var(--landing-spring), box-shadow 320ms var(--landing-spring),
-    border-color 320ms var(--landing-spring), background 360ms var(--landing-spring);
+  max-width: 480px;
+  padding: 26px 28px;
+  animation: hubNodeIn 640ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both;
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .gateScope {
@@ -323,68 +295,63 @@
 /* Stacked sub-items (Gamified / Interactive / Boss). */
 .subItems {
   list-style: none;
-  margin: 16px 0 4px;
+  margin: 18px 0 4px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
 }
 .subItem {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 12px 14px;
+  gap: 12px;
+  padding: 13px 15px;
   border-radius: 14px;
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--landing-zinc-950);
-  background: rgba(255, 255, 255, 0.66);
-  border: 1px solid var(--landing-ring);
-  box-shadow: var(--landing-shadow-soft);
-  transition: transform 220ms var(--landing-spring), border-color 220ms var(--landing-spring),
-    background 220ms var(--landing-spring), box-shadow 220ms var(--landing-spring);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--hub-ink);
+  background: #f5f5f7;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .subItem .subGlyph {
-  color: var(--landing-blue-600);
+  color: #8a5fc8; /* game-purple, matching the block accent */
 }
 .subItemBoss {
-  font-weight: 700;
+  font-weight: 600;
 }
 .subItemBoss .subGlyph {
-  color: var(--landing-fuchsia-500);
+  color: #c93a3a; /* security-red for the Boss line */
 }
 /* When unlocked, the sub-items become alive on hover of the block. */
 .practicesOpen:hover .subItem {
-  border-color: var(--landing-blue-400);
-  background: rgba(255, 255, 255, 0.9);
+  background: #eef0f3;
 }
 .practicesOpen:hover .subItem:nth-child(1) { transform: translateX(4px); }
 .practicesOpen:hover .subItem:nth-child(2) { transform: translateX(4px); transition-delay: 45ms; }
 .practicesOpen:hover .subItem:nth-child(3) { transform: translateX(4px); transition-delay: 90ms; }
 
 /* Locked vs open framing. */
-.practicesLocked {
-  border-style: dashed;
-  border-color: var(--landing-zinc-300);
+.practicesLocked .cardAccent {
+  opacity: 0.45; /* dim the purple accent until unlocked */
 }
 .practicesLocked .cardGlow {
-  /* dim the emerald glow until the arc is unlocked */
-  opacity: 0.35;
+  opacity: 0.28;
 }
 .practicesLocked:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--landing-shadow-card-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.08);
 }
 .practicesOpen {
-  border-color: rgba(4, 120, 87, 0.35);
-  box-shadow: var(--landing-shadow-card), inset 0 0 0 1.5px rgba(4, 120, 87, 0.55);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04), inset 0 0 0 1.5px rgba(138, 95, 200, 0.4);
   /* a one-shot "unlock" pop the first time it renders unlocked */
-  animation: hubNodeIn 700ms var(--landing-spring) 320ms both,
-    hubUnlockPop 760ms var(--landing-spring) 1000ms 1 both;
+  animation: hubNodeIn 640ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both,
+    hubUnlockPop 760ms cubic-bezier(0.16, 1, 0.3, 1) 1000ms 1 both;
 }
 .practicesOpen:hover {
-  transform: translateY(-8px) scale(1.012);
-  box-shadow: var(--landing-shadow-card-hover), inset 0 0 0 1.5px rgba(4, 120, 87, 0.55);
+  transform: translateY(-4px) scale(1.012);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.1), inset 0 0 0 1.5px rgba(138, 95, 200, 0.4);
 }
 
 /* Locked CTA mimics a button but never navigates. */
@@ -399,10 +366,10 @@
   font-size: 14px;
   font-weight: 600;
   cursor: not-allowed;
-  color: var(--landing-zinc-500);
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid var(--landing-zinc-200);
-  transition: transform 160ms var(--landing-spring);
+  color: var(--hub-subtle);
+  background: #f5f5f7;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .lockedCta:active {
   transform: scale(0.98);
@@ -410,14 +377,15 @@
 
 .lockReq {
   margin: 14px 0 0;
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.45;
-  color: var(--v2-text-subtle);
-  transition: color 220ms var(--landing-spring);
+  color: var(--hub-secondary);
+  transition: color 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .lockReqLoud {
-  color: var(--landing-blue-600);
+  color: var(--hub-blue);
+  font-weight: 600;
 }
 
 /* ---- BOTTOM: terminal Reflection node ------------------------------ */
@@ -431,52 +399,51 @@
   gap: 11px;
   padding: 14px 26px;
   border-radius: var(--v2-radius-pill);
-  background: rgba(255, 255, 255, 0.66);
-  border: 1px dashed var(--landing-zinc-300);
-  box-shadow: var(--landing-shadow-soft);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  color: var(--v2-text-muted);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  color: var(--hub-secondary);
   /* dim/locked: it only lights up after the Boss is cleared */
-  opacity: 0.66;
-  animation: hubNodeIn 700ms var(--landing-spring) 460ms both;
-  transition: opacity 240ms var(--landing-spring);
+  opacity: 0.78;
+  animation: hubNodeIn 640ms cubic-bezier(0.16, 1, 0.3, 1) 460ms both;
+  transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .reflectionDot {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--landing-zinc-400);
+  background: #c93a3a;
   flex-shrink: 0;
 }
 .reflectionLabel {
   font-size: 15px;
   font-weight: 700;
-  color: var(--landing-zinc-950);
+  color: var(--hub-ink);
 }
 .reflectionSub {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--v2-text-subtle);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--hub-subtle);
 }
 
 /* ---- Connector lines: draw-in via stroke-dashoffset ---------------- */
 .line {
   stroke-dasharray: 1000;
   stroke-dashoffset: 1000;
-  animation: hubDraw 1100ms var(--landing-spring) 260ms forwards;
+  animation: hubDraw 1100ms cubic-bezier(0.16, 1, 0.3, 1) 260ms forwards;
 }
 .lineDelay {
   animation-delay: 400ms;
 }
 .lineArrow {
   /* The drop arrow stays dim until the arc unlocks. */
-  opacity: 0.45;
-  animation: hubDraw 900ms var(--landing-spring) 620ms forwards;
-  transition: opacity 320ms var(--landing-spring), stroke 320ms var(--landing-spring);
+  opacity: 0.5;
+  animation: hubDraw 900ms cubic-bezier(0.16, 1, 0.3, 1) 620ms forwards;
+  transition: opacity 320ms cubic-bezier(0.16, 1, 0.3, 1), stroke 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .lineArrowLive {
   opacity: 1;
+  stroke: var(--hub-line-live);
 }
 
 /* ---- Keyframes ----------------------------------------------------- */
@@ -504,7 +471,7 @@
   75% { transform: translateX(-2px); }
 }
 .shake {
-  animation: hubShake 0.55s var(--landing-spring);
+  animation: hubShake 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .shake:hover {
   transform: none;
@@ -512,14 +479,6 @@
 
 /* ---- Reduced motion: kill transforms + draw-in, show final state --- */
 @media (prefers-reduced-motion: reduce) {
-  .auraBlue,
-  .auraFuchsia,
-  .auraEmerald,
-  .floatingCube,
-  .glassCube {
-    animation: none !important;
-  }
-  .floatingCube { opacity: 1; transform: scale(1); }
   .entryNode,
   .practices,
   .practicesOpen,
@@ -529,7 +488,7 @@
     transform: none;
   }
   .reflection {
-    opacity: 0.66; /* keep the "dim/locked" semantic */
+    opacity: 0.78; /* keep the "dim/locked" semantic */
   }
   .entryNode:hover,
   .practicesLocked:hover,
@@ -547,40 +506,3 @@
     animation: none;
   }
 }
-
-/* ============================================================
-   Dark variant — tasteful, NOT the flat near-black it was. A deep
-   layered zinc surface with the same colorful glows, so it still
-   reads premium if the runtime is ever shown in dark mode. The owner
-   judges LIGHT, but we keep this on-brand rather than flat black.
-   ============================================================ */
-:global(:root[data-theme="dark"]) .shell {
-  background:
-    radial-gradient(130% 70% at 50% -6%, rgba(59, 130, 246, 0.12) 0%, transparent 55%),
-    linear-gradient(180deg, #15161c 0%, #0f1015 100%);
-  color: rgba(244, 244, 245, 0.96);
-}
-:global(:root[data-theme="dark"]) .heroGlow {
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.28) 0%, rgba(99, 102, 241, 0.18) 35%, transparent 70%);
-}
-:global(:root[data-theme="dark"]) .entryNode,
-:global(:root[data-theme="dark"]) .practices {
-  background: rgba(30, 31, 38, 0.72);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-:global(:root[data-theme="dark"]) .subItem {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: rgba(244, 244, 245, 0.96);
-}
-:global(:root[data-theme="dark"]) .reflection {
-  background: rgba(30, 31, 38, 0.66);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-:global(:root[data-theme="dark"]) .reflectionLabel { color: rgba(244, 244, 245, 0.96); }
-:global(:root[data-theme="dark"]) .lockedCta {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-  color: rgba(244, 244, 245, 0.7);
-}
-:global(:root[data-theme="dark"]) .glassCubeIcon { color: var(--landing-blue-400); }

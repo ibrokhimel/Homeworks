@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useRuntimeStore } from "./store";
-import { Pill, Eyebrow, Title, Lead, FeatureCard, Button } from "../shared/ui/primitives";
+import { Pill, Button } from "../shared/ui/primitives";
 import type { CbpGate, McGate } from "../shared/types";
 import s from "./LearningHub.module.css";
 
@@ -24,8 +24,19 @@ function StatusPill({ status }: { status: SectionStatus }) {
   return <Pill tone="default">Not started</Pill>;
 }
 
-// The Learning Hub, rebuilt as a TOP-DOWN FLOWCHART in the LIGHT Apple-glass
-// language of landing.css (NOT the rejected flat-dark surface):
+// Pull a string field off content_json.meta (typed `unknown` — extra="allow" on
+// the backend Meta model lets `topic` ride alongside the declared
+// subject_display/section). Returns a trimmed non-empty string or undefined.
+function metaStr(meta: unknown, key: string): string | undefined {
+  if (meta && typeof meta === "object" && key in (meta as Record<string, unknown>)) {
+    const v = (meta as Record<string, unknown>)[key];
+    if (typeof v === "string" && v.trim() !== "") return v.trim();
+  }
+  return undefined;
+}
+
+// The Learning Hub — TOP-DOWN FLOWCHART in the high-contrast Apple language of
+// apple.com/iphone + the owner's issues-inventory:
 //
 //   [Real-Life Challenge]      [Flashcards + Memory Check]   <- two learning
 //            \                        /                          divisions
@@ -38,14 +49,14 @@ function StatusPill({ status }: { status: SectionStatus }) {
 //                        v
 //                    Reflection                              <- terminal node
 //
-// Both entry nodes are white frosted-glass cards with colorful radial glows
-// (left = blue, right = fuchsia→cyan) so the whole view reads light + airy.
-// SVG connector lines (recolored to the blue accent) converge the two cards
-// into the Practices block, then a single arrow drops to Reflection.
+// CONTRAST CONTRACT (the rejection fix): every title/heading is INK #1d1d1f,
+// never a theme-flipping token. The shell pins its own light text tokens so a
+// dark-OS visitor can't inherit the near-white --v2-text that made the previous
+// titles wash out into invisibility. Color is reserved for CTAs + the subtle
+// per-category gradient accents on each card — never poured over text.
 //
-// The whole hub is FORCED LIGHT (data-hub-theme="light") regardless of system
-// dark mode — the owner is judging the light aesthetic — with a tasteful dark
-// variant wired underneath via the [data-theme="dark"] override in the CSS.
+// The header is the HOMEWORK THEME (subject eyebrow + the homework's real title
+// + topic/section subtitle), NOT the old generic "Learning Hub" boilerplate.
 export function LearningHub() {
   const payload = useRuntimeStore((st) => st.payload);
   const gate = useRuntimeStore((st) => st.gateState);
@@ -56,6 +67,16 @@ export function LearningHub() {
   const cbp = cbpStatus(gate?.cbp);
   const mc = mcStatus(gate?.mc);
   const unlocked = gate?.practice_arc_unlocked ?? false;
+
+  // ---- Homework-theme header (replaces the generic eyebrow + boilerplate) ----
+  const meta = payload?.content_json.meta;
+  // Eyebrow = the subject. meta.subject_display first, then the payload subject.
+  const subjectEyebrow =
+    metaStr(meta, "subject_display") ?? payload?.subject?.trim() ?? undefined;
+  // Big title = the homework's actual title.
+  const homeworkTitle = payload?.title?.trim() || "Your homework";
+  // Subtitle = the topic / section, if present (NOT the old boilerplate).
+  const themeSub = metaStr(meta, "topic") ?? metaStr(meta, "section") ?? undefined;
 
   // Locked Practices block: clicking surfaces the requirement inline + a one-shot
   // shake, rather than navigating anywhere.
@@ -72,32 +93,16 @@ export function LearningHub() {
   const mcThreshold = gate?.mc.threshold_pct ?? 60;
 
   return (
-    <main className={`v2-shell ${s.shell}`} data-testid="screen-hub">
-      {/* Layered LIGHT backdrop: a luminous hero glow + three colorful radial
-          blobs (blue / fuchsia / emerald) behind the flow, exactly like
-          landing.css's .hero-bg-glow + .preview-glow tints. */}
+    <main className={`v2-shell ${s.shell}`} data-hub-theme="light" data-testid="screen-hub">
+      {/* Soft luminous backdrop — a single warm hero glow, kept very subtle so
+          the ink text always wins on contrast. No heavy color washes. */}
       <div className={s.heroGlow} aria-hidden="true" />
-      <div className={`${s.auraBlob} ${s.auraBlue}`} aria-hidden="true" />
-      <div className={`${s.auraBlob} ${s.auraFuchsia}`} aria-hidden="true" />
-      <div className={`${s.auraBlob} ${s.auraEmerald}`} aria-hidden="true" />
 
-      {/* A bobbing glass cube — the signature landing decorative element. */}
-      <div className={s.floatingCube} aria-hidden="true">
-        <div className={s.glassCube}>
-          <span className={s.glassCubeTint} />
-          <span className={s.glassCubeIcon}>
-            <SparkGlyph />
-          </span>
-        </div>
-      </div>
-
+      {/* ---- Homework-theme header: subject eyebrow · real title · topic ---- */}
       <header className={s.intro}>
-        <Eyebrow>Learning Hub</Eyebrow>
-        <Title size="hero">{payload?.title ?? "Your homework"}</Title>
-        <Lead>
-          Two ways in, one proving ground. Clear both learning divisions in any
-          order to unlock the Practice Arc — then close it out with Reflection.
-        </Lead>
+        {subjectEyebrow && <p className={s.eyebrow}>{subjectEyebrow}</p>}
+        <h1 className={s.pageTitle}>{homeworkTitle}</h1>
+        {themeSub && <p className={s.pageSub}>{themeSub}</p>}
       </header>
 
       <div className={s.flow}>
@@ -108,21 +113,23 @@ export function LearningHub() {
 
         {/* ---- TOP ROW: the two learning divisions, side by side ---- */}
         <div className={s.entries}>
-          {/* Division 1 — Case-Based Preview / "Real-Life Challenge" (blue glass) */}
-          <FeatureCard className={`${s.node} ${s.entryNode} ${s.entryBlue}`}>
-            <span className={`${s.cardGlow} ${s.cardGlowBlue}`} aria-hidden="true" />
+          {/* Division 1 — Case-Based Preview / "Real-Life Challenge"
+              (interaction-blue accent). */}
+          <article className={`${s.node} ${s.entryNode} ${s.accentInteraction}`}>
+            <span className={s.cardAccent} aria-hidden="true" />
+            <span className={s.cardGlow} aria-hidden="true" />
             <div className={s.nodeBody}>
               <div className={s.nodeHead}>
-                <span className={`${s.divisionLabel} ${s.divisionLabelBlue}`}>
+                <span className={s.divisionLabel}>
                   <span className={s.divisionNum}>01</span>Division
                 </span>
                 <StatusPill status={cbp} />
               </div>
-              <Title size="section">Real-Life Challenge</Title>
-              <Lead>
+              <h2 className={s.cardTitle}>Real-Life Challenge</h2>
+              <p className={s.cardLead}>
                 Step into the role. A real scenario, three decisions — apply the
                 lesson before you’re tested on it.
-              </Lead>
+              </p>
               <div className={s.nodeFoot}>
                 <span className={s.meta}>
                   {(gate?.cbp.checkpoints_correct ?? 0)}/
@@ -133,23 +140,24 @@ export function LearningHub() {
                 </Button>
               </div>
             </div>
-          </FeatureCard>
+          </article>
 
-          {/* Division 2 — Flashcards + Memory Check (fuchsia→cyan glass) */}
-          <FeatureCard className={`${s.node} ${s.entryNode} ${s.entryFuchsia}`}>
-            <span className={`${s.cardGlow} ${s.cardGlowFuchsia}`} aria-hidden="true" />
+          {/* Division 2 — Flashcards + Memory Check (content-yellow accent). */}
+          <article className={`${s.node} ${s.entryNode} ${s.accentContent}`}>
+            <span className={s.cardAccent} aria-hidden="true" />
+            <span className={s.cardGlow} aria-hidden="true" />
             <div className={s.nodeBody}>
               <div className={s.nodeHead}>
-                <span className={`${s.divisionLabel} ${s.divisionLabelFuchsia}`}>
+                <span className={s.divisionLabel}>
                   <span className={s.divisionNum}>02</span>Division
                 </span>
                 <StatusPill status={mc} />
               </div>
-              <Title size="section">Flashcards + Memory Check</Title>
-              <Lead>
+              <h2 className={s.cardTitle}>Flashcards + Memory Check</h2>
+              <p className={s.cardLead}>
                 Study the deck, then prove recall on the Memory Check. Score{" "}
                 {mcThreshold}% to clear.
-              </Lead>
+              </p>
               <div className={s.nodeFoot}>
                 <span className={s.meta}>{gate?.mc.score_pct ?? 0}% recall</span>
                 <Button variant="blue" onClick={enterFlashcards} data-testid="hub-start-fc">
@@ -161,18 +169,19 @@ export function LearningHub() {
                 </Button>
               </div>
             </div>
-          </FeatureCard>
+          </article>
         </div>
 
-        {/* ---- MIDDLE: gated Homework Practices block ---- */}
+        {/* ---- MIDDLE: gated Homework Practices block (game-purple accent) ---- */}
         <div className={s.practicesRow}>
-          <FeatureCard
-            className={`${s.node} ${s.practices} ${
+          <article
+            className={`${s.node} ${s.practices} ${s.accentGame} ${
               unlocked ? s.practicesOpen : s.practicesLocked
             } ${nudged ? s.shake : ""}`}
             data-testid="hub-division-3"
           >
-            <span className={`${s.cardGlow} ${s.cardGlowEmerald}`} aria-hidden="true" />
+            <span className={s.cardAccent} aria-hidden="true" />
+            <span className={s.cardGlow} aria-hidden="true" />
             {/* unlock-gate scope (testid kept for existing Playwright) */}
             <div className={s.gateScope} data-testid="hub-unlock-gate" aria-live="polite">
               <div className={s.nodeHead}>
@@ -230,12 +239,12 @@ export function LearningHub() {
                 </p>
               )}
             </div>
-          </FeatureCard>
+          </article>
         </div>
 
-        {/* ---- BOTTOM: terminal Reflection node (dim until the Boss clears) ---- */}
+        {/* ---- BOTTOM: terminal Reflection node (security-red accent dot) ---- */}
         <div className={s.reflectionRow}>
-          <div className={s.reflection} aria-disabled="true">
+          <div className={`${s.reflection} ${s.accentSecurity}`} aria-disabled="true">
             <span className={s.reflectionDot} aria-hidden="true" />
             <span className={s.reflectionLabel}>Reflection</span>
             <span className={s.reflectionSub}>Debrief · feedback &amp; marking</span>
@@ -248,7 +257,8 @@ export function LearningHub() {
 
 // The connector layer. Two curved paths sweep down from the two top cards and
 // converge on the Practices block; a straight arrow then drops to Reflection.
-// Recolored to the BLUE accent (was cyan) so the lines read on the light bg.
+// Inked to a soft neutral so the lines read as quiet structure on the light bg
+// (Apple reserves saturated color for CTAs, not scaffolding).
 // Uses a fixed 0..1000 viewBox stretched to fill the flow column, so the curve
 // geometry is resolution-independent. preserveAspectRatio="none" lets it scale
 // to whatever height the column ends up being.
@@ -261,10 +271,6 @@ function FlowConnectors({ unlocked }: { unlocked: boolean }) {
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id="hubFlowStroke" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--landing-blue-600)" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="var(--landing-blue-400)" stopOpacity="0.75" />
-        </linearGradient>
         <marker
           id="hubArrow"
           viewBox="0 0 10 10"
@@ -274,7 +280,7 @@ function FlowConnectors({ unlocked }: { unlocked: boolean }) {
           markerHeight="6"
           orient="auto-start-reverse"
         >
-          <path d="M0 0 L10 5 L0 10 z" fill="var(--landing-blue-600)" />
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--hub-line)" />
         </marker>
       </defs>
 
@@ -283,8 +289,8 @@ function FlowConnectors({ unlocked }: { unlocked: boolean }) {
         className={s.line}
         d="M250 150 C 250 300, 500 280, 500 430"
         fill="none"
-        stroke="url(#hubFlowStroke)"
-        strokeWidth="3"
+        stroke="var(--hub-line)"
+        strokeWidth="2.5"
         strokeLinecap="round"
       />
       {/* Right card -> Practices (curves left and down to the converge point) */}
@@ -292,8 +298,8 @@ function FlowConnectors({ unlocked }: { unlocked: boolean }) {
         className={`${s.line} ${s.lineDelay}`}
         d="M750 150 C 750 300, 500 280, 500 430"
         fill="none"
-        stroke="url(#hubFlowStroke)"
-        strokeWidth="3"
+        stroke="var(--hub-line)"
+        strokeWidth="2.5"
         strokeLinecap="round"
       />
       {/* Practices -> Reflection (straight drop with an arrowhead). Brightens
@@ -302,31 +308,14 @@ function FlowConnectors({ unlocked }: { unlocked: boolean }) {
         className={`${s.line} ${s.lineArrow} ${unlocked ? s.lineArrowLive : ""}`}
         d="M500 720 L 500 880"
         fill="none"
-        stroke="var(--landing-blue-600)"
-        strokeWidth="3"
+        stroke="var(--hub-line)"
+        strokeWidth="2.5"
         strokeLinecap="round"
         markerEnd="url(#hubArrow)"
       />
     </svg>
   );
 }
-
-const SparkGlyph = () => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
 
 const LockGlyph = () => (
   <svg

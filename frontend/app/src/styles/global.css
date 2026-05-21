@@ -6,7 +6,7 @@ html, body { margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-onest);
   font-size: 15px;
   line-height: 1.55;
   color: var(--v2-text);
