@@ -289,12 +289,21 @@ function HubBackdrop() {
   // ---- Pointer/touch COLOR TRAIL --------------------------------------------
   // A glowing comet/ink trail on a single <canvas> layered above the aurora +
   // blobs (still inside .backdrop, so it stays below content + pointer-events:
-  // none — it can NEVER intercept a node tap or the unlock choreography). One
-  // rAF loop: each frame paints a low-alpha wash over the canvas (trail-decay),
-  // then draws the buffered recent points as blurred radial orbs head→tail, and
-  // any live click "bursts" as expanding rings. The hue glides through the
-  // Duolingo palette as the pointer travels; pointerdown jumps the hue + spawns
-  // a burst. Under reduced motion we bail out entirely (no listeners, no rAF).
+  // none — it can NEVER intercept a node tap or the unlock choreography).
+  //
+  // Persisted-canvas technique (no per-frame redraw of past points → no flicker):
+  //   • Event handlers ONLY update a target point (tx,ty) + mark last input —
+  //     they never draw.
+  //   • The rAF loop eases a smoothed head toward the target each frame and
+  //     draws ONLY the NEW segment from the previous head to the current head as
+  //     one round-cap stroked line with a soft glow. The canvas PERSISTS, so the
+  //     comet body is just the accumulation of past segments.
+  //   • A gentle destination-out erase each frame fades the whole streak over
+  //     ~1s (exponential alpha decay reads as ease-out). When the pointer stops
+  //     we keep ticking until the streak has fully faded, then clearRect + idle.
+  // The hue glides through the Duolingo palette as the pointer travels;
+  // pointerdown jumps the hue + spawns an expanding burst ring. Under reduced
+  // motion we bail out entirely (no listeners, no rAF).
   useEffect(() => {
     const canvas = trailRef.current;
     const layer = layerRef.current;
@@ -347,19 +356,31 @@ function HubBackdrop() {
     const ro = new ResizeObserver(resize);
     ro.observe(layer);
 
-    // Ring buffer of recent pointer points (capped) → the fading trail body.
-    const MAX_POINTS = 16;
-    type Pt = { x: number; y: number; hue: number };
-    const points: Pt[] = [];
     // Live click/tap bursts — expanding rings that grow + fade then retire.
     type Burst = { x: number; y: number; r: number; hue: number; life: number };
     let bursts: Burst[] = [];
 
     let huePos = 0; // float position around the palette ring
-    let lastX = 0;
-    let lastY = 0;
-    let havePos = false;
-    let pointerInside = false;
+
+    // Target = latest input position (set by handlers, never drawn directly).
+    // Head = smoothed position eased toward the target each frame (what we draw
+    // the comet at). prevHead = the head from the previous frame; each frame we
+    // stroke the NEW segment prevHead → head only.
+    let tx = 0;
+    let ty = 0;
+    let haveTarget = false; // a target has been set at least once
+    let hx = 0;
+    let hy = 0;
+    let phx = 0;
+    let phy = 0;
+    let haveHead = false; // head has been seeded (skip the first phantom segment)
+    const EASE = 0.2; // head-toward-target easing (smooth comet, no twitch)
+
+    // Frames since the last input event — drives the eased fade-out + idle. The
+    // loop keeps running after input stops until the streak has fully faded.
+    let framesSinceInput = 0;
+    const IDLE_FRAMES = 120; // ~2s at 60fps: well past a full fade → safe to clear
+
     let raf2 = 0;
     let running2 = false;
 
@@ -369,71 +390,107 @@ function HubBackdrop() {
       return { x: clientX - r.left, y: clientY - r.top };
     };
 
-    const pushPoint = (clientX: number, clientY: number) => {
+    // Handlers ONLY set the target + reset the idle counter — no drawing here.
+    const setTarget = (clientX: number, clientY: number) => {
       const { x, y } = toLocal(clientX, clientY);
-      if (havePos) {
-        // Advance the hue proportional to travel → "colors follow the trail".
-        const dx = x - lastX;
-        const dy = y - lastY;
-        const dist = Math.hypot(dx, dy);
-        huePos += dist * 0.006; // tune: distance → palette glide speed
+      tx = x;
+      ty = y;
+      if (!haveTarget) {
+        // First input: seed the head AT the target so the comet starts there
+        // rather than easing in from (0,0).
+        hx = x;
+        hy = y;
+        phx = x;
+        phy = y;
+        haveHead = true;
       }
-      lastX = x;
-      lastY = y;
-      havePos = true;
-      pointerInside = true;
-      points.push({ x, y, hue: huePos });
-      if (points.length > MAX_POINTS) points.shift();
+      haveTarget = true;
+      framesSinceInput = 0;
       kick2();
     };
 
     const onMove = (e: PointerEvent) => {
-      pushPoint(e.clientX, e.clientY);
+      setTarget(e.clientX, e.clientY);
     };
     const onTouchMove = (e: TouchEvent) => {
       const t = e.touches[0];
-      if (t) pushPoint(t.clientX, t.clientY);
+      if (t) setTarget(t.clientX, t.clientY);
     };
     const onDown = (e: PointerEvent) => {
       const { x, y } = toLocal(e.clientX, e.clientY);
       huePos += 1; // jump the hue a full swatch on click/tap
       bursts.push({ x, y, r: 4, hue: huePos, life: 1 });
-      lastX = x;
-      lastY = y;
-      havePos = true;
-      pointerInside = true;
-      points.push({ x, y, hue: huePos });
-      if (points.length > MAX_POINTS) points.shift();
+      // Snap both the target AND the head to the tap so the burst + trail share
+      // an origin (no easing streak from wherever the head last sat).
+      tx = x;
+      ty = y;
+      hx = x;
+      hy = y;
+      phx = x;
+      phy = y;
+      haveTarget = true;
+      haveHead = true;
+      framesSinceInput = 0;
       kick2();
     };
 
     const draw = () => {
-      // Trail-decay: ERASE a slice of the canvas's existing alpha each frame
-      // (destination-out), so the colored orbs fade to TRANSPARENT — not toward
-      // white. A white wash + screen-blend washes out over the pale hub bg
-      // (screen onto white = white = invisible). Alpha-erase keeps the streak
-      // vivid over the light background.
+      framesSinceInput++;
+
+      // Eased, slow fade-out: erase a thin slice of the canvas's existing alpha
+      // each frame (destination-out → fades to TRANSPARENT, not toward white).
+      // A small alpha (~0.05) decays exponentially → reads as ease-out (fast
+      // then slow) over ~1s, which is the requested "slow fade when stopped".
       ctx.globalCompositeOperation = "destination-out";
-      ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
+      ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
       ctx.fillRect(0, 0, cssW, cssH);
 
-      // Glow orbs add light (lighter blend) for a luminous comet body.
+      // Glowing comet body adds light (lighter blend) for a luminous streak.
       ctx.globalCompositeOperation = "lighter";
 
-      // Draw buffered points head→tail with decreasing alpha + size.
-      for (let i = 0; i < points.length; i++) {
-        const p = points[i];
-        const headness = (i + 1) / points.length; // 0(tail)..1(head)
-        const radius = 12 + headness * 30;
-        const alpha = 0.10 + headness * 0.34;
-        const [r, g, b] = sampleColor(p.hue);
-        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
-        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
-        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-        ctx.fill();
+      // Ease the smoothed head toward the latest target.
+      if (haveHead) {
+        hx += (tx - hx) * EASE;
+        hy += (ty - hy) * EASE;
+
+        // New segment travelled this frame.
+        const dx = hx - phx;
+        const dy = hy - phy;
+        const segLen = Math.hypot(dx, dy);
+
+        // Advance the hue proportional to travel → colors glide along the trail.
+        huePos += segLen * 0.006;
+
+        // Draw ONLY the new segment as a single round-cap stroked line. The
+        // canvas persists frame-to-frame, so the comet body is the accumulation
+        // of past segments (NO redraw of past points → no overlap flicker).
+        if (segLen > 0.01) {
+          const [r, g, b] = sampleColor(huePos);
+          // Width eases a touch with speed for a comet-like taper, clamped so a
+          // fast flick doesn't blow out.
+          const lineWidth = Math.min(20, 14 + segLen * 0.5);
+
+          // A soft glow halo first (wider, low alpha), then the bright core.
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+
+          ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.16)`;
+          ctx.lineWidth = lineWidth + 12;
+          ctx.beginPath();
+          ctx.moveTo(phx, phy);
+          ctx.lineTo(hx, hy);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.42)`;
+          ctx.lineWidth = lineWidth;
+          ctx.beginPath();
+          ctx.moveTo(phx, phy);
+          ctx.lineTo(hx, hy);
+          ctx.stroke();
+        }
+
+        phx = hx;
+        phy = hy;
       }
 
       // Expanding click/tap rings, fading as they grow.
@@ -461,14 +518,11 @@ function HubBackdrop() {
       }
       bursts = bursts.filter((bu) => bu.life > 0 && bu.r < Math.max(cssW, cssH));
 
-      // When the pointer pauses, retire the oldest trail points so the streak
-      // fully fades out (and lets us idle the loop once everything's gone).
-      if (!pointerInside && points.length > 0) points.shift();
-      pointerInside = false;
-
-      // Keep ticking while there's anything to fade; otherwise idle the loop
-      // (one last clearing wash will have nearly zeroed the canvas already).
-      if (points.length > 0 || bursts.length > 0) {
+      // Keep ticking while input is recent OR a burst is still alive (the alpha
+      // decay handles the visible fade — no hard point removal, no snap). Once
+      // it's been quiet long enough for the streak to have fully faded, do one
+      // clearRect and idle the loop (re-kicked by the next input).
+      if (framesSinceInput < IDLE_FRAMES || bursts.length > 0) {
         raf2 = requestAnimationFrame(draw);
       } else {
         ctx.globalCompositeOperation = "source-over";

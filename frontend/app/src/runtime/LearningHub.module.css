@@ -123,12 +123,13 @@
     calc(var(--by) * 10px),
     0
   );
-  animation: hubAurora 26s ease-in-out infinite alternate;
-  will-change: transform;
+  animation: hubAurora 22s ease-in-out infinite alternate;
+  will-change: transform, opacity;
 }
 @keyframes hubAurora {
-  0%   { transform: translate3d(calc(var(--bx) * 10px), calc(var(--by) * 10px), 0) scale(1); }
-  100% { transform: translate3d(calc(var(--bx) * 10px - 18px), calc(var(--by) * 10px + 14px), 0) scale(1.06); }
+  0%   { transform: translate3d(calc(var(--bx) * 10px), calc(var(--by) * 10px), 0) scale(1); opacity: 0.86; }
+  50%  { opacity: 0.95; }
+  100% { transform: translate3d(calc(var(--bx) * 10px - 30px), calc(var(--by) * 10px + 24px), 0) scale(1.11); opacity: 0.9; }
 }
 
 /* Soft candy blobs — blurred, low-opacity orbs in the Duolingo palette. */
@@ -151,14 +152,14 @@
   top: -42px; left: -36px;
   --depth: 22px;
   background: radial-gradient(circle at 38% 34%, var(--hub-blue) 0%, transparent 70%);
-  animation: hubFloat1 19s ease-in-out infinite alternate;
+  animation: hubFloat1 16s ease-in-out infinite alternate;
 }
 .blob2 {
   width: 260px; height: 260px;
   top: 8%; right: -64px;
   --depth: 30px;
   background: radial-gradient(circle at 38% 34%, var(--hub-violet-soft) 0%, transparent 70%);
-  animation: hubFloat2 23s ease-in-out infinite alternate;
+  animation: hubFloat2 20s ease-in-out infinite alternate;
 }
 .blob3 {
   width: 200px; height: 200px;
@@ -166,7 +167,7 @@
   --depth: 14px;
   background: radial-gradient(circle at 38% 34%, var(--hub-green) 0%, transparent 70%);
   opacity: 0.42;
-  animation: hubFloat3 27s ease-in-out infinite alternate;
+  animation: hubFloat3 23s ease-in-out infinite alternate;
 }
 .blob4 {
   width: 180px; height: 180px;
@@ -174,7 +175,7 @@
   --depth: 24px;
   background: radial-gradient(circle at 38% 34%, var(--hub-orange) 0%, transparent 70%);
   opacity: 0.4;
-  animation: hubFloat4 21s ease-in-out infinite alternate;
+  animation: hubFloat4 18s ease-in-out infinite alternate;
 }
 .blob5 {
   width: 150px; height: 150px;
@@ -182,27 +183,27 @@
   --depth: 18px;
   background: radial-gradient(circle at 38% 34%, var(--hub-gold) 0%, transparent 72%);
   opacity: 0.34;
-  animation: hubFloat5 25s ease-in-out infinite alternate;
+  animation: hubFloat5 21s ease-in-out infinite alternate;
 }
 @keyframes hubFloat1 {
-  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0); }
-  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 26px), calc(var(--by) * var(--depth) + 34px),  0); }
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0) scale(1); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 40px), calc(var(--by) * var(--depth) + 52px),  0) scale(1.05); }
 }
 @keyframes hubFloat2 {
-  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0); }
-  100% { transform: translate3d(calc(var(--bx) * var(--depth) - 32px), calc(var(--by) * var(--depth) + 24px),  0); }
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0) scale(1); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) - 50px), calc(var(--by) * var(--depth) + 38px),  0) scale(1.06); }
 }
 @keyframes hubFloat3 {
-  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0); }
-  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 30px), calc(var(--by) * var(--depth) - 26px),  0); }
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0) scale(1); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 46px), calc(var(--by) * var(--depth) - 40px),  0) scale(1.04); }
 }
 @keyframes hubFloat4 {
-  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0); }
-  100% { transform: translate3d(calc(var(--bx) * var(--depth) - 24px), calc(var(--by) * var(--depth) - 30px),  0); }
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0) scale(1); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) - 38px), calc(var(--by) * var(--depth) - 46px),  0) scale(1.05); }
 }
 @keyframes hubFloat5 {
-  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0); }
-  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 20px), calc(var(--by) * var(--depth) - 22px),  0); }
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0) scale(1); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 32px), calc(var(--by) * var(--depth) - 34px),  0) scale(1.06); }
 }
 
 /* Pointer/touch color trail — a single <canvas> the rAF loop in HubBackdrop
