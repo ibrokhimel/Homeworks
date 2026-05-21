@@ -421,7 +421,7 @@ function HubBackdrop() {
     const onDown = (e: PointerEvent) => {
       const { x, y } = toLocal(e.clientX, e.clientY);
       huePos += 1; // jump the hue a full swatch on click/tap
-      bursts.push({ x, y, r: 4, hue: huePos, life: 1 });
+      bursts.push({ x, y, r: 2.4, hue: huePos, life: 1 });
       // Snap both the target AND the head to the tap so the burst + trail share
       // an origin (no easing streak from wherever the head last sat).
       tx = x;
@@ -498,14 +498,14 @@ function HubBackdrop() {
       // Expanding click/tap rings, fading as they grow.
       for (let i = 0; i < bursts.length; i++) {
         const bu = bursts[i];
-        bu.r += 4.5;
+        bu.r += 2.7;
         bu.life -= 0.03;
         const [r, g, b] = sampleColor(bu.hue);
         const ringAlpha = Math.max(0, bu.life) * 0.62;
         const grad = ctx.createRadialGradient(
           bu.x,
           bu.y,
-          Math.max(0, bu.r - 14),
+          Math.max(0, bu.r - 8.4),
           bu.x,
           bu.y,
           bu.r,
