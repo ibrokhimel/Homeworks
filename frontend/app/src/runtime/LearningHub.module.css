@@ -186,39 +186,13 @@
   position: absolute;
 }
 
-/* Right entry is a positioned wrapper so the Quizlet bubble can float on it. */
+/* Right entry wrapper: lets the deck card stretch to the row's full height. */
 .entryRight {
-  position: relative;
   display: flex;
 }
 .entryRight .entryNode {
   flex: 1;
   animation-delay: 110ms;
-}
-
-/* "Quizlet-style" accent bubble, top-right of the deck card (per the sketch). */
-.quizletBubble {
-  position: absolute;
-  top: -14px;
-  right: -8px;
-  z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 13px;
-  border-radius: var(--v2-radius-pill);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: #fff;
-  background: linear-gradient(135deg, var(--landing-blue-500), var(--landing-cyan-300));
-  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.32);
-  animation: hubBubbleIn 720ms var(--landing-spring) 360ms both,
-    hubBubbleFloat 4.5s ease-in-out 1.1s infinite alternate;
-}
-@keyframes hubBubbleFloat {
-  0% { transform: translateY(0) rotate(-1deg); }
-  100% { transform: translateY(-4px) rotate(1.5deg); }
 }
 
 /* ---- MIDDLE: gated Homework Practices block ------------------------ */
@@ -399,10 +373,6 @@
   from { opacity: 0; transform: translateY(18px); }
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes hubBubbleIn {
-  from { opacity: 0; transform: translateY(8px) scale(0.9); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
 @keyframes hubUnlockPop {
   0% { transform: scale(1); }
   40% { transform: scale(1.025); }
@@ -428,8 +398,7 @@
 
 /* ---- Reduced motion: kill transforms + draw-in, show final state --- */
 @media (prefers-reduced-motion: reduce) {
-  .aura,
-  .quizletBubble {
+  .aura {
     animation: none;
   }
   .entryNode,

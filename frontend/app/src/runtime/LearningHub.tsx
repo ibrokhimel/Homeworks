@@ -120,12 +120,6 @@ export function LearningHub() {
 
           {/* Division 2 — Flashcards + Memory Check (light glass) */}
           <div className={s.entryRight}>
-            {/* Quizlet-style accent bubble, floating near the deck (per sketch) */}
-            <span className={s.quizletBubble} aria-hidden="true">
-              <SparkGlyph />
-              Quizlet-style
-            </span>
-
             <FeatureCard className={`${s.node} ${s.entryNode}`}>
               <div className={s.nodeHead}>
                 <span className={s.divisionLabel}>
@@ -312,22 +306,6 @@ const LockGlyph = () => (
   >
     <rect x="3" y="11" width="18" height="11" rx="2" />
     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-  </svg>
-);
-
-const SparkGlyph = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M12 3v4M12 17v4M5 12H1M23 12h-4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" />
   </svg>
 );
 
