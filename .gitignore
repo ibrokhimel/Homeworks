@@ -90,3 +90,6 @@ SENTENCE_FILL_BACKEND_PLAN.md
 
 # React SPA build deps (dist/ IS committed for launchd deploy — see architecture doc)
 frontend/app/node_modules/
+
+# TS build cache
+frontend/app/*.tsbuildinfo
