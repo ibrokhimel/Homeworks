@@ -8508,6 +8508,172 @@
         [data-theme="dark"] .gb-mb-label.picked-truth::after { color: #86efac; }
         [data-theme="dark"] .gb-mb-label.picked-wrong::after { color: #fca5a5; }
         [data-theme="dark"] .gb-pl-cell.locked::after { opacity: 0.7; }
+
+        /* ── Homework Flow v2 (PR-4) — Practice Arc visual integration ───
+           Two new tightly-scoped DOM nodes:
+             #practice-arc-shell           — progress strip rendered while
+                                              the v2 sequencer is walking games[]
+             #practice-boss-interstitial   — small dark-section card shown
+                                              right before startFinalBoss()
+           Both default to display:none and are only revealed by
+           PracticeArcV2 in v2 mode. Legacy homeworks never see them.
+
+           Class vocabulary mirrors landing.css (.section-inner /
+           .feature-card / .pill / .eyebrow--blue / .section-title /
+           .dark-section / .launch-shell) but is scoped under the v2
+           roots so we don't bleed utility selectors into the global
+           stylesheet. Reuses existing runtime CSS tokens (--accent,
+           --text, --text-muted, --surface, --shadow-card) — dark-mode
+           and reduced-motion are inherited for free.
+        */
+        #practice-arc-shell {
+            display: none;
+            position: fixed;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(680px, calc(100vw - 24px));
+            z-index: 60;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #practice-arc-shell.is-visible {
+            display: block;
+            opacity: 1;
+        }
+        #practice-arc-shell .section-inner {
+            background: var(--surface, rgba(255,255,255,0.72));
+            border: 1px solid rgba(0, 102, 204, 0.12);
+            border-radius: 16px;
+            padding: 10px 14px;
+            box-shadow: var(--shadow-card, 0 12px 32px rgba(0,0,0,0.08));
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: auto;
+        }
+        #practice-arc-shell .eyebrow--blue {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--accent, #0066CC);
+        }
+        #practice-arc-shell .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text, #1d1d1f);
+            line-height: 1.3;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #practice-arc-shell .section-title .pa-count {
+            color: var(--text-muted, #86868b);
+            font-weight: 500;
+        }
+        #practice-arc-shell .pa-pillrow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        #practice-arc-shell .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(0, 102, 204, 0.06);
+            color: var(--text-muted, #86868b);
+            border: 1px solid rgba(0, 102, 204, 0.10);
+            line-height: 1;
+            transition: background-color 200ms ease, color 200ms ease, transform 200ms ease;
+        }
+        #practice-arc-shell .pill.is-done {
+            background: rgba(0, 102, 204, 0.10);
+            color: var(--accent, #0066CC);
+        }
+        #practice-arc-shell .pill.is-current {
+            background: var(--accent, #0066CC);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(0, 102, 204, 0.25);
+        }
+
+        /* Boss interstitial — small dark-section that visually mirrors a
+           mini .launch-shell. Two-step animation: fade in, then auto-hand
+           off to the existing #screen-boss / #boss-intro-card. */
+        #practice-boss-interstitial {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at 50% 40%, rgba(0, 102, 204, 0.18), transparent 55%),
+                        linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.92));
+            opacity: 0;
+            transition: opacity 260ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #practice-boss-interstitial.is-visible {
+            display: flex;
+            opacity: 1;
+        }
+        #practice-boss-interstitial .dark-section {
+            width: min(420px, calc(100vw - 32px));
+            padding: 28px 24px;
+            border-radius: 22px;
+            background: linear-gradient(160deg, rgba(8, 14, 28, 0.92), rgba(20, 30, 56, 0.88));
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45);
+            text-align: center;
+            color: #f5f5f7;
+        }
+        #practice-boss-interstitial .launch-shell {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        #practice-boss-interstitial .eyebrow--blue {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.10em;
+            color: #6cb6ff;
+        }
+        #practice-boss-interstitial .section-title {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+        #practice-boss-interstitial .pa-boss-art {
+            font-size: 40px;
+            line-height: 1;
+            filter: drop-shadow(0 4px 16px rgba(108, 182, 255, 0.45));
+            margin: 2px 0 4px;
+        }
+        #practice-boss-interstitial .pa-boss-sub {
+            font-size: 13px;
+            color: rgba(245, 245, 247, 0.72);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #practice-arc-shell,
+            #practice-boss-interstitial {
+                transition: none;
+            }
+            #practice-arc-shell .pill,
+            #practice-arc-shell .pill.is-current {
+                transition: none;
+                transform: none;
+            }
+        }
     </style>
 
     <!-- KaTeX: render $...$ / $$...$$ math in any prompt that uses LaTeX. -->
@@ -13404,7 +13570,83 @@
             return idx >= 0 && idx === order.length - 1;
         }
 
+        // Homework Flow v2 (PR-4) — sub-game id ↔ DOM panel mapping. Used by
+        // the v2 dispatch hooks below to translate the legacy `gb-panel-XX`
+        // naming into the PracticeArcV2 adapter registry key. Kept as a
+        // single lookup table so the hooks don't grow if/else chains.
+        //
+        // Note: `mm` (legacy Memory Match) and `tm` (modern Tile Match) both
+        // render into gb-panel-tm. This map only stores the *default* id for
+        // a panel — the dispatch helper prefers the engine's active game id
+        // when it differs (e.g. when an author lists id:"mm" in
+        // practice_arc.games[], the active adapter is `mm`, not `tm`).
+        const _GB_PANEL_TO_GAME_ID = {
+            'gb-panel-aq':  'aq',
+            'gb-panel-wc':  'wc',
+            'gb-panel-tm':  'tm',   // also covers legacy `mm` (shared panel; engine resolves at dispatch time)
+            'gb-panel-pl':  'pl',
+            'gb-panel-mb':  'mb',
+            'gb-panel-ttt': 'ttt',
+            'gb-panel-sf':  'sf',
+            'gb-panel-mp':  'mp',
+        };
+
+        // Homework Flow v2 (PR-4) — v2-gated practice:game-complete dispatch.
+        // Returns true ONLY when the v2 engine is the active sequencer AND
+        // we successfully fired the completion signal — caller treats that
+        // as "v2 took over, stop running v1 transition logic". Returns false
+        // in every other case (legacy boot, engine not running, unknown
+        // gameId), which keeps every existing call site on the v1 path.
+        //
+        // This is the SINGLE chokepoint between the legacy game terminators
+        // and the v2 sequencer — adding new games means registering an
+        // adapter, NOT adding new branches here.
+        function _practiceArcV2DispatchIfRunning(gameId, detail) {
+            try {
+                if (typeof FLOW_VERSION === 'undefined' || FLOW_VERSION !== 'v2') return false;
+                if (typeof PracticeArcV2 === 'undefined' || !PracticeArcV2) return false;
+                if (!PracticeArcV2._state || !PracticeArcV2._state.running) return false;
+                // When multiple game ids share a DOM panel (e.g. legacy
+                // Memory Match `mm` and modern Tile Match `tm` both render
+                // into #gb-panel-tm), the panel-derived gameId would route
+                // the completion to the wrong adapter listener. Prefer the
+                // engine's currently-active game id when it disagrees —
+                // that id is the one the active adapter armed its one-shot
+                // listener against. Falls back to the caller-supplied id
+                // when the engine has no active entry (defensive).
+                let effective = gameId;
+                try {
+                    const games = (typeof PRACTICE_ARC !== 'undefined'
+                                   && PRACTICE_ARC
+                                   && Array.isArray(PRACTICE_ARC.games))
+                        ? PRACTICE_ARC.games : [];
+                    const idx = PracticeArcV2._state.gameIndex;
+                    if (typeof idx === 'number' && idx >= 0 && idx < games.length) {
+                        const activeId = games[idx] && games[idx].id;
+                        if (activeId) effective = activeId;
+                    }
+                } catch (_) {}
+                if (!effective) return false;
+                document.dispatchEvent(new CustomEvent('practice:game-complete', {
+                    detail: Object.assign({ gameId: effective, panelGameId: gameId }, detail || {})
+                }));
+                return true;
+            } catch (e) {
+                try { console.warn('[v2-dispatch] threw:', e); } catch (_) {}
+                return false;
+            }
+        }
+
         function gbAdvanceFromGame(currentSub, currentPanelId) {
+            // Homework Flow v2 hook — when the dynamic Practice Arc engine
+            // is sequencing, hand control back to it instead of walking the
+            // legacy gbActiveGameOrder() carousel. The adapter that started
+            // this game listens once for the dispatched event and calls
+            // PracticeArcV2.advance(). v1 boots fall through untouched.
+            const _v2GameId = _GB_PANEL_TO_GAME_ID[currentPanelId] || null;
+            if (_practiceArcV2DispatchIfRunning(_v2GameId, { currentSub: currentSub, currentPanelId: currentPanelId })) {
+                return;
+            }
             const order = gbActiveGameOrder();
             const idx = order.findIndex(g => g.sub === currentSub);
             if (idx < 0 || idx >= order.length - 1) {
@@ -15658,6 +15900,12 @@
                 // case rlcState.complete was set without going through that
                 // renderer.
                 if (typeof completePhase === 'function') completePhase('realLife');
+                // Homework Flow v2 hook — let the v2 sequencer own ordering
+                // (RLC is one game among N; the sequencer decides what comes
+                // next, not RLC's local "go to consolidation → boss" wiring).
+                if (_practiceArcV2DispatchIfRunning('rlc', { source: 'rlcHandleAction.complete' })) {
+                    return;
+                }
                 if (typeof setStage === 'function') setStage(6.5);
                 if (typeof showConsolidationScreen === 'function' && typeof consolidationHasContent === 'function' && consolidationHasContent()) {
                     showConsolidationScreen(startFinalBoss);
@@ -18640,6 +18888,13 @@ Prezident ertaga hisobot kutmoqda.`,
             setTimeout(() => {
                 if (screen6) { screen6.classList.remove('active'); screen6.style.opacity = ''; screen6.style.transition = ''; }
                 state.isAnimating = false;
+                // Homework Flow v2 hook — when the v2 sequencer is driving,
+                // skip the legacy Consolidation → Boss chain (PracticeArcV2
+                // owns ordering + Boss handoff). The screen has already
+                // faded above; just signal completion and return.
+                if (_practiceArcV2DispatchIfRunning('real_life', { source: 'rlShowEndPlaceholder' })) {
+                    return;
+                }
                 // Wave 2: Consolidation sits between Real-Life and Boss (auto-skip if empty).
                 if (typeof showConsolidationScreen === 'function' && consolidationHasContent()) {
                     showConsolidationScreen(startFinalBoss);
@@ -18804,6 +19059,17 @@ Prezident ertaga hisobot kutmoqda.`,
         ];
 
         const BOSS_META = __BOSS_META__;
+
+        // ── Homework Flow v2 (PR-4) — additive engine globals ──────────
+        // Both null for legacy homeworks; populated only when the author
+        // ships `flow_version: "v2"` + `practice_arc: {...}` in content_json.
+        // The legacy 9-phase engine (init → setStage → gbActiveGameOrder →
+        // startFinalBoss) is fully untouched and remains the default boot
+        // path. The v2 engine lives further down this script and stays
+        // dormant until PR-2/PR-3's Learning Hub explicitly calls
+        // PracticeArcV2.enter() after the Unlock Gate fires.
+        const FLOW_VERSION = __FLOW_VERSION__;
+        const PRACTICE_ARC = __PRACTICE_ARC__;
 
         function bossDynamicEnabledFromMeta() {
             return Boolean(
@@ -20894,7 +21160,624 @@ Prezident ertaga hisobot kutmoqda.`,
             // Expose the backend's payload for tests / future export.
             window.__sessionAggregate = card;
         }
+
+        // ── Homework Flow v2 — Practice Arc dynamic state machine (PR-4) ──
+        //
+        // Additive engine. Wraps the existing game implementations
+        // (gbInitAQ / gbInitWC / gbInitTM / gbInitPL / gbInitMB / gbInitTTT /
+        // gbInitSF / gbInitMP / startRLCStage6 / startStage6 / startFinalBoss)
+        // behind a uniform { start, destroy, onComplete } adapter contract.
+        // The engine sequences games from PRACTICE_ARC.games[] dynamically:
+        //   - variable game count   (1..N)
+        //   - variable game order   (driven entirely by content_json)
+        //   - no hardcoded sequence (Real Life Challenge is one game among N)
+        //   - Boss Arena handoff    (delegates to existing startFinalBoss)
+        //
+        // Activation: only runs when FLOW_VERSION === "v2". Legacy homeworks
+        // (FLOW_VERSION null / "v1") never call PracticeArcV2.enter() — the
+        // legacy boot path in init() handles them via setStage(0) and the
+        // existing gbActiveGameOrder() / RLC / Boss chain. The legacy 9-phase
+        // engine is fully untouched.
+        //
+        // setStageV2 stage IDs:
+        //   "unlock"           → unlock-gate (CBP + MC required)  → tutor "preview"
+        //   "practice.game-N"  → Nth game in PRACTICE_ARC.games[] → tutor "practice"
+        //   "practice.boss"    → boss handoff (startFinalBoss)    → tutor "boss"
+        //   "practice.done"    → final stop when boss_after=false → tutor "preview"
+        //
+        // Each adapter listens for a CustomEvent "practice:game-complete"
+        // with detail.gameId === <its registered id>. PR-5 will wire each
+        // legacy game's terminator (gbAdvanceFromGame / rlShowEndPlaceholder /
+        // rlcRenderResult final-step branch) to dispatch this event when
+        // FLOW_VERSION === "v2". Until then, callers can dispatch the event
+        // directly (used by tests and by PR-2/3's Learning Hub).
+        const PracticeArcV2 = (function () {
+            'use strict';
+
+            const v2State = {
+                stageV2:    null,
+                gameIndex: -1,
+                active:     null,
+                running:    false,
+            };
+
+            // id → { start(onComplete, config), destroy(), onComplete(detail) }
+            const registry = Object.create(null);
+
+            function register(id, adapter) {
+                if (!id || typeof id !== 'string') return false;
+                if (!adapter || typeof adapter !== 'object') return false;
+                if (typeof adapter.start !== 'function') return false;
+                registry[id] = {
+                    start:     adapter.start,
+                    destroy:   typeof adapter.destroy === 'function'
+                                   ? adapter.destroy
+                                   : function () {},
+                    onComplete: typeof adapter.onComplete === 'function'
+                                    ? adapter.onComplete
+                                    : function () {},
+                };
+                return true;
+            }
+
+            function getAdapter(id) {
+                return registry[id] || null;
+            }
+
+            function listGames() {
+                if (!PRACTICE_ARC || !Array.isArray(PRACTICE_ARC.games)) return [];
+                return PRACTICE_ARC.games.slice();
+            }
+
+            // setStageV2 — v2 counterpart to the legacy setStage(n). Records
+            // the v2 stage id and emits nets:phase-change so the persistent
+            // tutor widget routes through the same PRACTICE / BOSS / PREVIEW
+            // redaction paths it already uses today. Tutor behavior is
+            // preserved: practice.* → "practice", practice.boss → "boss",
+            // unlock / practice.done → "preview".
+            // ── Visual integration helpers (PR-4) ────────────────────
+            // Drives #practice-arc-shell and #practice-boss-interstitial.
+            // Both nodes default to display:none; these helpers flip the
+            // `.is-visible` class. All work is no-ops when FLOW_VERSION is
+            // not 'v2' (legacy boots never see the v2 DOM nodes activated).
+
+            function _paLabelForEntry(entry, fallbackIdx) {
+                if (!entry) return 'Game ' + (fallbackIdx + 1);
+                if (entry.label && typeof entry.label === 'string' && entry.label.trim()) {
+                    return entry.label.trim();
+                }
+                // Stable id → friendly label fallback. Avoids hardcoding
+                // a per-game switch in the visual layer: authors can
+                // override with .label in practice_arc.games[].
+                const friendly = {
+                    aq: 'Adaptive Quiz', wc: 'Why Chain', tm: 'Tile Match',
+                    mm: 'Memory Match', pl: 'Puzzle Lock', mb: 'Mystery Box',
+                    ttt: 'Tic Tac Toe', sf: 'Sentence Fill', mp: 'Memory Palace',
+                    rlc: 'Real-Life Challenge', real_life: 'Real Life',
+                    asm: 'Assembly', jm: 'Jigsaw Matching', ed: 'Error Detection',
+                };
+                return friendly[entry.id] || ('Game · ' + (entry.id || (fallbackIdx + 1)));
+            }
+
+            function _paShowShell() {
+                const shell = document.getElementById('practice-arc-shell');
+                if (shell) shell.classList.add('is-visible');
+            }
+            function _paHideShell() {
+                const shell = document.getElementById('practice-arc-shell');
+                if (shell) shell.classList.remove('is-visible');
+            }
+            function _paHideBossInterstitial() {
+                const card = document.getElementById('practice-boss-interstitial');
+                if (card) card.classList.remove('is-visible');
+            }
+
+            function _paRenderProgress(idx) {
+                const games = listGames();
+                const total = games.length;
+                const shell = document.getElementById('practice-arc-shell');
+                if (!shell) return;
+                const entry = (idx >= 0 && idx < total) ? games[idx] : null;
+                const labelEl = shell.querySelector('[data-pa-current-label]');
+                const countEl = shell.querySelector('[data-pa-count]');
+                const pillrow = document.getElementById('practice-arc-pillrow');
+                if (labelEl) labelEl.textContent = _paLabelForEntry(entry, idx);
+                if (countEl) countEl.textContent = (idx + 1) + ' / ' + total;
+                if (pillrow) {
+                    pillrow.innerHTML = '';
+                    games.forEach(function (g, i) {
+                        const p = document.createElement('span');
+                        let cls = 'pill';
+                        if (i < idx) cls += ' is-done';
+                        else if (i === idx) cls += ' is-current';
+                        p.className = cls;
+                        p.setAttribute('role', 'listitem');
+                        // Number prefix keeps the pill row scannable even
+                        // when labels overflow on small screens.
+                        p.textContent = (i + 1) + ' · ' + _paLabelForEntry(g, i);
+                        pillrow.appendChild(p);
+                    });
+                }
+                _paShowShell();
+            }
+
+            // Returns the number of ms PracticeArcV2 will wait before
+            // calling startFinalBoss(). Honors reduced-motion: 0ms when
+            // the user prefers reduced motion; ~900ms otherwise.
+            function _paBossInterstitialDuration() {
+                try {
+                    if (typeof window !== 'undefined'
+                        && typeof window.matchMedia === 'function') {
+                        const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+                        if (mql && mql.matches) return 0;
+                    }
+                } catch (_) {}
+                return 900;
+            }
+
+            function _paShowBossInterstitial() {
+                const card = document.getElementById('practice-boss-interstitial');
+                if (!card) return 0;
+                // Populate boss name from BOSS_META if available — the
+                // existing Boss screen already reads BOSS_META, so we
+                // mirror its label vocabulary instead of inventing one.
+                try {
+                    const sub = card.querySelector('[data-pa-boss-sub]');
+                    if (sub) {
+                        const fallback = (typeof RT === 'function')
+                            ? RT('phase.real_life') : '';
+                        // Prefer the existing boss intro's sub line if
+                        // present; otherwise keep the default.
+                        const intro = document.querySelector('#boss-intro-card .boss-intro-sub');
+                        if (intro && intro.textContent && intro.textContent.trim()) {
+                            sub.textContent = intro.textContent.trim();
+                        } else if (fallback) {
+                            // leave default — fallback intentionally unused
+                        }
+                    }
+                } catch (_) {}
+                card.classList.add('is-visible');
+                return _paBossInterstitialDuration();
+            }
+
+            function _paRenderUiForStage(stageId) {
+                if (typeof FLOW_VERSION === 'undefined' || FLOW_VERSION !== 'v2') {
+                    _paHideShell();
+                    _paHideBossInterstitial();
+                    return;
+                }
+                if (typeof stageId === 'string'
+                    && stageId.indexOf('practice.game-') === 0) {
+                    _paHideBossInterstitial();
+                    _paRenderProgress(v2State.gameIndex);
+                    return;
+                }
+                if (stageId === 'practice.boss') {
+                    _paHideShell();
+                    // Interstitial is shown imperatively from handoffToBoss
+                    // (so it can pause before startFinalBoss). Don't show
+                    // it again here.
+                    return;
+                }
+                // Any other stage (unlock / practice.done / null) →
+                // tear down both visuals.
+                _paHideShell();
+                _paHideBossInterstitial();
+            }
+
+            function setStageV2(stageId) {
+                // Tutor coupling (PR-4) — DO NOT add new phase values here.
+                // The persistent tutor widget normalizes detail.phase down
+                // to {'practice','boss','preview'} (see line ~22202) and
+                // server/services/tutor.py:_redact_question_for_tutor only
+                // skips redaction for 'preview'. Emitting any other string
+                // would silently fall through to 'preview' and DISABLE the
+                // answer-leak guard for that stage — so the vocabulary is
+                // load-bearing. v2 stage IDs map deterministically:
+                //   practice.game-N   → 'practice'  (allow-list redaction)
+                //   practice.boss     → 'boss'      (allow-list redaction)
+                //   unlock | practice.done | anything else → 'preview'
+                v2State.stageV2 = stageId;
+                let phaseName = 'preview';
+                if (stageId === 'practice.boss') {
+                    phaseName = 'boss';
+                } else if (typeof stageId === 'string' && stageId.indexOf('practice.game-') === 0) {
+                    phaseName = 'practice';
+                }
+                // Visual integration (PR-4 turn 6): render the progress
+                // strip while walking games[]; show the boss interstitial
+                // right before the existing startFinalBoss() handoff; hide
+                // both at any other stage. Pure additive UI — no impact on
+                // legacy v1 flow.
+                try { _paRenderUiForStage(stageId); } catch (_) {}
+                try {
+                    document.dispatchEvent(new CustomEvent('nets:phase-change', {
+                        detail: { phase: phaseName, stageV2: stageId, questionId: null }
+                    }));
+                } catch (_) { /* widget optional */ }
+            }
+
+            function unlockGatePassed() {
+                if (PRACTICE_ARC && PRACTICE_ARC.unlock_required === false) return true;
+                const gs = (typeof window !== 'undefined' && window.NETS_GATE_STATE) || {};
+                return Boolean(gs.cbpPassed && gs.mcPassed);
+            }
+
+            function startGameAt(idx) {
+                const games = listGames();
+                if (idx < 0 || idx >= games.length) {
+                    return handoffToBoss();
+                }
+                const entry = games[idx];
+                const adapter = getAdapter(entry.id);
+                v2State.gameIndex = idx;
+                if (!adapter) {
+                    // Required entry with no adapter → log and skip ahead;
+                    // optional entry → quietly skip. Either way, never throw
+                    // (a missing adapter must not strand the student).
+                    try {
+                        console.warn('[PracticeArcV2] no adapter for game id="' + entry.id + '" — skipping');
+                    } catch (_) {}
+                    return startGameAt(idx + 1);
+                }
+                v2State.active = adapter;
+                setStageV2('practice.game-' + (idx + 1));
+                try {
+                    adapter.start(function onAdapterComplete(detail) {
+                        try { adapter.destroy(); } catch (_) {}
+                        try { adapter.onComplete(detail); } catch (_) {}
+                        v2State.active = null;
+                        startGameAt(idx + 1);
+                    }, entry.config || {});
+                } catch (e) {
+                    try { console.warn('[PracticeArcV2] adapter start threw:', e); } catch (_) {}
+                    v2State.active = null;
+                    startGameAt(idx + 1);
+                }
+            }
+
+            function advance() {
+                return startGameAt(v2State.gameIndex + 1);
+            }
+
+            function handoffToBoss() {
+                v2State.gameIndex = -1;
+                v2State.active = null;
+                const bossAfter = !PRACTICE_ARC || PRACTICE_ARC.boss_after !== false;
+                if (!bossAfter) {
+                    setStageV2('practice.done');
+                    return;
+                }
+                setStageV2('practice.boss');
+                // Show the small dark-section interstitial first so the
+                // student gets a clear "Practice Arc cleared → Boss next"
+                // beat. Reduced-motion users see 0 ms (instant). The
+                // existing Boss Arena (#screen-boss / startFinalBoss /
+                // BOSS_QUESTIONS / boss-intro-card) is NOT rebuilt — we
+                // hand off into it after the interstitial fade.
+                let waitMs = 0;
+                try { waitMs = _paShowBossInterstitial(); } catch (_) { waitMs = 0; }
+                const launch = function () {
+                    try { _paHideBossInterstitial(); } catch (_) {}
+                    if (typeof startFinalBoss === 'function') {
+                        try { startFinalBoss(); } catch (e) {
+                            try { console.warn('[PracticeArcV2] startFinalBoss threw:', e); } catch (_) {}
+                        }
+                    }
+                };
+                if (waitMs > 0) {
+                    setTimeout(launch, waitMs);
+                } else {
+                    launch();
+                }
+            }
+
+            function enter() {
+                if (FLOW_VERSION !== 'v2') return false;
+                if (v2State.running) return false;
+                if (!unlockGatePassed()) {
+                    setStageV2('unlock');
+                    return false;
+                }
+                v2State.running = true;
+                const games = listGames();
+                if (games.length === 0) {
+                    handoffToBoss();
+                    return true;
+                }
+                startGameAt(0);
+                return true;
+            }
+
+            function reset() {
+                if (v2State.active) {
+                    try { v2State.active.destroy(); } catch (_) {}
+                }
+                v2State.stageV2 = null;
+                v2State.gameIndex = -1;
+                v2State.active = null;
+                v2State.running = false;
+            }
+
+            // ── Built-in adapters ─────────────────────────────────────
+            // Thin wrappers over existing game systems. Each adapter mounts
+            // the relevant screen + panel, calls the legacy init function,
+            // then listens once for the document-level completion event so
+            // the engine can advance.
+
+            function makeOneShotCompletion(gameId, onComplete) {
+                const handler = function (ev) {
+                    if (!ev || !ev.detail || ev.detail.gameId !== gameId) return;
+                    document.removeEventListener('practice:game-complete', handler);
+                    try { onComplete && onComplete(ev.detail); } catch (_) {}
+                };
+                document.addEventListener('practice:game-complete', handler);
+                return handler;
+            }
+
+            function adapterForGB(gameId, initFnRef, panelId, setupBtnFnRef) {
+                return {
+                    start: function (onComplete, config) {
+                        // Single-game v2 entry: mount #screen-5 and surface
+                        // only this panel. The legacy startStage5() walks
+                        // every authored gb_* array via gbActiveGameOrder();
+                        // v2 wants one game per setStageV2 step instead.
+                        //
+                        // Per-game config from content_json.practice_arc.games[]
+                        // is published to window.__practiceArcGameConfig[<id>]
+                        // BEFORE the init function runs, so wrapped games can
+                        // optionally read tuning (board size, hint budget,
+                        // shuffle seed) without changing their signatures.
+                        // The existing init signatures (gbInitTM(), gbInitMM(),
+                        // gbInitAQ(), …) remain unchanged.
+                        try {
+                            if (typeof window !== 'undefined') {
+                                window.__practiceArcGameConfig = window.__practiceArcGameConfig || {};
+                                window.__practiceArcGameConfig[gameId] = (config && typeof config === 'object') ? config : {};
+                            }
+                        } catch (_) {}
+                        try {
+                            document.querySelectorAll('.screen.active').forEach(function (s) {
+                                s.classList.remove('active');
+                            });
+                            const s5 = document.getElementById('screen-5');
+                            if (s5) s5.classList.add('active');
+                            document.querySelectorAll('.gb-game-panel').forEach(function (p) {
+                                p.classList.remove('active', 'enter-right', 'exit-left');
+                            });
+                            const panel = document.getElementById(panelId);
+                            if (panel) panel.classList.add('active');
+                        } catch (_) {}
+                        const initFn = (typeof initFnRef === 'function')
+                            ? initFnRef
+                            : (window[String(initFnRef || '')] || null);
+                        if (typeof initFn === 'function') {
+                            try { initFn(); } catch (e) {
+                                try { console.warn('[PracticeArcV2/' + gameId + '] init threw:', e); } catch (_) {}
+                            }
+                        }
+                        const setupBtnFn = (typeof setupBtnFnRef === 'function')
+                            ? setupBtnFnRef
+                            : (window[String(setupBtnFnRef || '')] || null);
+                        if (typeof setupBtnFn === 'function') {
+                            try { setupBtnFn(); } catch (_) {}
+                        }
+                        makeOneShotCompletion(gameId, onComplete);
+                    },
+                    destroy: function () {
+                        const panel = document.getElementById(panelId);
+                        if (panel) panel.classList.remove('active');
+                        // Drop this game's published config so a later
+                        // re-entry (or a different game sharing the panel)
+                        // gets a clean slate.
+                        try {
+                            if (typeof window !== 'undefined'
+                                && window.__practiceArcGameConfig
+                                && Object.prototype.hasOwnProperty.call(
+                                    window.__practiceArcGameConfig, gameId)) {
+                                delete window.__practiceArcGameConfig[gameId];
+                            }
+                        } catch (_) {}
+                    }
+                };
+            }
+
+            function adapterForRLC() {
+                // RLC mounts on #rlc-screen (NOT #screen-6). The screen owns
+                // its own 5-step state machine (rlcState) which the RLC
+                // initialiser resets every time startRLCStage6 runs, so re-entry from
+                // a later v2 position is safe without touching rlcState here.
+                // Completion is dispatched by the v2-gated hook inside
+                // rlcHandleAction's complete branch (see PR-4 turn 2).
+                return {
+                    start: function (onComplete /*, config */) {
+                        // Skip rules:
+                        //   - host page didn't load the RLC runtime (function missing)
+                        //   - content_json.real_life_challenge is null
+                        // Either case → no-content skip, sequencer advances to
+                        // the next game in practice_arc.games[]. The position
+                        // of `rlc` in the list is irrelevant to the adapter —
+                        // it can be first, middle, or last.
+                        if (typeof startRLCStage6 !== 'function'
+                            || typeof RLC_CASE === 'undefined' || !RLC_CASE) {
+                            try { onComplete && onComplete({ skipped: true, reason: 'no_content' }); } catch (_) {}
+                            return;
+                        }
+                        try { startRLCStage6(); } catch (e) {
+                            try { console.warn('[PracticeArcV2/rlc] startRLCStage6 threw:', e); } catch (_) {}
+                        }
+                        // One-shot listener: rlcHandleAction's complete branch
+                        // dispatches { gameId: 'rlc' } via _practiceArcV2DispatchIfRunning.
+                        makeOneShotCompletion('rlc', onComplete);
+                    },
+                    destroy: function () {
+                        // Practice Arc handoff cleanup — RLC owns its screen
+                        // lifecycle during play, but when the v2 sequencer
+                        // hands off to the next game we deactivate the screen
+                        // and reset inline transitions so the next adapter
+                        // doesn't inherit RLC's fade-in state. Leave rlcState
+                        // intact (debuggable + future replay-friendly);
+                        // the RLC initialiser rewrites it on next start.
+                        const rlcScreen = document.getElementById('rlc-screen');
+                        if (rlcScreen) {
+                            rlcScreen.classList.remove('active');
+                            rlcScreen.style.transition = '';
+                            rlcScreen.style.opacity = '';
+                        }
+                    }
+                };
+            }
+
+            function adapterForLegacyRealLife() {
+                return {
+                    start: function (onComplete) {
+                        if (typeof startStage6 !== 'function') {
+                            try { onComplete && onComplete({ skipped: true }); } catch (_) {}
+                            return;
+                        }
+                        try { startStage6(); } catch (e) {
+                            try { console.warn('[PracticeArcV2/real_life] startStage6 threw:', e); } catch (_) {}
+                        }
+                        makeOneShotCompletion('real_life', onComplete);
+                    },
+                    destroy: function () { /* legacy RL self-cleans on rlShowEndPlaceholder */ }
+                };
+            }
+
+            function bootstrap() {
+                // Resolve function refs late so any later-declared helpers
+                // still wire correctly; pass the bare name as fallback so
+                // window[name] lookup happens at start() time.
+                register('aq',  adapterForGB('aq',
+                    (typeof gbInitAQ  === 'function') ? gbInitAQ  : 'gbInitAQ',
+                    'gb-panel-aq',
+                    (typeof gbSetButtonForAQ === 'function') ? gbSetButtonForAQ : 'gbSetButtonForAQ'));
+                register('wc',  adapterForGB('wc',
+                    (typeof gbInitWC  === 'function') ? gbInitWC  : 'gbInitWC',
+                    'gb-panel-wc',
+                    (typeof gbSetButtonForWC === 'function') ? gbSetButtonForWC : 'gbSetButtonForWC'));
+                register('tm',  adapterForGB('tm',
+                    (typeof gbInitTM  === 'function') ? gbInitTM  : 'gbInitTM',
+                    'gb-panel-tm',  null));
+                // Memory Matching — legacy `mm` id is a registered alias for
+                // Tile Match's DOM panel but calls gbInitMM (the legacy
+                // raw-tuple memory match init). When an author lists
+                // id:"mm" in practice_arc.games[], the engine resolves to
+                // THIS adapter; id:"tm" resolves to the modern Tile Match
+                // adapter above. Both render into #gb-panel-tm so styling,
+                // dark-mode, and reduced-motion behavior is shared
+                // automatically with Tile Match.
+                register('mm',  adapterForGB('mm',
+                    (typeof gbInitMM  === 'function') ? gbInitMM  : 'gbInitMM',
+                    'gb-panel-tm',  null));
+                register('pl',  adapterForGB('pl',
+                    (typeof gbInitPL  === 'function') ? gbInitPL  : 'gbInitPL',
+                    'gb-panel-pl',  null));
+                register('mb',  adapterForGB('mb',
+                    (typeof gbInitMB  === 'function') ? gbInitMB  : 'gbInitMB',
+                    'gb-panel-mb',  null));
+                register('ttt', adapterForGB('ttt',
+                    (typeof gbInitTTT === 'function') ? gbInitTTT : 'gbInitTTT',
+                    'gb-panel-ttt', null));
+                register('sf',  adapterForGB('sf',
+                    (typeof gbInitSF  === 'function') ? gbInitSF  : 'gbInitSF',
+                    'gb-panel-sf',
+                    (typeof gbSetButtonForSF === 'function') ? gbSetButtonForSF : 'gbSetButtonForSF'));
+                register('mp',  adapterForGB('mp',
+                    (typeof gbInitMP  === 'function') ? gbInitMP  : 'gbInitMP',
+                    'gb-panel-mp',  null));
+                register('rlc',       adapterForRLC());
+                register('real_life', adapterForLegacyRealLife());
+
+                // ── New-mechanic adapters (PR-4) ──────────────────────
+                // Lightweight aliases that reuse existing panels + init
+                // functions. The engine's active-id-wins dispatch
+                // resolution means the completion event surfaces the
+                // adapter's id (asm / jm / ed) even though the panel
+                // (gb-panel-sf / gb-panel-tm / gb-panel-aq) is shared
+                // with the underlying mechanic. Authors writing
+                // practice_arc.games[{id:"asm"|"jm"|"ed"}] get a
+                // dynamically-registered slot today; PR-5+ will swap the
+                // init function for mechanic-specific logic without
+                // breaking authored homeworks.
+                //
+                // Spec mapping:
+                //   asm Assembly        → Sentence Fill word-bank (assemble pieces)
+                //   jm  Jigsaw Matching → Tile Match side-disjoint pairs
+                //   ed  Error Detection → Adaptive Quiz free-form + capture
+                register('asm', adapterForGB('asm',
+                    (typeof gbInitSF === 'function') ? gbInitSF : 'gbInitSF',
+                    'gb-panel-sf',
+                    (typeof gbSetButtonForSF === 'function') ? gbSetButtonForSF : 'gbSetButtonForSF'));
+                register('jm',  adapterForGB('jm',
+                    (typeof gbInitTM === 'function') ? gbInitTM : 'gbInitTM',
+                    'gb-panel-tm', null));
+                register('ed',  adapterForGB('ed',
+                    (typeof gbInitAQ === 'function') ? gbInitAQ : 'gbInitAQ',
+                    'gb-panel-aq',
+                    (typeof gbSetButtonForAQ === 'function') ? gbSetButtonForAQ : 'gbSetButtonForAQ'));
+            }
+
+            // Bootstrap after DOMContentLoaded so wrapped helpers are
+            // available. Idempotent: re-registering an id replaces the
+            // previous adapter, so PR-2/3 can rebind without churn.
+            if (typeof window !== 'undefined') {
+                if (document.readyState === 'loading') {
+                    window.addEventListener('DOMContentLoaded', bootstrap);
+                } else {
+                    bootstrap();
+                }
+            }
+
+            return {
+                register:          register,
+                getAdapter:        function (id) { return registry[id] || null; },
+                listGames:         listGames,
+                setStageV2:        setStageV2,
+                unlockGatePassed:  unlockGatePassed,
+                enter:             enter,
+                advance:           advance,
+                handoffToBoss:     handoffToBoss,
+                reset:             reset,
+                _state:            v2State,
+                _registry:         registry,
+            };
+        })();
+
+        // Expose so PR-2/3 (Learning Hub + Unlock Gate) and tests can
+        // discover the engine without poking into the IIFE.
+        if (typeof window !== 'undefined') {
+            window.PracticeArcV2 = PracticeArcV2;
+        }
     </script>
+
+    <!-- ── Homework Flow v2 (PR-4) — Practice Arc visuals ──────────
+         Two scoped DOM nodes. Hidden by default (CSS display:none).
+         PracticeArcV2 toggles `.is-visible` to reveal them; legacy
+         homeworks never call into the helpers that flip the class. -->
+    <div id="practice-arc-shell" aria-live="polite" aria-atomic="true">
+        <div class="section-inner">
+            <span class="eyebrow--blue" data-pa-eyebrow>Practice Arc</span>
+            <div class="section-title">
+                <span data-pa-current-label>Game</span>
+                <span class="pa-count" data-pa-count>1 / 1</span>
+            </div>
+            <div class="pa-pillrow" id="practice-arc-pillrow" role="list">
+                <!-- pills are populated dynamically by _paRenderProgress -->
+            </div>
+        </div>
+    </div>
+
+    <div id="practice-boss-interstitial" role="dialog" aria-modal="false" aria-labelledby="pa-boss-title">
+        <div class="dark-section">
+            <div class="launch-shell">
+                <span class="eyebrow--blue">Practice Arc Cleared</span>
+                <div class="pa-boss-art" aria-hidden="true">⚔️</div>
+                <div id="pa-boss-title" class="section-title" data-pa-boss-title>Boss Arena Unlocked</div>
+                <div class="pa-boss-sub" data-pa-boss-sub>The Boss is ready for you.</div>
+            </div>
+        </div>
+    </div>
 
     <!-- ── Wave F4: Stuck? Ask tutor CTA ───────────────────────── -->
     <button id="nets-tutor-cta" class="nets-tutor-cta" hidden>

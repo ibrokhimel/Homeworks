@@ -80,6 +80,40 @@ _OBJECT_CONSTANTS = [
     ("reflection",    "REFLECTION"),
 ]
 
+# Homework Flow v2 (PR-4): set of game adapter ids the runtime engine ships
+# with by default. Authors may register custom ids on the client; the injector
+# does NOT enforce membership — it only normalises the wire shape.
+#
+# Memory Matching is delivered by `tm` (Tile Match — modern concept-pair
+# matching with PISA / concept_family / explanation pedagogy). The legacy
+# `mm` id is kept as an alias for back-compat with authored homeworks that
+# only ship `gb_memory_match` raw-tuple content; both ids resolve to the
+# same DOM panel (gb-panel-tm) but call different init functions.
+_PRACTICE_ARC_KNOWN_GAMES = {
+    "aq", "wc", "tm", "mm", "pl", "mb", "ttt", "sf", "mp",   # game-break library
+    "rlc", "real_life",                                       # case-based games
+    "asm", "jm", "ed",                                        # new-mechanic adapters (see below)
+}
+
+# New-mechanic adapters (PR-4, additive). Each ships as a LIGHTWEIGHT alias
+# that reuses an existing game-break panel + init function. The dispatch
+# helper resolves the engine's active id (not the panel default), so the
+# adapter's id surfaces on the completion event even though the panel is
+# shared. Future PRs replace the init function with the mechanic-specific
+# logic; the registration contract stays stable for content authors.
+#
+#   asm  Assembly         → reuses Sentence Fill (gb-panel-sf / gbInitSF)
+#                            cloze + word-bank → "assemble pieces" analog
+#   jm   Jigsaw Matching  → reuses Tile Match (gb-panel-tm / gbInitTM)
+#                            side-disjoint pair matching → "pieces fit" analog
+#   ed   Error Detection  → reuses Adaptive Quiz (gb-panel-aq / gbInitAQ)
+#                            free-form answer + capture → "find + explain" analog
+_PRACTICE_ARC_ALIAS_BASE = {
+    "asm": "sf",
+    "jm":  "tm",
+    "ed":  "aq",
+}
+
 
 def _esc(s) -> str:
     """Escape text for safe insertion into HTML content."""
@@ -1600,6 +1634,19 @@ def inject(
         _serialize_boss_meta(content_json.get("boss_meta")),
     )
 
+    # Homework Flow v2 (PR-4) — additive engine globals. Both placeholders
+    # ship `null` for legacy homeworks so the dormant engine compiles cleanly;
+    # legacy boot path (init / setStage / gbActiveGameOrder / startFinalBoss)
+    # is fully untouched.
+    html = html.replace(
+        "__FLOW_VERSION__",
+        _serialize_flow_version(content_json.get("flow_version")),
+    )
+    html = html.replace(
+        "__PRACTICE_ARC__",
+        _serialize_practice_arc(content_json.get("practice_arc")),
+    )
+
     # Always inject the AI tutor runtime hook before </body>.
     ctx_json = _safe_js_json(runtime_context)
     runtime_snippet = (
@@ -1609,6 +1656,77 @@ def inject(
     html = html.replace('</body>', runtime_snippet + '</body>', 1)
 
     return html
+
+
+def _serialize_flow_version(value) -> str:
+    """Serialize content_json.flow_version into the FLOW_VERSION JS constant.
+
+    Homework Flow v2 dispatcher signal. Accepts only the documented enum
+    values; everything else (None, absent, garbage) ships as JS `null` so
+    the runtime falls through to the legacy 9-phase engine.
+    """
+    if value in ("v1", "v2"):
+        return _safe_js_json(value)
+    return _safe_js_json(None)
+
+
+def _serialize_practice_arc(arc) -> str:
+    """Serialize content_json.practice_arc into the PRACTICE_ARC JS constant.
+
+    Ships `null` when absent so the dormant engine treats it as "no v2 plan
+    authored". Otherwise normalises into a flat shape the runtime sequencer
+    consumes without further coercion:
+
+      {
+        "games": [{"id", "label", "required", "config"}, ...],
+        "boss_after": bool,
+        "unlock_required": bool
+      }
+
+    No side-disjoint stripping applies: `practice_arc` carries plan-of-games
+    metadata only — no per-question answer keys. Each individual game's
+    answer key continues to flow through its own existing constant
+    (BOSS_QUESTIONS, GB_TILE_MATCH, RLC_CASE, etc.) which already strip
+    server-only fields.
+    """
+    if arc is None:
+        return _safe_js_json(None)
+    if not isinstance(arc, dict):
+        try:
+            arc = arc.model_dump()
+        except AttributeError:
+            try:
+                arc = dict(arc)
+            except Exception:
+                return _safe_js_json(None)
+    if not arc:
+        return _safe_js_json(None)
+
+    raw_games = arc.get("games") or []
+    if not isinstance(raw_games, list):
+        raw_games = []
+
+    out_games = []
+    for entry in raw_games:
+        if not isinstance(entry, dict):
+            continue
+        gid = str(entry.get("id") or "").strip()
+        if not gid:
+            continue
+        label = entry.get("label")
+        config = entry.get("config")
+        out_games.append({
+            "id":       gid,
+            "label":    (str(label).strip() if isinstance(label, str) and label.strip() else None),
+            "required": bool(entry.get("required", True)),
+            "config":   config if isinstance(config, dict) else None,
+        })
+
+    return _safe_js_json({
+        "games":           out_games,
+        "boss_after":      bool(arc.get("boss_after", True)),
+        "unlock_required": bool(arc.get("unlock_required", True)),
+    })
 
 
 def verify_template() -> dict:
@@ -1624,4 +1742,9 @@ def verify_template() -> dict:
     for (_, const_name) in _OBJECT_CONSTANTS:
         if not re.search(rf"const {const_name}\s*=\s*\{{", _TEMPLATE):
             missing.append(const_name)
+    # Homework Flow v2 (PR-4) — additive globals.
+    if "__FLOW_VERSION__" not in _TEMPLATE:
+        missing.append("FLOW_VERSION")
+    if "__PRACTICE_ARC__" not in _TEMPLATE:
+        missing.append("PRACTICE_ARC")
     return {"ok": len(missing) == 0, "missing": missing}

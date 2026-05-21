@@ -716,6 +716,49 @@ class MemoryPalaceConfig(_Permissive):
 
 
 # --------------------------------------------------------------------------- #
+# Homework Flow v2 — Practice Arc dynamic plan (PR-4).                        #
+#                                                                              #
+# Additive only. Activated at runtime when ContentJSON.flow_version == "v2".  #
+# Legacy homeworks (flow_version absent or "v1") remain on the 9-phase engine. #
+# --------------------------------------------------------------------------- #
+
+
+class PracticeArcGame(_Permissive):
+    """One game entry in the dynamic Practice Arc sequence.
+
+    `id` is the adapter registry key the runtime resolves to a game module
+    (see PracticeArcV2._registry in perfect_homework.html). Built-in adapters
+    cover the existing game-break library (aq/wc/tm/pl/mb/ttt/sf/mp), the
+    Real-Life Challenge (rlc), and legacy Real Life (real_life). Authors can
+    register custom adapters via PracticeArcV2.register(id, adapter) without
+    touching the schema.
+
+    The sequence is fully dynamic: variable game count, variable order, no
+    hardcoded list. Real Life Challenge is one game among N — not a fixed
+    phase.
+    """
+
+    id: str                                       # registry key
+    label: Optional[str] = None                   # student-facing label override
+    required: Optional[bool] = True               # if False, engine skips when content absent
+    config: Optional[Dict[str, Any]] = None       # adapter-specific tuning
+
+
+class PracticeArc(_Permissive):
+    """Dynamic Practice Arc plan (Homework Flow v2).
+
+    `games[]` is the ordered registry of games the engine walks. After the
+    final game completes the engine hands off to Boss Arena via the existing
+    `startFinalBoss()` (Boss is not rebuilt). The Unlock Gate (CBP +
+    Memory Check pass) guards entry by default.
+    """
+
+    games: List[PracticeArcGame] = Field(default_factory=list)
+    boss_after: Optional[bool] = True             # hand off to Boss after final game
+    unlock_required: Optional[bool] = True        # require Unlock Gate before entry
+
+
+# --------------------------------------------------------------------------- #
 # Top-level — every phase optional so partial homeworks still validate.
 # --------------------------------------------------------------------------- #
 
@@ -730,6 +773,12 @@ class ContentJSON(_Permissive):
     quotes: Optional[List[str]] = None
     panels: Optional[List[Panel]] = None
     gate_quote: Optional[GateQuote] = None
+
+    # Homework Flow v2 — explicit dispatcher signal.
+    # Absent or "v1" → legacy 9-phase engine. "v2" → setStageV2 + PracticeArcV2.
+    flow_version: Optional[Literal["v1", "v2"]] = None
+    # Homework Flow v2 — dynamic Practice Arc plan (PR-4).
+    practice_arc: Optional[PracticeArc] = None
 
     # Final-boss section name. Optional override; when missing the runtime
     # falls back to a subject-aware default (see services/injector.boss_name_for).
