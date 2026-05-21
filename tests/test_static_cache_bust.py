@@ -10,7 +10,7 @@ import pytest
 
 def test_index_html_has_version_query(client):
     """Index page must have cache-bust version on all static asset references."""
-    r = client.get("/index.html")
+    r = client.get("/")
     assert r.status_code == 200
     body = r.text
 
@@ -52,7 +52,7 @@ def test_library_html_has_version_query(client):
 
 def test_version_query_is_not_dev_placeholder(client):
     """Version query should be substituted from git SHA, not the placeholder."""
-    r = client.get("/index.html")
+    r = client.get("/")
     assert r.status_code == 200
     body = r.text
 
@@ -90,7 +90,7 @@ def _internal_asset_refs(body: str) -> list[str]:
     ]
 
 
-@pytest.mark.parametrize("path", ["/index.html", "/builder.html", "/library.html", "/landing.html", "/taskboard.html"])
+@pytest.mark.parametrize("path", ["/", "/builder.html", "/library.html", "/landing.html", "/taskboard.html"])
 def test_no_internal_script_or_link_tag_skips_cache_bust(client, path):
     """Strict variant: every same-origin <script src=> / <link href=> on
     every dashboard page must carry ?v=<sha>. Catches the footgun where a

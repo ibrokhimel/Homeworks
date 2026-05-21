@@ -109,7 +109,7 @@ def test_theme_js_storage_key_matches_runtime_tutor():
 # ──────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("path", ["/index.html", "/builder.html", "/library.html"])
+@pytest.mark.parametrize("path", ["/", "/builder.html", "/library.html"])
 def test_page_includes_theme_js_with_cache_bust(client, path):
     """theme.js must be referenced before page paint and carry the cache-bust
     suffix that PR #35's strict test enforces."""
@@ -124,7 +124,7 @@ def test_page_includes_theme_js_with_cache_bust(client, path):
         f"{path}: theme.js must load inside <head> to avoid FOUC"
 
 
-@pytest.mark.parametrize("path", ["/index.html", "/builder.html", "/library.html"])
+@pytest.mark.parametrize("path", ["/", "/builder.html", "/library.html"])
 def test_page_has_data_theme_toggle_button(client, path):
     """Every chrome page must surface a [data-theme-toggle] button so the
     user can switch theme outside the AI tutor chat panel."""
@@ -134,7 +134,7 @@ def test_page_has_data_theme_toggle_button(client, path):
     assert "data-theme-toggle" in body, f"{path}: missing [data-theme-toggle] button"
 
 
-@pytest.mark.parametrize("path", ["/index.html", "/builder.html", "/library.html"])
+@pytest.mark.parametrize("path", ["/", "/builder.html", "/library.html"])
 def test_toggle_button_initial_state_is_light(client, path):
     """Initial render must show the light-mode affordance (🌙 + aria-pressed=false +
     aria-label='Switch to dark mode'). theme.js rewrites these on load if the

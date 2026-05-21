@@ -25,7 +25,8 @@ EXPECTED_SELECT_IDS = [
     "mode-filter",
     "homework-subject",
     "homework-grade",
-    "homework-mode",
+    # NOTE: "homework-mode" (the create-modal Easy/Hard select) was intentionally
+    # removed — v2 homeworks don't ask difficulty at create time.
 ]
 
 # Minimal pattern: <select ... id="X" ... > — captures full attribute string
@@ -55,12 +56,12 @@ def _parse_selects(html: str) -> dict[str, dict]:
 @pytest.mark.parametrize("select_id", EXPECTED_SELECT_IDS)
 def test_select_has_accessible_name(client, select_id):
     """Every dashboard <select> must carry aria-label or aria-labelledby."""
-    r = client.get("/index.html")
+    r = client.get("/")
     assert r.status_code == 200
 
     selects = _parse_selects(r.text)
     assert select_id in selects, (
-        f"<select id='{select_id}'> not found in /index.html — was it removed or renamed?"
+        f"<select id='{select_id}'> not found in / — was it removed or renamed?"
     )
 
     sel = selects[select_id]
@@ -74,12 +75,12 @@ def test_select_has_accessible_name(client, select_id):
 
 def test_all_expected_selects_present(client):
     """Sanity guard: all 6 expected select IDs exist on the page."""
-    r = client.get("/index.html")
+    r = client.get("/")
     assert r.status_code == 200
 
     selects = _parse_selects(r.text)
     missing = [s for s in EXPECTED_SELECT_IDS if s not in selects]
     assert not missing, (
-        f"Expected select IDs missing from /index.html: {missing}\n"
+        f"Expected select IDs missing from /: {missing}\n"
         "Update EXPECTED_SELECT_IDS if the markup changed intentionally."
     )

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, HTMLResponse, RedirectResponse
+from fastapi.responses import Response, HTMLResponse
 from contextlib import asynccontextmanager
 import os
 import base64
@@ -128,11 +128,8 @@ _FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fronte
 # Route → filename map. Single source of truth for the dashboard chrome
 # pages. To add a new page, add a row here — the route + cache-bust
 # substitution come for free.
-# NOTE: "/" is intentionally NOT here — the homework dashboard moved to the
-# React app (v2). The root path redirects to it (see below). The legacy
-# dashboard remains reachable at /index.html as a fallback, and /builder.html
-# stays the editor for existing v1 homeworks (additive migration).
 _HTML_PAGES: dict[str, str] = {
+    "/":              "index.html",
     "/index.html":    "index.html",
     "/builder.html":  "builder.html",
     "/library.html":  "library.html",
@@ -158,13 +155,6 @@ def _make_html_handler(filename: str):
 
 for _route, _filename in _HTML_PAGES.items():
     app.get(_route)(_make_html_handler(_filename))
-
-
-# Root → the React v2 dashboard (unified dashboard + builder). Registered before
-# the "/" StaticFiles catch-all mount below so it takes precedence.
-@app.get("/")
-async def _dashboard_root():
-    return RedirectResponse(url="/app/builder", status_code=307)
 
 # Runtime static mount — serves /static/runtime/runtime.js from server/template/
 # MUST come before the `/` catch-all mount below (FastAPI evaluates mounts in order).

@@ -22,7 +22,7 @@ _SCRIPT_SRC_RE = re.compile(
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 
 
-@pytest.mark.parametrize("path", ["/index.html", "/builder.html", "/library.html"])
+@pytest.mark.parametrize("path", ["/", "/builder.html", "/library.html"])
 def test_no_dead_script_tags(client, path):
     """Every <script src="/js/..."> tag must resolve to an existing file."""
     r = client.get(path)
