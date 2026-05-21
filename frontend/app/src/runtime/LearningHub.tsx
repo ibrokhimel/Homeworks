@@ -214,7 +214,7 @@ export function LearningHub() {
 
 // ---- Interactive decorative backdrop -------------------------------------
 // A purely cosmetic layer behind the path: a living aurora wash + 5 soft,
-// blurred candy blobs in the Duolingo palette that idle-drift forever (CSS),
+// blurred candy blobs in the blue-brand palette that idle-drift forever (CSS),
 // AND react to input via a tiny rAF parallax that writes smoothed offsets to
 // two CSS custom properties (--bx / --by) the CSS reads via translate3d:
 //   • desktop  → pointer move (parallax follows the cursor, eased)
@@ -301,7 +301,7 @@ function HubBackdrop() {
   //   • A gentle destination-out erase each frame fades the whole streak over
   //     ~1s (exponential alpha decay reads as ease-out). When the pointer stops
   //     we keep ticking until the streak has fully faded, then clearRect + idle.
-  // The hue glides through the Duolingo palette as the pointer travels;
+  // The hue glides through the blue-brand palette as the pointer travels;
   // pointerdown jumps the hue + spawns an expanding burst ring. Under reduced
   // motion we bail out entirely (no listeners, no rAF).
   useEffect(() => {
@@ -313,9 +313,11 @@ function HubBackdrop() {
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
-    // Duolingo palette to cycle the trail hue through (blue→violet→green→
-    // orange→gold). Kept as the same hex the CSS vars use on .shell.
-    const PALETTE = ["#1cb0f6", "#a78bfa", "#58cc02", "#ff9600", "#ffc800"];
+    // NETS blue-brand cool trail — the hue glides through one cohesive
+    // blue family (azure → cyan → brand-blue → indigo → periwinkle) so the
+    // trail still shifts as the pointer travels but reads as OUR blue, not a
+    // Duolingo rainbow. Tones echo the --hub-* vars on .shell.
+    const PALETTE = ["#33a7e6", "#22c3d8", "#0a72e0", "#5b6cff", "#9aa9ff"];
     const hexToRgb = (hex: string): [number, number, number] => {
       const n = parseInt(hex.slice(1), 16);
       return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
