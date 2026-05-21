@@ -162,6 +162,13 @@ app.mount(
     name="runtime",
 )
 
+# React SPA (v2 runtime + builder) — built bundle served as static assets.
+# Vite content-hashes its own filenames, so this is intentionally OUTSIDE the
+# __VERSION__ cache-bust system. Mounted before the "/" catch-all.
+_SPA_DIST = os.path.join(_FRONTEND_DIR, "app", "dist")
+if os.path.isdir(_SPA_DIST):
+    app.mount("/app", StaticFiles(directory=_SPA_DIST, html=True), name="spa")
+
 # Ensure frontend directory exists before mounting
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 os.makedirs(FRONTEND_DIR, exist_ok=True)
