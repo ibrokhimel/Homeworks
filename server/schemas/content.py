@@ -683,6 +683,63 @@ class MemoryPalaceConfig(_Permissive):
 
 
 # --------------------------------------------------------------------------- #
+# v2 flow (flow_version == "v2") — Case-Based Preview + Memory Check.
+# All fields optional + extra="allow" so partial/draft authoring validates and
+# new fields fail-open at the schema while the runtime redactor fails-closed.
+# See docs/HOMEWORK_FLOW_V2_PLAN.md + docs/HOMEWORK_FLOW_V2_REACT_ARCHITECTURE.md.
+# --------------------------------------------------------------------------- #
+
+
+class CaseCheckpoint(_Permissive):
+    """One of exactly 3 Case-Based Preview checkpoints (identify/decide/justify).
+
+    answer_spec is the grading contract — stripped server-side before the React
+    runtime ever sees it (runtime_redactor). learning_block is the post-submit
+    teaching text, returned via the check-answer RESPONSE, not hydration.
+    """
+
+    kind: Optional[str] = None  # "identify" | "decide" | "justify"
+    question: Optional[str] = None
+    options: Optional[List[str]] = None
+    answer_spec: Optional[AnswerSpec] = None
+    learning_block: Optional[str] = None
+    feedback: Optional[str] = None
+
+
+class CaseBasedPreview(_Permissive):
+    """Tile A of the Learning Hub — guided 3-checkpoint real-life learning case."""
+
+    title: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    source_extraction: Optional[Dict[str, Any]] = None
+    visual_plan: Optional[List[Dict[str, Any]]] = None
+    case_setup: Optional[Dict[str, Any]] = None   # {story, role, task}
+    checkpoints: Optional[List[CaseCheckpoint]] = None
+    final_simulation: Optional[Dict[str, Any]] = None  # {correct_path(redacted), wrong_path}
+    feedback_summary: Optional[Dict[str, Any]] = None
+    completion_rules: Optional[Dict[str, Any]] = None
+
+
+class MemoryCheckItem(_Permissive):
+    """One Quizlet-style Memory Check item. answer_spec stripped server-side."""
+
+    type: Optional[str] = None  # mcq | fill_blank | choose_explanation | true_false | tile_match | term_definition
+    prompt: Optional[str] = None
+    options: Optional[List[str]] = None
+    answer_spec: Optional[AnswerSpec] = None
+    flashcard_ref: Optional[str] = None
+
+
+class MemoryCheck(_Permissive):
+    """Tile B gate — Quizlet-style test after flashcards. Pass ≥ pass_threshold_pct."""
+
+    items: Optional[List[MemoryCheckItem]] = None
+    pass_threshold_pct: Optional[int] = None  # default 60 (runtime)
+    modes_enabled: Optional[List[str]] = None
+    retake_pool_size: Optional[int] = None
+
+
+# --------------------------------------------------------------------------- #
 # Top-level — every phase optional so partial homeworks still validate.
 # --------------------------------------------------------------------------- #
 
@@ -697,6 +754,12 @@ class ContentJSON(_Permissive):
     quotes: Optional[List[str]] = None
     panels: Optional[List[Panel]] = None
     gate_quote: Optional[GateQuote] = None
+
+    # v2 runtime dispatcher: absent/"v1" -> legacy HTML injector; "v2" -> React SPA.
+    flow_version: Optional[str] = None
+    # v2 Learning Sections (additive — legacy homeworks omit these).
+    case_based_preview: Optional[CaseBasedPreview] = None
+    memory_check: Optional[MemoryCheck] = None
 
     # Final-boss section name. Optional override; when missing the runtime
     # falls back to a subject-aware default (see services/injector.boss_name_for).
