@@ -1,24 +1,25 @@
 /* =========================================================================
    Tic-Tac-Toe Quiz — Ttt.module.css
-   v2 light Apple-glass aesthetic.
-   Tokens from frontend/css/_tokens.css — never redeclare them here.
-   Recipe matches CaseBasedPreview + LearningHub exactly:
-   · #f5f5f7 page bg, white frosted glass rgba(255,255,255,.7)+blur(24-30px) saturate(180%)
-   · accent #0066CC / --landing-blue-600 #2563eb
-   · blue / fuchsia / emerald radial glows
-   · #1d1d1f titles, #86868b muted text
-   · spring cubic-bezier(.16,1,.3,1) for every transition
-   · hover scale(1.045) / translateY pattern
+   Apple design system · GAME-PURPLE accent.
+
+   Canonical card recipe from LearningHub.module.css (.node / .accentGame):
+   · white solid surface (#ffffff), ~18-20px radius
+   · soft diffusion shadow: 0 4px 24px rgba(0,0,0,.04)
+   · 1px border rgba(0,0,0,.05) — no heavy outlines
+   · --grad-game top accent bar (4px) + corner glow (--c-purple tint)
+   · --ink titles · --text-secondary muted · --landing-spring everywhere
+   · hover: scale(1.03) + translateY(-4px)
+   · prefers-reduced-motion honored throughout
    ========================================================================= */
 
-/* ---- ambient glow blobs behind the game (pointer-events none, GPU only) ---- */
+/* ---- ambient purple glow blobs (pointer-events none, GPU only) ---- */
 .wrap {
   position: relative;
   isolation: isolate;
   animation: fadeIn 320ms var(--landing-spring) both;
 }
 
-/* Blue glow — top-left */
+/* Purple glow — top-left */
 .wrap::before {
   content: "";
   position: absolute;
@@ -27,14 +28,14 @@
   width: 340px;
   height: 340px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.20) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(138, 95, 200, 0.18) 0%, transparent 65%);
   filter: blur(60px);
   pointer-events: none;
   z-index: 0;
-  animation: auraBlue 14s ease-in-out infinite alternate;
+  animation: auraLeft 14s ease-in-out infinite alternate;
 }
 
-/* Fuchsia glow — top-right */
+/* Soft purple glow — top-right */
 .wrap::after {
   content: "";
   position: absolute;
@@ -43,18 +44,18 @@
   width: 300px;
   height: 300px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(217, 70, 239, 0.16) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(179, 136, 235, 0.14) 0%, transparent 65%);
   filter: blur(60px);
   pointer-events: none;
   z-index: 0;
-  animation: auraFuchsia 18s ease-in-out 1s infinite alternate-reverse;
+  animation: auraRight 18s ease-in-out 1s infinite alternate-reverse;
 }
 
-@keyframes auraBlue {
+@keyframes auraLeft {
   0%   { transform: translate3d(0, 0, 0) scale(1); }
   100% { transform: translate3d(4%, 3%, 0) scale(1.1); }
 }
-@keyframes auraFuchsia {
+@keyframes auraRight {
   0%   { transform: translate3d(0, 0, 0) scale(1); }
   100% { transform: translate3d(-3%, 4%, 0) scale(1.08); }
 }
@@ -78,7 +79,7 @@
 .progress {
   font-size: 13px;
   font-weight: 600;
-  color: var(--v2-text-subtle);
+  color: var(--text-secondary);
 }
 
 .instruction {
@@ -88,38 +89,54 @@
   margin-bottom: 20px;
 }
 
-/* ---- 3×3 board container — frosted glass slab ---- */
+/* ---- 3x3 board container — Apple white card with game-purple accent ---- */
 .boardWrap {
   position: relative;
   z-index: 1;
   max-width: 380px;
   margin: 0 auto;
-  padding: 20px;
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow:
-    var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  /* emerald glow inside the board slab */
+  padding: 24px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
   overflow: hidden;
+  /* draw-in */
+  animation: hubNodeIn 640ms var(--landing-spring) 80ms both;
+  transition: transform 320ms var(--landing-spring), box-shadow 320ms var(--landing-spring);
 }
 
-/* Emerald corner glow inside the board glass slab */
+/* game-purple accent bar — top of the board card */
 .boardWrap::before {
   content: "";
   position: absolute;
-  right: -56px;
-  bottom: -56px;
-  width: 200px;
-  height: 200px;
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-radius: 20px 20px 0 0;
+  background: var(--grad-game, linear-gradient(135deg, #b388eb, #8a5fc8));
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Corner glow (matching LearningHub .cardGlow) */
+.boardWrap::after {
+  content: "";
+  position: absolute;
+  right: -64px;
+  top: -64px;
+  width: 188px;
+  height: 188px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(52, 211, 153, 0.22) 0%, transparent 70%);
-  filter: blur(40px);
+  background: rgba(179, 136, 235, 0.26);
+  filter: blur(52px);
+  opacity: 0.5;
   pointer-events: none;
   z-index: 0;
+}
+
+.boardWrap:hover {
+  transform: translateY(-4px) scale(1.008);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.1);
 }
 
 .board {
@@ -130,17 +147,13 @@
   gap: 10px;
 }
 
-/* ---- cells — frosted glass tiles ---- */
+/* ---- cells — solid white Apple tiles ---- */
 .cell {
   aspect-ratio: 1 / 1;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1.5px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 2px 8px rgba(15, 23, 42, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -156,12 +169,12 @@
 }
 
 .cellEmpty:not(:disabled):hover {
-  transform: translateY(-4px) scale(1.045);
-  border-color: var(--landing-blue-400);
-  background: rgba(255, 255, 255, 0.88);
+  transform: translateY(-4px) scale(1.03);
+  border-color: var(--c-purple, #8a5fc8);
+  background: #faf8ff;
   box-shadow:
-    var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    0 8px 24px rgba(138, 95, 200, 0.14),
+    0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 /* Press feedback */
@@ -170,30 +183,29 @@
   transition-duration: 80ms;
 }
 
+/* X cell — subtle purple tint (player) */
 .cellX {
-  background: rgba(37, 99, 235, 0.09);
-  border-color: rgba(37, 99, 235, 0.35);
-  box-shadow:
-    0 2px 12px rgba(37, 99, 235, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  background: rgba(138, 95, 200, 0.07);
+  border-color: rgba(138, 95, 200, 0.28);
+  box-shadow: 0 2px 12px rgba(138, 95, 200, 0.10);
   cursor: default;
 }
 
+/* O cell — neutral warm tint (opponent) */
 .cellO {
-  background: rgba(217, 70, 239, 0.07);
-  border-color: rgba(217, 70, 239, 0.32);
-  box-shadow:
-    0 2px 12px rgba(217, 70, 239, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  background: rgba(134, 134, 139, 0.07);
+  border-color: rgba(134, 134, 139, 0.22);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
   cursor: default;
 }
 
+/* Win cells — purple celebration */
 .cellWin {
-  background: rgba(4, 120, 87, 0.12);
-  border-color: rgba(4, 120, 87, 0.45);
+  background: rgba(138, 95, 200, 0.13);
+  border-color: rgba(138, 95, 200, 0.42);
   box-shadow:
-    0 2px 16px rgba(4, 120, 87, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    0 2px 16px rgba(138, 95, 200, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   animation: winPulse 540ms var(--landing-spring) both;
 }
 
@@ -203,32 +215,28 @@
   100% { transform: scale(1); }
 }
 
+/* Markers */
 .markerX {
-  color: var(--landing-blue-600);
+  color: var(--c-purple, #8a5fc8);
   line-height: 1;
-  text-shadow: 0 1px 6px rgba(37, 99, 235, 0.25);
+  text-shadow: 0 1px 6px rgba(138, 95, 200, 0.28);
 }
 
 .markerO {
-  color: var(--landing-fuchsia-500);
+  color: var(--text-secondary, #86868b);
   line-height: 1;
-  text-shadow: 0 1px 6px rgba(217, 70, 239, 0.22);
 }
 
-/* ---- round result banner — glass card ---- */
+/* ---- round result banner — Apple white card ---- */
 .roundBanner {
   position: relative;
   z-index: 1;
   margin-top: 20px;
-  padding: 18px 22px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow:
-    var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  padding: 20px 24px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -237,50 +245,57 @@
   overflow: hidden;
 }
 
-/* Blue glow accent inside the round banner */
+/* game-purple accent bar */
 .roundBanner::before {
   content: "";
   position: absolute;
-  left: -40px;
-  top: -40px;
-  width: 160px;
-  height: 160px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.18) 0%, transparent 70%);
-  filter: blur(32px);
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-radius: 20px 20px 0 0;
+  background: var(--grad-game, linear-gradient(135deg, #b388eb, #8a5fc8));
   pointer-events: none;
+  z-index: 2;
 }
 
-/* ---- session done — glass card ---- */
+/* ---- session done — Apple white card ---- */
 .doneCard {
   position: relative;
   z-index: 1;
   display: grid;
   gap: 14px;
   padding: 28px 24px;
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow:
-    var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  animation: fadeIn 360ms var(--landing-spring) both;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  animation: hubNodeIn 640ms var(--landing-spring) both;
   overflow: hidden;
 }
 
-/* Fuchsia + blue glow inside done card */
+/* game-purple accent bar */
 .doneCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-radius: 20px 20px 0 0;
+  background: var(--grad-game, linear-gradient(135deg, #b388eb, #8a5fc8));
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Corner glow */
+.doneCard::after {
   content: "";
   position: absolute;
   right: -60px;
   top: -60px;
-  width: 220px;
-  height: 220px;
+  width: 200px;
+  height: 200px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.18) 0%, rgba(217, 70, 239, 0.12) 50%, transparent 70%);
+  background: rgba(179, 136, 235, 0.22);
   filter: blur(50px);
+  opacity: 0.5;
   pointer-events: none;
   z-index: 0;
 }
@@ -293,24 +308,21 @@
   margin-top: 4px;
 }
 
-/* stat rows — glass tiles matching CaseBasedPreview .fact */
+/* stat rows — solid white sub-cards */
 .statRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid var(--landing-ring);
-  box-shadow: var(--landing-shadow-soft);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  transition: transform 220ms var(--landing-spring), border-color 220ms var(--landing-spring);
+  border-radius: 14px;
+  background: #f5f5f7;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: transform 220ms var(--landing-spring), background 220ms var(--landing-spring);
 }
 
 .statRow:hover {
   transform: translateX(4px);
-  border-color: var(--landing-blue-400);
+  background: #eef0f3;
 }
 
 .statLabel {
@@ -318,13 +330,13 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.055em;
-  color: var(--landing-blue-600);
+  color: var(--c-purple, #8a5fc8);
 }
 
 .statVal {
   font-size: 16px;
   font-weight: 700;
-  color: var(--v2-text);
+  color: var(--ink, #1d1d1f);
 }
 
 /* ---- shared actions row ---- */
@@ -347,22 +359,20 @@
   font-size: 14px;
   font-weight: 500;
   border: 1px solid rgba(217, 119, 6, 0.18);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 /* =========================================================================
-   Question modal — true frosted-glass surface
+   Question modal — Apple white card, game-purple accent
    ========================================================================= */
 
 .modalBackdrop {
   position: fixed;
   inset: 0;
   z-index: 200;
-  /* Light, luminous backdrop — matches the v2 light aesthetic */
+  /* Subtle luminous backdrop — light Apple palette */
   background: rgba(245, 245, 247, 0.55);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -379,15 +389,13 @@
   position: relative;
   width: 100%;
   max-width: 460px;
-  /* Core glass recipe — matches .hero in CaseBasedPreview */
-  background: rgba(255, 255, 255, 0.82);
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.68);
+  /* Apple white card */
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
   box-shadow:
-    var(--landing-shadow-deep),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
+    0 4px 24px rgba(0, 0, 0, 0.04),
+    0 20px 70px rgba(15, 23, 42, 0.12);
   padding: 28px 24px 24px;
   display: grid;
   gap: 16px;
@@ -395,25 +403,32 @@
   overflow: hidden;
 }
 
-/* Blue glow inside the modal — matches .heroGlow in CaseBasedPreview */
+/* game-purple accent bar */
 .modal::before {
   content: "";
   position: absolute;
-  left: -40px;
-  top: -40px;
-  width: 240px;
-  height: 240px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.18) 0%, rgba(217, 70, 239, 0.10) 50%, transparent 70%);
-  filter: blur(48px);
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-radius: 20px 20px 0 0;
+  background: var(--grad-game, linear-gradient(135deg, #b388eb, #8a5fc8));
   pointer-events: none;
-  z-index: 0;
-  animation: heroBobble 6.5s ease-in-out infinite;
+  z-index: 2;
 }
 
-@keyframes heroBobble {
-  0%, 100% { transform: translateY(0) rotateZ(0deg); }
-  50%       { transform: translateY(-12px) rotateZ(2deg); }
+/* Corner glow inside modal */
+.modal::after {
+  content: "";
+  position: absolute;
+  right: -56px;
+  top: -56px;
+  width: 188px;
+  height: 188px;
+  border-radius: 999px;
+  background: rgba(179, 136, 235, 0.22);
+  filter: blur(48px);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .modal > * { position: relative; z-index: 1; }
@@ -433,11 +448,9 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid var(--landing-ring);
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: var(--v2-text-muted);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #f5f5f7;
+  color: var(--text-secondary, #86868b);
   font-size: 13px;
   cursor: pointer;
   display: flex;
@@ -450,9 +463,9 @@
     transform 160ms var(--landing-spring);
 }
 .closeBtn:hover {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: var(--landing-blue-400);
-  color: var(--v2-text);
+  background: #eee8f8;
+  border-color: var(--c-purple, #8a5fc8);
+  color: var(--ink, #1d1d1f);
   transform: scale(1.08);
 }
 .closeBtn:active {
@@ -463,11 +476,11 @@
   font-size: 17px;
   font-weight: 600;
   line-height: 1.5;
-  color: var(--v2-text);
+  color: var(--ink, #1d1d1f);
   margin: 0;
 }
 
-/* ---- answer options — glass tiles ---- */
+/* ---- answer options — solid white sub-cards ---- */
 .options {
   display: grid;
   gap: 10px;
@@ -477,17 +490,13 @@
   width: 100%;
   padding: 14px 18px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.66);
-  border: 1.5px solid var(--landing-ring);
-  box-shadow:
-    var(--landing-shadow-soft),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: #f5f5f7;
+  border: 1.5px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
   font-size: 15px;
   font-weight: 500;
   line-height: 1.4;
-  color: var(--v2-text);
+  color: var(--ink, #1d1d1f);
   text-align: left;
   cursor: pointer;
   transition:
@@ -499,11 +508,11 @@
 
 .option:not(:disabled):hover {
   transform: translateY(-3px) scale(1.015);
-  border-color: var(--landing-blue-400);
-  background: rgba(255, 255, 255, 0.88);
+  border-color: var(--c-purple, #8a5fc8);
+  background: #faf8ff;
   box-shadow:
-    var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    0 8px 24px rgba(138, 95, 200, 0.10),
+    0 1px 4px rgba(0, 0, 0, 0.03);
 }
 
 .option:not(:disabled):active {
@@ -511,13 +520,13 @@
   transition-duration: 80ms;
 }
 
-/* Selected option — blue glass accent */
+/* Selected option — purple accent */
 .optionSelected {
-  border-color: var(--landing-blue-600);
-  background: rgba(37, 99, 235, 0.08);
+  border-color: var(--c-purple, #8a5fc8);
+  background: rgba(138, 95, 200, 0.07);
   box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    0 0 0 3px rgba(138, 95, 200, 0.12),
+    0 1px 4px rgba(0, 0, 0, 0.03);
   transform: translateY(-2px);
 }
 
@@ -537,9 +546,18 @@
 
 .verdictText {
   font-size: 15px;
-  color: var(--v2-text-muted);
+  color: var(--text-secondary, #86868b);
   margin: 0;
   line-height: 1.55;
+}
+
+/* =========================================================================
+   Keyframes shared
+   ========================================================================= */
+
+@keyframes hubNodeIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* =========================================================================
@@ -548,8 +566,8 @@
 
 @media (max-width: 480px) {
   .boardWrap {
-    padding: 14px;
-    border-radius: 22px;
+    padding: 16px;
+    border-radius: 18px;
   }
   .board {
     gap: 8px;
@@ -560,7 +578,7 @@
   }
   .modal {
     padding: 22px 18px 18px;
-    border-radius: 24px;
+    border-radius: 18px;
   }
   .question {
     font-size: 15px;
@@ -581,25 +599,28 @@
 @media (prefers-reduced-motion: reduce) {
   .wrap::before,
   .wrap::after,
-  .modal::before,
-  .doneCard::before,
-  .roundBanner::before,
-  .boardWrap::before {
+  .modal::after,
+  .doneCard::after,
+  .boardWrap::after {
     animation: none;
   }
   .wrap,
   .roundBanner,
   .doneCard,
   .modalBackdrop,
-  .modal {
+  .modal,
+  .boardWrap {
     animation: none;
+    opacity: 1;
+    transform: none;
   }
   .cell,
   .cellEmpty:not(:disabled):hover,
   .option:not(:disabled):hover,
   .optionSelected,
   .statRow:hover,
-  .closeBtn:hover {
+  .closeBtn:hover,
+  .boardWrap:hover {
     transform: none;
     transition: none;
   }

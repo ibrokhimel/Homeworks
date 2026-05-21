@@ -1,27 +1,29 @@
 /* ============================================================
-   MysteryBox.module.css — v2 light Apple-glass aesthetic.
-   Surface: #f5f5f7 page, white frosted-glass rgba(255,255,255,.7)
-   + backdrop-filter blur(24-30px) saturate(180%), accent #0066CC /
-   blue-600, blue/fuchsia/emerald radial glows, #1d1d1f titles,
-   #86868b secondary, spring cubic-bezier(.16,1,.3,1).
-   Reuses shared tokens; does NOT edit primitives.
+   MysteryBox.module.css — Apple design system, GAME-PURPLE accent.
+   Matches LearningHub.module.css token discipline:
+     • White cards, 18-20px radius, soft diffusion shadow (no heavy borders)
+     • Accent: --grad-game (purple) / --c-purple corner glow
+     • Ink: --ink (#1d1d1f), secondary: --text-secondary (#86868b)
+     • Hover: scale(1.03) / translateY(-4px), spring var(--landing-spring)
+     • prefers-reduced-motion honored via global _tokens.css rule
+   CSS-only restyle — no TSX/logic changes.
    ============================================================ */
 
-/* ---- ambient glow layer (pointer-events none, fixed behind component) ---- */
+/* ---- ambient glow layer (pointer-events none, behind component) ---- */
 .wrap {
   position: relative;
-  animation: fadeIn 320ms var(--landing-spring) both;
+  animation: mbFadeIn 320ms var(--landing-spring) both;
 }
-/* Three colorful radial blobs pooled behind the game — blue, fuchsia, emerald */
+/* Soft purple+lavender radial blobs — matches the game-purple family */
 .wrap::before {
   content: "";
   position: absolute;
   inset: -60px -40px auto -40px;
   height: 360px;
   background:
-    radial-gradient(440px 280px at 14% 0%, rgba(0, 102, 204, 0.15), transparent 68%),
-    radial-gradient(380px 260px at 88% 6%, rgba(217, 70, 239, 0.11), transparent 70%),
-    radial-gradient(320px 220px at 52% 28%, rgba(52, 211, 153, 0.09), transparent 72%);
+    radial-gradient(440px 280px at 14% 0%,  rgba(138,  95, 200, 0.11), transparent 68%),
+    radial-gradient(380px 260px at 88%  6%,  rgba(179, 136, 235, 0.09), transparent 70%),
+    radial-gradient(320px 220px at 52% 28%,  rgba(138,  95, 200, 0.07), transparent 72%);
   filter: blur(48px);
   pointer-events: none;
   z-index: 0;
@@ -31,15 +33,9 @@
   z-index: 1;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes mbFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
 }
 
 /* ---- header ---- */
@@ -53,7 +49,7 @@
 .counter {
   font-size: 13px;
   font-weight: 600;
-  color: var(--v2-text-subtle);
+  color: var(--text-secondary);
 }
 .sub {
   margin-top: 6px;
@@ -67,7 +63,7 @@
   margin-top: 24px;
 }
 
-/* Individual box button — full frosted-glass treatment */
+/* ---- Individual box button — Apple white card ---- */
 .box {
   position: relative;
   display: flex;
@@ -78,15 +74,10 @@
   min-height: 96px;
   padding: 14px 10px;
   border-radius: 18px;
-  /* frosted glass: white translucent base */
-  background: rgba(255, 255, 255, 0.70);
-  border: 1px solid rgba(255, 255, 255, 0.60);
-  /* inner refraction edge — simulates physical glass bevel */
-  box-shadow:
-    var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.90);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  /* White solid card — same as LearningHub .node */
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
   cursor: pointer;
   overflow: hidden;
   transition:
@@ -98,7 +89,7 @@
   will-change: transform;
 }
 
-/* Sealed corner micro-glow (blue tint, top-right) */
+/* Sealed corner glow — purple tint, top-right (mirrors LearningHub .cardGlow) */
 .box::after {
   content: "";
   position: absolute;
@@ -107,98 +98,115 @@
   width: 88px;
   height: 88px;
   border-radius: 999px;
-  background: rgba(96, 165, 250, 0.22);
+  background: rgba(179, 136, 235, 0.22);
   filter: blur(20px);
   pointer-events: none;
-  opacity: 0.7;
+  opacity: 0.6;
   transition: opacity 220ms var(--landing-spring), background 220ms var(--landing-spring);
 }
 
+/* Purple top-accent bar on each box (subtle, 3px, game-purple gradient) */
+.box::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--grad-game, linear-gradient(135deg, #b388eb, #8a5fc8));
+  border-radius: 18px 18px 0 0;
+  pointer-events: none;
+  opacity: 0.55;
+  transition: opacity 220ms var(--landing-spring);
+}
+
 .box:not(:disabled):hover {
-  transform: translateY(-5px) scale(1.045);
-  border-color: rgba(255, 255, 255, 0.80);
-  box-shadow:
-    var(--landing-shadow-card-hover),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.10);
+  border-color: rgba(138, 95, 200, 0.18);
+}
+.box:not(:disabled):hover::before {
+  opacity: 0.9;
+}
+.box:not(:disabled):hover::after {
+  opacity: 0.9;
 }
 
 /* ---- opened (awaiting answer) ---- */
 .box.boxOpen {
-  border-color: rgba(96, 165, 250, 0.55);
-  background: rgba(255, 255, 255, 0.80);
+  border-color: rgba(138, 95, 200, 0.30);
+  background: #ffffff;
   box-shadow:
-    var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    0 0 0 2px rgba(37, 99, 235, 0.08);
+    0 4px 24px rgba(0, 0, 0, 0.05),
+    0 0 0 2px rgba(138, 95, 200, 0.10);
 }
+.box.boxOpen::before { opacity: 0.75; }
 .box.boxOpen::after {
-  background: rgba(37, 99, 235, 0.20);
-  opacity: 0.9;
+  background: rgba(138, 95, 200, 0.20);
+  opacity: 0.85;
 }
 
 /* ---- active (selected + open) ---- */
 .box.boxActive {
-  border-color: var(--landing-blue-600);
-  background: rgba(255, 255, 255, 0.88);
+  border-color: var(--c-purple, #8a5fc8);
+  background: #ffffff;
   box-shadow:
-    var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    0 0 0 3px rgba(37, 99, 235, 0.18);
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    0 0 0 3px rgba(138, 95, 200, 0.18);
   transform: translateY(-2px);
 }
+.box.boxActive::before { opacity: 1; }
 .box.boxActive::after {
-  background: rgba(37, 99, 235, 0.28);
+  background: rgba(138, 95, 200, 0.28);
   opacity: 1;
 }
 
 /* ---- solved (correct) — emerald accent ---- */
 .box.boxSolved {
-  border-color: rgba(4, 120, 87, 0.42);
+  border-color: rgba(4, 120, 87, 0.25);
   background: linear-gradient(
     160deg,
-    rgba(236, 253, 245, 0.88) 0%,
-    rgba(255, 255, 255, 0.78) 60%
+    rgba(236, 253, 245, 0.92) 0%,
+    #ffffff 60%
   );
-  box-shadow:
-    var(--landing-shadow-soft),
-    inset 0 1px 0 rgba(255, 255, 255, 0.90);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   opacity: 0.88;
   cursor: default;
 }
+.box.boxSolved::before {
+  background: linear-gradient(135deg, #6ee7b7, #047857);
+  opacity: 0.55;
+}
 .box.boxSolved::after {
-  background: rgba(52, 211, 153, 0.22);
-  opacity: 0.8;
+  background: rgba(52, 211, 153, 0.20);
+  opacity: 0.7;
 }
 .box.boxSolved:hover {
   transform: none;
-  box-shadow:
-    var(--landing-shadow-soft),
-    inset 0 1px 0 rgba(255, 255, 255, 0.90);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
-/* ---- missed (incorrect) — fuchsia accent ---- */
+/* ---- missed (incorrect) — muted fuchsia accent ---- */
 .box.boxMissed {
-  border-color: rgba(217, 70, 239, 0.35);
+  border-color: rgba(217, 70, 239, 0.20);
   background: linear-gradient(
     160deg,
-    rgba(253, 244, 255, 0.88) 0%,
-    rgba(255, 255, 255, 0.78) 60%
+    rgba(253, 244, 255, 0.92) 0%,
+    #ffffff 60%
   );
-  box-shadow:
-    var(--landing-shadow-soft),
-    inset 0 1px 0 rgba(255, 255, 255, 0.90);
-  opacity: 0.88;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  opacity: 0.82;
   cursor: default;
 }
+.box.boxMissed::before {
+  background: linear-gradient(135deg, #e879f9, #a21caf);
+  opacity: 0.45;
+}
 .box.boxMissed::after {
-  background: rgba(217, 70, 239, 0.20);
-  opacity: 0.8;
+  background: rgba(217, 70, 239, 0.16);
+  opacity: 0.7;
 }
 .box.boxMissed:hover {
   transform: none;
-  box-shadow:
-    var(--landing-shadow-soft),
-    inset 0 1px 0 rgba(255, 255, 255, 0.90);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
 /* ---- box icon ---- */
@@ -223,7 +231,7 @@
 .boxLabel {
   font-size: 12px;
   font-weight: 600;
-  color: var(--v2-text-subtle);
+  color: var(--text-secondary);
   text-align: center;
   position: relative;
   z-index: 1;
@@ -232,35 +240,43 @@
 /* "Pop open" spring animation plays once when sealed → open */
 .boxOpen .boxIcon,
 .boxActive .boxIcon {
-  animation: popOpen 380ms var(--landing-spring) both;
+  animation: mbPopOpen 380ms var(--landing-spring) both;
 }
-@keyframes popOpen {
+@keyframes mbPopOpen {
   0%   { transform: scale(0.6) rotate(-8deg); opacity: 0.4; }
   60%  { transform: scale(1.18) rotate(4deg);  opacity: 1;   }
   100% { transform: scale(1)    rotate(0deg);  opacity: 1;   }
 }
 
-/* ---- active question panel — full glass slab ---- */
+/* ---- active question panel — Apple white card slab ---- */
 .panel {
   position: relative;
   margin-top: 20px;
   padding: 22px 24px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow:
-    var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
   display: grid;
   gap: 14px;
   overflow: hidden;
-  animation: panelSlide 340ms var(--landing-spring) both;
+  animation: mbPanelSlide 340ms var(--landing-spring) both;
 }
 
-/* Panel inner glow — blue tinted, top-right corner */
+/* Purple accent bar at top of panel */
 .panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--grad-game, linear-gradient(135deg, #b388eb, #8a5fc8));
+  border-radius: 20px 20px 0 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Corner glow — purple tint, top-right */
+.panel::after {
   content: "";
   position: absolute;
   right: -40px;
@@ -268,8 +284,8 @@
   width: 160px;
   height: 160px;
   border-radius: 999px;
-  background: rgba(96, 165, 250, 0.18);
-  filter: blur(36px);
+  background: rgba(179, 136, 235, 0.20);
+  filter: blur(40px);
   pointer-events: none;
   z-index: 0;
 }
@@ -278,41 +294,42 @@
   z-index: 1;
 }
 
-@keyframes panelSlide {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes mbPanelSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
 }
 
-/* Solved panel — emerald tint + glow */
+/* Solved panel — emerald tint */
 .panel.panelSolved {
-  border-color: rgba(4, 120, 87, 0.35);
+  border-color: rgba(4, 120, 87, 0.20);
   background: linear-gradient(
     160deg,
-    rgba(236, 253, 245, 0.88) 0%,
-    rgba(255, 255, 255, 0.82) 55%
+    rgba(236, 253, 245, 0.80) 0%,
+    #ffffff 55%
   );
 }
 .panel.panelSolved::before {
-  background: rgba(52, 211, 153, 0.20);
+  background: linear-gradient(135deg, #6ee7b7, #047857);
+}
+.panel.panelSolved::after {
+  background: rgba(52, 211, 153, 0.18);
 }
 
-/* Missed panel — fuchsia tint + glow */
+/* Missed panel — fuchsia tint */
 .panel.panelMissed {
-  border-color: rgba(217, 70, 239, 0.30);
+  border-color: rgba(217, 70, 239, 0.18);
   background: linear-gradient(
     160deg,
-    rgba(253, 244, 255, 0.88) 0%,
-    rgba(255, 255, 255, 0.82) 55%
+    rgba(253, 244, 255, 0.80) 0%,
+    #ffffff 55%
   );
 }
 .panel.panelMissed::before {
-  background: rgba(217, 70, 239, 0.16);
+  background: linear-gradient(135deg, #e879f9, #a21caf);
+  opacity: 0.7;
+}
+.panel.panelMissed::after {
+  background: rgba(217, 70, 239, 0.14);
 }
 
 .categoryRow {
@@ -324,7 +341,7 @@
   font-size: 17px;
   font-weight: 600;
   line-height: 1.5;
-  color: var(--v2-text);
+  color: var(--ink, #1d1d1f);
   margin: 0;
 }
 
@@ -341,13 +358,10 @@
   min-width: 0;
   padding: 10px 14px;
   border-radius: 12px;
-  /* glass-tinted input surface */
-  background: rgba(255, 255, 255, 0.60);
-  border: 1px solid rgba(228, 228, 231, 0.70);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.90);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  color: var(--v2-text);
+  background: #f5f5f7;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80);
+  color: var(--ink, #1d1d1f);
   font-size: 15px;
   font-weight: 500;
   font-family: inherit;
@@ -358,14 +372,14 @@
     background 180ms var(--landing-spring);
 }
 .answerInput::placeholder {
-  color: var(--v2-text-subtle);
+  color: var(--text-secondary, #86868b);
 }
 .answerInput:focus {
-  border-color: var(--landing-blue-600);
-  background: rgba(255, 255, 255, 0.85);
+  border-color: var(--c-purple, #8a5fc8);
+  background: #ffffff;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    0 0 0 3px rgba(37, 99, 235, 0.14);
+    0 0 0 3px rgba(138, 95, 200, 0.14);
 }
 .answerInput.inputSubmitting {
   opacity: 0.55;
@@ -378,49 +392,56 @@
   align-items: flex-start;
   gap: 10px;
   flex-wrap: wrap;
-  animation: fadeIn 300ms var(--landing-spring) both;
+  animation: mbFadeIn 300ms var(--landing-spring) both;
 }
 .feedbackText {
   font-size: 14px;
-  color: var(--v2-text-muted);
+  color: var(--text-secondary, #86868b);
   line-height: 1.55;
   flex: 1 1 200px;
 }
 
-/* ---- error banner — amber glass ---- */
+/* ---- error banner — amber, consistent with existing app patterns ---- */
 .error {
   margin-top: 16px;
   padding: 12px 16px;
   border-radius: 14px;
-  background: rgba(254, 243, 199, 0.85);
-  border: 1px solid rgba(217, 119, 6, 0.18);
+  background: rgba(254, 243, 199, 0.92);
+  border: 1px solid rgba(217, 119, 6, 0.15);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   color: #92400e;
   font-size: 14px;
   font-weight: 500;
 }
 
-/* ---- complete screen — glass slab with emerald glow ---- */
+/* ---- complete screen — Apple white card, purple glow ---- */
 .done {
   position: relative;
   display: grid;
   gap: 12px;
   padding: 36px 32px;
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  box-shadow:
-    var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
   overflow: hidden;
-  animation: fadeIn 360ms var(--landing-spring) both;
+  animation: mbFadeIn 360ms var(--landing-spring) both;
 }
-/* emerald glow in the top-right corner of the complete card */
+
+/* Purple gradient top-accent bar */
 .done::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--grad-game, linear-gradient(135deg, #b388eb, #8a5fc8));
+  border-radius: 20px 20px 0 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Purple corner glow — top-right, matches LearningHub .cardGlow */
+.done::after {
   content: "";
   position: absolute;
   right: -50px;
@@ -428,13 +449,8 @@
   width: 200px;
   height: 200px;
   border-radius: 999px;
-  background: radial-gradient(
-    circle,
-    rgba(52, 211, 153, 0.22) 0%,
-    rgba(4, 120, 87, 0.14) 45%,
-    transparent 70%
-  );
-  filter: blur(40px);
+  background: rgba(179, 136, 235, 0.26);
+  filter: blur(52px);
   pointer-events: none;
   z-index: 0;
 }
@@ -475,6 +491,9 @@
 }
 
 /* ---- reduced motion ---- */
+/* The global _tokens.css rule sets animation/transition durations to 0.01ms
+   for prefers-reduced-motion, which covers all animations declared here.
+   These rules additionally suppress transform-based motion explicitly. */
 @media (prefers-reduced-motion: reduce) {
   .wrap,
   .panel,

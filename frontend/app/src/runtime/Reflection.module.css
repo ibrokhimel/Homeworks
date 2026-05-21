@@ -1,8 +1,15 @@
-/* Reflection / Debrief (F5) — the closing screen, light Apple-glass.
-   Both Passed and Needs-Retry live on the #f5f5f7 surface: white frosted-glass
-   frames with soft colorful radial glows (emerald/blue on a pass, amber on a
-   retry). Spring curve + dark-mode overrides mirror the F2–F4 vocabulary. */
+/* Reflection / Debrief (F5) — the closing screen.
+   Apple design system: white cards, ~20px radius, soft diffusion shadow
+   (matching LearningHub.module.css .node recipe), category-gradient top-accent,
+   corner glow, crisp #1d1d1f ink, gentle spring hover, Onest global.
 
+   Pass accent:  emerald/blue  (--grad-interaction tinted emerald)
+   Retry accent: amber/orange  (--grad-content)
+   Both surfaces stay on #fbfbfd light — only the top-accent bar + pill change.
+   Dark mode: frosted glass lift. Reduced-motion: final state shown instantly.
+*/
+
+/* ---- prompt stage ---- */
 .prompts {
   display: flex;
   flex-direction: column;
@@ -11,6 +18,7 @@
 }
 
 .promptCard {
+  /* FeatureCard already supplies the card chrome; this adds the draw-in. */
   animation: cardIn 420ms var(--landing-spring) both;
 }
 .promptCard:nth-child(2) {
@@ -31,7 +39,7 @@
   display: block;
   font-size: 15px;
   font-weight: 600;
-  color: var(--v2-text);
+  color: var(--ink, #1d1d1f);
   margin-bottom: 12px;
   line-height: 1.45;
 }
@@ -40,39 +48,36 @@
   width: 100%;
   padding: 14px 16px;
   border-radius: 16px;
-  background: var(--v2-card-tinted);
-  border: 1px solid var(--v2-ring);
+  background: #f5f5f7;
+  border: 1px solid rgba(0, 0, 0, 0.07);
   font-family: inherit;
   font-size: 15px;
   line-height: 1.55;
-  color: var(--v2-text);
+  color: var(--ink, #1d1d1f);
   resize: vertical;
   transition: border-color 200ms var(--landing-spring),
     box-shadow 200ms var(--landing-spring);
 }
 .promptInput::placeholder {
-  color: var(--v2-text-subtle);
+  color: var(--text-secondary, #86868b);
 }
 .promptInput:focus {
   outline: none;
-  border-color: var(--landing-blue-500);
-  box-shadow: 0 0 0 3px var(--accent-light);
+  border-color: var(--c-blue, #5e9ed6);
+  box-shadow: 0 0 0 3px rgba(94, 158, 214, 0.14);
 }
 
-/* ---- status frame: frosted-glass card, light for both outcomes ---- */
+/* ---- status frame: Hub-style card, light for both outcomes ---- */
 .statusFrame {
   position: relative;
   margin-top: 8px;
   overflow: hidden;
   text-align: center;
-  border-radius: 32px;
-  padding: 4px; /* glow gutter — inner does the real padding */
-  background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  /* Hub .node recipe: white card, 20px radius, soft diffusion shadow */
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
   animation: shellIn 520ms var(--landing-spring) both;
 }
 @keyframes shellIn {
@@ -86,39 +91,58 @@
   }
 }
 
+/* Hub-pattern: 4px gradient accent bar across the top of the card. */
+.statusFrame::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 24px 24px 0 0;
+}
+.statusPass::before {
+  /* emerald/blue: nod to --grad-interaction with an emerald warm */
+  background: linear-gradient(135deg, #34d399, #5e9ed6);
+}
+.statusRetry::before {
+  /* amber/orange: --grad-content */
+  background: var(--grad-content, linear-gradient(135deg, #ffd166, #f4a261));
+}
+
 .statusInner {
   position: relative;
   z-index: 1;
-  padding: 52px 32px;
+  padding: 52px 36px;
 }
 
-/* soft colorful radial glow behind the headline */
+/* soft colorful radial corner glow (Hub .cardGlow pattern) */
 .statusGlow {
   position: absolute;
   left: 50%;
   top: -34%;
-  width: 720px;
-  height: 460px;
+  width: 680px;
+  height: 440px;
   max-width: 150%;
   transform: translateX(-50%);
   border-radius: 999px;
-  filter: blur(60px);
+  filter: blur(64px);
   pointer-events: none;
-  opacity: 0.85;
+  opacity: 0.72;
 }
 .statusPass .statusGlow {
   background: radial-gradient(
     circle,
-    rgba(52, 211, 153, 0.5) 0%,
-    rgba(96, 165, 250, 0.32) 42%,
+    rgba(52, 211, 153, 0.44) 0%,
+    rgba(94, 158, 214, 0.28) 44%,
     transparent 72%
   );
 }
 .statusRetry .statusGlow {
   background: radial-gradient(
     circle,
-    rgba(251, 191, 36, 0.42) 0%,
-    rgba(217, 70, 239, 0.16) 46%,
+    rgba(255, 209, 102, 0.38) 0%,
+    rgba(244, 162, 97, 0.22) 46%,
     transparent 74%
   );
 }
@@ -129,12 +153,12 @@
   margin-bottom: 18px;
 }
 
-/* ---- score row ---- */
+/* ---- score tiles: Hub .node mini variant ---- */
 .scoreRow {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 16px;
+  gap: 14px;
   margin-top: 30px;
 }
 .scoreStat {
@@ -142,35 +166,48 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  min-width: 132px;
-  padding: 18px 24px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid var(--v2-ring);
-  box-shadow: var(--landing-shadow-soft);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  min-width: 128px;
+  padding: 20px 24px;
+  /* Hub .node recipe on tile scale */
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  transition: transform 280ms var(--landing-spring),
+    box-shadow 280ms var(--landing-spring);
+}
+.scoreStat:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.09);
 }
 .scoreValue {
   font-size: clamp(26px, 3vw, 32px);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--v2-text);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--ink, #1d1d1f);
   font-variant-numeric: tabular-nums;
 }
 .scoreLabel {
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--v2-text-subtle);
+  color: var(--text-secondary, #86868b);
 }
 
-/* ---- coaching cards ---- */
+/* ---- coaching cards: Hub padding cadence ---- */
 .feedbackCard,
 .nextCard {
   margin-top: 18px;
   animation: cardIn 440ms var(--landing-spring) both;
+  /* Hover: Hub entryNode lift */
+  transition: transform 280ms var(--landing-spring),
+    box-shadow 280ms var(--landing-spring);
+}
+.feedbackCard:hover,
+.nextCard:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.09);
 }
 .nextCard {
   animation-delay: 80ms;
@@ -182,63 +219,97 @@
   margin: 16px 0 0;
   font-size: 15px;
   font-weight: 600;
-  color: var(--landing-blue-600);
+  /* interaction blue — matches Hub .hub-blue */
+  color: #0071e3;
   line-height: 1.5;
 }
 
+/* next steps list — Hub .subItems pattern */
 .nextList {
   list-style: none;
   margin: 14px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 .nextItem {
   display: flex;
   gap: 12px;
   align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 14px;
   font-size: 15px;
+  font-weight: 500;
   line-height: 1.55;
-  color: var(--v2-text-muted);
+  color: var(--ink, #1d1d1f);
+  background: #f5f5f7;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: transform 200ms var(--landing-spring),
+    background 200ms var(--landing-spring);
 }
+.nextCard:hover .nextItem {
+  background: #eef0f3;
+}
+.nextCard:hover .nextItem:nth-child(1) { transform: translateX(4px); }
+.nextCard:hover .nextItem:nth-child(2) { transform: translateX(4px); transition-delay: 45ms; }
+.nextCard:hover .nextItem:nth-child(3) { transform: translateX(4px); transition-delay: 90ms; }
+
+/* accent dot — interaction-blue glow bead */
 .nextDot {
   flex-shrink: 0;
   width: 9px;
   height: 9px;
   margin-top: 7px;
   border-radius: 50%;
-  background: var(--landing-blue-500);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+  background: var(--c-blue, #5e9ed6);
+  box-shadow: 0 0 0 4px rgba(94, 158, 214, 0.16);
 }
 
+/* ---- retake note: amber-tinted panel (--grad-content accent) ---- */
 .retakeNote {
+  position: relative;
   margin: 22px 0 0;
   padding: 16px 18px;
   border-radius: 16px;
-  background: var(--v2-card-tinted);
-  border: 1px solid var(--v2-ring);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
   font-size: 14px;
   line-height: 1.55;
-  color: var(--v2-text-muted);
+  color: var(--text-secondary, #86868b);
+  overflow: hidden;
+}
+/* 3px amber left-accent strip */
+.retakeNote::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 16px 0 0 16px;
+  background: var(--grad-content, linear-gradient(180deg, #ffd166, #f4a261));
 }
 
+/* ---- error ---- */
 .error {
   margin-top: 16px;
   padding: 12px 16px;
   border-radius: 14px;
-  background: rgba(217, 70, 239, 0.1);
-  border: 1px solid rgba(217, 70, 239, 0.4);
-  color: #a21caf;
+  background: rgba(201, 58, 58, 0.07);
+  border: 1px solid rgba(201, 58, 58, 0.22);
+  color: #a82020;
   font-size: 14px;
   font-weight: 500;
 }
 
+/* ---- CTA row ---- */
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 28px;
+  margin-top: 32px;
 }
 
 @media (max-width: 520px) {
@@ -249,20 +320,46 @@
     min-width: 0;
     flex: 1;
   }
+  .actions {
+    flex-direction: column;
+  }
 }
 
-/* ---- dark mode: keep the frame glass, lift the glow slightly ---- */
+/* ---- dark mode: lift surfaces to frosted glass ---- */
 :global([data-theme="dark"]) .statusFrame {
-  background: var(--surface);
+  background: rgba(24, 24, 27, 0.86);
   border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: var(--landing-shadow-card),
+  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+:global([data-theme="dark"]) .statusFrame::before {
+  opacity: 0.9;
 }
 :global([data-theme="dark"]) .scoreStat {
   background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global([data-theme="dark"]) .scoreValue {
+  color: #f4f4f5;
+}
+:global([data-theme="dark"]) .nextItem {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.06);
+  color: #f4f4f5;
+}
+:global([data-theme="dark"]) .retakeNote {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.07);
 }
 :global([data-theme="dark"]) .error {
-  color: #f5d0fe;
+  background: rgba(201, 58, 58, 0.14);
+  border-color: rgba(201, 58, 58, 0.35);
+  color: #fca5a5;
+}
+:global([data-theme="dark"]) .promptInput {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #f4f4f5;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -271,5 +368,11 @@
   .feedbackCard,
   .nextCard {
     animation: none;
+  }
+  .feedbackCard:hover,
+  .nextCard:hover,
+  .nextCard:hover .nextItem,
+  .scoreStat:hover {
+    transform: none;
   }
 }

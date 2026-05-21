@@ -1,30 +1,33 @@
 /* MemoryPalace.module.css
-   v2 light Apple-glass aesthetic — matches CaseBasedPreview / LearningHub recipe:
-   #f5f5f7 page surface, white frosted glass rgba(255,255,255,.7)+blur(24-30px)
-   saturate(180%), accent #0066CC (#2563eb token), blue/fuchsia/emerald radial
-   glows, #1d1d1f titles, #86868b text, spring cubic-bezier(.16,1,.3,1),
-   hover scale(1.045). CSS-only — no markup or data contract changes. */
+   Apple design system elevation — GAME-PURPLE accent.
+   Tokens: --grad-game / --c-purple, --ink, --text-secondary, --v2-text,
+   --v2-text-muted, --v2-text-subtle, --v2-ring, --landing-spring,
+   --landing-shadow-card, --landing-shadow-soft, --v2-radius-card,
+   --v2-radius-pill.
+   White cards ~18-20px radius · soft diffusion shadow · generous padding ·
+   purple accent top-bar + corner glow · scale(1.03) hover · spring easing.
+   CSS-only: zero markup or data-contract changes. */
 
 /* ---- Ambient page glow (fixed, pointer-events none) ---- */
 .wrap {
   position: relative;
-  animation: fadeIn 320ms var(--landing-spring) both;
+  animation: mpFadeIn 360ms var(--landing-spring) both;
 }
 .wrap::before {
   content: "";
   position: fixed;
   inset: -10% 0 auto 0;
   height: 56vh;
-  max-height: 580px;
+  max-height: 600px;
   background:
-    radial-gradient(60% 80% at 20% 10%, rgba(37, 99, 235, 0.18) 0%, transparent 60%),
-    radial-gradient(55% 75% at 80% 5%,  rgba(217, 70, 239, 0.14) 0%, transparent 62%),
-    radial-gradient(50% 70% at 58% 28%, rgba(52, 211, 153, 0.10) 0%, transparent 64%);
-  filter: blur(60px);
+    radial-gradient(60% 80% at 18% 8%,  rgba(138, 95, 200, 0.18) 0%, transparent 62%),
+    radial-gradient(55% 75% at 82% 4%,  rgba(179, 136, 235, 0.12) 0%, transparent 64%),
+    radial-gradient(50% 70% at 55% 30%, rgba(138, 95, 200, 0.08) 0%, transparent 66%);
+  filter: blur(64px);
   pointer-events: none;
   z-index: 0;
 }
-@keyframes fadeIn {
+@keyframes mpFadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
@@ -47,12 +50,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 180px;
-  padding: 4px 12px;
+  padding: 4px 14px;
   border-radius: var(--v2-radius-pill);
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: var(--landing-shadow-soft);
 }
 
@@ -60,7 +61,7 @@
 .phase {
   position: relative;
   z-index: 1;
-  animation: fadeIn 280ms var(--landing-spring) both;
+  animation: mpFadeIn 300ms var(--landing-spring) both;
 }
 .phaseHeader {
   margin-bottom: 16px;
@@ -69,12 +70,12 @@
   margin-top: 6px;
 }
 
-/* ---- Progress dots — pill style from CaseBasedPreview ---- */
+/* ---- Progress dots — pill style ---- */
 .progressRow {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 .dot {
   width: 24px;
@@ -82,17 +83,17 @@
   border-radius: 999px;
   background: var(--v2-ring);
   transition:
-    background 200ms var(--landing-spring),
-    width     200ms var(--landing-spring),
-    transform 200ms var(--landing-spring);
+    background 220ms var(--landing-spring),
+    width     220ms var(--landing-spring);
 }
 .dotDone {
-  background: var(--landing-emerald-700);
+  background: var(--c-purple);
+  opacity: 0.45;
 }
 .dotActive {
   width: 36px;
-  background: var(--landing-blue-600);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  background: var(--grad-game);
+  box-shadow: 0 2px 10px rgba(138, 95, 200, 0.40);
 }
 .progressLabel {
   font-size: 12px;
@@ -101,45 +102,57 @@
   margin-left: 4px;
 }
 
-/* ---- Station card — frosted glass slab with blue left accent ---- */
+/* ---- Shared Apple-card chrome (used by station + concept + missed) ---- */
+/* All cards: white, 20px radius, soft diffusion shadow, NO heavy border. */
+
+/* ---- Station card — white Apple card with purple top-accent + corner glow ---- */
 .stationCard {
   position: relative;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.70);
-  border: 1px solid rgba(255, 255, 255, 0.60);
-  border-left: 3px solid var(--landing-blue-400);
-  border-radius: 18px;
-  padding: 18px 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 20px;
+  padding: 22px 24px 22px 24px;
   margin-bottom: 16px;
   box-shadow:
     var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  animation: stationIn 380ms var(--landing-spring) both;
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  animation: mpCardIn 400ms var(--landing-spring) both;
 }
-/* top-right blue glow inside the card — same as .cardGlow in LearningHub */
+/* Purple accent top-bar */
+.stationCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-radius: 20px 20px 0 0;
+  background: var(--grad-game);
+  pointer-events: none;
+  z-index: 2;
+}
+/* Purple corner glow */
 .stationCard::after {
   content: "";
   position: absolute;
-  right: -40px;
-  top: -40px;
-  width: 140px;
-  height: 140px;
+  right: -52px;
+  top: -52px;
+  width: 168px;
+  height: 168px;
   border-radius: 999px;
-  background: rgba(96, 165, 250, 0.22);
-  filter: blur(36px);
+  background: rgba(138, 95, 200, 0.22);
+  filter: blur(48px);
   pointer-events: none;
+  z-index: 0;
 }
-@keyframes stationIn {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes mpCardIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.975); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
 }
 
 .locationRow {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 14px;
   position: relative;
   z-index: 1;
 }
@@ -154,54 +167,63 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--landing-blue-600);
-  margin-bottom: 2px;
+  color: var(--c-purple);
+  margin-bottom: 3px;
 }
 .locationName {
   display: block;
   font-size: 17px;
   font-weight: 700;
-  color: var(--v2-text);
-  line-height: 1.3;
+  color: var(--ink);
+  line-height: 1.28;
 }
 .sensoryCue {
   position: relative;
   z-index: 1;
   margin-top: 10px;
   font-size: 13px;
-  color: var(--v2-text-muted);
+  color: var(--text-secondary);
   font-style: italic;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
-/* ---- Concept card (study phase) — frosted glass with cyan left accent ---- */
+/* ---- Concept card (study phase) — white Apple card with purple-tinted glow ---- */
 .conceptCard {
   position: relative;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.58);
-  border-left: 3px solid var(--landing-cyan-300);
-  border-radius: 18px;
-  padding: 18px 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 20px;
+  padding: 22px 24px;
   margin-bottom: 20px;
   box-shadow:
     var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
+    inset 0 1px 0 rgba(255, 255, 255, 1);
 }
-/* soft fuchsia glow — echoes LearningHub .cardGlowFuchsia */
+/* Accent top-bar */
+.conceptCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-radius: 20px 20px 0 0;
+  background: var(--grad-game);
+  pointer-events: none;
+  z-index: 2;
+}
+/* Corner glow — softer violet tint */
 .conceptCard::after {
   content: "";
   position: absolute;
-  right: -44px;
-  top: -44px;
-  width: 148px;
-  height: 148px;
+  right: -52px;
+  top: -52px;
+  width: 160px;
+  height: 160px;
   border-radius: 999px;
-  background: rgba(217, 70, 239, 0.16);
-  filter: blur(40px);
+  background: rgba(179, 136, 235, 0.20);
+  filter: blur(44px);
   pointer-events: none;
+  z-index: 0;
 }
 .conceptLabel {
   position: relative;
@@ -211,7 +233,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--v2-text-subtle);
+  color: var(--text-secondary);
   margin-bottom: 4px;
 }
 .conceptTerm {
@@ -220,8 +242,8 @@
   display: block;
   font-size: 20px;
   font-weight: 700;
-  color: var(--v2-text);
-  line-height: 1.25;
+  color: var(--ink);
+  line-height: 1.22;
   margin-bottom: 6px;
 }
 .conceptDesc {
@@ -229,7 +251,7 @@
   z-index: 1;
   font-size: 14px;
   color: var(--v2-text-muted);
-  line-height: 1.55;
+  line-height: 1.58;
   margin: 0;
 }
 .imageCue {
@@ -237,7 +259,7 @@
   z-index: 1;
   margin-top: 10px;
   font-size: 13px;
-  color: var(--landing-indigo-500);
+  color: var(--c-purple);
   font-style: italic;
   line-height: 1.5;
 }
@@ -247,62 +269,56 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--v2-text-muted);
-  margin: 0 0 12px;
+  margin: 0 0 14px;
 }
 
-/* ---- Option grid — glass chip buttons (place + recall pickers) ---- */
+/* ---- Option grid — crisp white chip buttons (place + recall pickers) ---- */
 .optionGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 .optionBtn {
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(255, 255, 255, 0.58);
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.07);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
-  color: var(--v2-text);
+  color: var(--ink);
   text-align: left;
   cursor: pointer;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  box-shadow:
-    var(--landing-shadow-soft),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  box-shadow: var(--landing-shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 1);
   transition:
-    transform     220ms var(--landing-spring),
-    border-color  220ms var(--landing-spring),
-    background    220ms var(--landing-spring),
-    box-shadow    220ms var(--landing-spring);
+    transform     240ms var(--landing-spring),
+    border-color  240ms var(--landing-spring),
+    background    240ms var(--landing-spring),
+    box-shadow    240ms var(--landing-spring);
 }
 .optionBtn:not(:disabled):hover {
-  transform: translateY(-3px) scale(1.025);
-  border-color: rgba(37, 99, 235, 0.35);
-  background: rgba(255, 255, 255, 0.88);
+  transform: translateY(-3px) scale(1.03);
+  border-color: rgba(138, 95, 200, 0.30);
+  background: #faf8ff;
   box-shadow:
     var(--landing-shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 .optionBtn:not(:disabled):active {
   transform: scale(0.98);
 }
 .optionSelected {
-  border-color: var(--landing-blue-600) !important;
-  background: rgba(37, 99, 235, 0.07) !important;
+  border-color: var(--c-purple) !important;
+  background: rgba(138, 95, 200, 0.07) !important;
   box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
-  transform: translateY(-3px) scale(1.025);
+    0 0 0 3px rgba(138, 95, 200, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  transform: translateY(-3px) scale(1.03);
 }
 .optionUsed {
-  opacity: 0.30;
+  opacity: 0.28;
   cursor: default;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 /* ---- Actions row ---- */
@@ -315,16 +331,15 @@
 
 /* ---- Error strip ---- */
 .error {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   padding: 12px 16px;
   border-radius: 14px;
-  background: rgba(254, 243, 199, 0.85);
+  background: rgba(254, 243, 199, 0.90);
   color: #92400e;
   font-size: 14px;
   font-weight: 500;
   border: 1px solid rgba(217, 119, 6, 0.18);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--landing-shadow-soft);
 }
 
 /* ---- Result phase ---- */
@@ -332,12 +347,12 @@
   position: relative;
   z-index: 1;
   display: grid;
-  gap: 14px;
+  gap: 16px;
   padding: 4px 0;
-  animation: fadeIn 360ms var(--landing-spring) both;
+  animation: mpFadeIn 380ms var(--landing-spring) both;
 }
 
-/* Stats row — four glass tiles */
+/* Stats row — four white Apple tiles */
 .statsRow {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -345,70 +360,112 @@
   margin-top: 8px;
 }
 .stat {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: rgba(255, 255, 255, 0.70);
-  border: 1px solid rgba(255, 255, 255, 0.58);
-  border-radius: 18px;
-  padding: 16px 10px;
-  gap: 4px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 20px;
+  padding: 20px 10px;
+  gap: 5px;
   box-shadow:
-    var(--landing-shadow-soft),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  animation: statPop 420ms var(--landing-spring) both;
+    var(--landing-shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  animation: mpStatPop 440ms var(--landing-spring) both;
+  transition: transform 280ms var(--landing-spring), box-shadow 280ms var(--landing-spring);
+}
+/* Purple accent top-bar on each stat tile */
+.stat::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: 20px 20px 0 0;
+  background: var(--grad-game);
+  pointer-events: none;
+}
+/* Subtle corner glow */
+.stat::after {
+  content: "";
+  position: absolute;
+  right: -24px;
+  top: -24px;
+  width: 80px;
+  height: 80px;
+  border-radius: 999px;
+  background: rgba(138, 95, 200, 0.14);
+  filter: blur(24px);
+  pointer-events: none;
 }
 .stat:nth-child(1) { animation-delay:  60ms; }
 .stat:nth-child(2) { animation-delay: 120ms; }
 .stat:nth-child(3) { animation-delay: 180ms; }
 .stat:nth-child(4) { animation-delay: 240ms; }
-@keyframes statPop {
-  from { opacity: 0; transform: translateY(12px) scale(0.92); }
+.stat:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: var(--landing-shadow-card-hover), inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+@keyframes mpStatPop {
+  from { opacity: 0; transform: translateY(14px) scale(0.91); }
   to   { opacity: 1; transform: translateY(0)   scale(1); }
 }
 .statValue {
+  position: relative;
+  z-index: 1;
   font-size: 22px;
   font-weight: 800;
-  color: var(--v2-text);
+  color: var(--ink);
   line-height: 1;
 }
 .statLabel {
+  position: relative;
+  z-index: 1;
   font-size: 11px;
   font-weight: 600;
-  color: var(--v2-text-subtle);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   text-align: center;
 }
 
-/* ---- Missed locations block — frosted glass with emerald tint ---- */
+/* ---- Missed locations block — white Apple card with purple accent ---- */
 .missedBlock {
   position: relative;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(4, 120, 87, 0.22);
-  border-radius: 18px;
-  padding: 16px 18px;
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  background: #ffffff;
+  border: 1px solid rgba(138, 95, 200, 0.14);
+  border-radius: 20px;
+  padding: 20px 22px;
   box-shadow:
-    var(--landing-shadow-soft),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    var(--landing-shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
 }
-/* emerald glow inside the block */
+/* Purple accent top-bar */
 .missedBlock::before {
   content: "";
   position: absolute;
-  right: -36px;
-  top: -36px;
-  width: 120px;
-  height: 120px;
-  border-radius: 999px;
-  background: rgba(52, 211, 153, 0.20);
-  filter: blur(32px);
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-radius: 20px 20px 0 0;
+  background: var(--grad-game);
   pointer-events: none;
+  z-index: 2;
+}
+/* Corner glow */
+.missedBlock::after {
+  content: "";
+  position: absolute;
+  right: -40px;
+  top: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 999px;
+  background: rgba(138, 95, 200, 0.18);
+  filter: blur(36px);
+  pointer-events: none;
+  z-index: 0;
 }
 .missedLabel {
   position: relative;
@@ -417,8 +474,8 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--landing-emerald-700);
-  margin: 0 0 10px;
+  color: var(--c-purple);
+  margin: 0 0 12px;
 }
 .missedList {
   position: relative;
@@ -434,14 +491,19 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #faf8ff;
+  border: 1px solid rgba(138, 95, 200, 0.10);
+  transition: transform 220ms var(--landing-spring), background 220ms var(--landing-spring);
+}
+.missedItem:hover {
+  transform: translateX(4px);
+  background: rgba(138, 95, 200, 0.06);
 }
 .missedStation {
   font-weight: 700;
-  color: var(--v2-text);
+  color: var(--ink);
 }
 .missedConcept {
   color: var(--v2-text-muted);
@@ -457,15 +519,18 @@
   }
   .optionBtn {
     font-size: 14px;
-    padding: 12px 14px;
+    padding: 14px 16px;
   }
   .stationCard,
   .conceptCard {
-    padding: 14px 16px;
+    padding: 18px 18px;
+  }
+  .stat {
+    padding: 16px 8px;
   }
 }
 
-/* ---- Reduced motion overrides ---- */
+/* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
   .wrap,
   .phase,
@@ -473,14 +538,19 @@
   .stationCard,
   .stat {
     animation: none;
+    opacity: 1;
+    transform: none;
   }
   .optionBtn:not(:disabled):hover,
   .optionSelected {
     transform: none;
   }
+  .stat:hover,
+  .missedItem:hover {
+    transform: none;
+  }
   .dot,
   .dotActive {
-    transform: none;
     transition: none;
     width: 24px;
   }
