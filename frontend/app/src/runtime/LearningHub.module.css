@@ -217,7 +217,7 @@
   width: 100%;
   height: 100%;
   pointer-events: none;    /* HARD RULE: never blocks interaction */
-  mix-blend-mode: screen;  /* light-adds the trail over the pale wash */
+  mix-blend-mode: normal;  /* colored light over the pale bg (screen → invisible on white) */
 }
 
 /* ---- Homework-theme header ---------------------------------------- */

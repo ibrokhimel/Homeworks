@@ -408,10 +408,13 @@ function HubBackdrop() {
     };
 
     const draw = () => {
-      // Trail-decay: a translucent wash over the whole canvas dims prior frames
-      // so the orbs leave a fading streak instead of accumulating forever.
-      ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
+      // Trail-decay: ERASE a slice of the canvas's existing alpha each frame
+      // (destination-out), so the colored orbs fade to TRANSPARENT — not toward
+      // white. A white wash + screen-blend washes out over the pale hub bg
+      // (screen onto white = white = invisible). Alpha-erase keeps the streak
+      // vivid over the light background.
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
       ctx.fillRect(0, 0, cssW, cssH);
 
       // Glow orbs add light (lighter blend) for a luminous comet body.
@@ -421,8 +424,8 @@ function HubBackdrop() {
       for (let i = 0; i < points.length; i++) {
         const p = points[i];
         const headness = (i + 1) / points.length; // 0(tail)..1(head)
-        const radius = 10 + headness * 26;
-        const alpha = 0.05 + headness * 0.22;
+        const radius = 12 + headness * 30;
+        const alpha = 0.10 + headness * 0.34;
         const [r, g, b] = sampleColor(p.hue);
         const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
         grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
@@ -439,7 +442,7 @@ function HubBackdrop() {
         bu.r += 4.5;
         bu.life -= 0.03;
         const [r, g, b] = sampleColor(bu.hue);
-        const ringAlpha = Math.max(0, bu.life) * 0.5;
+        const ringAlpha = Math.max(0, bu.life) * 0.62;
         const grad = ctx.createRadialGradient(
           bu.x,
           bu.y,
