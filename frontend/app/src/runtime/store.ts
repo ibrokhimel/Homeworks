@@ -22,7 +22,7 @@ import {
 } from "../shared/api";
 import { resolveGameOrder } from "./gameOrder";
 
-export type Screen = "hub" | "cbp" | "fc" | "gate" | "practice" | "reflection";
+export type Screen = "hub" | "cbp" | "fc" | "practice" | "reflection";
 
 // The three tutor phases the backend accepts (server ALLOWED_PHASES). Finer
 // screen identity rides in `subphase`. screenToTutorPhase() maps the current
@@ -43,7 +43,6 @@ export function screenToTutorPhase(
   // unchanged, which would let a student ask the tutor for a gated answer).
   if (screen === "cbp") return { phase: "practice", subphase: "case_based" };
   if (screen === "fc") return { phase: "practice" };
-  if (screen === "gate") return { phase: "preview" };
   if (screen === "practice")
     return inBoss
       ? { phase: "boss", subphase: "final-boss" }
@@ -207,9 +206,6 @@ interface RuntimeState {
   advanceMemoryItem: () => void;
   finishMemoryCheck: () => Promise<void>;
   retryMemoryCheck: () => void;
-
-  // ---- Unlock Gate ----
-  enterUnlockGate: () => void;
 
   // ---- Practice Arc (F4) ----
   enterPracticeArc: () => Promise<void>;
@@ -544,9 +540,6 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
         },
       };
     }),
-
-  // ---- Unlock Gate ----
-  enterUnlockGate: () => set({ screen: "gate" }),
 
   // ---- Practice Arc (F4) ----
 

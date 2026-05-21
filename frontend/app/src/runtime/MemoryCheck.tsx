@@ -202,7 +202,6 @@ function ResultStage() {
   const gate = useRuntimeStore((st) => st.gateState);
   const fcScore = useRuntimeStore((st) => st.fc.scorePct);
   const goto = useRuntimeStore((st) => st.goto);
-  const enterUnlockGate = useRuntimeStore((st) => st.enterUnlockGate);
   const retryMemoryCheck = useRuntimeStore((st) => st.retryMemoryCheck);
 
   const mc = gate?.mc;
@@ -247,8 +246,11 @@ function ResultStage() {
       <div className={s.actions}>
         {passed ? (
           unlocked ? (
-            <Button variant="blue" onClick={enterUnlockGate} data-testid="mc-unlock">
-              Break the gate →
+            // Division 3 is unlocked — return to the hub, where the
+            // chained→shake→break→fireworks unlock choreography auto-plays on
+            // the Homework Practices node (play-once per device).
+            <Button variant="blue" onClick={() => goto("hub")} data-testid="mc-continue-hub">
+              Continue →
             </Button>
           ) : (
             <Button variant="blue" onClick={() => goto("hub")} data-testid="mc-back-hub">

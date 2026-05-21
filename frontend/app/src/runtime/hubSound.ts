@@ -199,3 +199,138 @@ export function playUnlockFanfare(): void {
     /* no-op on any failure */
   }
 }
+
+/**
+ * Metallic chain-rattle: 8 short, bright, slightly-detuned clicks that
+ * simulate interlocking links shifting against each other. Square/sawtooth
+ * oscillators in the 1.8-3.5 kHz range, very short tails, low gain, with
+ * deterministic timing jitter so successive clicks don't pulse metronomically.
+ * Total duration ~450-500ms.
+ */
+export function playChainRattle(): void {
+  try {
+    const ac = ensureContext();
+    if (!ac) return;
+
+    const t0 = ac.currentTime;
+
+    const clickCount = 8;
+    const baseSpacing = 0.055; // ~55ms average spacing
+    const baseFreqs: readonly number[] = [
+      2200, 3100, 1900, 2800, 2400, 3300, 2050, 2700,
+    ];
+    const types: readonly OscillatorType[] = [
+      'square', 'sawtooth', 'square', 'sawtooth',
+      'square', 'sawtooth', 'square', 'sawtooth',
+    ];
+
+    let cursor = 0;
+    for (let i = 0; i < clickCount; i++) {
+      // Deterministic jitter ±14ms so clicks feel organic without Math.random.
+      const jitterSign = i % 2 === 0 ? 1 : -1;
+      const jitter = jitterSign * (((i * 17 + 3) % 15) * 0.001);
+      const start = t0 + cursor + jitter;
+      cursor += baseSpacing;
+
+      // Slight detuning per link (±40Hz around the base).
+      const detune = ((i * 13 + 7) % 80) - 40;
+      const freq = baseFreqs[i] + detune;
+
+      // Very short tail (30-54ms), low peak so it clicks not drones.
+      const dur = 0.030 + ((i * 7 + 2) % 25) * 0.001;
+      const peak = 0.08 + ((i * 11 + 5) % 3) * 0.01; // 0.08-0.10
+
+      tone(freq, start, dur, peak, types[i]);
+    }
+  } catch {
+    /* no-op on any failure */
+  }
+}
+
+/**
+ * Metallic chain-SNAP: the sound of chains breaking. A sharp bright transient
+ * at ~3.5kHz (the metal crack) immediately followed by a low thud/fall at
+ * ~130Hz (mass dropping). Two notes total, ~250ms combined.
+ */
+export function playChainSnap(): void {
+  try {
+    const ac = ensureContext();
+    if (!ac) return;
+
+    const t0 = ac.currentTime;
+
+    // 1) Bright crack: short sawtooth burst at ~3.5kHz, very fast decay.
+    tone(3500, t0, 0.045, 0.10, 'sawtooth');
+
+    // 2) Low thud: triangle at ~130Hz, slightly delayed, longer tail.
+    //    Triangle keeps it thumpy rather than buzzy.
+    tone(130, t0 + 0.018, 0.22, 0.09, 'triangle');
+  } catch {
+    /* no-op on any failure */
+  }
+}
+
+/**
+ * Celebratory firework underlay meant to play simultaneously with
+ * playUnlockFanfare(). A quick rising whoosh (swept oscillator) followed by
+ * 6 scattered high crackle-pops at staggered times. Peaks are kept modest
+ * (0.07-0.085) so the layer sits beneath the fanfare arpeggio. ~800ms total.
+ */
+export function playFireworkCrackle(): void {
+  try {
+    const ac = ensureContext();
+    if (!ac) return;
+
+    const t0 = ac.currentTime;
+
+    // 1) Rising whoosh: sawtooth swept from ~300Hz to ~2400Hz over 200ms.
+    //    We manage the oscillator directly here (tone() only sets fixed freq),
+    //    but follow the same envelope + cleanup pattern.
+    try {
+      if (ctx && master) {
+        const whoosh = ctx.createOscillator();
+        const whooshEnv = ctx.createGain();
+        whoosh.type = 'sawtooth';
+        whoosh.frequency.setValueAtTime(300, t0);
+        whoosh.frequency.linearRampToValueAtTime(2400, t0 + 0.20);
+        whooshEnv.gain.setValueAtTime(0.0001, t0);
+        whooshEnv.gain.exponentialRampToValueAtTime(0.07, t0 + 0.012);
+        whooshEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.20);
+        whoosh.connect(whooshEnv);
+        whooshEnv.connect(master);
+        whoosh.start(t0);
+        whoosh.stop(t0 + 0.22);
+        whoosh.onended = () => {
+          try {
+            whoosh.disconnect();
+            whooshEnv.disconnect();
+          } catch {
+            /* already torn down */
+          }
+        };
+      }
+    } catch {
+      /* whoosh failure must not abort the crackle pops */
+    }
+
+    // 2) Crackle pops: 6 high sine/triangle blips staggered across 220-780ms.
+    //    Peaks are modest (0.07-0.085) so the layer stays under the fanfare.
+    const crackleFreqs: readonly number[] = [
+      3200, 2800, 3600, 2600, 3000, 3400,
+    ];
+    const crackleTimes: readonly number[] = [
+      0.22, 0.34, 0.44, 0.56, 0.66, 0.76,
+    ];
+    const crackleTypes: readonly OscillatorType[] = [
+      'sine', 'triangle', 'sine', 'triangle', 'sine', 'triangle',
+    ];
+    crackleFreqs.forEach((freq, i) => {
+      const start = t0 + crackleTimes[i];
+      const dur = 0.040 + i * 0.005; // 40-65ms
+      const peak = 0.07 + (i % 2) * 0.015; // 0.07 / 0.085 alternating
+      tone(freq, start, dur, peak, crackleTypes[i]);
+    });
+  } catch {
+    /* no-op on any failure */
+  }
+}

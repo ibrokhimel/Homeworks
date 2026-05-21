@@ -1,31 +1,54 @@
 import { useState, useRef, useEffect } from "react";
 import { useRuntimeStore } from "./store";
 import type { CbpGate, McGate } from "../shared/types";
-import { primeAudio, playDotPop, playUnlockFanfare } from "./hubSound";
+import {
+  primeAudio,
+  playDotPop,
+  playUnlockFanfare,
+  playChainRattle,
+  playChainSnap,
+  playFireworkCrackle,
+} from "./hubSound";
+import HubChains, { type HubChainsPhase } from "./HubChains";
 import s from "./LearningHub.module.css";
 
 // ---- Reveal choreography timeline (ms) -------------------------------------
 // The hidden→reveal sequence that plays the FIRST time the client sees the
 // server flip practice_arc_unlocked → true (play-once, non-reduced-motion).
-// One attribute on the shell drives the whole thing: data-unlock="playing".
+// Two layers drive it in lockstep: the shell's data-unlock="playing" attribute
+// (path dots, glow ring, fireworks, CTA) AND a `chainPhase` state threaded into
+// the Practices node + <HubChains> overlay (the chained→shake→break beats).
 //
-//   Beat 1 · Dots draw in   0 → ~900ms   five "trial" dots pop in one-by-one
-//                                          toward the about-to-appear node;
-//                                          playDotPop(i) fires as each lands.
-//   Beat 2 · Node pops in   900 → 1350    spring scale 0→1 (no overshoot);
-//                                          playUnlockFanfare() at the pop.
-//   Beat 3 · Glow ring      1000 → 2400   a bright ring expands + pulses.
-//   Beat 4 · Fireworks      1100 → 2200   radial CSS particles flung out, fade.
-//   Settle                  → 2600        clear playUnlock, mark play-once flag.
+//   Beat 1 · Dots draw in    0 → ~900ms   five "trial" dots pop in one-by-one
+//                                           toward the about-to-appear node;
+//                                           playDotPop(i) fires as each lands.
+//   Beat 2 · Node binds      ~900ms       node FADES IN grayed + chained
+//                                           (chainPhase "bound", box grayscale).
+//   Beat 3 · Chains rattle   ~1500ms      chains jitter + the node shakes;
+//                                           playChainRattle() fires (chainPhase
+//                                           "rattle").
+//   Beat 4 · Chains SNAP     ~2050ms      links break + recoil, padlock drops,
+//                                           node goes gray→full violet→green;
+//                                           playChainSnap() (chainPhase "snap").
+//   Beat 5 · Celebrate       ~2450ms      glow ring expands + fireworks burst +
+//                                           CTA scales in; playUnlockFanfare() +
+//                                           playFireworkCrackle().
+//   Settle                   → ~3700ms    chainPhase "gone", clear playUnlock,
+//                                           mark the play-once localStorage flag.
 //
-// CSS owns the visuals (delays/keyframes keyed off data-unlock="playing"); JS
-// only schedules the audio cues + the end-of-sequence cleanup, so the two stay
-// in lockstep. Numbers below MUST match LearningHub.module.css §REVEAL.
+// CSS owns the visuals (delays/keyframes keyed off data-unlock="playing" + the
+// node's data-chain attribute); JS only schedules the chainPhase transitions,
+// the audio cues, and the end-of-sequence cleanup, so the two stay in lockstep.
+// Numbers below MUST match LearningHub.module.css §REVEAL.
 const REVEAL_DOT_COUNT = 5;
 const REVEAL_DOT_START = 60; // first dot lands ~here
-const REVEAL_DOT_STEP = 150; // per-dot stagger (matches CSS --d * step)
-const REVEAL_NODE_POP = 950; // node spring-in / fanfare moment
-const REVEAL_TOTAL = 2600; // full sequence length → clears playUnlock + flag
+const REVEAL_DOT_STEP = 190; // per-dot stagger (matches CSS --d * step) — paced
+//                              a touch slower so the dots "slowly pop up"
+const REVEAL_CHAIN_BOUND = 900; // node fades in grayed + chained (chainPhase "bound")
+const REVEAL_CHAIN_RATTLE = 1500; // chains jitter + node shakes (chainPhase "rattle")
+const REVEAL_CHAIN_SNAP = 2050; // chains break, box gray→color (chainPhase "snap")
+const REVEAL_CELEBRATE = 2450; // glow ring + fireworks + fanfare + crackle
+const REVEAL_TOTAL = 3700; // full sequence length → clears playUnlock + flag
 
 type SectionStatus = "notStarted" | "inProgress" | "passed";
 
@@ -63,7 +86,7 @@ const prefersReducedMotion = () =>
 //
 //   01 · Case-Study        (orange clay 3D-press button)   <- startCbp
 //   02 · Flash cards       (blue clay 3D-press button)     <- enterFlashcards
-//   03 · Homework Practices (single node — HIDDEN entirely  <- enterUnlockGate
+//   03 · Homework Practices (single node — HIDDEN entirely  <- enterPracticeArc
 //        while gate.practice_arc_unlocked === false)          (once unlocked)
 //
 // The whole node IS the button — colored candy fill + a hard colored bottom-edge
@@ -81,10 +104,14 @@ const prefersReducedMotion = () =>
 //     Flash cards. No chains, no padlock, no grayed placeholder.
 //   • UNLOCKING: the first time the hub sees the server flip the boolean → true
 //     (per-homework localStorage play-once flag unset, NOT reduced-motion), a
-//     single ~2.6s reveal plays — driven by ONE attribute on the shell
-//     (data-unlock="playing"): path dots draw in one-by-one → the node springs
-//     in → a bright glow ring pulses → a firework burst fires. JS schedules the
-//     audio cues (playDotPop per dot, playUnlockFanfare at the pop) + the
+//     single ~3.7s reveal plays — driven by the shell's data-unlock="playing"
+//     attribute AND a `chainPhase` threaded into the node + <HubChains> overlay:
+//     path dots draw in one-by-one → the node FADES IN grayed + wrapped in
+//     chains (bound) → the chains rattle + the node shakes (rattle) → the chains
+//     SNAP and the node goes gray→full color (snap) → a glow ring pulses + a
+//     firework burst fires + the CTA scales in (celebrate). JS schedules the
+//     chainPhase transitions + the audio cues (playDotPop per dot,
+//     playChainRattle/Snap, playUnlockFanfare + playFireworkCrackle) + the
 //     end-of-sequence cleanup; CSS owns the visuals.
 //   • OPEN on return (flag set, OR unlocked under reduced-motion): node + its
 //     path segment render STATIC + visible — no draw-in, no fireworks, no sound.
@@ -96,7 +123,7 @@ export function LearningHub() {
   const hwId = useRuntimeStore((st) => st.hwId);
   const startCbp = useRuntimeStore((st) => st.startCbp);
   const enterFlashcards = useRuntimeStore((st) => st.enterFlashcards);
-  const enterUnlockGate = useRuntimeStore((st) => st.enterUnlockGate);
+  const enterPracticeArc = useRuntimeStore((st) => st.enterPracticeArc);
 
   const cbp = cbpStatus(gate?.cbp);
   const mc = mcStatus(gate?.mc);
@@ -135,6 +162,10 @@ export function LearningHub() {
   // gates whether the celebration plays. Key matches the brief exactly.
   const seenKey = `nets_hub_unlock_played_${hwId || "_"}`;
   const [playUnlock, setPlayUnlock] = useState(false);
+  // The chained→shake→break choreography phase, threaded into the Practices
+  // node + the decorative <HubChains> overlay. Default "gone" = no chains (the
+  // static OPEN node + reduced-motion both render with chains absent).
+  const [chainPhase, setChainPhase] = useState<HubChainsPhase>("gone");
 
   useEffect(() => {
     if (!unlocked) return;
@@ -151,23 +182,58 @@ export function LearningHub() {
       } catch {
         /* ignore */
       }
-      return; // reduced motion → skip the sequence, show OPEN state directly
+      // reduced motion → skip the whole sequence: no chains, no glow/fireworks,
+      // straight to the static OPEN node. chainPhase stays "gone" and playUnlock
+      // stays false, so HubChains renders nothing and the celebration layer
+      // never mounts.
+      return;
     }
 
     setPlayUnlock(true); // arm the timeline (CSS plays off data-unlock="playing")
 
-    // Schedule the audio cues to land WITH their visual beats. Each is a safe
-    // no-op if audio is unavailable — the visuals never wait on them.
+    // Schedule the chainPhase transitions + audio cues to land WITH their visual
+    // beats. Each audio call is a safe no-op if audio is unavailable — the
+    // visuals never wait on them.
     const timers: ReturnType<typeof setTimeout>[] = [];
+
+    // Beat 1 — path "trial" dots pop in one-by-one (paced slowly).
     for (let i = 0; i < REVEAL_DOT_COUNT; i++) {
       timers.push(
         setTimeout(() => playDotPop(i), REVEAL_DOT_START + i * REVEAL_DOT_STEP),
       );
     }
-    timers.push(setTimeout(() => playUnlockFanfare(), REVEAL_NODE_POP));
 
-    // End of sequence → drop back to the static OPEN state + mark play-once.
+    // Beat 2 — node fades in grayed + chained.
+    timers.push(setTimeout(() => setChainPhase("bound"), REVEAL_CHAIN_BOUND));
+
+    // Beat 3 — chains rattle + the node shakes.
+    timers.push(
+      setTimeout(() => {
+        setChainPhase("rattle");
+        playChainRattle();
+      }, REVEAL_CHAIN_RATTLE),
+    );
+
+    // Beat 4 — chains SNAP; the node transitions gray→full violet→green.
+    timers.push(
+      setTimeout(() => {
+        setChainPhase("snap");
+        playChainSnap();
+      }, REVEAL_CHAIN_SNAP),
+    );
+
+    // Beat 5 — glow ring + fireworks burst + fanfare/crackle.
+    timers.push(
+      setTimeout(() => {
+        playUnlockFanfare();
+        playFireworkCrackle();
+      }, REVEAL_CELEBRATE),
+    );
+
+    // End of sequence → drop the chains, return to the static OPEN state + mark
+    // the play-once flag.
     const done = setTimeout(() => {
+      setChainPhase("gone");
       setPlayUnlock(false);
       try {
         localStorage.setItem(seenKey, "1"); // mark seen at sequence end
@@ -255,9 +321,18 @@ export function LearningHub() {
 
         {/* ---- 03 · Homework Practices — HIDDEN while locked; reveals on unlock ---- */}
         {/* While locked the node renders NOTHING (the path ends at Flash cards).
-            Once unlocked it appears — springing in during the reveal, or static
-            on a return visit. `revealing` drives the firework/glow markup. */}
-        {unlocked && <PracticesNode revealing={playUnlock} onEnter={enterUnlockGate} />}
+            Once unlocked it appears — fading in grayed + chained during the
+            reveal, then breaking free, or static on a return visit. `revealing`
+            drives the firework/glow markup; `chainPhase` drives the chain
+            overlay + the gray→color transition. The CTA enters the Practice Arc
+            (server re-checks the gate + fails closed). */}
+        {unlocked && (
+          <PracticesNode
+            revealing={playUnlock}
+            chainPhase={chainPhase}
+            onEnter={enterPracticeArc}
+          />
+        )}
       </div>
     </main>
   );
@@ -715,24 +790,36 @@ function LearningNode({
 // ---- 03 · Homework Practices: the REVEALED node ----------------------------
 // Only mounted once `unlocked` is true (locked state renders nothing at all).
 // `revealing` is true ONLY during the first-time celebration window; it adds the
-// glow ring + firework particles (the node spring-in itself is CSS, keyed off
-// the shell's data-unlock="playing"). On a return visit it renders static.
+// glow ring + firework particles. `chainPhase` drives the decorative <HubChains>
+// chain-wrap overlay AND (via the node's data-chain attribute) the gray→color
+// transition: the node reads grayscale while "bound"/"rattle", then snaps to the
+// full violet→green .practicesOpen fill at "snap". On a return visit (or under
+// reduced motion) chainPhase is "gone" and revealing is false → static node, no
+// chains, no celebration.
 const FIREWORK_COUNT = 12; // particles flung radially; matches CSS --i count
 
 function PracticesNode({
   revealing,
+  chainPhase,
   onEnter,
 }: {
   revealing: boolean;
+  chainPhase: HubChainsPhase;
   onEnter: () => void;
 }) {
   return (
     <article
       data-testid="hub-division-3"
+      data-chain={chainPhase}
       className={[s.node, s.nodePractices, s.alignCenter, s.practicesOpen]
         .filter(Boolean)
         .join(" ")}
     >
+      {/* Decorative chain-wrap overlay (absolute inset:0, pointer-events:none,
+          aria-hidden, reduced-motion-safe internally). Renders nothing when
+          chainPhase === "gone". Sits ABOVE the node content but never blocks
+          taps. */}
+      <HubChains phase={chainPhase} className={s.chains} />
       {/* Reveal-only celebration layer: a bright pulsing glow ring + a radial
           firework burst in the hub blue/indigo/gold family. Transform/opacity
           only; pointer-events:none so it never blocks the CTA. Mounted just for
@@ -752,7 +839,7 @@ function PracticesNode({
         </span>
       )}
 
-      <div className={s.gateScope} data-testid="hub-unlock-gate" aria-live="polite">
+      <div className={s.practiceScope} data-testid="hub-practice-scope" aria-live="polite">
         <span className={s.nodeTopline}>
           <span className={`${s.numRing} ${s.numRingOpen}`} aria-hidden="true">
             <span className={s.numInner}>
@@ -784,7 +871,7 @@ function PracticesNode({
             type="button"
             className={`${s.enterCta} ${s.ctaBtn}`}
             onClick={onEnter}
-            data-testid="hub-enter-gate"
+            data-testid="hub-enter-practice"
           >
             Enter Practice Arc →
           </button>
