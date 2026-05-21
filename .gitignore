@@ -87,6 +87,10 @@ SENTENCE_FILL_BACKEND_PLAN.md
 /ruvector.db
 /.claude-flow/
 /.mcp.json
+/.swarm/
+/agentdb.rvf
+/agentdb.rvf.lock
+/claude-flow.config.json
 
 # React SPA build deps (dist/ IS committed for launchd deploy — see architecture doc)
 frontend/app/node_modules/

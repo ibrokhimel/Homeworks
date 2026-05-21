@@ -663,6 +663,19 @@ by the React SPA runtime (`frontend/app/`) only when `content_json.flow_version
 == "v2"`; the fork lives in `server/routes/homework_page.py`. Pydantic models
 are in `server/schemas/content.py` (all `extra="allow"`).
 
+### Hand-authored by the React v2 builder (DaddysBranch, 2026-05-21)
+
+All v2 fields documented in this section are now **hand-authored by the React v2
+builder** (`frontend/app/src/builder/`). Previously, v2 content could only be
+seeded by the AI generation pipeline or test fixtures. This makes the
+**frozen-schema rule even more critical**: the builder writes these keys directly
+to `content_json` on every `PUT /api/homeworks/{id}` save; renaming or
+restructuring a key silently breaks every existing v2 row in the DB (not just
+runtime rendering, but the builder's own load → edit → save cycle). New optional
+fields must use `extra="allow"` Pydantic models and never replace an existing
+key. The `GET /api/homeworks` list also now surfaces `flow_version` per row so
+the dashboard can route authoring without fetching the full record.
+
 ### New top-level fields
 
 | Key | Type | Purpose |

@@ -169,6 +169,55 @@ Assert the hydration response JSON contains NONE of: `expected`, `ans`, `accepte
 
 ---
 
+## D.1 Builder / Authoring — shipped (DaddysBranch, 2026-05-21)
+
+This section documents the authoring surface that shipped alongside the v2 runtime.
+
+### Dashboard routing
+
+The **legacy dashboard** (`frontend/index.html` + `frontend/js/dashboard.js`) stays the homework list at `/`. The dashboard reads the `flow_version` field now returned on every `GET /api/homeworks` list row and routes card-open by version:
+
+| `flow_version` value | Builder opened |
+|---|---|
+| `"v2"` | React builder at `/app/builder?id=<id>` |
+| absent / `"v1"` | Vanilla builder at `/builder.html?id=<id>` (unchanged) |
+
+New homework creation no longer prompts for Easy/Hard. `POST /api/homeworks` stamps `flow_version: "v2"` and opens the React builder directly.
+
+### React builder shell (`frontend/app/src/builder/BuilderApp.tsx`)
+
+The React builder is reskinned to the legacy builder's left-sidebar design. It loads the unredacted `GET /api/homeworks/{id}` payload (authoring needs answers), and debounce-saves via `PUT /api/homeworks/{id}`.
+
+**Section editors (left sidebar → right panel):**
+
+| Sidebar entry | Editor component | Authors |
+|---|---|---|
+| Metadata | MetadataEditor | `meta.*` |
+| Case Preview | CbpEditor | `case_based_preview` |
+| Memory Check + Flashcards | MemoryCheckEditor | `memory_check`, `flashcards` |
+| Practice Arc | PracticeArcSection | `practice_arc.games[]` ordering + per-game `gb_*` arrays |
+| — Tile Match | TileMatchEditor | `gb_tile_match` |
+| — Sentence Fill | SentenceFillEditor | `gb_sentence_fill` |
+| — Mystery Box | MysteryBoxEditor | `gb_mystery_box` |
+| — Puzzle Lock | PuzzleLockEditor | `gb_puzzle_lock` |
+| — Adaptive Quiz | AdaptiveQuizEditor | `gb_adaptive_quiz` |
+| — Memory Palace | MemoryPalaceEditor | `gb_memory_palace` |
+| — Tic-Tac-Toe | TttEditor | `gb_ttt` |
+| — Real Life Challenge | RealLifeChallengeEditor | `real_life_challenge` |
+| Boss | BossEditor | `boss_questions` |
+| Reflection | ReflectionEditor | `reflection` |
+
+### Live preview
+
+The builder's preview panel imports the **same runtime React components** used by the student flow (`frontend/app/src/runtime/`). Authors see exactly what the student sees from their current draft. Answers are visible in the preview (authoring context) — redaction only applies at the `GET /api/runtime/homeworks/{id}` API boundary, not in the shared components themselves.
+
+### Backend support for authoring
+
+- `GET /api/homeworks` list returns `flow_version` per row so the dashboard can route without fetching the full record.
+- `POST /api/homeworks` accepts an optional `content_json` body field on create (used to stamp the v2 scaffold and `flow_version: "v2"` in one call).
+
+---
+
 ## F. Phasing
 
 | Phase | Deliverable |

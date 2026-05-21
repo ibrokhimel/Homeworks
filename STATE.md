@@ -516,3 +516,38 @@ unchanged injector path.
 - **story_mode** (`gb_story_mode` → `story_mode` game key) is unbuilt
   (greenfield) — `<GameHost>` renders a graceful "coming soon" skip card so the
   arc stays walkable.
+
+---
+
+## v2 Authoring: Dashboard routing + React builder — COMPLETE (DaddysBranch, 2026-05-21)
+
+### Dashboard routing (legacy `frontend/index.html` + `frontend/js/dashboard.js`)
+
+The legacy HTML dashboard remains the homework list at `/`. Two authoring-path changes shipped:
+
+- **No more Easy/Hard prompt on "Create".** New homeworks are created as a neutral draft and stamped `flow_version: "v2"` server-side at `POST /api/homeworks`.
+- **Route-by-`flow_version` on card open.** The dashboard reads the `flow_version` field now returned on every `GET /api/homeworks` list item and routes accordingly:
+  - `v2` → React builder at `/app/builder?id=<id>`
+  - absent / `v1` → vanilla builder at `/builder.html?id=<id>` (unchanged legacy path)
+
+### React v2 builder (`frontend/app/src/builder/`, `BuilderApp.tsx`)
+
+The React builder is reskinned to match the legacy builder's left-sidebar shell and authors the full v2 `content_json` via section editors:
+
+| Section | Editor component |
+|---|---|
+| Metadata | MetadataEditor |
+| Case-Based Preview | CbpEditor |
+| Memory Check + Flashcards | MemoryCheckEditor |
+| Practice Arc (game order + per-game) | PracticeArcSection |
+| Per-game editors | TileMatch, SentenceFill, MysteryBox, PuzzleLock, AdaptiveQuiz, MemoryPalace, Ttt, RealLifeChallenge |
+| Boss | BossEditor |
+| Reflection | ReflectionEditor |
+
+- **Live preview** renders the real runtime React components from the author's current draft. No iframe — same component tree as the student runtime; answers are visible (authoring context) because the builder reads from the unredacted `GET /api/homeworks/{id}`.
+- **Auto-save** debounces `PUT /api/homeworks/{id}` on every editor `onChange`.
+
+### Backend support
+
+- `GET /api/homeworks` list now returns a `flow_version` field per row (`"v2"` or null for v1 legacy). `content_json` is still omitted from the list payload.
+- `POST /api/homeworks` accepts an optional `content_json` on create (used internally by the dashboard to stamp the v2 scaffold).

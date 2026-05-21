@@ -36,7 +36,8 @@ All responses JSON unless marked **HTML**. Errors: `{ "detail": { "error": "..."
 ```
 - `subject`: must appear in `/api/subjects`; `grade` must be valid for that subject
 - `mode`: `"easy"` | `"hard"` — subjects in `ALWAYS_HARD` force `"hard"` regardless
-- `family` and `content_json` are **not accepted** — derived/scaffolded server-side
+- `family` is derived server-side and not accepted as input
+- `content_json` is **optional**: when provided, it is stored as-is rather than using the empty scaffold. The dashboard uses this to stamp `flow_version: "v2"` and the v2 content scaffold in one call. When omitted, an empty scaffold is generated server-side as before.
 
 **200** full Homework Record (see shape below). **400** `INVALID_SUBJECT` / `INVALID_GRADE` / `INVALID_MODE`.
 
@@ -60,6 +61,7 @@ All responses JSON unless marked **HTML**. Errors: `{ "detail": { "error": "..."
 **List-payload enrichments (PR #118):**
 - Each item has a computed `progress` field (`int 0..100`) derived from `compute_progress()` over the canonical content sections (see `server/services/progress.py`). Status overrides: `ready → 100`, `error → 0`, `generating` capped at 90.
 - `content_json` is **dropped** from the list payload to keep the dashboard response small. The single-item endpoint `GET /api/homeworks/{hw_id}` still returns it in full.
+- Each item now includes a **`flow_version`** field: `"v2"` for React-runtime homeworks, or `null` / absent for legacy v1 rows. The dashboard uses this to route card-open to the correct builder (`/app/builder?id=` for v2, `/builder.html?id=` for v1).
 
 ---
 
