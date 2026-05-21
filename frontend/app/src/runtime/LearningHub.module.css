@@ -1,66 +1,84 @@
 /* ============================================================
-   Learning Hub — TOP-DOWN FLOWCHART in the high-contrast Apple
-   language of apple.com/iphone + the owner's issues-inventory.
+   Learning Hub — Duolingo-flavored winding PATH of tactile 3D
+   "pebble" nodes. Full-screen, mobile-first. Replaces the prior
+   "plain white cards" (owner: "very AI-generative, lacks style").
 
-   THE REJECTION FIX (contrast): the previous build leaned on the
-   theme-flipping --v2-text token for every title, so a dark-OS
-   visitor inherited a near-white ink on a forced-light surface —
-   the page title + division titles washed out into invisibility.
-   Here, the shell PINS its own light text tokens (so nothing can
-   inherit the dark-mode white) and every heading is hard ink
-   #1d1d1f. Color is reserved for CTAs + subtle per-category
-   gradient accents on the cards — never poured over text.
+   EVERYTHING here is SCOPED to `.shell` (the hub root). The play
+   palette + Fredoka/Nunito faces never leak onto sibling screens,
+   which keep their Apple/Onest look. The hub still only RENDERS the
+   server gate; it never decides unlock.
 
-   Palette (Apple): bg #fbfbfd / #f5f5f7 · ink #1d1d1f ·
-   secondary #86868b · primary blue #0071e3.
-   Font: Onest via inherit (the shared layer loads it).
-   Category accents (subtle top-bar + corner glow, NOT full fills):
-     game --grad-game (purple) · interaction --grad-interaction (blue)
-     content --grad-content (yellow) · language --grad-language (green)
-     security --grad-security (red).
-   Surfaces: ~20px radius, soft diffusion shadow (no heavy borders),
-   gentle hover scale(1.03)/translateY(-4px). Honors reduced-motion.
+   THE CONTRAST FIX (preserved): theme-flipping --v2-text* tokens are
+   pinned LIGHT on the shell, and every title is hard ink #1d1d1f or
+   white-on-saturated-fill — a dark-OS visitor can't wash out headings.
    ============================================================ */
 
-/* ---- Shell: forced light + PINNED ink tokens (contrast guarantee) -- */
+/* Hub display + body faces (loaded in index.html). Scoped via variables. */
+
 .shell {
   position: relative;
-  max-width: 920px;
   isolation: isolate;
+  box-sizing: border-box;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-top: max(28px, env(safe-area-inset-top));
+  padding-bottom: max(40px, env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  overflow-x: clip;
 
-  /* Hard-pin the text tokens to the LIGHT values regardless of the OS
-     theme. This is the core of the contrast fix: titles below read
-     --hub-ink (#1d1d1f), and even the imported primitives that resolve
-     --v2-text now get the dark ink instead of the dark-mode white. */
-  --hub-ink: #1d1d1f;
-  --hub-secondary: #86868b;
-  --hub-subtle: #a1a1a6;
-  --hub-blue: #0071e3;
-  --hub-line: #c7c7cc;
-  --hub-line-live: #0071e3;
+  /* ---- Duolingo-flavored play palette (scoped to the hub only) ---- */
+  --hub-green: #58cc02;        /* Owl Green — primary "done" face + go */
+  --hub-green-edge: #3ca303;   /* darker bottom-edge lip               */
+  --hub-blue: #1cb0f6;         /* Feather Blue — Flash cards           */
+  --hub-blue-edge: #1487c4;
+  --hub-orange: #ff9600;       /* energetic orange — Case-Study        */
+  --hub-orange-edge: #e08200;
+  --hub-red: #ff4b4b;          /* cardinal red — boss / danger accent  */
+  --hub-violet: #7c3aed;       /* legendary unlock burst               */
+  --hub-violet-soft: #a78bfa;
+  --hub-gold: #ffc800;         /* progress ring + crown                */
+
+  --hub-locked-face: #e5e5e5;
+  --hub-locked-edge: #bdbdbd;
+  --hub-locked-ink: #9a9a9a;
+
+  --hub-ink: #1d1d1f;          /* hard ink, never theme-flips          */
+  --hub-secondary: #4b4b4b;    /* Duolingo body gray                   */
+  --hub-subtle: #777777;
+  --hub-page-top: #ffffff;
+  --hub-page-bot: #eef2f7;
+
+  /* Pin theme-flipping tokens to LIGHT (the prior rejection fix). */
   --v2-text: #1d1d1f;
-  --v2-text-muted: #6e6e73;
-  --v2-text-subtle: #86868b;
+  --v2-text-muted: #4b4b4b;
+  --v2-text-subtle: #777777;
+
+  /* Fonts — Fredoka display + Nunito body, Onest as the safe fallback. */
+  --font-hub-display: "Fredoka", var(--font-onest), system-ui, sans-serif;
+  --font-hub-body: "Nunito", var(--font-onest), system-ui, sans-serif;
 
   background:
-    radial-gradient(120% 64% at 50% -8%, #ffffff 0%, transparent 58%),
-    linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 100%);
+    radial-gradient(120% 56% at 50% -6%, #ffffff 0%, transparent 56%),
+    linear-gradient(180deg, var(--hub-page-top) 0%, var(--hub-page-bot) 100%);
   color: var(--hub-ink);
+  font-family: var(--font-hub-body);
 }
 
-/* A single, very subtle warm hero glow behind the header — depth without
-   ever competing with the ink text. */
+/* Soft luminous backdrop behind the header — depth without competing ink. */
 .heroGlow {
   position: absolute;
   left: 50%;
-  top: -60px;
-  width: 980px;
-  height: 420px;
-  max-width: 140vw;
+  top: -80px;
+  width: 760px;
+  height: 380px;
+  max-width: 150vw;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(0, 113, 227, 0.06) 0%, transparent 68%);
-  filter: blur(50px);
+  background: radial-gradient(circle, rgba(28, 176, 246, 0.1) 0%, transparent 66%);
+  filter: blur(56px);
   pointer-events: none;
   z-index: 0;
 }
@@ -70,50 +88,75 @@
   position: relative;
   z-index: 1;
   text-align: center;
-  max-width: 680px;
+  max-width: 560px;
   margin: 0 auto;
 }
-
-/* Subject eyebrow — small, blue, the only color on the header. */
 .eyebrow {
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-family: var(--font-hub-body);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--hub-blue);
-  margin: 0 0 12px;
+  margin: 0 0 10px;
 }
-
-/* The homework's real title — large, bold, HARD INK. The contrast win. */
 .pageTitle {
-  font-size: clamp(34px, 5.4vw, 60px);
+  font-family: var(--font-hub-display);
+  font-size: clamp(30px, 7vw, 44px);
   font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.04;
+  letter-spacing: -0.01em;
+  line-height: 1.06;
   margin: 0;
   color: var(--hub-ink);
 }
-
-/* Topic / section subtitle — secondary gray, generous and quiet. */
 .pageSub {
-  font-size: clamp(17px, 1.7vw, 21px);
-  font-weight: 400;
-  line-height: 1.5;
+  font-family: var(--font-hub-body);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
   color: var(--hub-secondary);
-  margin: 16px auto 0;
-  max-width: 56ch;
+  margin: 12px auto 0;
+  max-width: 48ch;
 }
 
-/* ---- The flow column: connectors behind, rows stacked above -------- */
-.flow {
+/* Overall "stations cleared" progress chip. */
+.progressChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 18px auto 0;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 2px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.05);
+  font-family: var(--font-hub-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--hub-secondary);
+}
+.progressChip svg {
+  color: var(--hub-gold);
+}
+.progressChip strong {
+  font-weight: 700;
+  color: var(--hub-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- The winding path: connectors behind, nodes stacked above ----- */
+.path {
   position: relative;
   z-index: 1;
-  margin-top: 56px;
+  margin: clamp(36px, 9vw, 60px) auto 0;
+  max-width: 600px;
   display: flex;
   flex-direction: column;
-  gap: clamp(56px, 8vw, 92px); /* generous vertical breathing room for lines */
+  align-items: center;
+  gap: clamp(40px, 9vw, 72px);
 }
 
-/* SVG connector layer fills the whole flow column, painted behind the cards. */
+/* SVG path layer — painted behind the nodes, fills the whole column. */
 .connectors {
   position: absolute;
   inset: 0;
@@ -123,103 +166,177 @@
   pointer-events: none;
   overflow: visible;
 }
-
-/* ---- Shared node chrome ------------------------------------------- */
-.node {
-  position: relative;
-  z-index: 1; /* above the connector layer */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* clip the accent bar + corner glow inside the radius */
-  border-radius: 20px;
-  background: #ffffff;
-  /* Minimal border, soft diffusion shadow (Apple depth, not heavy outlines). */
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+.line {
+  stroke: var(--hub-locked-edge);
+  opacity: 0.85;
+  transition: stroke 360ms var(--landing-spring, cubic-bezier(0.16, 1, 0.3, 1));
 }
-.nodeBody {
+.lineLive {
+  stroke: var(--hub-green);
+  opacity: 1;
+}
+.lineChained {
+  stroke: var(--hub-subtle);
+}
+.lineGoal {
+  fill: var(--hub-green);
+  opacity: 0.9;
+}
+
+/* ============================================================
+   THE 3D "PEBBLE" NODE = the pressable button
+   ============================================================ */
+.node {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
-  flex: 1;
+  width: min(340px, 86vw);
+  min-height: 132px;
+  padding: 20px 22px;
+  border: none;
+  border-radius: 26px;
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation; /* kill 300ms tap delay */
+  font-family: var(--font-hub-body);
+  /* the 3D lip: a hard colored bottom-edge (no layout shift) */
+  box-shadow: 0 6px 0 var(--node-edge, var(--hub-locked-edge)), 0 12px 22px rgba(0, 0, 0, 0.12);
+  transition:
+    transform 90ms var(--landing-spring, cubic-bezier(0.16, 1, 0.3, 1)),
+    box-shadow 90ms var(--landing-spring, cubic-bezier(0.16, 1, 0.3, 1)),
+    filter 160ms var(--landing-spring, cubic-bezier(0.16, 1, 0.3, 1));
+  will-change: transform;
+  /* gentle mount draw-in (staggered per node below) */
+  animation: hubNodeIn 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.node:nth-child(2) { animation-delay: 80ms; }  /* node 1 (after connectors svg) */
+.node:nth-child(3) { animation-delay: 200ms; } /* node 2 */
+.node:nth-child(4) { animation-delay: 320ms; } /* node 3 */
+
+.node:hover {
+  filter: brightness(1.04);
+}
+.node:active {
+  /* the depress — translate down by the lip thickness, lip collapses */
+  transform: translateY(6px);
+  box-shadow: 0 0 0 var(--node-edge, var(--hub-locked-edge)), 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+.node:focus-visible {
+  outline: 3px solid var(--hub-ink);
+  outline-offset: 4px;
 }
 
-/* Per-category accent bar across the very top of the card — the tasteful
-   gradient accent. Thin, so it never reduces text contrast. */
-.cardAccent {
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 4px;
-  z-index: 2;
-  pointer-events: none;
-  border-radius: 20px 20px 0 0;
-}
-/* A faint matching corner glow for depth — kept low-opacity behind content. */
-.cardGlow {
-  position: absolute;
-  right: -64px;
-  top: -64px;
-  width: 188px;
-  height: 188px;
-  border-radius: 999px;
-  filter: blur(52px);
-  opacity: 0.5;
-  pointer-events: none;
-  z-index: 0;
-}
+/* per-node fill + edge (drives the 3D lip color) */
+.nodeCase { background: var(--hub-orange); --node-edge: var(--hub-orange-edge); }
+.nodeFlash { background: var(--hub-blue); --node-edge: var(--hub-blue-edge); }
+.nodeDone { background: var(--hub-green); --node-edge: var(--hub-green-edge); }
 
-/* Category accent tokens. The bar uses the gradient; the glow a soft tint. */
-.accentInteraction .cardAccent { background: var(--grad-interaction, linear-gradient(135deg, #5e9ed6, #4677b8)); }
-.accentInteraction .cardGlow { background: rgba(94, 158, 214, 0.28); }
-.accentContent .cardAccent { background: var(--grad-content, linear-gradient(135deg, #ffd166, #f4a261)); }
-.accentContent .cardGlow { background: rgba(244, 162, 97, 0.24); }
-.accentGame .cardAccent { background: var(--grad-game, linear-gradient(135deg, #b388eb, #8a5fc8)); }
-.accentGame .cardGlow { background: rgba(179, 136, 235, 0.26); }
-.accentSecurity .reflectionDot { background: #c93a3a; }
+/* path winding: gentle horizontal offset so the eye travels */
+.alignLeft { align-self: flex-start; transform: translateX(10px); }
+.alignRight { align-self: flex-end; transform: translateX(-10px); }
+.alignCenter { align-self: center; }
+/* keep the offset under :active (compose with the depress) */
+.alignLeft:active { transform: translateX(10px) translateY(6px); }
+.alignRight:active { transform: translateX(-10px) translateY(6px); }
 
-.nodeHead {
+/* idle bob — only the single next actionable node (max one per view) */
+@keyframes hubBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.isNext.alignLeft { animation: hubNodeIn 560ms cubic-bezier(0.16, 1, 0.3, 1) both, hubBob 2.4s ease-in-out 700ms infinite; }
+.isNext.alignRight { animation: hubNodeIn 560ms cubic-bezier(0.16, 1, 0.3, 1) both, hubBob 2.4s ease-in-out 700ms infinite; }
+.isNext:active { animation: none; } /* press wins over bob */
+
+/* ---- node anatomy --------------------------------------------------- */
+.nodeTopline {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
-/* Division label — neutral ink (NOT colorful), small + tracked. */
-.divisionLabel {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--hub-secondary);
+/* number badge + conic progress ring (transform/opacity only, no layout cost) */
+.numRing {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--hub-gold) calc(var(--pct, 0) * 1%), rgba(255, 255, 255, 0.28) 0);
+  flex-shrink: 0;
 }
-.divisionNum {
-  font-size: 18px;
+.numRingDone { background: conic-gradient(var(--hub-gold) 100%, rgba(255, 255, 255, 0.28) 0); }
+.numRingLocked { background: rgba(0, 0, 0, 0.07); }
+.numRingOpen { background: conic-gradient(var(--hub-gold) 100%, rgba(124, 58, 237, 0.25) 0); }
+.numInner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(2px);
+  color: #ffffff;
+}
+.nodeNum {
+  font-family: var(--font-hub-display);
+  font-size: clamp(18px, 5vw, 22px);
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--hub-ink);
   font-variant-numeric: tabular-nums;
+  color: #ffffff;
+}
+.nodePractices .numInner { background: rgba(0, 0, 0, 0.06); color: var(--hub-locked-ink); }
+.padlock { display: grid; place-items: center; color: var(--hub-locked-ink); }
+.practicesOpen .numInner { background: rgba(255, 255, 255, 0.22); color: #ffffff; }
+
+.statusGlyph {
+  display: inline-flex;
+  align-items: center;
+}
+.dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.25);
+}
+.crownStamp {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--hub-gold);
+  animation: hubStamp 520ms cubic-bezier(0.16, 1, 0.3, 1) 220ms both;
+}
+@keyframes hubStamp {
+  0% { opacity: 0; transform: scale(0.4) rotate(-12deg); }
+  60% { opacity: 1; transform: scale(1.12) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
 }
 
-/* Card title — HARD INK, bold. The second half of the contrast fix. */
-.cardTitle {
-  font-size: clamp(21px, 2.6vw, 27px);
+.nodeTitle {
+  font-family: var(--font-hub-display);
+  font-size: 22px;
   font-weight: 700;
-  letter-spacing: -0.022em;
+  letter-spacing: -0.01em;
   line-height: 1.12;
-  margin: 0;
-  color: var(--hub-ink);
+  color: #ffffff;
 }
-.cardLead {
+.nodeLead {
+  font-family: var(--font-hub-body);
   font-size: 15px;
-  line-height: 1.55;
-  color: var(--hub-secondary);
-  margin: 12px 0 0;
-  max-width: 46ch;
+  font-weight: 600;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.92);
+  margin-top: 7px;
+  max-width: 40ch;
 }
 
 .nodeFoot {
@@ -227,14 +344,20 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
   margin-top: auto;
-  padding-top: 22px;
+  padding-top: 18px;
 }
 .meta {
+  font-family: var(--font-hub-body);
   font-size: 13px;
-  font-weight: 500;
-  color: var(--hub-subtle);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+.ctaLabel {
+  font-family: var(--font-hub-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 .glyph,
@@ -242,226 +365,329 @@
   flex-shrink: 0;
 }
 
-/* ---- TOP ROW: two Apple cards side by side ------------------------- */
-.entries {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-  align-items: stretch;
+/* ============================================================
+   03 · Homework Practices — single node, CHAINED + GRAY while locked
+   ============================================================ */
+.nodePractices {
+  width: min(360px, 90vw);
+  min-height: 168px;
 }
-@media (min-width: 680px) {
-  .entries {
-    grid-template-columns: 1fr 1fr;
-  }
+.practicesLocked {
+  background: var(--hub-locked-face);
+  --node-edge: var(--hub-locked-edge);
+  color: var(--hub-locked-ink);
+  cursor: not-allowed;
+  box-shadow: 0 6px 0 var(--hub-locked-edge), 0 8px 16px rgba(0, 0, 0, 0.08);
+  filter: grayscale(0.35);
 }
+.practicesLocked:hover { filter: grayscale(0.35); }
+.practicesLocked:active { transform: none; box-shadow: 0 6px 0 var(--hub-locked-edge); } /* dead press */
+.practicesLocked .nodeTitle { color: var(--hub-ink); }
 
-.entryNode {
-  min-height: 256px;
-  padding: 28px;
-  /* draw-in: gentle rise + fade on mount, staggered per column */
-  animation: hubNodeIn 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 320ms cubic-bezier(0.16, 1, 0.3, 1);
+/* unlocked look: violet→green legendary clay fill */
+.practicesOpen {
+  background: linear-gradient(135deg, var(--hub-violet) 0%, var(--hub-green) 100%);
+  --node-edge: var(--hub-green-edge);
+  color: #ffffff;
+  box-shadow: 0 6px 0 var(--hub-green-edge), 0 14px 26px rgba(88, 204, 2, 0.22);
 }
-.entries .entryNode:nth-child(1) { animation-delay: 80ms; }
-.entries .entryNode:nth-child(2) { animation-delay: 200ms; }
-.entryNode:hover {
-  transform: translateY(-4px) scale(1.03);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.1);
-}
-
-/* ---- MIDDLE: gated Homework Practices block ----------------------- */
-.practicesRow {
-  display: flex;
-  justify-content: center;
-}
-.practices {
-  width: 100%;
-  max-width: 480px;
-  padding: 26px 28px;
-  animation: hubNodeIn 640ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both;
-  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 320ms cubic-bezier(0.16, 1, 0.3, 1);
-}
+.practicesOpen .nodeTitle { color: #ffffff; }
 
 .gateScope {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   flex: 1;
 }
 
-/* Stacked sub-items (Gamified / Interactive / Boss). */
+/* "what's behind the lock" preview — dimmed sub-items */
 .subItems {
   list-style: none;
-  margin: 18px 0 4px;
+  margin: 14px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
 }
 .subItem {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 13px 15px;
-  border-radius: 14px;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--hub-ink);
-  background: #f5f5f7;
-  border: 1px solid rgba(0, 0, 0, 0.04);
-  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
-    background 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 10px;
+  font-family: var(--font-hub-body);
+  font-size: 14px;
+  font-weight: 700;
 }
-.subItem .subGlyph {
-  color: #8a5fc8; /* game-purple, matching the block accent */
-}
-.subItemBoss {
-  font-weight: 600;
-}
-.subItemBoss .subGlyph {
-  color: #c93a3a; /* security-red for the Boss line */
-}
-/* When unlocked, the sub-items become alive on hover of the block. */
-.practicesOpen:hover .subItem {
-  background: #eef0f3;
-}
-.practicesOpen:hover .subItem:nth-child(1) { transform: translateX(4px); }
-.practicesOpen:hover .subItem:nth-child(2) { transform: translateX(4px); transition-delay: 45ms; }
-.practicesOpen:hover .subItem:nth-child(3) { transform: translateX(4px); transition-delay: 90ms; }
+.practicesLocked .subItem { color: var(--hub-locked-ink); opacity: 0.85; }
+.practicesLocked .subItem .subGlyph { color: var(--hub-subtle); }
+.practicesOpen .subItem { color: rgba(255, 255, 255, 0.95); }
+.practicesOpen .subItem .subGlyph { color: #ffffff; }
+.subItemBoss { font-weight: 800; }
+.practicesLocked .subItemBoss .subGlyph { color: var(--hub-red); opacity: 0.7; }
 
-/* Locked vs open framing. */
-.practicesLocked .cardAccent {
-  opacity: 0.45; /* dim the purple accent until unlocked */
-}
-.practicesLocked .cardGlow {
-  opacity: 0.28;
-}
-.practicesLocked:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.08);
-}
-.practicesOpen {
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04), inset 0 0 0 1.5px rgba(138, 95, 200, 0.4);
-  /* a one-shot "unlock" pop the first time it renders unlocked */
-  animation: hubNodeIn 640ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both,
-    hubUnlockPop 760ms cubic-bezier(0.16, 1, 0.3, 1) 1000ms 1 both;
-}
-.practicesOpen:hover {
-  transform: translateY(-4px) scale(1.012);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.1), inset 0 0 0 1.5px rgba(138, 95, 200, 0.4);
-}
-
-/* Locked CTA mimics a button but never navigates. */
+/* Locked CTA — looks like a key but never navigates. */
 .lockedCta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  height: 48px;
-  padding: 0 24px;
-  border-radius: var(--v2-radius-pill);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: not-allowed;
-  color: var(--hub-subtle);
-  background: #f5f5f7;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.lockedCta:active {
-  transform: scale(0.98);
-}
-
-.lockReq {
-  margin: 14px 0 0;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.45;
-  color: var(--hub-secondary);
-  transition: color 220ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.lockReqLoud {
-  color: var(--hub-blue);
-  font-weight: 600;
-}
-
-/* ---- BOTTOM: terminal Reflection node ------------------------------ */
-.reflectionRow {
-  display: flex;
-  justify-content: center;
-}
-.reflection {
-  display: inline-flex;
-  align-items: center;
-  gap: 11px;
-  padding: 14px 26px;
-  border-radius: var(--v2-radius-pill);
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
-  color: var(--hub-secondary);
-  /* dim/locked: it only lights up after the Boss is cleared */
-  opacity: 0.78;
-  animation: hubNodeIn 640ms cubic-bezier(0.16, 1, 0.3, 1) 460ms both;
-  transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.reflectionDot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #c93a3a;
-  flex-shrink: 0;
-}
-.reflectionLabel {
+  height: 46px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 16px;
+  font-family: var(--font-hub-display);
   font-size: 15px;
   font-weight: 700;
-  color: var(--hub-ink);
+  cursor: not-allowed;
+  color: var(--hub-locked-ink);
+  background: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.08);
+  touch-action: manipulation;
 }
-.reflectionSub {
+.lockedCta:active { transform: translateY(3px); box-shadow: 0 0 0 rgba(0, 0, 0, 0.08); }
+
+/* Unlocked "Enter Practice Arc →" CTA — a white 3D-press chip on the node. */
+.ctaBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 16px;
+  font-family: var(--font-hub-display);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--hub-green);
+  background: #ffffff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+  touch-action: manipulation;
+  transition: transform 90ms var(--landing-spring, cubic-bezier(0.16, 1, 0.3, 1)),
+    box-shadow 90ms var(--landing-spring, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.ctaBtn:active { transform: translateY(4px); box-shadow: 0 0 0 rgba(0, 0, 0, 0.18); }
+.ctaBtn:focus-visible { outline: 3px solid #ffffff; outline-offset: 3px; }
+/* hook the unlocked CTA carries so the choreography (beat 4) can scale it in */
+.enterCta { will-change: transform, opacity; }
+
+.lockReq {
+  margin: 12px 0 0;
+  font-family: var(--font-hub-body);
   font-size: 13px;
-  font-weight: 500;
-  color: var(--hub-subtle);
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--hub-secondary);
+  transition: color 220ms var(--landing-spring, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.lockReqLoud { color: var(--hub-red); }
+
+/* ---- Chain overlay (locked node) ----------------------------------- */
+.chains {
+  position: absolute;
+  inset: -8px;
+  pointer-events: none;
+  z-index: 3;
+}
+/* four static decorative links shackling the node corners */
+.chainLink {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 6px solid var(--hub-subtle);
+  border-radius: 11px;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.22));
+}
+.chainA { top: -6px; left: 22%; transform: rotate(-18deg); }
+.chainB { top: -6px; right: 22%; transform: rotate(16deg); }
+.chainC { bottom: -6px; left: 28%; transform: rotate(20deg); }
+.chainD { bottom: -6px; right: 28%; transform: rotate(-16deg); }
+
+/* glow burst behind the break point */
+.chainBurst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 220px;
+  height: 220px;
+  transform: translate(-50%, -50%) scale(0.2);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 200, 0, 0.55) 0%,
+    rgba(124, 58, 237, 0.32) 38%,
+    rgba(88, 204, 2, 0.18) 62%,
+    transparent 76%
+  );
+  filter: blur(14px);
+  opacity: 0;
+  pointer-events: none;
 }
 
-/* ---- Connector lines: draw-in via stroke-dashoffset ---------------- */
-.line {
-  stroke-dasharray: 1000;
-  stroke-dashoffset: 1000;
-  animation: hubDraw 1100ms cubic-bezier(0.16, 1, 0.3, 1) 260ms forwards;
+/* the two link halves that snap apart across the node center */
+.chainHalf {
+  position: absolute;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  border: 8px solid var(--hub-subtle);
+  border-radius: 18px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
 }
-.lineDelay {
-  animation-delay: 400ms;
+.chainLinkLeft {
+  left: calc(50% - 48px);
+  border-right-color: transparent;
+  transform-origin: left center;
+  transform: translateY(-50%);
 }
-.lineArrow {
-  /* The drop arrow stays dim until the arc unlocks. */
-  opacity: 0.5;
-  animation: hubDraw 900ms cubic-bezier(0.16, 1, 0.3, 1) 620ms forwards;
-  transition: opacity 320ms cubic-bezier(0.16, 1, 0.3, 1), stroke 320ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.lineArrowLive {
-  opacity: 1;
-  stroke: var(--hub-line-live);
+.chainLinkRight {
+  left: 50%;
+  border-left-color: transparent;
+  transform-origin: right center;
+  transform: translateY(-50%);
 }
 
-/* ---- Keyframes ----------------------------------------------------- */
-@keyframes hubDraw {
-  to { stroke-dashoffset: 0; }
+/* spark shards flung at the break */
+.chainSpark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hub-gold);
+  box-shadow: 0 0 12px rgba(255, 200, 0, 0.9);
+  opacity: 0;
 }
-@keyframes hubNodeIn {
-  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+
+/* ============================================================
+   UNLOCK CHOREOGRAPHY — one ~3.2s timeline driven by ONE attribute
+   on the shell: data-unlock="playing". Four beats:
+     1 · Dim     0–600ms   scrim fades in, learning nodes desaturate
+     2 · Shake   600–1150  node 3 shakes
+     3 · Break   1150–2000 chains snap apart + burst + sparks
+     4 · Reveal  2000–3200 scrim lifts, node 3 un-grays + pops, CTA in
+   All transforms/opacity only. Reused snap/burst/spark geometry from
+   UnlockGate.module.css, retimed for this in-hub moment.
+   ============================================================ */
+
+/* scrim that dims the whole hub during the sequence */
+.shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(20, 24, 28, 0);
+  pointer-events: none;
+}
+.shell[data-unlock="playing"]::after {
+  animation: hubScrim 3.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.shell[data-unlock="playing"] .path .node:not(.nodePractices) {
+  animation: hubDesat 3.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes hubScrim {
+  0% { background: rgba(20, 24, 28, 0); }
+  18% { background: rgba(20, 24, 28, 0.55); }
+  62% { background: rgba(20, 24, 28, 0.55); }
+  100% { background: rgba(20, 24, 28, 0); }
+}
+@keyframes hubDesat {
+  0% { filter: grayscale(0); }
+  18%, 62% { filter: grayscale(0.85) brightness(0.85); }
+  100% { filter: grayscale(0); }
+}
+
+/* Beat 2 (shake) + Beat 4 (reveal) chained on node 3 */
+@keyframes hubUnlockShake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-8px) rotate(-1.5deg); }
+  20% { transform: translateX(7px) rotate(1.2deg); }
+  30% { transform: translateX(-6px) rotate(-1deg); }
+  40% { transform: translateX(5px) rotate(0.8deg); }
+  50% { transform: translateX(-3px); }
+  60% { transform: translateX(2px); }
+}
+@keyframes hubUnlockReveal {
+  0% { filter: grayscale(0.35); transform: scale(1); }
+  40% { filter: grayscale(0); transform: scale(1.06); }
+  70% { transform: scale(0.985); }
+  100% { filter: grayscale(0); transform: scale(1); }
+}
+.shell[data-unlock="playing"] .nodePractices {
+  animation:
+    hubUnlockShake 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.6s 1 both,
+    hubUnlockReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) 2s 1 both;
+}
+
+/* Beat 3 — chains snap apart (delay 1.15s) */
+.shell[data-unlock="playing"] .chainBurst {
+  animation: hubBurst 1100ms cubic-bezier(0.16, 1, 0.3, 1) 1.3s both;
+}
+.shell[data-unlock="playing"] .chainLinkLeft {
+  animation: hubSnapLeft 720ms cubic-bezier(0.16, 1, 0.3, 1) 1.15s both;
+}
+.shell[data-unlock="playing"] .chainLinkRight {
+  animation: hubSnapRight 720ms cubic-bezier(0.16, 1, 0.3, 1) 1.15s both;
+}
+.shell[data-unlock="playing"] .chainA,
+.shell[data-unlock="playing"] .chainB,
+.shell[data-unlock="playing"] .chainC,
+.shell[data-unlock="playing"] .chainD {
+  animation: hubLinkFade 600ms cubic-bezier(0.16, 1, 0.3, 1) 1.15s both;
+}
+.shell[data-unlock="playing"] .chainSpark1 { animation: hubSpark1 900ms cubic-bezier(0.16, 1, 0.3, 1) 1.35s both; }
+.shell[data-unlock="playing"] .chainSpark2 { animation: hubSpark2 900ms cubic-bezier(0.16, 1, 0.3, 1) 1.39s both; }
+.shell[data-unlock="playing"] .chainSpark3 { animation: hubSpark3 900ms cubic-bezier(0.16, 1, 0.3, 1) 1.37s both; }
+
+@keyframes hubBurst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+  45% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
+}
+@keyframes hubSnapLeft {
+  0% { transform: translateY(-50%) translateX(0) rotate(0); }
+  18% { transform: translateY(-50%) translateX(8px) rotate(0); }
+  100% { transform: translateY(-50%) translateX(-86px) rotate(-26deg); opacity: 0; }
+}
+@keyframes hubSnapRight {
+  0% { transform: translateY(-50%) translateX(0) rotate(0); }
+  18% { transform: translateY(-50%) translateX(-8px) rotate(0); }
+  100% { transform: translateY(-50%) translateX(86px) rotate(26deg); opacity: 0; }
+}
+@keyframes hubLinkFade {
+  to { opacity: 0; transform: scale(0.6) translateY(8px); }
+}
+@keyframes hubSpark1 {
+  0% { opacity: 0; transform: translate(-50%, -50%); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-220%, -340%) scale(0.4); }
+}
+@keyframes hubSpark2 {
+  0% { opacity: 0; transform: translate(-50%, -50%); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(180%, -300%) scale(0.4); }
+}
+@keyframes hubSpark3 {
+  0% { opacity: 0; transform: translate(-50%, -50%); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(40%, 300%) scale(0.4); }
+}
+
+/* Beat 4 — the CTA scales in (delay 2.4s). Only animates during the play. */
+.shell[data-unlock="playing"] .enterCta {
+  animation: hubCtaIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 2.4s both;
+}
+@keyframes hubCtaIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.9); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-@keyframes hubUnlockPop {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.025); }
-  70% { transform: scale(0.992); }
-  100% { transform: scale(1); }
-}
 
-/* One-shot attention shake on locked-block click (GPU transform only). */
+/* ---- mount draw-in + locked nudge shake ---------------------------- */
+@keyframes hubNodeIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 @keyframes hubShake {
   0%, 100% { transform: translateX(0); }
   15% { transform: translateX(-7px); }
@@ -470,39 +696,60 @@
   60% { transform: translateX(3px); }
   75% { transform: translateX(-2px); }
 }
-.shake {
-  animation: hubShake 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+.shake { animation: hubShake 0.55s cubic-bezier(0.16, 1, 0.3, 1); }
+.shake:hover { transform: none; }
+
+/* ============================================================
+   Responsive — single winding column at every width (NO 2-up grid;
+   that would re-create the rejected "card grid" feel). The path
+   amplitude (offset) grows with width so the winding reads more.
+   ============================================================ */
+@media (min-width: 480px) {
+  .alignLeft { transform: translateX(28px); }
+  .alignRight { transform: translateX(-28px); }
+  .alignLeft:active { transform: translateX(28px) translateY(6px); }
+  .alignRight:active { transform: translateX(-28px) translateY(6px); }
 }
-.shake:hover {
-  transform: none;
+@media (min-width: 680px) {
+  .node { width: 360px; }
+  .nodePractices { width: 380px; }
+  .alignLeft { transform: translateX(48px); }
+  .alignRight { transform: translateX(-48px); }
+  .alignLeft:active { transform: translateX(48px) translateY(6px); }
+  .alignRight:active { transform: translateX(-48px) translateY(6px); }
+}
+@media (min-width: 1024px) {
+  .heroGlow { width: 980px; height: 460px; }
 }
 
-/* ---- Reduced motion: kill transforms + draw-in, show final state --- */
+/* ============================================================
+   prefers-reduced-motion — final state instantly, no shake/snap/scrim/bob.
+   The JS in LearningHub.tsx also short-circuits the play-once arming.
+   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
-  .entryNode,
-  .practices,
-  .practicesOpen,
-  .reflection {
+  .node,
+  .crownStamp,
+  .isNext.alignLeft,
+  .isNext.alignRight {
     animation: none;
     opacity: 1;
-    transform: none;
   }
-  .reflection {
-    opacity: 0.78; /* keep the "dim/locked" semantic */
-  }
-  .entryNode:hover,
-  .practicesLocked:hover,
-  .practicesOpen:hover,
-  .practicesOpen:hover .subItem {
-    transform: none;
-  }
-  .line,
-  .lineArrow {
-    /* show the final drawn connectors with no animation */
-    stroke-dashoffset: 0;
+  .shell[data-unlock="playing"]::after,
+  .shell[data-unlock="playing"] .path .node:not(.nodePractices),
+  .shell[data-unlock="playing"] .nodePractices,
+  .shell[data-unlock="playing"] .chainBurst,
+  .shell[data-unlock="playing"] .chainLinkLeft,
+  .shell[data-unlock="playing"] .chainLinkRight,
+  .shell[data-unlock="playing"] .chainA,
+  .shell[data-unlock="playing"] .chainB,
+  .shell[data-unlock="playing"] .chainC,
+  .shell[data-unlock="playing"] .chainD,
+  .shell[data-unlock="playing"] .chainSpark1,
+  .shell[data-unlock="playing"] .chainSpark2,
+  .shell[data-unlock="playing"] .chainSpark3,
+  .shell[data-unlock="playing"] .enterCta {
     animation: none;
   }
-  .shake {
-    animation: none;
-  }
+  .shell[data-unlock="playing"]::after { background: rgba(20, 24, 28, 0); }
+  .shake { animation: none; }
 }

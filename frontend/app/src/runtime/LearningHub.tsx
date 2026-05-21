@@ -1,6 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRuntimeStore } from "./store";
-import { Pill, Button } from "../shared/ui/primitives";
 import type { CbpGate, McGate } from "../shared/types";
 import s from "./LearningHub.module.css";
 
@@ -18,12 +17,6 @@ function mcStatus(g: McGate | undefined): SectionStatus {
   return g.score_pct > 0 ? "inProgress" : "notStarted";
 }
 
-function StatusPill({ status }: { status: SectionStatus }) {
-  if (status === "passed") return <Pill tone="good">✓ Passed</Pill>;
-  if (status === "inProgress") return <Pill tone="accent">In progress</Pill>;
-  return <Pill tone="default">Not started</Pill>;
-}
-
 // Pull a string field off content_json.meta (typed `unknown` — extra="allow" on
 // the backend Meta model lets `topic` ride alongside the declared
 // subject_display/section). Returns a trimmed non-empty string or undefined.
@@ -35,31 +28,39 @@ function metaStr(meta: unknown, key: string): string | undefined {
   return undefined;
 }
 
-// The Learning Hub — TOP-DOWN FLOWCHART in the high-contrast Apple language of
-// apple.com/iphone + the owner's issues-inventory:
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// The Learning Hub — a Duolingo-flavored, full-screen, mobile-first winding PATH
+// of big tactile 3D "pebble" nodes (NOT a card grid). Three stations descend the
+// column, gently offset left/right so the eye travels:
 //
-//   [Real-Life Challenge]      [Flashcards + Memory Check]   <- two learning
-//            \                        /                          divisions
-//             \                      /                           (any order)
-//              v  Homework Practices  v                       <- gated block
-//                 · Gamified Practices
-//                 · Interactive Games
-//                 · Boss Fight
-//                        |
-//                        v
-//                    Reflection                              <- terminal node
+//   01 · Case-Study        (orange clay 3D-press button)   <- startCbp
+//   02 · Flash cards       (blue clay 3D-press button)     <- enterFlashcards
+//   03 · Homework Practices (single node, CHAINED + GRAY   <- enterUnlockGate
+//        while gate.practice_arc_unlocked === false)          (once unlocked)
 //
-// CONTRAST CONTRACT (the rejection fix): every title/heading is INK #1d1d1f,
-// never a theme-flipping token. The shell pins its own light text tokens so a
-// dark-OS visitor can't inherit the near-white --v2-text that made the previous
-// titles wash out into invisibility. Color is reserved for CTAs + the subtle
-// per-category gradient accents on each card — never poured over text.
+// The whole node IS the button — colored candy fill + a hard colored bottom-edge
+// "lip" (box-shadow, no layout shift) that depresses on :active. Status (locked /
+// active / done) reads off the server gate via cbpStatus/mcStatus — the hub only
+// renders state, it never decides unlock.
 //
-// The header is the HOMEWORK THEME (subject eyebrow + the homework's real title
-// + topic/section subtitle), NOT the old generic "Learning Hub" boilerplate.
+// CONTRAST CONTRACT (the prior rejection fix preserved): every title is hard ink
+// #1d1d1f / white-on-saturated-fill, and the theme-flipping --v2-text* tokens are
+// pinned LIGHT on the .shell so a dark-OS visitor can't wash out the headings.
+//
+// UNLOCK CHOREOGRAPHY (the centerpiece): the first time the hub sees the server
+// flip practice_arc_unlocked → true (and a per-homework localStorage play-once
+// flag is unset), a single ~3.2s timeline plays driven by ONE attribute on the
+// shell (data-unlock="playing"): dim/gray → shake → chains snap → reveal. The
+// localStorage flag is ONLY for animation-play-once; the unlock truth is always
+// the server boolean. prefers-reduced-motion skips straight to the unlocked state.
 export function LearningHub() {
   const payload = useRuntimeStore((st) => st.payload);
   const gate = useRuntimeStore((st) => st.gateState);
+  const hwId = useRuntimeStore((st) => st.hwId);
   const startCbp = useRuntimeStore((st) => st.startCbp);
   const enterFlashcards = useRuntimeStore((st) => st.enterFlashcards);
   const enterUnlockGate = useRuntimeStore((st) => st.enterUnlockGate);
@@ -67,35 +68,83 @@ export function LearningHub() {
   const cbp = cbpStatus(gate?.cbp);
   const mc = mcStatus(gate?.mc);
   const unlocked = gate?.practice_arc_unlocked ?? false;
+  const mcThreshold = gate?.mc.threshold_pct ?? 60;
 
-  // ---- Homework-theme header (replaces the generic eyebrow + boilerplate) ----
+  // ---- Homework-theme header (subject eyebrow · real title · topic) ----
   const meta = payload?.content_json.meta;
-  // Eyebrow = the subject. meta.subject_display first, then the payload subject.
   const subjectEyebrow =
     metaStr(meta, "subject_display") ?? payload?.subject?.trim() ?? undefined;
-  // Big title = the homework's actual title.
   const homeworkTitle = payload?.title?.trim() || "Your homework";
-  // Subtitle = the topic / section, if present (NOT the old boilerplate).
   const themeSub = metaStr(meta, "topic") ?? metaStr(meta, "section") ?? undefined;
 
-  // Locked Practices block: clicking surfaces the requirement inline + a one-shot
-  // shake, rather than navigating anywhere.
+  // Overall "stations cleared" chip.
+  const cleared = (cbp === "passed" ? 1 : 0) + (mc === "passed" ? 1 : 0) + (unlocked ? 1 : 0);
+
+  // The single next actionable LEARNING node gets the idle bob (max one animated
+  // node per view). Case-Study leads; once it's passed, Flash cards leads.
+  const nextNode: "case" | "flash" | null =
+    cbp !== "passed" ? "case" : mc !== "passed" ? "flash" : null;
+
+  // ---- Unlock choreography: one play-once flag per homework, animation-only ----
+  // The flag NEVER decides unlock — that's `unlocked` (server truth). It only
+  // gates whether the celebration plays. Key matches the brief exactly.
+  const seenKey = `nets_hub_unlock_played_${hwId || "_"}`;
+  const [playUnlock, setPlayUnlock] = useState(false);
+
+  useEffect(() => {
+    if (!unlocked) return;
+    let seen = false;
+    try {
+      seen = localStorage.getItem(seenKey) === "1";
+    } catch {
+      seen = false; // private mode / blocked storage → just play it, harmless
+    }
+    if (seen) return; // already celebrated on this device → render final state
+    if (prefersReducedMotion()) {
+      try {
+        localStorage.setItem(seenKey, "1");
+      } catch {
+        /* ignore */
+      }
+      return; // reduced motion → skip the sequence, show unlocked state directly
+    }
+    setPlayUnlock(true); // arm the timeline
+    const done = setTimeout(() => {
+      setPlayUnlock(false);
+      try {
+        localStorage.setItem(seenKey, "1"); // mark seen at sequence end
+      } catch {
+        /* ignore */
+      }
+    }, 3200); // total sequence ms (see CSS §5.2 timeline)
+    return () => clearTimeout(done);
+  }, [unlocked, seenKey]);
+
+  // The shell's single source of animation truth.
+  const unlockState = playUnlock ? "playing" : unlocked ? "open" : "locked";
+
+  // Locked Practices node: a click surfaces the requirement inline + a one-shot
+  // nudge shake, rather than navigating anywhere.
   const [nudged, setNudged] = useState(false);
   const shakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleLockedClick = () => {
     setNudged(false);
-    // Force reflow so the animation can re-trigger on rapid repeat clicks.
-    requestAnimationFrame(() => setNudged(true));
+    requestAnimationFrame(() => setNudged(true)); // force reflow → re-trigger
     if (shakeTimer.current) clearTimeout(shakeTimer.current);
     shakeTimer.current = setTimeout(() => setNudged(false), 600);
   };
-
-  const mcThreshold = gate?.mc.threshold_pct ?? 60;
+  useEffect(() => () => {
+    if (shakeTimer.current) clearTimeout(shakeTimer.current);
+  }, []);
 
   return (
-    <main className={`v2-shell ${s.shell}`} data-hub-theme="light" data-testid="screen-hub">
-      {/* Soft luminous backdrop — a single warm hero glow, kept very subtle so
-          the ink text always wins on contrast. No heavy color washes. */}
+    <main
+      className={`v2-shell ${s.shell}`}
+      data-hub-theme="light"
+      data-unlock={unlockState}
+      data-testid="screen-hub"
+    >
+      {/* Soft luminous backdrop — kept subtle so ink always wins on contrast. */}
       <div className={s.heroGlow} aria-hidden="true" />
 
       {/* ---- Homework-theme header: subject eyebrow · real title · topic ---- */}
@@ -103,166 +152,275 @@ export function LearningHub() {
         {subjectEyebrow && <p className={s.eyebrow}>{subjectEyebrow}</p>}
         <h1 className={s.pageTitle}>{homeworkTitle}</h1>
         {themeSub && <p className={s.pageSub}>{themeSub}</p>}
+        <p className={s.progressChip} aria-label={`${cleared} of 3 stations cleared`}>
+          <CrownGlyph />
+          <strong>{cleared}</strong>
+          <span>/ 3 cleared</span>
+        </p>
       </header>
 
-      <div className={s.flow}>
-        {/* ---- Connector layer: SVG paths that converge the two entries into
-             the Practices block, then drop an arrow to Reflection. Sits behind
-             the cards (z-index 0); draws itself in on mount. ---- */}
-        <FlowConnectors unlocked={unlocked} />
+      {/* ---- The winding path: connector layer behind, nodes stacked above ---- */}
+      <div className={s.path}>
+        <PathConnectors cbpPassed={cbp === "passed"} mcPassed={mc === "passed"} unlocked={unlocked} />
 
-        {/* ---- TOP ROW: the two learning divisions, side by side ---- */}
-        <div className={s.entries}>
-          {/* Division 1 — Case-Based Preview / "Real-Life Challenge"
-              (interaction-blue accent). */}
-          <article className={`${s.node} ${s.entryNode} ${s.accentInteraction}`}>
-            <span className={s.cardAccent} aria-hidden="true" />
-            <span className={s.cardGlow} aria-hidden="true" />
-            <div className={s.nodeBody}>
-              <div className={s.nodeHead}>
-                <span className={s.divisionLabel}>
-                  <span className={s.divisionNum}>01</span>Division
-                </span>
-                <StatusPill status={cbp} />
-              </div>
-              <h2 className={s.cardTitle}>Real-Life Challenge</h2>
-              <p className={s.cardLead}>
-                Step into the role. A real scenario, three decisions — apply the
-                lesson before you’re tested on it.
-              </p>
-              <div className={s.nodeFoot}>
-                <span className={s.meta}>
-                  {(gate?.cbp.checkpoints_correct ?? 0)}/
-                  {gate?.cbp.checkpoints_total ?? 3} checkpoints
-                </span>
-                <Button variant="blue" onClick={startCbp} data-testid="hub-start-cbp">
-                  {cbp === "passed" ? "Review case →" : cbp === "inProgress" ? "Continue →" : "Start case →"}
-                </Button>
-              </div>
-            </div>
-          </article>
+        {/* ---- 01 · Case-Study (orange clay 3D-press node) ---- */}
+        <LearningNode
+          num="01"
+          title="Case-Study"
+          lead="Step into the role. A real scenario, three calls — apply the lesson before the test."
+          variant="case"
+          status={cbp}
+          isNext={nextNode === "case"}
+          pct={pctFromCbp(gate?.cbp)}
+          meta={`${gate?.cbp.checkpoints_correct ?? 0}/${gate?.cbp.checkpoints_total ?? 3} checkpoints`}
+          ctaLabel={cbp === "passed" ? "Review →" : cbp === "inProgress" ? "Continue →" : "Start →"}
+          align="left"
+          onClick={startCbp}
+          testid="hub-start-cbp"
+        />
 
-          {/* Division 2 — Flashcards + Memory Check (content-yellow accent). */}
-          <article className={`${s.node} ${s.entryNode} ${s.accentContent}`}>
-            <span className={s.cardAccent} aria-hidden="true" />
-            <span className={s.cardGlow} aria-hidden="true" />
-            <div className={s.nodeBody}>
-              <div className={s.nodeHead}>
-                <span className={s.divisionLabel}>
-                  <span className={s.divisionNum}>02</span>Division
-                </span>
-                <StatusPill status={mc} />
-              </div>
-              <h2 className={s.cardTitle}>Flashcards + Memory Check</h2>
-              <p className={s.cardLead}>
-                Study the deck, then prove recall on the Memory Check. Score{" "}
-                {mcThreshold}% to clear.
-              </p>
-              <div className={s.nodeFoot}>
-                <span className={s.meta}>{gate?.mc.score_pct ?? 0}% recall</span>
-                <Button variant="blue" onClick={enterFlashcards} data-testid="hub-start-fc">
-                  {mc === "passed"
-                    ? "Review deck →"
-                    : mc === "inProgress"
-                    ? "Continue →"
-                    : "Start flashcards →"}
-                </Button>
-              </div>
-            </div>
-          </article>
-        </div>
+        {/* ---- 02 · Flash cards (blue clay 3D-press node) ---- */}
+        <LearningNode
+          num="02"
+          title="Flash cards"
+          lead={`Drill the deck, then prove recall on the Memory Check. Hit ${mcThreshold}% to clear.`}
+          variant="flash"
+          status={mc}
+          isNext={nextNode === "flash"}
+          pct={gate?.mc.score_pct ?? 0}
+          meta={`${gate?.mc.score_pct ?? 0}% recall`}
+          ctaLabel={mc === "passed" ? "Review →" : mc === "inProgress" ? "Continue →" : "Start →"}
+          align="right"
+          onClick={enterFlashcards}
+          testid="hub-start-fc"
+        />
 
-        {/* ---- MIDDLE: gated Homework Practices block (game-purple accent) ---- */}
-        <div className={s.practicesRow}>
-          <article
-            className={`${s.node} ${s.practices} ${s.accentGame} ${
-              unlocked ? s.practicesOpen : s.practicesLocked
-            } ${nudged ? s.shake : ""}`}
-            data-testid="hub-division-3"
-          >
-            <span className={s.cardAccent} aria-hidden="true" />
-            <span className={s.cardGlow} aria-hidden="true" />
-            {/* unlock-gate scope (testid kept for existing Playwright) */}
-            <div className={s.gateScope} data-testid="hub-unlock-gate" aria-live="polite">
-              <div className={s.nodeHead}>
-                <span className={s.divisionLabel}>
-                  <span className={s.divisionNum}>03</span>Homework Practices
-                </span>
-                {unlocked ? (
-                  <Pill tone="good">Unlocked</Pill>
-                ) : (
-                  <Pill tone="dark">
-                    <LockGlyph /> Locked
-                  </Pill>
-                )}
-              </div>
-
-              {/* The three stacked sub-items from the sketch */}
-              <ul className={s.subItems}>
-                <li className={s.subItem}>
-                  <GameGlyph />
-                  <span>Gamified Practices</span>
-                </li>
-                <li className={s.subItem}>
-                  <GamepadGlyph />
-                  <span>Interactive Games</span>
-                </li>
-                <li className={`${s.subItem} ${s.subItemBoss}`}>
-                  <BossGlyph />
-                  <span>Boss Fight</span>
-                </li>
-              </ul>
-
-              <div className={s.nodeFoot}>
-                <span className={s.meta}>
-                  {unlocked ? "Ready to enter" : "Locked"}
-                </span>
-                {unlocked ? (
-                  <Button variant="blue" onClick={enterUnlockGate} data-testid="hub-enter-gate">
-                    Enter Practice Arc →
-                  </Button>
-                ) : (
-                  <button
-                    type="button"
-                    className={s.lockedCta}
-                    onClick={handleLockedClick}
-                    aria-disabled="true"
-                  >
-                    <LockGlyph /> Locked
-                  </button>
-                )}
-              </div>
-
-              {!unlocked && (
-                <p className={`${s.lockReq} ${nudged ? s.lockReqLoud : ""}`}>
-                  Clear Divisions 1 &amp; 2 (≥{mcThreshold}%) to unlock.
-                </p>
-              )}
-            </div>
-          </article>
-        </div>
-
-        {/* ---- BOTTOM: terminal Reflection node (security-red accent dot) ---- */}
-        <div className={s.reflectionRow}>
-          <div className={`${s.reflection} ${s.accentSecurity}`} aria-disabled="true">
-            <span className={s.reflectionDot} aria-hidden="true" />
-            <span className={s.reflectionLabel}>Reflection</span>
-            <span className={s.reflectionSub}>Debrief · feedback &amp; marking</span>
-          </div>
-        </div>
+        {/* ---- 03 · Homework Practices — single node, CHAINED + GRAY until unlocked ---- */}
+        <PracticesNode
+          unlocked={unlocked}
+          nudged={nudged}
+          mcThreshold={mcThreshold}
+          onLockedClick={handleLockedClick}
+          onEnter={enterUnlockGate}
+        />
       </div>
     </main>
   );
 }
 
-// The connector layer. Two curved paths sweep down from the two top cards and
-// converge on the Practices block; a straight arrow then drops to Reflection.
-// Inked to a soft neutral so the lines read as quiet structure on the light bg
-// (Apple reserves saturated color for CTAs, not scaffolding).
-// Uses a fixed 0..1000 viewBox stretched to fill the flow column, so the curve
-// geometry is resolution-independent. preserveAspectRatio="none" lets it scale
-// to whatever height the column ends up being.
-function FlowConnectors({ unlocked }: { unlocked: boolean }) {
+// CBP "progress" fraction → 0..100, used to fill the conic ring on the badge.
+function pctFromCbp(g: CbpGate | undefined): number {
+  if (!g) return 0;
+  if (g.passed) return 100;
+  const total = g.checkpoints_total || 3;
+  return Math.max(0, Math.min(100, Math.round((g.checkpoints_correct / total) * 100)));
+}
+
+// ---- A single learning station = the pressable 3D "pebble" button ----------
+function LearningNode({
+  num,
+  title,
+  lead,
+  variant,
+  status,
+  isNext,
+  pct,
+  meta,
+  ctaLabel,
+  align,
+  onClick,
+  testid,
+}: {
+  num: string;
+  title: string;
+  lead: string;
+  variant: "case" | "flash";
+  status: SectionStatus;
+  isNext: boolean;
+  pct: number;
+  meta: string;
+  ctaLabel: string;
+  align: "left" | "right";
+  onClick: () => void;
+  testid: string;
+}) {
+  // `passed` recolors to the green "done" face regardless of base variant.
+  const faceClass =
+    status === "passed"
+      ? s.nodeDone
+      : variant === "case"
+      ? s.nodeCase
+      : s.nodeFlash;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testid}
+      data-status={status}
+      className={[
+        s.node,
+        faceClass,
+        align === "left" ? s.alignLeft : s.alignRight,
+        isNext ? s.isNext : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <span className={s.nodeTopline}>
+        {/* Number badge with the conic progress ring (transform/opacity only). */}
+        <span
+          className={`${s.numRing} ${status === "passed" ? s.numRingDone : ""}`}
+          style={{ ["--pct" as string]: status === "passed" ? 100 : pct }}
+          aria-hidden="true"
+        >
+          <span className={s.numInner}>
+            {status === "passed" ? <CheckGlyph /> : <span className={s.nodeNum}>{num}</span>}
+          </span>
+        </span>
+        <span className={s.statusGlyph} aria-hidden="true">
+          {status === "passed" ? (
+            <span className={s.crownStamp}>
+              <CrownGlyph />
+            </span>
+          ) : status === "inProgress" ? (
+            <span className={s.dot} />
+          ) : null}
+        </span>
+      </span>
+
+      <span className={s.nodeTitle}>{title}</span>
+      <span className={s.nodeLead}>{lead}</span>
+
+      <span className={s.nodeFoot}>
+        <span className={s.meta}>{meta}</span>
+        <span className={s.ctaLabel}>{ctaLabel}</span>
+      </span>
+    </button>
+  );
+}
+
+// ---- 03 · Homework Practices: a SINGLE node, chained + gray while locked ----
+function PracticesNode({
+  unlocked,
+  nudged,
+  mcThreshold,
+  onLockedClick,
+  onEnter,
+}: {
+  unlocked: boolean;
+  nudged: boolean;
+  mcThreshold: number;
+  onLockedClick: () => void;
+  onEnter: () => void;
+}) {
+  return (
+    <article
+      data-testid="hub-division-3"
+      className={[
+        s.node,
+        s.nodePractices,
+        s.alignCenter,
+        unlocked ? s.practicesOpen : s.practicesLocked,
+        nudged ? s.shake : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {/* Chain overlay — diagonal link band + the snapping halves the unlock
+          choreography animates apart. Hidden once unlocked. */}
+      {!unlocked && (
+        <span className={s.chains} aria-hidden="true">
+          <span className={`${s.chainLink} ${s.chainA}`} />
+          <span className={`${s.chainLink} ${s.chainB}`} />
+          <span className={`${s.chainLink} ${s.chainC}`} />
+          <span className={`${s.chainLink} ${s.chainD}`} />
+          {/* the two halves that snap apart + spark + glow during the sequence */}
+          <span className={s.chainBurst} />
+          <span className={`${s.chainHalf} ${s.chainLinkLeft}`} />
+          <span className={`${s.chainHalf} ${s.chainLinkRight}`} />
+          <span className={`${s.chainSpark} ${s.chainSpark1}`} />
+          <span className={`${s.chainSpark} ${s.chainSpark2}`} />
+          <span className={`${s.chainSpark} ${s.chainSpark3}`} />
+        </span>
+      )}
+
+      <div className={s.gateScope} data-testid="hub-unlock-gate" aria-live="polite">
+        <span className={s.nodeTopline}>
+          <span className={`${s.numRing} ${unlocked ? s.numRingOpen : s.numRingLocked}`} aria-hidden="true">
+            <span className={s.numInner}>
+              {unlocked ? (
+                <span className={s.nodeNum}>03</span>
+              ) : (
+                <span className={s.padlock}>
+                  <LockGlyph />
+                </span>
+              )}
+            </span>
+          </span>
+        </span>
+
+        <span className={s.nodeTitle}>Homework Practices</span>
+
+        {/* "What's behind the lock" preview — dimmed sub-items. */}
+        <ul className={s.subItems}>
+          <li className={s.subItem}>
+            <GameGlyph />
+            <span>Gamified drills</span>
+          </li>
+          <li className={s.subItem}>
+            <GamepadGlyph />
+            <span>Interactive games</span>
+          </li>
+          <li className={`${s.subItem} ${s.subItemBoss}`}>
+            <BossGlyph />
+            <span>Boss fight</span>
+          </li>
+        </ul>
+
+        <div className={s.nodeFoot}>
+          {unlocked ? (
+            <button
+              type="button"
+              className={`${s.enterCta} ${s.ctaBtn}`}
+              onClick={onEnter}
+              data-testid="hub-enter-gate"
+            >
+              Enter Practice Arc →
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={s.lockedCta}
+              onClick={onLockedClick}
+              aria-disabled="true"
+            >
+              <LockGlyph /> Locked
+            </button>
+          )}
+        </div>
+
+        {!unlocked && (
+          <p className={`${s.lockReq} ${nudged ? s.lockReqLoud : ""}`}>
+            Clear Case-Study &amp; Flash cards (≥{mcThreshold}%) to unlock.
+          </p>
+        )}
+      </div>
+    </article>
+  );
+}
+
+// The winding path connector. A thick rounded stroke snakes node→node; each
+// segment recolors green once its upstream node is passed. Resolution-independent
+// 0..1000 viewBox stretched to the column (preserveAspectRatio="none").
+function PathConnectors({
+  cbpPassed,
+  mcPassed,
+  unlocked,
+}: {
+  cbpPassed: boolean;
+  mcPassed: boolean;
+  unlocked: boolean;
+}) {
   return (
     <svg
       className={s.connectors}
@@ -270,49 +428,27 @@ function FlowConnectors({ unlocked }: { unlocked: boolean }) {
       preserveAspectRatio="none"
       aria-hidden="true"
     >
-      <defs>
-        <marker
-          id="hubArrow"
-          viewBox="0 0 10 10"
-          refX="5"
-          refY="5"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto-start-reverse"
-        >
-          <path d="M0 0 L10 5 L0 10 z" fill="var(--hub-line)" />
-        </marker>
-      </defs>
-
-      {/* Left card -> Practices (curves right and down to the converge point) */}
+      {/* node 1 (left) → node 2 (right) */}
       <path
-        className={s.line}
-        d="M250 150 C 250 300, 500 280, 500 430"
+        className={`${s.line} ${cbpPassed ? s.lineLive : ""}`}
+        d="M300 150 C 320 320, 700 360, 700 500"
         fill="none"
-        stroke="var(--hub-line)"
-        strokeWidth="2.5"
+        strokeWidth="11"
         strokeLinecap="round"
+        strokeDasharray="2 26"
       />
-      {/* Right card -> Practices (curves left and down to the converge point) */}
+      {/* node 2 (right) → node 3 (center) — renders as the chain segment while
+          locked (dense links), recoloring + flowing green once unlocked. */}
       <path
-        className={`${s.line} ${s.lineDelay}`}
-        d="M750 150 C 750 300, 500 280, 500 430"
+        className={`${s.line} ${unlocked ? s.lineLive : s.lineChained}`}
+        d="M700 540 C 700 720, 500 700, 500 860"
         fill="none"
-        stroke="var(--hub-line)"
-        strokeWidth="2.5"
+        strokeWidth={unlocked ? 11 : 13}
         strokeLinecap="round"
+        strokeDasharray={unlocked ? "2 26" : "10 16"}
       />
-      {/* Practices -> Reflection (straight drop with an arrowhead). Brightens
-          when the arc unlocks; stays dim otherwise. */}
-      <path
-        className={`${s.line} ${s.lineArrow} ${unlocked ? s.lineArrowLive : ""}`}
-        d="M500 720 L 500 880"
-        fill="none"
-        stroke="var(--hub-line)"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        markerEnd="url(#hubArrow)"
-      />
+      {/* faint "all done" glow once everything is cleared */}
+      {cbpPassed && mcPassed && unlocked && <circle cx="500" cy="870" r="10" className={s.lineGoal} />}
     </svg>
   );
 }
@@ -320,18 +456,46 @@ function FlowConnectors({ unlocked }: { unlocked: boolean }) {
 const LockGlyph = () => (
   <svg
     className={s.glyph}
-    width="13"
-    height="13"
+    width="20"
+    height="20"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="2"
+    strokeWidth="2.2"
     strokeLinecap="round"
     strokeLinejoin="round"
     aria-hidden="true"
   >
     <rect x="3" y="11" width="18" height="11" rx="2" />
     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+
+const CheckGlyph = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="3"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+);
+
+const CrownGlyph = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+  >
+    <path d="M3 7l4.5 4L12 4l4.5 7L21 7l-1.6 11H4.6L3 7z" />
   </svg>
 );
 
