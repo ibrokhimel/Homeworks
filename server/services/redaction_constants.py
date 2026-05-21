@@ -64,5 +64,11 @@ ANSWER_BEARING_KEYS = frozenset(
         "ans_all",
         # distractors enumerate the wrong options' grading metadata
         "distractors",
+        # New Practice Arc games (Memory Matching, Jigsaw Matching,
+        # Error Detection, Assembly). Answer-side fields stripped at
+        # hydration so the client never sees them.
+        "expected_order",   # Assembly — solution sequence
+        "is_broken",        # Error Detection — which work-block carries the error
+        "correction",       # Error Detection — expected correction text
     }
 )

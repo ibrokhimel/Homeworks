@@ -33,13 +33,22 @@ const GB_ARRAY_TO_KEY: Record<string, string> = {
   gb_puzzle_lock: "puzzle_lock",
   gb_adaptive_quiz: "adaptive_quiz",
   gb_story_mode: "story_mode",
+  // Infra-spec games — added with the GameHost registry entries.
+  gb_memory_matching: "memory_matching",
+  gb_jigsaw_matching: "jigsaw_matching",
+  gb_error_detection: "error_detection",
+  gb_assembly: "assembly",
 };
 
 // Canonical fallback order for derived arcs — keeps a sensible difficulty
 // ramp regardless of object-key iteration order on content_json.
 const DERIVED_ORDER: string[] = [
   "gb_tile_match",
+  "gb_memory_matching",
+  "gb_jigsaw_matching",
   "gb_sentence_fill",
+  "gb_assembly",
+  "gb_error_detection",
   "gb_mystery_box",
   "gb_puzzle_lock",
   "gb_adaptive_quiz",

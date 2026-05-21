@@ -1,0 +1,65 @@
+/* Assembly — minimal Apple-glass layout aligned to the v2 design system.
+   Uses landing tokens (--accent / --text / --surface) so dark-mode +
+   reduced-motion are inherited automatically. */
+
+.wrap {
+  position: relative;
+  padding: 24px 20px;
+  border-radius: 24px;
+  background: var(--surface, #fff);
+  box-shadow: var(--shadow-card, 0 12px 32px rgba(0, 0, 0, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: asmFadeIn 320ms var(--landing-spring, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+@keyframes asmFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.label {
+  flex: 1;
+  font-weight: 600;
+  color: var(--text, #1d1d1f);
+}
+
+.controls {
+  display: flex;
+  gap: 6px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap { animation: none; }
+}
+
+[data-theme="dark"] .row {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}

@@ -46,6 +46,11 @@ export const GAME_LABELS: Record<string, string> = {
   puzzle_lock: "Puzzle Lock",
   adaptive_quiz: "Adaptive Quiz",
   story_mode: "Story Mode",
+  // Infra-spec games (Memory Matching, Jigsaw Matching, Error Detection, Assembly).
+  memory_matching: "Memory Matching",
+  jigsaw_matching: "Jigsaw Matching",
+  error_detection: "Error Detection",
+  assembly: "Assembly",
 };
 
 // The registry. tile_match + boss + the four backend-backed games are live;
@@ -60,6 +65,12 @@ const GAME_REGISTRY: Record<string, ComponentType<GameProps>> = {
   adaptive_quiz: lazy(() => import("./games/AdaptiveQuiz")),
   mystery_box: lazy(() => import("./games/MysteryBox")),
   puzzle_lock: lazy(() => import("./games/PuzzleLock")),
+  // Infra-spec game components — each reads its content from
+  // content_json.gb_<key> and fires onComplete when the student finishes.
+  memory_matching: lazy(() => import("./games/MemoryMatching")),
+  jigsaw_matching: lazy(() => import("./games/JigsawMatching")),
+  error_detection: lazy(() => import("./games/ErrorDetection")),
+  assembly: lazy(() => import("./games/Assembly")),
   boss: lazy(() => import("./BossArena")),
 };
 

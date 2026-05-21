@@ -740,6 +740,64 @@ class MemoryCheck(_Permissive):
 
 
 # --------------------------------------------------------------------------- #
+# Practice Arc games — 4 new keys (Memory Matching, Jigsaw Matching,         #
+# Error Detection, Assembly). All `_Permissive` so the redactor can strip     #
+# answer_spec / is_correct / acceptable_keywords at the hydration boundary    #
+# without schema churn. Answer-bearing fields live under known keys already   #
+# in ANSWER_BEARING_KEYS (answer_spec / is_correct / acceptable_keywords).   #
+# --------------------------------------------------------------------------- #
+
+
+class MemoryMatchingItem(_Permissive):
+    """One memory-matching case per the Infra spec: 3 MCQ checkpoints
+    (identify → decide → justify) + Decision-Process-Explanation (DPE) +
+    consequence summary. The client renders one item; multiple items per
+    homework just means more cases."""
+
+    id: Optional[str] = None
+    case_setup: Optional[str] = None
+    pairs: Optional[List[Dict[str, Any]]] = None
+    checkpoints: Optional[List[Dict[str, Any]]] = None       # each {question, options, answer_spec, learning_block}
+    dpe: Optional[Dict[str, Any]] = None                     # {prompt, acceptable_keywords[]}
+    consequence: Optional[Dict[str, Any]] = None             # {correct_path, wrong_path}
+
+
+class JigsawMatchingItem(_Permissive):
+    """One jigsaw-matching case per spec: pick two source-supported nodes
+    that fit together, identify the relationship type, justify the choice."""
+
+    id: Optional[str] = None
+    case_setup: Optional[str] = None
+    pieces: Optional[List[Dict[str, Any]]] = None            # {id, label, role}
+    checkpoints: Optional[List[Dict[str, Any]]] = None
+    dpe: Optional[Dict[str, Any]] = None
+    consequence: Optional[Dict[str, Any]] = None
+
+
+class ErrorDetectionItem(_Permissive):
+    """One error-detection task per spec: a piece of work containing exactly
+    one error. Student finds the broken block, then types the correction.
+    Server grades both the spot and the correction text."""
+
+    id: Optional[str] = None
+    work_blocks: Optional[List[Dict[str, Any]]] = None       # {id, text, is_broken}
+    instructions: Optional[str] = None
+    correction_answer_spec: Optional[AnswerSpec] = None      # AI-graded correction
+    hint: Optional[str] = None
+
+
+class AssemblyItem(_Permissive):
+    """Order-the-pieces puzzle. Spec folder for Assembly is empty in the
+    Infra zip; this is the minimal contract: ordered list of pieces +
+    expected sequence. The student arranges pieces; server verifies order."""
+
+    id: Optional[str] = None
+    pieces: Optional[List[Dict[str, Any]]] = None            # {id, label}
+    expected_order: Optional[List[str]] = None               # server-only — redactor strips
+    instructions: Optional[str] = None
+
+
+# --------------------------------------------------------------------------- #
 # Top-level — every phase optional so partial homeworks still validate.
 # --------------------------------------------------------------------------- #
 
@@ -794,6 +852,14 @@ class ContentJSON(_Permissive):
     # See MemoryPalaceGame / MemoryPalaceConfig docstrings + NAMESPACE NOTE above.
     gb_memory_palace: Optional[MemoryPalaceGame] = None
     gb_memory_palace_config: Optional[MemoryPalaceConfig] = None
+    # New Practice Arc games (per Infra zip specs). Each list is an array of
+    # full case items; the React runtime renders them sequentially via
+    # GameHost. Answer-bearing fields inside each item are stripped by the
+    # hydration redactor before reaching the client (ANSWER_BEARING_KEYS).
+    gb_memory_matching: Optional[List[MemoryMatchingItem]] = None
+    gb_jigsaw_matching: Optional[List[JigsawMatchingItem]] = None
+    gb_error_detection: Optional[List[ErrorDetectionItem]] = None
+    gb_assembly: Optional[List[AssemblyItem]] = None
 
     # Phase 7
     reflection: Optional[ReflectionPhase] = None
