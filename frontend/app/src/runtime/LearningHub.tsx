@@ -848,6 +848,10 @@ const CheckGlyph = () => (
 );
 
 const CrownGlyph = () => (
+  // Award medal: a star-burst medallion on two ribbon tails. Distinct
+  // achievement mark (NOT a crown). Single-color fill so it inherits the
+  // themed gold and stays crisp at 16px inside the .crownStamp disk and on
+  // the white progress chip alike.
   <svg
     width="16"
     height="16"
@@ -855,11 +859,16 @@ const CrownGlyph = () => (
     fill="currentColor"
     aria-hidden="true"
   >
-    <path d="M3 7l4.5 4L12 4l4.5 7L21 7l-1.6 11H4.6L3 7z" />
+    {/* two ribbon tails dropping from behind the medallion */}
+    <path d="M9.2 13.4 6.6 21.8l3.2-1.7L11.1 22l1-2.6zm5.6 0L13 19.4l1 2.6 1.3-1.9 3.2 1.7z" />
+    {/* 10-point star-burst medallion (alternating long/short rays) */}
+    <path d="M12 1.5l1.7 2.3 2.7-1 .2 2.9 2.8.8-1.4 2.5 1.4 2.5-2.8.8-.2 2.9-2.7-1L12 16.8 10.3 14.5l-2.7 1-.2-2.9-2.8-.8 1.4-2.5L4.6 6.8l2.8-.8.2-2.9 2.7 1z" />
   </svg>
 );
 
 const GameGlyph = () => (
+  // Four-point sparkle with a small twinkle — an original "drills / play"
+  // mark, clearly distinct from a five-point star. Line-icon (strokeWidth 1.8).
   <svg
     className={s.subGlyph}
     width="16"
@@ -872,7 +881,10 @@ const GameGlyph = () => (
     strokeLinejoin="round"
     aria-hidden="true"
   >
-    <path d="M12 2 15 9 22 9 16.5 13.5 18.5 21 12 16.5 5.5 21 7.5 13.5 2 9 9 9z" />
+    {/* main four-point sparkle with concave sides */}
+    <path d="M11 3c.4 3.3 1.7 4.6 5 5-3.3.4-4.6 1.7-5 5-.4-3.3-1.7-4.6-5-5 3.3-.4 4.6-1.7 5-5z" />
+    {/* small accent twinkle */}
+    <path d="M18 14c.2 1.7.9 2.4 2.6 2.6C18.9 16.8 18.2 17.5 18 19.2c-.2-1.7-.9-2.4-2.6-2.6 1.7-.2 2.4-.9 2.6-2.6z" />
   </svg>
 );
 
@@ -898,6 +910,8 @@ const GamepadGlyph = () => (
 );
 
 const BossGlyph = () => (
+  // Crested shield with a star — the "boss / peak guardian" mark. Distinct
+  // from a crown; line-icon to match the other sub-glyphs (strokeWidth 1.8).
   <svg
     className={s.subGlyph}
     width="16"
@@ -910,6 +924,9 @@ const BossGlyph = () => (
     strokeLinejoin="round"
     aria-hidden="true"
   >
-    <path d="M3 6l2 13h14l2-13-5 4-4-6-4 6-5-4z" />
+    {/* shield body: shoulders → tapering to a point at the base */}
+    <path d="M12 2.5 19 5v6.2c0 4.3-2.8 7.6-7 9.3-4.2-1.7-7-5-7-9.3V5z" />
+    {/* star emblem centered on the shield */}
+    <path d="M12 7.6l1.1 2.3 2.5.3-1.9 1.7.5 2.5L12 13.4 9.8 14.7l.5-2.5-1.9-1.7 2.5-.3z" />
   </svg>
 );
