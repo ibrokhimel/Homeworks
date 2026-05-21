@@ -93,3 +93,6 @@ frontend/app/node_modules/
 
 # TS build cache
 frontend/app/*.tsbuildinfo
+
+# Playwright CLI snapshots (local)
+.playwright-cli/
