@@ -17,7 +17,14 @@ export interface ContentJson {
   case_based_preview?: CaseBasedPreview;
   flashcards?: Flashcard[];
   memory_check?: MemoryCheck;
-  // practice_arc, etc. land in later phases — kept open.
+  // F4 — Practice Arc spine. `practice_arc.games[]` is an optional ordered
+  // list of game keys ("tile_match", "boss", …); when absent the arc derives
+  // its order from whichever gb_* arrays exist + boss last.
+  practice_arc?: PracticeArc;
+  gb_tile_match?: TileMatchTile[];
+  boss_questions?: BossQuestion[];
+  boss_meta?: BossMeta;
+  // Other gb_* arrays land as the remaining 8 games ship — kept open.
   [key: string]: unknown;
 }
 
@@ -154,4 +161,110 @@ export interface CheckAnswerResult {
   correct: boolean;
   feedback: string;
   learning_block: string | null;
+}
+
+// ---- F4: Practice Arc spine ----
+
+/**
+ * Ordered Practice Arc descriptor. `games` is a list of game KEYS — the same
+ * keys the GameHost registry maps to components ("tile_match", "boss", …).
+ * Optional: when absent, PracticeArc derives the order from the gb_* arrays
+ * present on content_json, with the Boss always last.
+ */
+export interface PracticeArc {
+  games?: string[];
+  title?: string;
+  intro?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * One Tile Match tile as it arrives in the redacted hydration payload. The
+ * server-only `explanation` is stripped; `id` is the per-pair key. The client
+ * matches a left tile to a right tile by submitting their two ids — a match is
+ * correct only when both ids are equal (each pair shares one id). The client
+ * never decides correctness; the server does.
+ */
+export interface TileMatchTile {
+  id: string;
+  left: string;
+  right: string;
+  tier?: "basic" | "premium";
+  concept_family?: string;
+  // Leak guard — the redactor strips the premium "why this is wrong" note.
+  explanation?: never;
+}
+
+/** Per-pair Tile Match grade result (server-authoritative). */
+export interface TileMatchResult {
+  correct: boolean;
+  hint: string | null;
+  explanation: string | null;
+  matched_count: number;
+  total_pairs: number;
+  complete: boolean;
+  outcome: string | null;
+  timer?: { remaining_seconds: number; delta_seconds: number };
+  xp?: Record<string, number>;
+  completion_bonus_xp?: number;
+}
+
+/**
+ * A Boss question from the redacted hydration payload. `q`/`prompt` is the
+ * display text; `id` is the key the server resolves the expected answer by.
+ * Answer fields (`ans`, `accepted_answers`, `answer_spec`) are stripped server
+ * side — the React boss NEVER self-grades, it submits the student's answer
+ * with the question_id and reads correctness/damage from the response.
+ */
+export interface BossQuestion {
+  id?: string;
+  q?: string;
+  prompt?: string;
+  hint?: string;
+  dmg?: number;
+  tags?: string;
+  // Leak guards — these never reach the client.
+  ans?: never;
+  accepted_answers?: never;
+  answer_spec?: never;
+}
+
+export interface BossMeta {
+  boss_type?: "sub" | "big" | "mythical";
+  grade_band?: string;
+  attempts_max?: number | null;
+  starting_hp_override?: number;
+  name?: string;
+  intro?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Boss turn grade result. Mirrors the `tutor.boss_turn` shape plus the
+ * Final-Boss adapter metadata. Correctness + damage are server-computed; the
+ * client renders HP drama from these fields and never derives the verdict.
+ */
+export interface BossTurnResult {
+  correct: boolean;
+  damage_dealt: number;
+  boss_response: string;
+  hint: string | null;
+  score?: number;
+  axis_1?: number;
+  axis_2?: number;
+  axis_1_label?: string;
+  axis_2_label?: string;
+  done?: boolean;
+  // Final-Boss adapter metadata (additive).
+  phase?: string;
+  boss_type_used?: string;
+  grade_band?: string;
+  max_hp?: number;
+  hint_cost_per_use?: number;
+  attempts_used?: number;
+  hints_used?: number;
+  // Surfaced only on defeat.
+  outcome?: string;
+  stars?: number;
+  outcome_xp?: number;
 }

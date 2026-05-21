@@ -2,7 +2,13 @@
 // Base is "" (the SPA is served from the same FastAPI origin as the API).
 // Every call throws on a non-2xx response so callers can surface error UI.
 
-import type { CheckAnswerResult, GateState, HydratePayload } from "./types";
+import type {
+  BossTurnResult,
+  CheckAnswerResult,
+  GateState,
+  HydratePayload,
+  TileMatchResult,
+} from "./types";
 
 const BASE = "";
 
@@ -114,6 +120,91 @@ export function submitMemoryCheckItem(
       question_id: `mc_item${itemIndex}`,
       item_index: itemIndex,
       student_answer: answer,
+    }),
+  });
+}
+
+// ---- F4: Practice Arc game submissions ----
+
+/**
+ * Submit one Practice Arc game interaction. Generic seam for the GameHost
+ * registry: each game maps its own `phase` + payload onto /check-answer, the
+ * single grading endpoint. v1 wires `tile-match`; the other 8 games slot in by
+ * passing their phase + per-game payload. Correctness is ALWAYS the server's.
+ *
+ * `payload` is merged verbatim into the POST body alongside the resolved
+ * homework_id / session_id, so a game contributes exactly the fields its
+ * backend handler reads (e.g. tile-match → {left_id, right_id}).
+ */
+export function submitGameAnswer<T = unknown>(
+  hwId: string,
+  sessionId: string,
+  phase: string,
+  payload: Record<string, unknown>
+): Promise<T> {
+  return request<T>("/api/ai/check-answer", {
+    method: "POST",
+    body: JSON.stringify({
+      phase,
+      homework_id: hwId,
+      session_id: sessionId,
+      ...payload,
+    }),
+  });
+}
+
+/**
+ * Submit a single Tile Match pairing. The client sends only the two tapped
+ * tile ids — the server holds the answer key (a match is correct iff
+ * left_id === right_id, since each pair shares one id) and returns
+ * {correct, hint?, matched_count, total_pairs, complete, outcome?, …}.
+ * The wrong-match `hint` is the LEFT-side text of the picked right tile's TRUE
+ * partner — already visible in the DOM, so not a new leak surface.
+ */
+export function submitTileMatch(
+  hwId: string,
+  sessionId: string,
+  leftId: string,
+  rightId: string
+): Promise<TileMatchResult> {
+  return submitGameAnswer<TileMatchResult>(hwId, sessionId, "tile-match", {
+    left_id: leftId,
+    right_id: rightId,
+  });
+}
+
+/**
+ * Submit one Boss combat turn. Routed through /check-answer phase="final-boss"
+ * (NOT the legacy /api/ai/boss-turn): that endpoint resolves the expected
+ * answers SERVER-SIDE from content_json.boss_questions by `question_id`, so the
+ * redacted client never holds or sends the answer. The response carries
+ * server-computed {correct, damage_dealt, boss_response, hint?, ...}. Win/lose
+ * is driven by the client's HP cursor (HP is frontend authoritative per the
+ * backend adapter), not by a client verdict. The boss NEVER self-grades
+ * correctness.
+ */
+export function bossTurn(
+  hwId: string,
+  sessionId: string,
+  questionId: string,
+  studentAnswer: string,
+  opts: {
+    hpRemaining: number;
+    attemptNumber: number;
+    bossType?: string;
+  }
+): Promise<BossTurnResult> {
+  return request<BossTurnResult>("/api/ai/check-answer", {
+    method: "POST",
+    body: JSON.stringify({
+      phase: "final-boss",
+      homework_id: hwId,
+      session_id: sessionId,
+      question_id: questionId,
+      student_answer: studentAnswer,
+      hp_remaining: opts.hpRemaining,
+      attempt_number: opts.attemptNumber,
+      ...(opts.bossType ? { boss_type: opts.bossType } : {}),
     }),
   });
 }

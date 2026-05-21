@@ -1,0 +1,44 @@
+/* Coming-soon skip card for unregistered games. */
+.skip {
+  padding: 32px 28px;
+  text-align: center;
+}
+.skipCta {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Lazy-load fallback while a code-split game chunk fetches. */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 56px 20px;
+}
+.spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid var(--v2-ring);
+  border-top-color: var(--landing-blue-600);
+  animation: spin 720ms linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.loadingLabel {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1800ms;
+  }
+}

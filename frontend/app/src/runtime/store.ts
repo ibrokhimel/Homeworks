@@ -3,10 +3,21 @@
 // gate state, it does not decide it (it has no answers).
 
 import { create } from "zustand";
-import type { CheckAnswerResult, GateState, HydratePayload } from "../shared/types";
-import { getGateState, submitCheckpoint, submitMemoryCheckItem } from "../shared/api";
+import type {
+  BossTurnResult,
+  CheckAnswerResult,
+  GateState,
+  HydratePayload,
+} from "../shared/types";
+import {
+  bossTurn,
+  getGateState,
+  submitCheckpoint,
+  submitMemoryCheckItem,
+} from "../shared/api";
+import { resolveGameOrder } from "./gameOrder";
 
-export type Screen = "hub" | "cbp" | "fc" | "gate";
+export type Screen = "hub" | "cbp" | "fc" | "gate" | "practice";
 
 // CBP sub-machine: setup → ck0 → lb0 → ck1 → lb1 → ck2 → lb2 → sim → feedback.
 export type CbpSubStage = "setup" | "checkpoint" | "learningBlock" | "sim" | "feedback";
@@ -64,6 +75,35 @@ interface FcState {
   submitError: string | null;
 }
 
+// Practice Arc (F4): a linear rail of game keys → Boss last. The arc tracks
+// which node is active; each game self-reports completion via `completeGame`.
+// `gameOrder` is resolved once on entry (author order, else derived from gb_*
+// arrays) — see gameOrder.ts.
+interface PracticeState {
+  gameOrder: string[]; // ordered game keys; Boss is the final element
+  currentGameIndex: number; // 0-based cursor into gameOrder
+  completed: boolean[]; // per-node completion (client progress only)
+  finished: boolean; // whole arc cleared (Boss defeated / skipped)
+}
+
+// Boss Arena (F4): the mastery peak. HP is frontend-authoritative (the backend
+// adapter mirrors the client cursor); correctness/damage are ALWAYS read from
+// the server boss-turn response — the boss never self-grades. The turn loop
+// walks boss_questions in order; each defeated answer drains HP by the
+// server-returned `damage_dealt`. status drives win/lose rendering.
+export type BossStatus = "intro" | "fighting" | "won" | "lost";
+
+interface BossState {
+  hp: number; // boss HP remaining (drains as the student lands hits)
+  maxHp: number;
+  questionIndex: number; // current boss question
+  attemptNumber: number; // attempts on the current question (for hint gating)
+  status: BossStatus;
+  lastResult: BossTurnResult | null; // most recent server turn (damage/response/hint)
+  submitting: boolean;
+  submitError: string | null;
+}
+
 interface RuntimeState {
   hwId: string;
   sessionId: string;
@@ -72,6 +112,8 @@ interface RuntimeState {
   screen: Screen;
   cbp: CbpState;
   fc: FcState;
+  practice: PracticeState;
+  boss: BossState;
 
   // ---- session/boot ----
   initSession: (hwId: string, injectedSessionId: string | null) => void;
@@ -103,6 +145,17 @@ interface RuntimeState {
 
   // ---- Unlock Gate ----
   enterUnlockGate: () => void;
+
+  // ---- Practice Arc (F4) ----
+  enterPracticeArc: () => void;
+  advanceGame: () => void; // mark current node done, move to next (or finish)
+  setGameIndex: (index: number) => void;
+
+  // ---- Boss Arena (F4) ----
+  startBoss: () => void; // intro → fighting; sizes HP from boss_meta/default
+  bossAnswer: (answer: string) => Promise<BossTurnResult | null>;
+  advanceBossQuestion: () => void; // next boss question after a landed hit
+  retryBoss: () => void; // restart the fight from full HP
 }
 
 const initialCbp: CbpState = {
@@ -129,6 +182,28 @@ const initialFc: FcState = {
   submitError: null,
 };
 
+const initialPractice: PracticeState = {
+  gameOrder: [],
+  currentGameIndex: 0,
+  completed: [],
+  finished: false,
+};
+
+// Grade-band-style HP defaults mirror the backend's _fb_default_hp; the actual
+// HP arrives from boss_meta.starting_hp_override when authored, else this.
+const DEFAULT_BOSS_HP = 100;
+
+const initialBoss: BossState = {
+  hp: DEFAULT_BOSS_HP,
+  maxHp: DEFAULT_BOSS_HP,
+  questionIndex: 0,
+  attemptNumber: 1,
+  status: "intro",
+  lastResult: null,
+  submitting: false,
+  submitError: null,
+};
+
 export const useRuntimeStore = create<RuntimeState>((set, get) => ({
   hwId: "",
   sessionId: "",
@@ -137,6 +212,8 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
   screen: "hub",
   cbp: { ...initialCbp },
   fc: { ...initialFc },
+  practice: { ...initialPractice },
+  boss: { ...initialBoss },
 
   initSession: (hwId, injectedSessionId) =>
     set({ hwId, sessionId: ensureSessionId(injectedSessionId) }),
@@ -359,4 +436,159 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
 
   // ---- Unlock Gate ----
   enterUnlockGate: () => set({ screen: "gate" }),
+
+  // ---- Practice Arc (F4) ----
+
+  // Enter the arc: resolve the game order ONCE (author order, else derived from
+  // gb_* arrays + Boss last), size the completion vector, reset to node 0. We
+  // do NOT gate on practice_arc_unlocked here — the UnlockGate CTA is the only
+  // entry point and it only renders when unlocked, so the gate already passed.
+  enterPracticeArc: () => {
+    const { payload } = get();
+    const gameOrder = resolveGameOrder(payload?.content_json);
+    set({
+      screen: "practice",
+      practice: {
+        gameOrder,
+        currentGameIndex: 0,
+        completed: gameOrder.map(() => false),
+        finished: gameOrder.length === 0,
+      },
+      boss: { ...initialBoss },
+    });
+  },
+
+  // Mark the current node complete and advance. When the last node clears, the
+  // whole arc is finished. Each game calls this when it self-reports done.
+  advanceGame: () =>
+    set((st) => {
+      const completed = [...st.practice.completed];
+      completed[st.practice.currentGameIndex] = true;
+      const next = st.practice.currentGameIndex + 1;
+      const finished = next >= st.practice.gameOrder.length;
+      return {
+        practice: {
+          ...st.practice,
+          completed,
+          currentGameIndex: finished ? st.practice.currentGameIndex : next,
+          finished,
+        },
+      };
+    }),
+
+  setGameIndex: (index) =>
+    set((st) => ({ practice: { ...st.practice, currentGameIndex: index } })),
+
+  // ---- Boss Arena (F4) ----
+
+  // Begin the fight. HP comes from boss_meta.starting_hp_override when authored
+  // (the backend uses the same field as its max-HP source), else the default.
+  startBoss: () => {
+    const { payload } = get();
+    const meta = payload?.content_json.boss_meta;
+    const hp =
+      typeof meta?.starting_hp_override === "number" && meta.starting_hp_override >= 10
+        ? meta.starting_hp_override
+        : DEFAULT_BOSS_HP;
+    set({
+      boss: {
+        ...initialBoss,
+        hp,
+        maxHp: hp,
+        status: "fighting",
+      },
+    });
+  },
+
+  // Submit one boss answer. Correctness + damage come straight from the server
+  // (phase=final-boss resolves the expected answer by question_id; the client
+  // holds no answer). On a correct hit we drain HP by the server's
+  // `damage_dealt`; HP hitting 0 is the WIN. On a miss we bump the attempt
+  // counter (server gates hints on attempt ≥ 2). The boss never self-grades.
+  bossAnswer: async (answer) => {
+    const { hwId, sessionId, payload, boss } = get();
+    const questions = payload?.content_json.boss_questions ?? [];
+    const question = questions[boss.questionIndex];
+    // Backend _fb_find_boss_question resolves by q.id, else the canonical
+    // synthetic "bq_{i}" / "{i}". Use bq_{i} when the question has no authored id.
+    const questionId = question?.id ?? `bq_${boss.questionIndex}`;
+    const bossType = payload?.content_json.boss_meta?.boss_type;
+
+    set((st) => ({ boss: { ...st.boss, submitting: true, submitError: null } }));
+    try {
+      const res = await bossTurn(hwId, sessionId, questionId, answer, {
+        hpRemaining: boss.hp,
+        attemptNumber: boss.attemptNumber,
+        bossType,
+      });
+      // attempts_max gates losses: null/absent = unlimited (the student can
+      // keep swinging). When authored, a wrong answer that exhausts the cap
+      // ends the fight as a loss. The server's per-turn `correct` is canonical.
+      const attemptsMax = payload?.content_json.boss_meta?.attempts_max ?? null;
+      set((st) => {
+        const dmg = Number(res.damage_dealt) || 0;
+        const hp = Math.max(0, st.boss.hp - dmg);
+        const won = hp <= 0;
+        const nextAttempt = res.correct ? st.boss.attemptNumber : st.boss.attemptNumber + 1;
+        const lost =
+          !won &&
+          !res.correct &&
+          typeof attemptsMax === "number" &&
+          nextAttempt > attemptsMax;
+        return {
+          boss: {
+            ...st.boss,
+            submitting: false,
+            hp,
+            lastResult: res,
+            // Wrong answer → same question, next attempt (unlocks server hint).
+            // Correct answer keeps the attempt counter; advanceBossQuestion
+            // resets it when moving on.
+            attemptNumber: nextAttempt,
+            status: won ? "won" : lost ? "lost" : st.boss.status,
+          },
+        };
+      });
+      return res;
+    } catch (err) {
+      set((st) => ({
+        boss: {
+          ...st.boss,
+          submitting: false,
+          submitError: (err as Error).message || "Boss turn failed.",
+        },
+      }));
+      return null;
+    }
+  },
+
+  // Move to the next boss question after a landed hit. If the boss still has HP
+  // but we've run out of authored questions, loop back to the first question
+  // (the boss isn't down yet — the student keeps attacking). Resets attempts.
+  advanceBossQuestion: () =>
+    set((st) => {
+      const total = get().payload?.content_json.boss_questions?.length ?? 0;
+      const next = total > 0 ? (st.boss.questionIndex + 1) % total : 0;
+      return {
+        boss: {
+          ...st.boss,
+          questionIndex: next,
+          attemptNumber: 1,
+          lastResult: null,
+        },
+      };
+    }),
+
+  // Restart the fight from full HP (after a loss or for a replay).
+  retryBoss: () => {
+    const { boss } = get();
+    set({
+      boss: {
+        ...initialBoss,
+        hp: boss.maxHp,
+        maxHp: boss.maxHp,
+        status: "fighting",
+      },
+    });
+  },
 }));

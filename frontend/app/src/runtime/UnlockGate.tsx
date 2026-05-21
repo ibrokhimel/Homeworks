@@ -10,6 +10,7 @@ import s from "./UnlockGate.module.css";
 export function UnlockGate() {
   const gate = useRuntimeStore((st) => st.gateState);
   const goto = useRuntimeStore((st) => st.goto);
+  const enterPracticeArc = useRuntimeStore((st) => st.enterPracticeArc);
 
   const unlocked = gate?.practice_arc_unlocked ?? false;
 
@@ -31,12 +32,6 @@ export function UnlockGate() {
       </main>
     );
   }
-
-  const enterPracticeArc = () => {
-    // F4 wires the real Practice Arc route; for now we log the intent.
-    // eslint-disable-next-line no-console
-    console.log("[UnlockGate] Enter Practice Arc — placeholder until F4.");
-  };
 
   return (
     <main className="v2-shell" data-testid="screen-gate">
