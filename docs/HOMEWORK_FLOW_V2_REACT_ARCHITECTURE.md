@@ -186,6 +186,67 @@ F1 is the analog of the v2 plan's "PR-1 foundation" — self-contained, highest-
 
 ---
 
+## Implementation status — COMPLETE (DaddysBranch, 2026-05-21)
+
+**All phases F0–F7 are shipped on `DaddysBranch`.** The React SPA runtime renders
+every v2 screen + the 8 built Practice-Arc games; the redacted hydration API and
+the server-authoritative gate-state API are live; the full light-glass redesign
+is applied. `server` stays on the legacy HTML runtime; v2 rows fork to React in
+`server/routes/homework_page.py`.
+
+### Wave-B security blockers (4 closed)
+
+A `codex` security pass surfaced and closed four answer-leak / gate-integrity
+blockers, each now fenced by the redaction/gate regression suite:
+
+1. **Redaction completeness** — the deny-list is the single-source
+   `ANSWER_BEARING_KEYS` (`server/services/redaction_constants.py`), deleted
+   fail-closed at every nesting depth; injector + hydration redactor share it so
+   they cannot drift. (+ tutor preview-escape fix below.)
+2. **Tile-match opaque tokens** — hydration ships independently-shuffled per-side
+   tokens (`{lefts:[{lid}], rights:[{rid}]}`) instead of the leaky shared-`id`
+   pair list; the grader recovers the pair index from each HMAC token
+   (`server/services/tile_match_tokens.py`). `gb_memory_match` is dropped from
+   hydration.
+3. **Gate inflation** — `gate_state.py` aggregates on the SERVER-DERIVED
+   `subphase` key (`checkpoint_{idx}` / `item_{idx}`), never the client
+   `question_id`, so a student can't resubmit under fresh ids to inflate the
+   correct count past 100%.
+4. **Practice-gate enforcement** — all 8 practice-arc phases call
+   `_enforce_practice_unlocked(req)` and return `403 PRACTICE_LOCKED` until the
+   arc unlocks (defense in depth — the frontend gate is presentation-only).
+   Bonus: the tutor preview-escape was closed (practice/boss phases strip
+   answer-bearing keys before the LLM prompt).
+
+### Design language
+
+Full **light Apple-glass redesign** of all screens + games, driven by the
+extracted `landing.css` token set (`frontend/css/_tokens.css`, imported into both
+legacy + SPA). CSS Modules + CSS-variable tokens throughout (no Tailwind /
+CSS-in-JS); `--landing-spring` + `prefers-reduced-motion` honored.
+
+### Five DDD domains
+
+The backend v2 surface organizes into five bounded domains:
+
+| Domain | Responsibility | Key files |
+|---|---|---|
+| **Hydration & Redaction** | Student-safe read payload; fail-closed answer stripping; tile-match tokens. | `routes/runtime.py`, `services/runtime_redactor.py`, `services/redaction_constants.py`, `services/tile_match_tokens.py` |
+| **Gating & Unlock** | Server-authoritative Practice-Arc unlock from `phase_attempts`. | `services/gate_state.py` |
+| **Grading & Resolvers** | Per-phase `/check-answer` dispatch; deterministic-first grading; `{correct, feedback}` contract. | `routes/ai.py` (phase resolvers), `services/answer_checker.py` |
+| **Runtime-Flow SPA** | React screens, Zustand store, `<GameHost>` registry, game order. | `frontend/app/src/runtime/` (incl. `gameOrder.ts`, `GameHost.tsx`) |
+| **Tutor** | Docked leak-safe chat; server-side question redaction. | `services/tutor.py`, `POST /api/ai/tutor/chat` |
+
+### Game build status
+
+8 of 9 keys built and registered in `GameHost.tsx`: `tile_match`,
+`sentence_fill`, `real_life_challenge`, `ttt`, `memory_palace`, `adaptive_quiz`,
+`mystery_box`, `puzzle_lock` (+ `boss`). The 9th key, **`story_mode`**
+(`gb_story_mode`), is unbuilt (greenfield) and falls through to the "coming soon"
+skip card.
+
+---
+
 ## G. Risks
 
 1. **Answer-leak boundary moving to JSON API (highest).** Mitigate: extract deny-lists to one shared module; allow-list-fails-closed; §B.4 regression test; TS `StudentSafeQuestion` type that can't hold answer fields.

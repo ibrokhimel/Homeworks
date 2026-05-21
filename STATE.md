@@ -473,3 +473,46 @@ personalized per-student based on prior chat history; deterministic grading is u
 **Verification:**
 - `python -m pytest tests/test_ai_runtime.py tests/test_homework_page.py tests/test_tutor_chat.py -v` — all passing.
 - Full suite: `python -m pytest tests/ --ignore=tests/test_ai_runtime.py -q` — 66/66 (no regressions).
+
+---
+
+## v2 React SPA runtime — COMPLETE (DaddysBranch, 2026-05-21)
+
+**Branch:** `DaddysBranch` (NOT `server` — `server` stays on the legacy HTML
+runtime). Served at `/h/{id}` only when `content_json.flow_version == "v2"`; the
+fork in `server/routes/homework_page.py` leaves every legacy (v1) row on the
+unchanged injector path.
+
+### Confirmed working (F0–F7 complete)
+
+- **React SPA runtime** (`frontend/app/`, Vite + TypeScript, committed `dist/`):
+  - **Learning Hub** — top-down flowchart of the v2 flow.
+  - **Case-Based Preview** — guided 3-checkpoint real-life learning case (one of
+    the two ungated unlock paths).
+  - **Flashcards + Memory Check** — Quizlet-style gate (the second unlock path);
+    pass ≥ `pass_threshold_pct` (default 60%).
+  - **Practice Arc** — 8 built games: Tile Match, Sentence Fill, Real-Life
+    Challenge, Tic-Tac-Toe (Ttt), Memory Palace, Adaptive Quiz, Mystery Box,
+    Puzzle Lock. `<GameHost>` lazy-loads each via a key registry.
+  - **Boss** (`<BossArena>`, always the final arc node) + **Reflection** +
+    docked persistent **Tutor** widget.
+- **Server-authoritative gating** — `GET /api/runtime/homeworks/{id}/gate-state`
+  computes the Practice-Arc unlock from `phase_attempts` on server-derived
+  subphase keys (no client-side `question_id` inflation). The client renders
+  gate state, never decides it.
+- **Answer-leak redaction** — `GET /api/runtime/homeworks/{id}` returns a
+  redacted hydration payload (`runtime_redactor.py` + the shared
+  `ANSWER_BEARING_KEYS` deny-list). Tile-match ships opaque per-side tokens;
+  TTT ships unmarked shuffled options; `learning_block`/`feedback` come from the
+  `/check-answer` response, never hydration. All 8 practice-arc phases return
+  `403 PRACTICE_LOCKED` until the arc unlocks; CBP/MC are ungated.
+- **Test suite:** 2952 tests pass (Python pytest + frontend Vitest), as reported
+  on DaddysBranch.
+- **Full `landing.css` light Apple-glass redesign** applied across all v2
+  screens + games.
+
+### Known
+
+- **story_mode** (`gb_story_mode` → `story_mode` game key) is unbuilt
+  (greenfield) — `<GameHost>` renders a graceful "coming soon" skip card so the
+  arc stays walkable.

@@ -651,3 +651,148 @@ Our read-side `list_recent_attempts` helper is removed. See PR #34 for lane deci
 strips `expected`, `ans`, `accepted_answers`, and `correct` from any question
 payload at top level AND inside `answer_spec` before the prompt enters the LLM.
 See `server/services/tutor.py::_redact_question_for_tutor`.
+
+---
+
+## v2 flow (`flow_version: "v2"`)
+
+**ADDITIVE — the frozen contract is unchanged.** Every field below is a NEW
+optional key on `content_json`; no existing key is renamed or retyped. Legacy
+rows omit these and render through the unchanged HTML injector. A row is served
+by the React SPA runtime (`frontend/app/`) only when `content_json.flow_version
+== "v2"`; the fork lives in `server/routes/homework_page.py`. Pydantic models
+are in `server/schemas/content.py` (all `extra="allow"`).
+
+### New top-level fields
+
+| Key | Type | Purpose |
+|---|---|---|
+| `flow_version` | string | Runtime dispatcher: absent/`"v1"` → legacy HTML injector; `"v2"` → React SPA. |
+| `case_based_preview` | object (`CaseBasedPreview`) | Learning Hub Tile A — guided 3-checkpoint real-life case. One of the two ungated unlock paths. |
+| `memory_check` | object (`MemoryCheck`) | Learning Hub Tile B gate — Quizlet-style test after flashcards. The second unlock path. |
+
+`practice_arc` is also read by the runtime (`practice_arc.games[]` — an optional
+ordered list of game-key strings); when absent the arc derives its order from
+whichever `gb_*` arrays exist, with Boss always last. The 8 built game keys map
+to `gb_tile_match`, `gb_sentence_fill`, `real_life_challenge`, `gb_ttt`,
+`gb_memory_palace`, `gb_mystery_box`, `gb_puzzle_lock`, `gb_adaptive_quiz`; a 9th
+key `gb_story_mode` → `story_mode` is reserved but unbuilt (renders a "coming
+soon" skip card).
+
+### `case_based_preview` (CaseBasedPreview)
+
+```json
+{
+  "title": "string",
+  "metadata": {},
+  "source_extraction": {},
+  "visual_plan": [],
+  "case_setup": { "story": "...", "role": "...", "task": "..." },
+  "checkpoints": [
+    {
+      "kind": "identify | decide | justify",
+      "question": "string",
+      "options": ["..."],
+      "answer_spec": { /* AnswerSpec — STRIPPED before hydration */ },
+      "learning_block": "post-submit teaching text — STRIPPED from hydration; returned by /check-answer response only",
+      "feedback": "string"
+    }
+  ],
+  "final_simulation": { "correct_path": "STRIPPED", "wrong_path": "..." },
+  "feedback_summary": {},
+  "completion_rules": {}
+}
+```
+
+### `memory_check` (MemoryCheck)
+
+```json
+{
+  "items": [
+    {
+      "type": "mcq | fill_blank | choose_explanation | true_false | tile_match | term_definition",
+      "prompt": "string",
+      "options": ["..."],
+      "answer_spec": { /* AnswerSpec — STRIPPED before hydration */ },
+      "flashcard_ref": "optional id"
+    }
+  ],
+  "pass_threshold_pct": 60,
+  "modes_enabled": ["..."],
+  "retake_pool_size": 0
+}
+```
+
+### gb_* practice-arc game arrays (additive, structured)
+
+These coexist with the legacy `gb_*` shapes documented in §1. New structured
+models add validation; existing rows are untouched.
+
+| Key | Model | Notes |
+|---|---|---|
+| `gb_adaptive_quiz` | `AdaptiveQuizItem[]` | `{q\|prompt, tier, ans[]/answer_spec}` (same answer_spec contract as boss). |
+| `gb_mystery_box` | `MysteryBoxItem[]` | `{category, q, a}`. |
+| `gb_puzzle_lock` | `PuzzleLockItem[]` | `{content, q, a}` (legacy `{text, question, answer}` aliases accepted). |
+| `gb_ttt` | `TttItem[]` | `{id?, q, correct, distractors[]}` — `correct`/`distractors` are server-only. `gb_ttt_config` carries XP/session overrides. |
+| `gb_sentence_fill` | `SentenceFillItem[]` | cloze `passage` with 1–6 `___` blanks + per-blank `answers[]` + optional `word_bank`. |
+| `gb_tile_match` | `TileMatchPair[]` | structured `{id, left, right, tier, …}`; 0–8 pairs, unique ids/lefts/rights, ≤1 `is_palace_tile`. |
+| `gb_memory_palace` | `MemoryPalaceGame` | `{palaces[], concepts[]}` Method-of-Loci routes (3–7 locations each). |
+| `real_life_challenge` | `RealLifeChallengeCase` | 5-step expert role-play (decision → info_request → final_decision → concept_select → reasoning). |
+| `boss_questions` | `BossQuestion[]` | unchanged final-boss phase. |
+
+### Runtime API + check-answer contracts (v2)
+
+Two NEW read endpoints (`server/routes/runtime.py`):
+
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/api/runtime/homeworks/{id}` | Redacted hydration payload `{id, title, subject, grade, lang, flow_version, content_json}` — answers stripped server-side. |
+| GET | `/api/runtime/homeworks/{id}/gate-state?session_id=` | Server-authoritative `{cbp:{passed,checkpoints_correct,checkpoints_total,threshold}, mc:{passed,score_pct,correct,total,threshold_pct}, practice_arc_unlocked}`. |
+
+**Hydration-redaction boundary** (`server/services/runtime_redactor.py`, deny-list
+in `server/services/redaction_constants.py::ANSWER_BEARING_KEYS`):
+
+- Fail-closed DENY-list: every key in `ANSWER_BEARING_KEYS` (incl. the whole
+  `answer_spec` subtree, `expected`, `accepted_answers`, `correct`,
+  `option_index`, `is_correct`, `acceptable_keywords`, `consequence`,
+  `correct_path`, `learning_block`, `distractors`, …) is deleted at every
+  nesting depth. The input DB row is never mutated.
+- **Tile-match** ships opaque per-side tokens — `{lefts:[{lid,text}], rights:[{rid,text}]}` —
+  with the two columns shuffled independently (seeded on `hw_id`). No field links
+  a left to its right; the grader recovers the pair index from each HMAC token
+  server-side. `gb_memory_match` is dropped from hydration entirely.
+- **TTT** ships `{id, q, options[]}` with the correct answer riding as one
+  unmarked, shuffled MCQ option; `correct`/`distractors` keys stay stripped.
+- **`learning_block` / `feedback`** are post-submit teaching text — they come
+  from the `/check-answer` *response*, never from hydration.
+
+**Per-phase `POST /api/ai/check-answer` submit + response** (all carry
+`homework_id` + `session_id`; response is `{correct, feedback}` unless noted):
+
+| `phase` | Submit fields | Response |
+|---|---|---|
+| `case_based_preview` | `{item_index, student_answer}` | `{correct, feedback, learning_block?}` |
+| `memory_check` | `{item_index, student_answer}` | `{correct, feedback}` |
+| `tile-match` | `{left_id, right_id}` (opaque tokens) | `{correct, …xp/hint}` |
+| `ttt` | `{item_id, picked}` | `{is_correct, mercy, xp_delta, correct_value}` |
+| `ttt-session` | `{results:[{outcome}]}` | `{session_xp, strong_session_bonus, mastery_tier, wins, draws, losses, …}` |
+| `sentence-fill` | `{item_id, blank_idx, student_value}` | `{correct, …}` |
+| `real-life-challenge` | `{step_id, selected_option_id \| selected_chip_id \| reasoning_text}` | `{correct, …}` (step-dependent) |
+| `memory-palace` | `{palace_key, placements[], recall_results[]}` | `{outcome, accuracy_pct, correct_count, total_count, …}` |
+| `final-boss` | `{question_id: "bq_{i}", student_answer}` | boss-turn shape (delegates to `tutor.boss_turn`) |
+| `adaptive-quiz` | `{item_index, student_answer}` | `{correct, feedback}` |
+| `mystery-box` | `{item_index, student_answer}` | `{correct, feedback}` |
+| `puzzle-lock` | `{item_index, student_answer}` | `{correct, feedback}` |
+
+**Gate computation** (`server/services/gate_state.py`): aggregates on the
+SERVER-DERIVED `subphase` key (`checkpoint_{idx}` / `item_{idx}`), never on the
+client `question_id` (no-inflation invariant). `practice_arc_unlocked` is true
+only when CBP ≥ max(2, 60% of checkpoints) AND Memory Check ≥ `pass_threshold_pct`
+(default 60%).
+
+**Practice-arc gating (403 enforcement).** All 8 practice-arc phases
+(`tile-match`, `sentence-fill`, `real-life-challenge`, `ttt`, `ttt-session`,
+`memory-palace`, `adaptive-quiz`, `mystery-box`, `puzzle-lock`, `final-boss`)
+call `_enforce_practice_unlocked(req)` before grading and return `403
+{code: "PRACTICE_LOCKED"}` until the arc is unlocked. `case_based_preview` and
+`memory_check` are deliberately UNGATED — they ARE the unlock path.
