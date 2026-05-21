@@ -205,6 +205,21 @@
   100% { transform: translate3d(calc(var(--bx) * var(--depth) + 20px), calc(var(--by) * var(--depth) - 22px),  0); }
 }
 
+/* Pointer/touch color trail — a single <canvas> the rAF loop in HubBackdrop
+   paints into. Inside .backdrop, so it inherits its z-index:0 region (BELOW
+   .intro/.path at z-index 1) and pointer-events:none — it can NEVER block a
+   node tap or the unlock choreography. Last child of .backdrop so it paints
+   ABOVE the aurora + blobs (no z-index needed; document order wins within the
+   same stacking context). The canvas is sized in JS via ResizeObserver. */
+.trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;    /* HARD RULE: never blocks interaction */
+  mix-blend-mode: screen;  /* light-adds the trail over the pale wash */
+}
+
 /* ---- Homework-theme header ---------------------------------------- */
 .intro {
   position: relative;
@@ -888,5 +903,11 @@
     animation: none;
     transform: none;
     will-change: auto;
+  }
+
+  /* The trail attaches NO listeners + runs NO rAF under reduced motion (the JS
+     bails out), so it stays empty. Hide it for belt-and-suspenders safety. */
+  .trail {
+    display: none;
   }
 }

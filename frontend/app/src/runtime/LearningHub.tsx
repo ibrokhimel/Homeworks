@@ -224,6 +224,7 @@ export function LearningHub() {
 // prefers-reduced-motion we attach NO listeners and emit a static backdrop.
 function HubBackdrop() {
   const layerRef = useRef<HTMLDivElement | null>(null);
+  const trailRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     const layer = layerRef.current;
@@ -285,6 +286,214 @@ function HubBackdrop() {
     };
   }, []);
 
+  // ---- Pointer/touch COLOR TRAIL --------------------------------------------
+  // A glowing comet/ink trail on a single <canvas> layered above the aurora +
+  // blobs (still inside .backdrop, so it stays below content + pointer-events:
+  // none — it can NEVER intercept a node tap or the unlock choreography). One
+  // rAF loop: each frame paints a low-alpha wash over the canvas (trail-decay),
+  // then draws the buffered recent points as blurred radial orbs head→tail, and
+  // any live click "bursts" as expanding rings. The hue glides through the
+  // Duolingo palette as the pointer travels; pointerdown jumps the hue + spawns
+  // a burst. Under reduced motion we bail out entirely (no listeners, no rAF).
+  useEffect(() => {
+    const canvas = trailRef.current;
+    const layer = layerRef.current;
+    if (!canvas || !layer) return;
+    if (prefersReducedMotion()) return; // no trail under reduced motion
+
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) return;
+
+    // Duolingo palette to cycle the trail hue through (blue→violet→green→
+    // orange→gold). Kept as the same hex the CSS vars use on .shell.
+    const PALETTE = ["#1cb0f6", "#a78bfa", "#58cc02", "#ff9600", "#ffc800"];
+    const hexToRgb = (hex: string): [number, number, number] => {
+      const n = parseInt(hex.slice(1), 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    };
+    const RGB = PALETTE.map(hexToRgb);
+    // Continuous palette sample: `pos` is a float position around the ring,
+    // lerped between adjacent swatches so the color slides smoothly.
+    const sampleColor = (pos: number): [number, number, number] => {
+      const len = RGB.length;
+      const t = ((pos % len) + len) % len;
+      const i = Math.floor(t);
+      const f = t - i;
+      const a = RGB[i];
+      const b = RGB[(i + 1) % len];
+      return [
+        Math.round(a[0] + (b[0] - a[0]) * f),
+        Math.round(a[1] + (b[1] - a[1]) * f),
+        Math.round(a[2] + (b[2] - a[2]) * f),
+      ];
+    };
+
+    // DPR-aware sizing against the backdrop layer (== the shell box). The
+    // backing store scales with devicePixelRatio; we draw in CSS pixels.
+    let dpr = Math.min(window.devicePixelRatio || 1, 2); // cap at 2 for phones
+    let cssW = 0;
+    let cssH = 0;
+    const resize = () => {
+      const r = layer.getBoundingClientRect();
+      cssW = Math.max(1, r.width);
+      cssH = Math.max(1, r.height);
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(layer);
+
+    // Ring buffer of recent pointer points (capped) → the fading trail body.
+    const MAX_POINTS = 16;
+    type Pt = { x: number; y: number; hue: number };
+    const points: Pt[] = [];
+    // Live click/tap bursts — expanding rings that grow + fade then retire.
+    type Burst = { x: number; y: number; r: number; hue: number; life: number };
+    let bursts: Burst[] = [];
+
+    let huePos = 0; // float position around the palette ring
+    let lastX = 0;
+    let lastY = 0;
+    let havePos = false;
+    let pointerInside = false;
+    let raf2 = 0;
+    let running2 = false;
+
+    // Map a client (viewport) coord to canvas-local CSS pixels.
+    const toLocal = (clientX: number, clientY: number) => {
+      const r = layer.getBoundingClientRect();
+      return { x: clientX - r.left, y: clientY - r.top };
+    };
+
+    const pushPoint = (clientX: number, clientY: number) => {
+      const { x, y } = toLocal(clientX, clientY);
+      if (havePos) {
+        // Advance the hue proportional to travel → "colors follow the trail".
+        const dx = x - lastX;
+        const dy = y - lastY;
+        const dist = Math.hypot(dx, dy);
+        huePos += dist * 0.006; // tune: distance → palette glide speed
+      }
+      lastX = x;
+      lastY = y;
+      havePos = true;
+      pointerInside = true;
+      points.push({ x, y, hue: huePos });
+      if (points.length > MAX_POINTS) points.shift();
+      kick2();
+    };
+
+    const onMove = (e: PointerEvent) => {
+      pushPoint(e.clientX, e.clientY);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (t) pushPoint(t.clientX, t.clientY);
+    };
+    const onDown = (e: PointerEvent) => {
+      const { x, y } = toLocal(e.clientX, e.clientY);
+      huePos += 1; // jump the hue a full swatch on click/tap
+      bursts.push({ x, y, r: 4, hue: huePos, life: 1 });
+      lastX = x;
+      lastY = y;
+      havePos = true;
+      pointerInside = true;
+      points.push({ x, y, hue: huePos });
+      if (points.length > MAX_POINTS) points.shift();
+      kick2();
+    };
+
+    const draw = () => {
+      // Trail-decay: a translucent wash over the whole canvas dims prior frames
+      // so the orbs leave a fading streak instead of accumulating forever.
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.12)";
+      ctx.fillRect(0, 0, cssW, cssH);
+
+      // Glow orbs add light (lighter blend) for a luminous comet body.
+      ctx.globalCompositeOperation = "lighter";
+
+      // Draw buffered points head→tail with decreasing alpha + size.
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        const headness = (i + 1) / points.length; // 0(tail)..1(head)
+        const radius = 10 + headness * 26;
+        const alpha = 0.05 + headness * 0.22;
+        const [r, g, b] = sampleColor(p.hue);
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
+        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Expanding click/tap rings, fading as they grow.
+      for (let i = 0; i < bursts.length; i++) {
+        const bu = bursts[i];
+        bu.r += 4.5;
+        bu.life -= 0.03;
+        const [r, g, b] = sampleColor(bu.hue);
+        const ringAlpha = Math.max(0, bu.life) * 0.5;
+        const grad = ctx.createRadialGradient(
+          bu.x,
+          bu.y,
+          Math.max(0, bu.r - 14),
+          bu.x,
+          bu.y,
+          bu.r,
+        );
+        grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`);
+        grad.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, ${ringAlpha})`);
+        grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(bu.x, bu.y, bu.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      bursts = bursts.filter((bu) => bu.life > 0 && bu.r < Math.max(cssW, cssH));
+
+      // When the pointer pauses, retire the oldest trail points so the streak
+      // fully fades out (and lets us idle the loop once everything's gone).
+      if (!pointerInside && points.length > 0) points.shift();
+      pointerInside = false;
+
+      // Keep ticking while there's anything to fade; otherwise idle the loop
+      // (one last clearing wash will have nearly zeroed the canvas already).
+      if (points.length > 0 || bursts.length > 0) {
+        raf2 = requestAnimationFrame(draw);
+      } else {
+        ctx.globalCompositeOperation = "source-over";
+        ctx.clearRect(0, 0, cssW, cssH);
+        running2 = false;
+      }
+    };
+    function kick2() {
+      if (running2) return;
+      running2 = true;
+      raf2 = requestAnimationFrame(draw);
+    }
+
+    // Passive listeners on window — the canvas itself is pointer-events:none, so
+    // taps still reach the nodes; these only OBSERVE motion, never block it.
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("pointerdown", onDown, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("touchmove", onTouchMove);
+      ro.disconnect();
+      cancelAnimationFrame(raf2);
+    };
+  }, []);
+
   return (
     <div ref={layerRef} className={s.backdrop} aria-hidden="true">
       <div className={s.aurora} />
@@ -293,6 +502,9 @@ function HubBackdrop() {
       <span className={`${s.blob} ${s.blob3}`} />
       <span className={`${s.blob} ${s.blob4}`} />
       <span className={`${s.blob} ${s.blob5}`} />
+      {/* Pointer/touch color trail — layered above the aurora + blobs but still
+          inside the backdrop (z-index 0 region), pointer-events:none. */}
+      <canvas ref={trailRef} className={s.trail} aria-hidden="true" />
     </div>
   );
 }
