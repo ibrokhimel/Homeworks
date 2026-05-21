@@ -1999,3 +1999,51 @@ false
 ```
 
 **Tests**: see `tests/test_equations_validate_endpoint.py` (46 cases).
+
+---
+
+## Runtime (v2 React SPA)
+
+The v2 React runtime (`flow_version: "v2"` homeworks) hydrates from a redacted
+read API. Answers are stripped server-side (`server/services/runtime_redactor.py`)
+before they reach the browser — see `docs/HOMEWORK_FLOW_V2_REACT_ARCHITECTURE.md`.
+Per-interaction grading reuses `POST /api/ai/check-answer` (phases
+`case_based_preview`, `memory_check`, `tile-match`, `final-boss`, …).
+
+### GET /api/runtime/homeworks/{hw_id}
+
+Student-safe hydration payload for the React runtime. Returns the homework's
+`content_json` with every answer-bearing field removed (no `answer_spec`,
+`expected`, `accepted_answers`, `correct_path`, per-game server-only fields).
+
+**Response 200**
+```json
+{
+  "id": "HW-20260521-006",
+  "title": "Kasrlarni teng bo'lish",
+  "subject": "math-algebra",
+  "grade": 6,
+  "lang": "uz",
+  "flow_version": "v2",
+  "content_json": { "...redacted display content..." }
+}
+```
+404 if the homework does not exist; 409 if trashed.
+
+### GET /api/runtime/homeworks/{hw_id}/gate-state
+
+Server-authoritative Learning-Section gate state. The client renders this; it
+never decides it (it has no answers). `practice_arc_unlocked` is true only when
+both learning sections pass. `session_id` query param scopes the attempt log.
+
+**Response 200**
+```json
+{
+  "cbp": {"passed": true, "checkpoints_correct": 3, "checkpoints_total": 3, "threshold": 2},
+  "mc":  {"passed": true, "score_pct": 60, "correct": 3, "total": 5, "threshold_pct": 60},
+  "practice_arc_unlocked": true
+}
+```
+
+**Tests**: `tests/test_runtime_hydration_redaction.py` (redaction fence),
+`tests/test_v2_gate_flow.py` (unlock sequence).
