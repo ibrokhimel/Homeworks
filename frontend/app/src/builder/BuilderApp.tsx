@@ -3,34 +3,55 @@ import { Button, Eyebrow, Title, Lead } from "../shared/ui/primitives";
 import { CbpEditor } from "./CbpEditor";
 import { MemoryCheckEditor } from "./MemoryCheckEditor";
 import { BossEditor } from "./BossEditor";
+import { MetadataEditor } from "./MetadataEditor";
+import { ReflectionEditor } from "./ReflectionEditor";
+import { PracticeArcSection } from "./PracticeArcSection";
 import { BuilderPreview } from "./BuilderPreview";
 import type { PreviewSurface } from "./BuilderPreview";
-import { HomeworkPicker } from "./HomeworkPicker";
+import { Dashboard } from "./Dashboard";
 import { emptyDraft, fromContentJson, toContentJson } from "./draft";
 import { getHomework, putHomework } from "./builderApi";
-import type { BuilderDraft } from "./types";
+import type { BuilderDraft, HomeworkRow } from "./types";
 import s from "./BuilderApp.module.css";
 
-type Section = "cbp" | "memory" | "boss";
+type Section = "meta" | "cbp" | "memory" | "practice" | "boss" | "reflection";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+// Each editor section maps to the preview surface it opens on. Practice opens
+// on Tile Match (the canonical first arc game); the author flips the preview
+// surface freely via the preview tabs.
 const SECTION_TO_SURFACE: Record<Section, PreviewSurface> = {
+  meta: "cbp",
   cbp: "cbp",
   memory: "memory",
+  practice: "tile_match",
   boss: "boss",
+  reflection: "reflection",
 };
 
 const SECTIONS: { id: Section; label: string }[] = [
+  { id: "meta", label: "Metadata" },
   { id: "cbp", label: "Case Preview" },
   { id: "memory", label: "Memory Check" },
-  { id: "boss", label: "Practice & Boss" },
+  { id: "practice", label: "Practice Arc" },
+  { id: "boss", label: "Boss" },
+  { id: "reflection", label: "Reflection" },
 ];
 
 const PREVIEW_TABS: { id: PreviewSurface; label: string }[] = [
   { id: "cbp", label: "Case" },
   { id: "flashcards", label: "Flashcards" },
   { id: "memory", label: "Memory Check" },
+  { id: "tile_match", label: "Tile Match" },
+  { id: "sentence_fill", label: "Sentence Fill" },
+  { id: "mystery_box", label: "Mystery Box" },
+  { id: "puzzle_lock", label: "Puzzle Lock" },
+  { id: "adaptive_quiz", label: "Adaptive Quiz" },
+  { id: "memory_palace", label: "Memory Palace" },
+  { id: "ttt", label: "Tic-Tac-Toe" },
+  { id: "real_life_challenge", label: "Real-Life" },
   { id: "boss", label: "Boss" },
+  { id: "reflection", label: "Reflection" },
 ];
 
 const SAVE_DEBOUNCE_MS = 1200;
@@ -109,9 +130,19 @@ export function BuilderApp() {
   };
 
   if (!hwId || !draft) {
+    // The dashboard is the app entry. v2 homeworks open in THIS React builder;
+    // legacy v1 homeworks route to the old builder.html (additive — v1 authoring
+    // is untouched). New homeworks are always created v2, so open in-place.
+    const openRow = (row: HomeworkRow) => {
+      if (row.flow_version === "v2") {
+        openHomework(row.id);
+      } else {
+        window.location.href = `/builder.html?id=${encodeURIComponent(row.id)}`;
+      }
+    };
     return (
-      <HomeworkPicker
-        onOpen={(id) => openHomework(id)}
+      <Dashboard
+        onOpen={openRow}
         onCreated={(id) => openHomework(id, emptyDraft())}
       />
     );
@@ -156,6 +187,12 @@ export function BuilderApp() {
 
       <div className={s.panes}>
         <div className={s.editorPane}>
+          {section === "meta" && (
+            <MetadataEditor
+              value={draft.meta}
+              onChange={(meta) => updateDraft({ ...draft, meta })}
+            />
+          )}
           {section === "cbp" && (
             <CbpEditor
               value={draft.case_based_preview}
@@ -176,20 +213,25 @@ export function BuilderApp() {
               }
             />
           )}
+          {section === "practice" && (
+            <PracticeArcSection draft={draft} updateDraft={updateDraft} />
+          )}
           {section === "boss" && (
             <BossEditor
               bossMeta={draft.boss_meta}
               bossQuestions={draft.boss_questions}
-              practiceArc={draft.practice_arc}
               onBossMetaChange={(boss_meta) =>
                 updateDraft({ ...draft, boss_meta })
               }
               onBossQuestionsChange={(boss_questions) =>
                 updateDraft({ ...draft, boss_questions })
               }
-              onPracticeArcChange={(practice_arc) =>
-                updateDraft({ ...draft, practice_arc })
-              }
+            />
+          )}
+          {section === "reflection" && (
+            <ReflectionEditor
+              value={draft.reflection}
+              onChange={(reflection) => updateDraft({ ...draft, reflection })}
             />
           )}
         </div>

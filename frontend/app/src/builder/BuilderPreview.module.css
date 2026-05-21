@@ -45,3 +45,9 @@
 .bossWrap {
   padding: clamp(20px, 4vw, 40px) 20px;
 }
+
+/* Practice Arc game components render their own .wrap/.stage with internal
+   padding; give them a light frame so they sit naturally in the preview pane. */
+.gameWrap {
+  padding: clamp(16px, 3vw, 32px) 16px;
+}

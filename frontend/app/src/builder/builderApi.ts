@@ -58,19 +58,53 @@ export interface CreateHomeworkInput {
   subject: string;
   grade: number;
   mode: "easy" | "hard";
+  // Optional caller-supplied content_json; merged with the v2 tag below.
+  content_json?: Record<string, unknown>;
 }
 
-/** Create a fresh homework row. Returns the persisted row (incl. `id`). */
+/**
+ * Create a fresh homework row. Returns the persisted row (incl. `id`). We tag
+ * the new row v2 by seeding `content_json: { flow_version: "v2" }` (merged with
+ * any caller-supplied content_json) so every builder-created homework is a v2
+ * row from creation — the runtime + builder both branch on flow_version.
+ */
 export function createHomework(input: CreateHomeworkInput): Promise<HomeworkRow> {
+  const { content_json, ...rest } = input;
   return request<HomeworkRow>("/api/homeworks", {
     method: "POST",
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...rest,
+      content_json: { flow_version: "v2", ...(content_json ?? {}) },
+    }),
   });
 }
 
-/** List homeworks (content_json is stripped server-side for the list view). */
-export function listHomeworks(): Promise<HomeworkRow[]> {
-  return request<HomeworkRow[]>("/api/homeworks");
+/** Delete a homework row. Resolves on 200/204. */
+export function deleteHomework(id: string): Promise<void> {
+  return request<void>(`/api/homeworks/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+/**
+ * Duplicate a homework row server-side. Returns the persisted copy (new `id`).
+ */
+export function duplicateHomework(id: string): Promise<HomeworkRow> {
+  return request<HomeworkRow>(
+    `/api/homeworks/${encodeURIComponent(id)}/duplicate`,
+    { method: "POST" }
+  );
+}
+
+/** List homeworks (content_json is stripped server-side for the list view).
+ * The endpoint returns `{ items: [...] }` — unwrap it (defensively tolerate a
+ * bare array too) so callers get a real HomeworkRow[]. */
+export async function listHomeworks(): Promise<HomeworkRow[]> {
+  const res = await request<HomeworkRow[] | { items?: HomeworkRow[] }>(
+    "/api/homeworks"
+  );
+  if (Array.isArray(res)) return res;
+  return res?.items ?? [];
 }
 
 /** GET the UNREDACTED full row for authoring (answers included). */

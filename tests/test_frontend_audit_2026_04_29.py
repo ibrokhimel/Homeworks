@@ -296,7 +296,7 @@ def test_runtime_memory_sprint_js_keeps_aria_label_synced_with_text():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("path", ["/", "/library.html", "/builder.html"])
+@pytest.mark.parametrize("path", ["/index.html", "/library.html", "/builder.html"])
 def test_pages_still_serve_after_audit_fixes(client, path):
     r = client.get(path)
     assert r.status_code == 200, f"{path} returned {r.status_code}"
