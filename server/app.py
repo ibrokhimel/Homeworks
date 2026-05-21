@@ -18,6 +18,7 @@ from server.routes.grading import router as grading_router
 from server.routes.notebook import router as notebook_router
 from server.routes.taskboard import router as taskboard_router
 from server.routes.equations import router as equations_router
+from server.routes.runtime import router as runtime_router
 from server import db
 from server.config import BASE_DIR
 
@@ -120,6 +121,7 @@ app.include_router(grading_router, prefix="/api")
 app.include_router(notebook_router, prefix="/api")
 app.include_router(taskboard_router, prefix="/api")
 app.include_router(equations_router, prefix="/api")
+app.include_router(runtime_router, prefix="/api")
 
 _FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 
