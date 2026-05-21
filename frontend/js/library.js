@@ -131,8 +131,19 @@
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
-  function show(el) { if (el) el.classList.remove("hidden"); }
-  function hide(el) { if (el) el.classList.add("hidden"); }
+  function show(el) {
+    if (!el) return;
+    el.classList.remove("hidden");
+    // Mirror visual state to assistive tech for the loading skeleton —
+    // the container declares aria-busy="true" in HTML; we re-assert here
+    // in case the same node was previously toggled to "false".
+    if (el === loadingEl) el.setAttribute("aria-busy", "true");
+  }
+  function hide(el) {
+    if (!el) return;
+    el.classList.add("hidden");
+    if (el === loadingEl) el.setAttribute("aria-busy", "false");
+  }
   function reveal(el) { if (el) el.removeAttribute("hidden"); }
   function conceal(el) { if (el) el.setAttribute("hidden", ""); }
 

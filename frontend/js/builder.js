@@ -525,6 +525,9 @@
     const phaseNames = getPhaseNames();
     const phaseIcons = getPhaseIcons();
 
+    // Real phase buttons are about to replace the loading skeleton.
+    els.phaseList.setAttribute("aria-busy", "false");
+
     els.phaseList.innerHTML = phases
       .map(
         (phase) => `
@@ -720,6 +723,11 @@
     const phaseName = phaseNames[phase] || PHASE_NAMES[phase] || titleCase(phase);
     const editorKey = PHASE_EDITOR_KEYS[phase];
     const editor = window.Editors?.[editorKey];
+
+    // The skeleton was the editor-root's initial content; either an editor.render
+    // call or renderPlaceholderEditor below will overwrite it. Either way, we
+    // are no longer waiting on data — flip aria-busy off.
+    els.editorRoot.setAttribute("aria-busy", "false");
 
     els.activePhaseKicker.textContent = t("builder.active_phase_eyebrow");
     els.activePhaseTitle.textContent = phaseName;

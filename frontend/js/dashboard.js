@@ -318,8 +318,14 @@
     state.loading = isLoading;
     els.loadingState.classList.toggle("hidden", !isLoading);
     els.refreshBtn.disabled = isLoading;
+    // aria-busy mirrors visual state so screen readers know the homework
+    // section is resolving — paired with the .sr-only "Loading…" label
+    // inside the skeleton block.
     if (isLoading) {
+      els.loadingState.setAttribute("aria-busy", "true");
       els.errorState.classList.add("hidden");
+    } else {
+      els.loadingState.setAttribute("aria-busy", "false");
     }
   }
 

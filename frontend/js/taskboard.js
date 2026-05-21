@@ -130,6 +130,9 @@ function tasksFor(assigneeId) {
 
 function renderBoard() {
   if (!els.board) return;
+  // First successful render replaces the static loading skeleton — flip
+  // aria-busy off so screen readers stop announcing the board as resolving.
+  els.board.setAttribute("aria-busy", "false");
   els.board.innerHTML = "";
 
   const sortedUsers = [...state.users].sort(
