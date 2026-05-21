@@ -1,0 +1,211 @@
+/* Reflection / Debrief (F5) — the closing screen. The passed state leans on the
+   landing launch-shell (dark, celebratory); the needs-retry state uses a calm,
+   encouraging frame. Mirrors the F2–F4 spring + dark-mode vocabulary. */
+
+.prompts {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.promptCard {
+  animation: cardIn 420ms var(--landing-spring) both;
+}
+.promptCard:nth-child(2) {
+  animation-delay: 70ms;
+}
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.promptLabel {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--v2-text);
+  margin-bottom: 12px;
+  line-height: 1.45;
+}
+
+.promptInput {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--v2-card-tinted);
+  border: 1px solid var(--v2-ring);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--v2-text);
+  resize: vertical;
+  transition: border-color 200ms var(--landing-spring),
+    box-shadow 200ms var(--landing-spring);
+}
+.promptInput::placeholder {
+  color: var(--v2-text-subtle);
+}
+.promptInput:focus {
+  outline: none;
+  border-color: var(--landing-blue-500);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+/* ---- status frame (passed: LaunchShell / needs-retry: calm) ---- */
+.statusFrame {
+  margin-top: 8px;
+  animation: shellIn 480ms var(--landing-spring) both;
+}
+@keyframes shellIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.calmFrame {
+  position: relative;
+  text-align: center;
+  background: var(--v2-card-bg);
+  border: 1px solid var(--v2-ring);
+  border-radius: 28px;
+  padding: 48px 32px;
+  overflow: hidden;
+  box-shadow: var(--landing-shadow-card);
+}
+
+.statusPill {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+/* ---- score row ---- */
+.scoreRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 28px;
+  margin-top: 26px;
+}
+.scoreStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.scoreValue {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--v2-text);
+  font-variant-numeric: tabular-nums;
+}
+.scoreValueInverse {
+  color: #fff;
+}
+.scoreLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--v2-text-subtle);
+}
+.scoreLabelInverse {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+/* ---- coaching cards ---- */
+.feedbackCard,
+.nextCard {
+  margin-top: 18px;
+  animation: cardIn 440ms var(--landing-spring) both;
+}
+.nextCard {
+  animation-delay: 80ms;
+}
+.feedbackText {
+  margin-top: 12px;
+}
+.encouragement {
+  margin: 16px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--landing-blue-600);
+  line-height: 1.5;
+}
+
+.nextList {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.nextItem {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--v2-text-muted);
+}
+.nextDot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: var(--landing-cyan-300);
+  box-shadow: 0 0 10px rgba(103, 232, 249, 0.6);
+}
+
+.retakeNote {
+  margin: 22px 0 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--v2-card-tinted);
+  border: 1px solid var(--v2-ring);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--v2-text-muted);
+}
+
+.error {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(217, 70, 239, 0.12);
+  border: 1px solid var(--landing-fuchsia-500);
+  color: var(--landing-fuchsia-500);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promptCard,
+  .statusFrame,
+  .feedbackCard,
+  .nextCard {
+    animation: none;
+  }
+}

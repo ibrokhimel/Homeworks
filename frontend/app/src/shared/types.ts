@@ -229,6 +229,61 @@ export interface BossQuestion {
   answer_spec?: never;
 }
 
+// ---- F5: Reflection / Debrief + docked Tutor ----
+
+/**
+ * Performance snapshot sent to the reflection endpoint. Mirrors the backend's
+ * `performance` dict shape ({correct, total, time_minutes, weak_phase}); all
+ * fields optional so a partial journey still produces a debrief.
+ */
+export interface ReflectionPerformance {
+  correct?: number;
+  total?: number;
+  time_minutes?: number;
+  weak_phase?: string;
+  passed?: boolean;
+  score_pct?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * AI debrief returned by POST /api/ai/reflection. The server produces a warm
+ * coaching `feedback` paragraph, 2–3 concrete `next_steps`, and a one-line
+ * `encouragement`. `ai_unavailable` flags the canned fallback. Pass/score are
+ * NOT decided here — the client derives Pass | Needs Retry from gate/perf.
+ */
+export interface ReflectionResult {
+  feedback: string;
+  next_steps: string[];
+  encouragement: string;
+  ai_unavailable?: boolean;
+}
+
+/**
+ * One live-tutor turn. `id` keys the React list; `role` distinguishes the
+ * student bubble from the tutor bubble. The widget NEVER stores or requests
+ * answer content — turns are help text only (the server redacts answers).
+ */
+export interface TutorTurn {
+  id: string;
+  role: "student" | "tutor";
+  text: string;
+}
+
+/**
+ * Response from POST /api/ai/tutor/chat. `response` is the tutor's reply text;
+ * `message_id` is the persisted turn id (null on the homework-failed branch).
+ * Warning fields ride along so a host could surface a chip — the widget reads
+ * only `response`.
+ */
+export interface TutorChatResult {
+  response: string;
+  message_id: number | null;
+  warning_level?: number;
+  cumulative_deduction_pct?: number;
+  homework_failed?: boolean;
+}
+
 export interface BossMeta {
   boss_type?: "sub" | "big" | "mythical";
   grade_band?: string;

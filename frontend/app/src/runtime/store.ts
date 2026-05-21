@@ -8,16 +8,50 @@ import type {
   CheckAnswerResult,
   GateState,
   HydratePayload,
+  ReflectionPerformance,
+  ReflectionResult,
+  TutorTurn,
 } from "../shared/types";
 import {
   bossTurn,
   getGateState,
   submitCheckpoint,
   submitMemoryCheckItem,
+  submitReflection,
+  tutorChat,
 } from "../shared/api";
 import { resolveGameOrder } from "./gameOrder";
 
-export type Screen = "hub" | "cbp" | "fc" | "gate" | "practice";
+export type Screen = "hub" | "cbp" | "fc" | "gate" | "practice" | "reflection";
+
+// The three tutor phases the backend accepts (server ALLOWED_PHASES). Finer
+// screen identity rides in `subphase`. screenToTutorPhase() maps the current
+// store screen → one of these so the widget always emits a valid phase.
+export type TutorPhase = "preview" | "practice" | "boss";
+
+// Map the current runtime screen → the tutor `phase` the backend accepts, plus
+// a finer `subphase` hint. Hub/CBP-setup → preview; flashcards/memory/practice
+// games → practice; Boss → boss; reflection → practice (subphase "reflection").
+// The Boss lives inside the practice screen as the final arc node, so the
+// caller passes `inBoss` to disambiguate practice vs. boss on that screen.
+export function screenToTutorPhase(
+  screen: Screen,
+  inBoss: boolean
+): { phase: TutorPhase; subphase?: string } {
+  // CBP checkpoints are GATED (≥2/3 to pass) — they must use "practice" so the
+  // tutor redacts the answer_spec (preview phase passes the answer through
+  // unchanged, which would let a student ask the tutor for a gated answer).
+  if (screen === "cbp") return { phase: "practice", subphase: "case_based" };
+  if (screen === "fc") return { phase: "practice" };
+  if (screen === "gate") return { phase: "preview" };
+  if (screen === "practice")
+    return inBoss
+      ? { phase: "boss", subphase: "final-boss" }
+      : { phase: "practice" };
+  if (screen === "reflection")
+    return { phase: "practice", subphase: "reflection" };
+  return { phase: "preview" }; // hub
+}
 
 // CBP sub-machine: setup → ck0 → lb0 → ck1 → lb1 → ck2 → lb2 → sim → feedback.
 export type CbpSubStage = "setup" | "checkpoint" | "learningBlock" | "sim" | "feedback";
@@ -104,6 +138,35 @@ interface BossState {
   submitError: string | null;
 }
 
+// Reflection / Debrief (F5): the closing screen after the Boss. A short
+// free-text reflection sub-stage ("prompt") → on submit we POST the reflection
+// + a performance snapshot and render the AI debrief ("debrief"). Pass | Needs
+// Retry is DERIVED from the server gate + boss outcome, never decided by the
+// reflection endpoint (which only returns coaching prose).
+export type ReflectionStage = "prompt" | "debrief";
+
+interface ReflectionState {
+  stage: ReflectionStage;
+  prompts: string[]; // 1–2 reflection prompts shown to the student
+  answers: string[]; // the student's free-text answers, one per prompt
+  debrief: ReflectionResult | null; // AI coaching response
+  performance: ReflectionPerformance | null; // snapshot sent + rendered
+  passed: boolean; // derived Pass vs. Needs Retry
+  submitting: boolean;
+  submitError: string | null;
+}
+
+// Docked tutor (F5): persistent, collapsible help channel across every screen.
+// `turns` interleaves student + tutor bubbles. It NEVER holds answer content —
+// the server redacts answers, the widget just relays the student message and
+// renders the tutor's reply.
+interface TutorState {
+  open: boolean;
+  turns: TutorTurn[];
+  sending: boolean;
+  sendError: string | null;
+}
+
 interface RuntimeState {
   hwId: string;
   sessionId: string;
@@ -114,6 +177,8 @@ interface RuntimeState {
   fc: FcState;
   practice: PracticeState;
   boss: BossState;
+  reflection: ReflectionState;
+  tutor: TutorState;
 
   // ---- session/boot ----
   initSession: (hwId: string, injectedSessionId: string | null) => void;
@@ -156,6 +221,19 @@ interface RuntimeState {
   bossAnswer: (answer: string) => Promise<BossTurnResult | null>;
   advanceBossQuestion: () => void; // next boss question after a landed hit
   retryBoss: () => void; // restart the fight from full HP
+
+  // ---- Reflection / Debrief (F5) ----
+  enterReflection: () => void; // Boss finish → closing screen; seeds prompts + perf
+  setReflectionAnswer: (index: number, value: string) => void;
+  submitReflection: () => Promise<ReflectionResult | null>;
+  retakeFromReflection: () => void; // Needs Retry → fresh Practice Arc (same concepts)
+
+  // ---- Docked tutor (F5) ----
+  toggleTutor: (open?: boolean) => void;
+  sendTutorMessage: (
+    message: string,
+    ctx: { questionId?: string; screenContext?: string }
+  ) => Promise<void>;
 }
 
 const initialCbp: CbpState = {
@@ -204,6 +282,37 @@ const initialBoss: BossState = {
   submitError: null,
 };
 
+// Default reflection prompts (Flow v2 "What was hardest? Why did you make your
+// main decision?"). Authors can override via content_json.reflection.prompts.
+const DEFAULT_REFLECTION_PROMPTS = [
+  "What was the hardest part, and why?",
+  "Why did you make your main decision the way you did?",
+] as const;
+
+const initialReflection: ReflectionState = {
+  stage: "prompt",
+  prompts: [...DEFAULT_REFLECTION_PROMPTS],
+  answers: ["", ""],
+  debrief: null,
+  performance: null,
+  passed: false,
+  submitting: false,
+  submitError: null,
+};
+
+const initialTutor: TutorState = {
+  open: false,
+  turns: [],
+  sending: false,
+  sendError: null,
+};
+
+function uid(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `t-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export const useRuntimeStore = create<RuntimeState>((set, get) => ({
   hwId: "",
   sessionId: "",
@@ -214,6 +323,8 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
   fc: { ...initialFc },
   practice: { ...initialPractice },
   boss: { ...initialBoss },
+  reflection: { ...initialReflection, answers: [...initialReflection.answers] },
+  tutor: { ...initialTutor, turns: [] },
 
   initSession: (hwId, injectedSessionId) =>
     set({ hwId, sessionId: ensureSessionId(injectedSessionId) }),
@@ -459,13 +570,18 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
   },
 
   // Mark the current node complete and advance. When the last node clears, the
-  // whole arc is finished. Each game calls this when it self-reports done.
-  advanceGame: () =>
+  // whole arc is finished — and since the Boss is ALWAYS the final node, the
+  // Boss finish (defeat or attempts exhausted → "Claim the arc") is what trips
+  // this branch, so we route straight into the Reflection / Debrief close. Each
+  // game calls this when it self-reports done.
+  advanceGame: () => {
+    let justFinished = false;
     set((st) => {
       const completed = [...st.practice.completed];
       completed[st.practice.currentGameIndex] = true;
       const next = st.practice.currentGameIndex + 1;
       const finished = next >= st.practice.gameOrder.length;
+      justFinished = finished;
       return {
         practice: {
           ...st.practice,
@@ -474,7 +590,9 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
           finished,
         },
       };
-    }),
+    });
+    if (justFinished) get().enterReflection();
+  },
 
   setGameIndex: (index) =>
     set((st) => ({ practice: { ...st.practice, currentGameIndex: index } })),
@@ -590,5 +708,166 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
         status: "fighting",
       },
     });
+  },
+
+  // ---- Reflection / Debrief (F5) ----
+
+  // Enter the closing screen. We seed the reflection prompts (author override
+  // via content_json.reflection.prompts, else the Flow-v2 defaults) and capture
+  // a performance snapshot. Pass | Needs Retry is DERIVED here — never from the
+  // reflection endpoint: a Boss win + a passed gate is the pass; a Boss loss or
+  // a failed gate is Needs Retry. The server gate stays authoritative on grading.
+  enterReflection: () => {
+    const { payload, gateState, boss, fc } = get();
+    const refl = (payload?.content_json.reflection ?? {}) as {
+      prompts?: unknown;
+    };
+    const authored = Array.isArray(refl.prompts)
+      ? refl.prompts.filter((p): p is string => typeof p === "string" && p.trim() !== "")
+      : [];
+    const prompts = authored.length > 0 ? authored.slice(0, 2) : [...DEFAULT_REFLECTION_PROMPTS];
+
+    // Derive Pass: the Boss must be down AND the gate (where present) must pass.
+    const bossWon = boss.status === "won";
+    const gatesOk = gateState
+      ? (gateState.cbp?.passed ?? true) && (gateState.mc?.passed ?? true)
+      : true;
+    const passed = bossWon && gatesOk;
+
+    // Performance snapshot for the reflection prompt + the rendered score line.
+    const correct = gateState?.mc?.correct ?? undefined;
+    const total = gateState?.mc?.total ?? undefined;
+    const scorePct = gateState?.mc?.score_pct ?? fc.scorePct ?? undefined;
+    const weakPhase = bossWon ? undefined : "boss";
+    const performance: ReflectionPerformance = {
+      ...(typeof correct === "number" ? { correct } : {}),
+      ...(typeof total === "number" ? { total } : {}),
+      ...(typeof scorePct === "number" ? { score_pct: scorePct } : {}),
+      ...(weakPhase ? { weak_phase: weakPhase } : {}),
+      passed,
+    };
+
+    set({
+      screen: "reflection",
+      reflection: {
+        ...initialReflection,
+        stage: "prompt",
+        prompts,
+        answers: prompts.map(() => ""),
+        passed,
+        performance,
+      },
+    });
+  },
+
+  setReflectionAnswer: (index, value) =>
+    set((st) => {
+      const answers = [...st.reflection.answers];
+      answers[index] = value;
+      return { reflection: { ...st.reflection, answers } };
+    }),
+
+  // POST the combined reflection + performance snapshot and render the debrief.
+  // The endpoint returns coaching prose only ({feedback, next_steps[],
+  // encouragement}); pass/score were already derived in enterReflection.
+  submitReflection: async () => {
+    const { payload, reflection } = get();
+    set((st) => ({ reflection: { ...st.reflection, submitting: true, submitError: null } }));
+    const studentReflection = reflection.prompts
+      .map((p, i) => `${p}\n${(reflection.answers[i] ?? "").trim()}`)
+      .join("\n\n")
+      .trim();
+    const summary =
+      (payload?.content_json.case_based_preview?.case_setup?.task as string | undefined) ??
+      (payload?.subject ?? "");
+    const gradeNum =
+      typeof payload?.grade === "number"
+        ? payload.grade
+        : Number.parseInt(String(payload?.grade ?? ""), 10);
+    try {
+      const debrief = await submitReflection({
+        homeworkTitle: payload?.title ?? "",
+        homeworkSummary: summary,
+        studentReflection,
+        performance: reflection.performance ?? { passed: reflection.passed },
+        ...(payload?.subject ? { subject: payload.subject } : {}),
+        ...(Number.isFinite(gradeNum) ? { grade: gradeNum } : {}),
+      });
+      set((st) => ({
+        reflection: { ...st.reflection, submitting: false, debrief, stage: "debrief" },
+      }));
+      return debrief;
+    } catch (err) {
+      set((st) => ({
+        reflection: {
+          ...st.reflection,
+          submitting: false,
+          submitError: (err as Error).message || "Couldn't load your debrief.",
+        },
+      }));
+      return null;
+    }
+  },
+
+  // Needs Retry → retake = SAME concepts, fresh questions. We re-enter the
+  // Practice Arc from the top (which re-resolves the game order and resets the
+  // Boss); the backend serves fresh questions for the same concepts.
+  retakeFromReflection: () => {
+    get().enterPracticeArc();
+  },
+
+  // ---- Docked tutor (F5) ----
+
+  toggleTutor: (open) =>
+    set((st) => ({ tutor: { ...st.tutor, open: open ?? !st.tutor.open } })),
+
+  // Relay one student message to the live tutor. We map the current screen →
+  // a backend-valid phase (+ subphase hint) and forward the optional
+  // question_id for context. The widget holds NO answer content — the server
+  // rebuilds context and redacts answers; we only render the reply text.
+  sendTutorMessage: async (message, ctx) => {
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    const { hwId, sessionId, screen, boss } = get();
+    const inBoss = screen === "practice" && boss.status !== "intro";
+    const { phase, subphase } = screenToTutorPhase(screen, inBoss);
+
+    const studentTurn: TutorTurn = { id: uid(), role: "student", text: trimmed };
+    set((st) => ({
+      tutor: {
+        ...st.tutor,
+        turns: [...st.tutor.turns, studentTurn],
+        sending: true,
+        sendError: null,
+      },
+    }));
+
+    try {
+      const res = await tutorChat({
+        sessionId,
+        hwId,
+        phase,
+        message: trimmed,
+        ...(ctx.questionId ? { questionId: ctx.questionId } : {}),
+        ...(subphase ? { subphase } : {}),
+        ...(ctx.screenContext ? { screenContext: ctx.screenContext } : {}),
+      });
+      const tutorTurn: TutorTurn = {
+        id: uid(),
+        role: "tutor",
+        text: res.response || "…",
+      };
+      set((st) => ({
+        tutor: { ...st.tutor, turns: [...st.tutor.turns, tutorTurn], sending: false },
+      }));
+    } catch (err) {
+      set((st) => ({
+        tutor: {
+          ...st.tutor,
+          sending: false,
+          sendError: (err as Error).message || "Couldn't reach the tutor.",
+        },
+      }));
+    }
   },
 }));

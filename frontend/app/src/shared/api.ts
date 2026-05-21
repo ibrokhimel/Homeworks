@@ -7,7 +7,10 @@ import type {
   CheckAnswerResult,
   GateState,
   HydratePayload,
+  ReflectionPerformance,
+  ReflectionResult,
   TileMatchResult,
+  TutorChatResult,
 } from "./types";
 
 const BASE = "";
@@ -205,6 +208,72 @@ export function bossTurn(
       hp_remaining: opts.hpRemaining,
       attempt_number: opts.attemptNumber,
       ...(opts.bossType ? { boss_type: opts.bossType } : {}),
+    }),
+  });
+}
+
+// ---- F5: Reflection / Debrief ----
+
+/**
+ * Submit the student's closing reflection and fetch the AI debrief.
+ * POST /api/ai/reflection — the server composes a warm coaching paragraph,
+ * 2–3 next steps, and a one-line encouragement from the reflection text +
+ * the performance snapshot. Pass/score are derived client-side from the gate
+ * + performance; the endpoint itself returns coaching prose only.
+ */
+export function submitReflection(opts: {
+  homeworkTitle: string;
+  homeworkSummary: string;
+  studentReflection: string;
+  performance: ReflectionPerformance;
+  subject?: string;
+  grade?: number;
+}): Promise<ReflectionResult> {
+  return request<ReflectionResult>("/api/ai/reflection", {
+    method: "POST",
+    body: JSON.stringify({
+      homework_title: opts.homeworkTitle,
+      homework_summary: opts.homeworkSummary,
+      student_reflection: opts.studentReflection,
+      performance: opts.performance,
+      ...(opts.subject ? { subject: opts.subject } : {}),
+      ...(typeof opts.grade === "number" ? { grade: opts.grade } : {}),
+    }),
+  });
+}
+
+// ---- F5: Live tutor chat (docked widget) ----
+
+/**
+ * Send one live-tutor message. POST /api/ai/tutor/chat.
+ * The server rebuilds question context + redacts answers SERVER-SIDE
+ * (server/services/tutor.py), so the widget NEVER holds, requests, or sends the
+ * answer — it only forwards the student's message + the screen-derived `phase`
+ * (one of "preview" | "practice" | "boss") and an optional `question_id` for
+ * context. `subphase` carries the finer screen label (e.g. "case_based",
+ * "reflection") for prompt tuning; `screen_context`/`ui_state` are light hints.
+ */
+export function tutorChat(opts: {
+  sessionId: string;
+  hwId: string;
+  phase: "preview" | "practice" | "boss";
+  message: string;
+  questionId?: string;
+  subphase?: string;
+  screenContext?: string;
+  uiState?: Record<string, unknown>;
+}): Promise<TutorChatResult> {
+  return request<TutorChatResult>("/api/ai/tutor/chat", {
+    method: "POST",
+    body: JSON.stringify({
+      session_id: opts.sessionId,
+      hw_id: opts.hwId,
+      phase: opts.phase,
+      message: opts.message,
+      ...(opts.questionId ? { question_id: opts.questionId } : {}),
+      ...(opts.subphase ? { subphase: opts.subphase } : {}),
+      ...(opts.screenContext ? { screen_context: opts.screenContext } : {}),
+      ...(opts.uiState ? { ui_state: opts.uiState } : {}),
     }),
   });
 }
