@@ -257,7 +257,64 @@ def test_runtime_preview_iframe_target_not_skeleton_wrapped():
     assert "skeleton" not in iframe_block.group(0)
 
 
-# ── 6. fade-up / scroll reveal still works for real content ────────────────
+# ── 6. 500ms minimum-display floor (prevents skeleton flash) ───────────────
+SKELETON_FLOOR_JS = [
+    pytest.param(DASHBOARD_JS, id="dashboard"),
+    pytest.param(LIBRARY_JS, id="library"),
+    pytest.param(TASKBOARD_JS, id="taskboard"),
+    pytest.param(BUILDER_JS, id="builder"),
+]
+
+
+@pytest.mark.parametrize("path", SKELETON_FLOOR_JS)
+def test_skeleton_min_floor_constant_present(path):
+    """Every loading controller defines a SKELETON_MIN_MS constant so the
+    skeleton stays on screen long enough to read as a loading state, even
+    when the API resolves in <1 frame."""
+    js = path.read_text(encoding="utf-8")
+    assert "SKELETON_MIN_MS" in js, (
+        f"{path.name} must declare a SKELETON_MIN_MS constant to floor "
+        "the skeleton display time."
+    )
+    # The floor must be at least 250ms (less than that won't register
+    # visually) and at most 1500ms (longer than that feels sluggish).
+    m = re.search(r"SKELETON_MIN_MS\s*=\s*(\d+)", js)
+    assert m, f"{path.name}: cannot extract SKELETON_MIN_MS numeric value"
+    floor_ms = int(m.group(1))
+    assert 250 <= floor_ms <= 1500, (
+        f"{path.name}: SKELETON_MIN_MS={floor_ms} is outside the "
+        "sensible 250–1500ms range."
+    )
+
+
+@pytest.mark.parametrize("path", SKELETON_FLOOR_JS)
+def test_skeleton_floor_helper_present(path):
+    """The floor must be implemented via an awaitable helper (not just a
+    constant) so loaders can `await waitSkeletonFloor()` before swapping
+    real content in."""
+    js = path.read_text(encoding="utf-8")
+    assert "waitSkeletonFloor" in js, (
+        f"{path.name}: waitSkeletonFloor() helper missing. Define one that "
+        "returns a Promise resolving once SKELETON_MIN_MS has elapsed."
+    )
+    # The helper must actually use the constant.
+    assert "SKELETON_MIN_MS - elapsed" in js or "SKELETON_MIN_MS-elapsed" in js, (
+        f"{path.name}: floor helper should compute remaining time via "
+        "(SKELETON_MIN_MS - elapsed)."
+    )
+
+
+@pytest.mark.parametrize("path", SKELETON_FLOOR_JS)
+def test_skeleton_floor_awaited_before_swap(path):
+    """The loader must `await waitSkeletonFloor()` before flipping to
+    real content; otherwise the floor is dead code."""
+    js = path.read_text(encoding="utf-8")
+    assert "await waitSkeletonFloor()" in js, (
+        f"{path.name}: waitSkeletonFloor() is declared but never awaited."
+    )
+
+
+# ── 7. fade-up / scroll reveal still works for real content ────────────────
 def test_existing_reveal_animation_still_present_dashboard():
     """The dashboard's IntersectionObserver-driven .is-visible reveal for
     .hw-card / .dash-stat-card must keep working after the skeleton refactor."""

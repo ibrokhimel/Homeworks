@@ -131,13 +131,34 @@
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
+  // Skeleton minimum-display floor. Without this gate, a cache-warm
+  // fetch can swap the skeleton off in a single frame and feels like
+  // a glitch. We restamp the clock every time show(loadingEl) runs.
+  const SKELETON_MIN_MS = 500;
+  let _skeletonShownAt = (typeof performance !== "undefined" && performance.now)
+    ? performance.now()
+    : Date.now();
+  function _now() {
+    return (typeof performance !== "undefined" && performance.now)
+      ? performance.now()
+      : Date.now();
+  }
+  function waitSkeletonFloor() {
+    const elapsed = _now() - _skeletonShownAt;
+    if (elapsed >= SKELETON_MIN_MS) return Promise.resolve();
+    return new Promise((r) => setTimeout(r, SKELETON_MIN_MS - elapsed));
+  }
+
   function show(el) {
     if (!el) return;
     el.classList.remove("hidden");
     // Mirror visual state to assistive tech for the loading skeleton —
     // the container declares aria-busy="true" in HTML; we re-assert here
     // in case the same node was previously toggled to "false".
-    if (el === loadingEl) el.setAttribute("aria-busy", "true");
+    if (el === loadingEl) {
+      _skeletonShownAt = _now();
+      el.setAttribute("aria-busy", "true");
+    }
   }
   function hide(el) {
     if (!el) return;
@@ -646,6 +667,9 @@
 
     try {
       const { items } = await fetchAllItems();
+      // Hold the skeleton at least SKELETON_MIN_MS before swapping in real
+      // tiles, otherwise a fast cache-warm fetch flashes the layout.
+      await waitSkeletonFloor();
       hide(loadingEl);
 
       // Always render the stats — even for an empty result set we want
@@ -666,6 +690,9 @@
       renderTiles(groups);
       reveal(stageEl);
     } catch (err) {
+      // Same floor on the error path — the user shouldn't see a skeleton
+      // blink for 50ms and then an error card jump in.
+      await waitSkeletonFloor();
       hide(loadingEl);
       errorMsgEl.textContent = err && err.message
         ? err.message
