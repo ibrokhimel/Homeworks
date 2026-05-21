@@ -6,7 +6,6 @@ import {
   Title,
   Lead,
   FeatureCard,
-  LaunchShell,
   Button,
 } from "../shared/ui/primitives";
 import s from "./Reflection.module.css";
@@ -111,45 +110,39 @@ function DebriefStage() {
     ? "You faced the Boss and held your reasoning together. That's the bar — and you cleared it."
     : "You're close. Run it once more — same concepts, fresh questions — and it'll click.";
 
-  // The status uses a celebratory launch-shell on a pass, a calmer card on a
-  // needs-retry. Flow-v2 forbid #20: status is ALWAYS Passed or Needs Retry.
-  const StatusFrame = passed ? LaunchShell : CalmFrame;
-
+  // Light Apple-glass frame for both outcomes; the pass vs needs-retry difference
+  // is carried by an accent tint + the status pill, not by a dark surface.
+  // Flow-v2 forbid #20: status is ALWAYS Passed or Needs Retry.
   return (
     <main className="v2-shell" data-testid="reflection-debrief">
-      <StatusFrame className={s.statusFrame}>
-        <div className={s.statusPill}>
-          {passed ? <Pill tone="good">✓ Passed</Pill> : <Pill tone="warn">Needs Retry</Pill>}
-        </div>
-        <Title size="hero" inverse={passed}>
-          {headline}
-        </Title>
-        <Lead inverse={passed}>{subline}</Lead>
-
-        {(scorePct !== null || (typeof correct === "number" && typeof total === "number")) && (
-          <div className={s.scoreRow} data-testid="reflection-score">
-            {scorePct !== null && (
-              <div className={s.scoreStat}>
-                <span className={`${s.scoreValue} ${passed ? s.scoreValueInverse : ""}`}>
-                  {scorePct}%
-                </span>
-                <span className={`${s.scoreLabel} ${passed ? s.scoreLabelInverse : ""}`}>
-                  Mastery score
-                </span>
-              </div>
-            )}
-            {typeof correct === "number" && typeof total === "number" && (
-              <div className={s.scoreStat}>
-                <span className={`${s.scoreValue} ${passed ? s.scoreValueInverse : ""}`}>
-                  {correct}/{total}
-                </span>
-                <span className={`${s.scoreLabel} ${passed ? s.scoreLabelInverse : ""}`}>
-                  Memory check
-                </span>
-              </div>
-            )}
+      <StatusFrame passed={passed}>
+        <div className={s.statusGlow} aria-hidden="true" />
+        <div className={s.statusInner}>
+          <div className={s.statusPill}>
+            {passed ? <Pill tone="good">✓ Passed</Pill> : <Pill tone="warn">Needs Retry</Pill>}
           </div>
-        )}
+          <Title size="hero">{headline}</Title>
+          <Lead>{subline}</Lead>
+
+          {(scorePct !== null || (typeof correct === "number" && typeof total === "number")) && (
+            <div className={s.scoreRow} data-testid="reflection-score">
+              {scorePct !== null && (
+                <div className={s.scoreStat}>
+                  <span className={s.scoreValue}>{scorePct}%</span>
+                  <span className={s.scoreLabel}>Mastery score</span>
+                </div>
+              )}
+              {typeof correct === "number" && typeof total === "number" && (
+                <div className={s.scoreStat}>
+                  <span className={s.scoreValue}>
+                    {correct}/{total}
+                  </span>
+                  <span className={s.scoreLabel}>Memory check</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </StatusFrame>
 
       {/* AI coaching paragraph — the warm, honest debrief. */}
@@ -206,8 +199,13 @@ function DebriefStage() {
   );
 }
 
-// A calmer, encouraging frame for the Needs-Retry state (vs. the dark
-// celebratory LaunchShell used on a pass). Matches the LaunchShell signature.
-function CalmFrame({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={[s.calmFrame, className].filter(Boolean).join(" ")}>{children}</div>;
+// Unified light Apple-glass status frame. A pass gets an emerald/blue celebratory
+// glow; a needs-retry gets a warmer amber glow. Both stay on the #f5f5f7 light
+// aesthetic (no dark surface) — only the accent tint and pill change.
+function StatusFrame({ children, passed }: { children: ReactNode; passed: boolean }) {
+  return (
+    <div className={[s.statusFrame, passed ? s.statusPass : s.statusRetry].join(" ")}>
+      {children}
+    </div>
+  );
 }

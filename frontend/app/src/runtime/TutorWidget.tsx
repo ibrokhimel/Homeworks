@@ -60,7 +60,10 @@ export function TutorWidget() {
           <header className={s.head}>
             <div className={s.headTitle}>
               <span className={s.headDot} aria-hidden="true" />
-              <span>Tutor</span>
+              <span className={s.headLabel}>
+                <span className={s.headName}>Tutor</span>
+                <span className={s.headStatus}>Always here to nudge</span>
+              </span>
             </div>
             <button
               type="button"

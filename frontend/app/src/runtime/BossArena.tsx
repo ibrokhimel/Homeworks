@@ -48,14 +48,15 @@ export default function BossArena({ onComplete }: GameProps) {
 
   if (questions.length === 0) {
     return (
-      <DarkSection className={s.arena}>
-        <Eyebrow cyan>Boss Arena</Eyebrow>
-        <Title size="section" inverse>
+      <DarkSection className={s.arena} glow={false}>
+        <div className={s.arenaGlow} aria-hidden="true" />
+        <Eyebrow>Boss Arena</Eyebrow>
+        <Title size="section">
           No boss to face.
         </Title>
-        <Lead inverse>This homework has no boss questions. Wrapping the arc.</Lead>
+        <Lead>This homework has no boss questions. Wrapping the arc.</Lead>
         <div className={s.actions}>
-          <Button variant="white" onClick={onComplete}>
+          <Button variant="blue" onClick={onComplete}>
             Finish arc →
           </Button>
         </div>
@@ -66,18 +67,19 @@ export default function BossArena({ onComplete }: GameProps) {
   // ---- intro ----
   if (boss.status === "intro") {
     return (
-      <DarkSection className={s.arena} data-testid="boss-intro">
-        <Eyebrow cyan>Final Boss</Eyebrow>
-        <Title size="hero" inverse>
+      <DarkSection className={s.arena} glow={false} data-testid="boss-intro">
+        <div className={s.arenaGlow} aria-hidden="true" />
+        <Eyebrow>Final Boss</Eyebrow>
+        <Title size="hero">
           {bossName} awaits.
         </Title>
-        <Lead inverse>
+        <Lead>
           {meta?.intro ??
             "This is the peak. Defend every answer with your reasoning — vague guesses do no damage."}
         </Lead>
         <WhyHowWhat />
         <div className={s.actions}>
-          <Button variant="white" onClick={startBoss} data-testid="boss-begin">
+          <Button variant="blue" onClick={startBoss} data-testid="boss-begin">
             Enter the arena →
           </Button>
         </div>
@@ -89,18 +91,19 @@ export default function BossArena({ onComplete }: GameProps) {
   if (boss.status === "won") {
     const stars = boss.lastResult?.stars;
     return (
-      <DarkSection className={`${s.arena} ${s.arenaWin}`} data-testid="boss-won">
-        <Eyebrow cyan>Victory</Eyebrow>
-        <Title size="hero" inverse>
+      <DarkSection className={`${s.arena} ${s.arenaWin}`} glow={false} data-testid="boss-won">
+        <div className={`${s.arenaGlow} ${s.arenaGlowWin}`} aria-hidden="true" />
+        <Eyebrow>Victory</Eyebrow>
+        <Title size="hero">
           {bossName} is down.
         </Title>
-        <Lead inverse>
+        <Lead>
           You drained the bar to zero with reasoning that held up. That’s
           mastery.
         </Lead>
         {typeof stars === "number" && <Stars count={stars} />}
         <div className={s.actions}>
-          <Button variant="white" onClick={onComplete} data-testid="boss-finish">
+          <Button variant="blue" onClick={onComplete} data-testid="boss-finish">
             Claim the arc →
           </Button>
         </div>
@@ -111,14 +114,15 @@ export default function BossArena({ onComplete }: GameProps) {
   // ---- lost ----
   if (boss.status === "lost") {
     return (
-      <DarkSection className={s.arena} data-testid="boss-lost">
+      <DarkSection className={s.arena} glow={false} data-testid="boss-lost">
+        <div className={s.arenaGlow} aria-hidden="true" />
         <Eyebrow>Defeated</Eyebrow>
-        <Title size="hero" inverse>
+        <Title size="hero">
           {bossName} stands.
         </Title>
-        <Lead inverse>Regroup and come back sharper — the bar resets to full.</Lead>
+        <Lead>Regroup and come back sharper — the bar resets to full.</Lead>
         <div className={s.actions}>
-          <Button variant="white" onClick={retryBoss} data-testid="boss-retry">
+          <Button variant="blue" onClick={retryBoss} data-testid="boss-retry">
             Face it again →
           </Button>
         </div>
@@ -159,7 +163,7 @@ export default function BossArena({ onComplete }: GameProps) {
       <WhyHowWhat />
 
       <p className={s.qLabel}>Question {boss.questionIndex + 1}</p>
-      <Title size="section" inverse className={s.question}>
+      <Title size="section" className={s.question}>
         {questionText}
       </Title>
 
@@ -195,7 +199,7 @@ export default function BossArena({ onComplete }: GameProps) {
       {/* After a landed hit (boss still up), advance to the next question. */}
       {justHit ? (
         <div className={s.actions}>
-          <Button variant="white" onClick={advanceBossQuestion} data-testid="boss-next">
+          <Button variant="blue" onClick={advanceBossQuestion} data-testid="boss-next">
             Press the attack →
           </Button>
         </div>
@@ -219,7 +223,7 @@ export default function BossArena({ onComplete }: GameProps) {
           />
           <div className={s.actions}>
             <Button
-              variant="white"
+              variant="blue"
               onClick={onSubmit}
               disabled={boss.submitting || answer.trim() === ""}
               data-testid="boss-attack"

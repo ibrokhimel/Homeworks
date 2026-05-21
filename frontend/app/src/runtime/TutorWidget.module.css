@@ -1,7 +1,7 @@
-/* TutorWidget (F5) — docked, collapsible chat. Landing tutor-card-dark vibe.
-   Fixed bottom-right, persistent across screens, mobile-safe (the panel
-   becomes a near-full-width sheet on small viewports so it never blocks the
-   page content behind a tiny floating bubble). */
+/* TutorWidget (F5) — docked, collapsible chat as a polished Apple-glass floating
+   assistant. Light #f5f5f7 aesthetic: white frosted-glass panel, blue accent,
+   soft glass tutor bubbles. Fixed bottom-right, persistent across screens,
+   mobile-safe (becomes a near-full-width sheet on small viewports). */
 
 .root {
   position: fixed;
@@ -18,44 +18,56 @@
   pointer-events: auto;
 }
 
-/* ---- floating launcher ---- */
+/* ---- floating launcher: glossy blue glass bubble ---- */
 .launcher {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 56px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   color: #fff;
-  background: var(--landing-blue-600);
-  box-shadow: 0 14px 40px rgba(37, 99, 235, 0.4);
-  transition: transform 240ms var(--landing-spring), background 240ms var(--landing-spring),
+  background: linear-gradient(150deg, var(--landing-blue-500), var(--landing-blue-600));
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 16px 40px var(--accent-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: transform 240ms var(--landing-spring),
     box-shadow 240ms var(--landing-spring);
 }
 .launcher:hover {
-  transform: scale(1.08);
-  background: var(--landing-blue-500);
+  transform: scale(1.08) translateY(-1px);
+  box-shadow: 0 22px 52px var(--accent-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 .launcher:active {
   transform: scale(0.96);
 }
 .launcherOpen {
-  background: var(--landing-zinc-800);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+  background: var(--surface-elevated);
+  color: var(--v2-text-muted);
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: var(--landing-shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
 
-/* ---- chat panel ---- */
+/* ---- chat panel: white frosted glass ---- */
 .panel {
-  width: min(380px, calc(100vw - 40px));
-  max-height: min(620px, calc(100vh - 120px));
+  width: min(384px, calc(100vw - 40px));
+  max-height: min(640px, calc(100vh - 120px));
   display: flex;
   flex-direction: column;
-  border-radius: 22px;
+  border-radius: 28px;
   overflow: hidden;
-  background: var(--landing-zinc-950);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: var(--landing-shadow-deep);
-  animation: panelIn 320ms var(--landing-spring) both;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--v2-text);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--landing-shadow-card-hover),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  animation: panelIn 340ms var(--landing-spring) both;
 }
 @keyframes panelIn {
   from {
@@ -69,41 +81,85 @@
 }
 
 .head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 16px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(
+    180deg,
+    rgba(96, 165, 250, 0.12),
+    rgba(255, 255, 255, 0)
+  );
 }
 .headTitle {
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  gap: 11px;
 }
 .headDot {
-  width: 9px;
-  height: 9px;
+  position: relative;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: var(--landing-cyan-300);
-  box-shadow: 0 0 10px rgba(103, 232, 249, 0.8);
+  background: var(--landing-blue-500);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18);
+}
+.headDot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--landing-blue-400);
+  animation: pulseDot 2.2s var(--landing-spring) infinite;
+}
+@keyframes pulseDot {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+.headLabel {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.headName {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--v2-text);
+}
+.headStatus {
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--v2-text-subtle);
 }
 .headClose {
   display: grid;
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.6);
-  transition: background 180ms var(--landing-spring), color 180ms var(--landing-spring);
+  border-radius: 12px;
+  color: var(--v2-text-subtle);
+  transition: background 180ms var(--landing-spring),
+    color 180ms var(--landing-spring), transform 180ms var(--landing-spring);
 }
 .headClose:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--v2-text);
+  transform: scale(1.06);
+}
+.headClose:active {
+  transform: scale(0.94);
 }
 
 /* ---- thread ---- */
@@ -121,19 +177,20 @@
 .empty {
   margin: auto 0;
   text-align: center;
-  padding: 12px;
+  padding: 16px 12px;
 }
 .emptyTitle {
   margin: 0 0 6px;
   font-size: 16px;
-  font-weight: 700;
-  color: #fff;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--v2-text);
 }
 .emptyBody {
   margin: 0;
   font-size: 13.5px;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--v2-text-subtle);
 }
 
 .bubbleRow {
@@ -160,22 +217,24 @@
 .bubble {
   max-width: 84%;
   padding: 11px 15px;
-  border-radius: 18px;
+  border-radius: 20px;
   font-size: 14.5px;
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
 }
 .bubbleStudent {
-  background: var(--landing-blue-600);
+  background: linear-gradient(150deg, var(--landing-blue-500), var(--landing-blue-600));
   color: #fff;
-  border-bottom-right-radius: 6px;
+  border-bottom-right-radius: 7px;
+  box-shadow: 0 6px 18px var(--accent-glow);
 }
 .bubbleTutor {
-  background: rgba(255, 255, 255, 0.07);
-  color: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom-left-radius: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--v2-text);
+  border: 1px solid var(--v2-ring);
+  border-bottom-left-radius: 7px;
+  box-shadow: var(--landing-shadow-soft);
 }
 
 /* typing indicator */
@@ -189,7 +248,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--landing-blue-400);
   animation: typeBounce 1200ms var(--landing-spring) infinite;
 }
 .typeDot:nth-child(2) {
@@ -199,9 +258,11 @@
   animation-delay: 320ms;
 }
 @keyframes typeBounce {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
-    opacity: 0.45;
+    opacity: 0.4;
   }
   30% {
     transform: translateY(-5px);
@@ -213,9 +274,9 @@
   margin: 0;
   padding: 10px 18px;
   font-size: 13px;
-  color: #fde2ff;
-  background: rgba(217, 70, 239, 0.16);
-  border-top: 1px solid var(--landing-fuchsia-500);
+  color: #a21caf;
+  background: rgba(217, 70, 239, 0.1);
+  border-top: 1px solid rgba(217, 70, 239, 0.35);
 }
 
 /* ---- composer ---- */
@@ -224,46 +285,47 @@
   align-items: flex-end;
   gap: 10px;
   padding: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.4);
 }
 .input {
   flex: 1;
   max-height: 120px;
   padding: 11px 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--v2-ring);
   font-family: inherit;
   font-size: 14.5px;
   line-height: 1.45;
-  color: #fff;
+  color: var(--v2-text);
   resize: none;
-  transition: border-color 180ms var(--landing-spring), box-shadow 180ms var(--landing-spring);
+  transition: border-color 180ms var(--landing-spring),
+    box-shadow 180ms var(--landing-spring);
 }
 .input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--v2-text-subtle);
 }
 .input:focus {
   outline: none;
-  border-color: var(--landing-cyan-300);
-  box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.16);
+  border-color: var(--landing-blue-500);
+  box-shadow: 0 0 0 3px var(--accent-light);
 }
 .sendBtn {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   color: #fff;
-  background: var(--landing-blue-600);
-  transition: transform 180ms var(--landing-spring), background 180ms var(--landing-spring),
-    opacity 180ms var(--landing-spring);
+  background: linear-gradient(150deg, var(--landing-blue-500), var(--landing-blue-600));
+  box-shadow: 0 8px 22px var(--accent-glow);
+  transition: transform 180ms var(--landing-spring),
+    background 180ms var(--landing-spring), opacity 180ms var(--landing-spring);
 }
 .sendBtn:hover:not(:disabled) {
-  background: var(--landing-blue-500);
-  transform: scale(1.06);
+  transform: scale(1.06) translateY(-1px);
 }
 .sendBtn:active:not(:disabled) {
   transform: scale(0.94);
@@ -271,6 +333,7 @@
 .sendBtn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* ---- mobile: full-width sheet so it never hides page content ---- */
@@ -293,16 +356,56 @@
   }
 }
 
+/* ---- dark mode: frosted dark glass, blue accent preserved ---- */
+:global([data-theme="dark"]) .panel {
+  background: rgba(24, 24, 27, 0.78);
+  color: var(--v2-text);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: var(--landing-shadow-deep),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+:global([data-theme="dark"]) .head {
+  background: linear-gradient(
+    180deg,
+    rgba(37, 99, 235, 0.16),
+    rgba(255, 255, 255, 0)
+  );
+}
+:global([data-theme="dark"]) .launcherOpen {
+  background: rgba(39, 39, 42, 0.85);
+  color: var(--v2-text-muted);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+:global([data-theme="dark"]) .bubbleTutor {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+:global([data-theme="dark"]) .input {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--v2-text);
+}
+:global([data-theme="dark"]) .composer {
+  background: rgba(255, 255, 255, 0.03);
+}
+:global([data-theme="dark"]) .headClose:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+:global([data-theme="dark"]) .error {
+  color: #f5d0fe;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .panel,
   .bubbleRow {
     animation: none;
   }
   .launcher,
-  .sendBtn {
+  .sendBtn,
+  .headClose {
     transition: none;
   }
-  .typeDot {
+  .typeDot,
+  .headDot::after {
     animation: none;
   }
   .thread {

@@ -119,7 +119,7 @@ function Rail({
           .filter(Boolean)
           .join(" ");
         return (
-          <li key={`${key}-${i}`} className={s.railItem}>
+          <li key={`${key}-${i}`} className={`${s.railItem} ${isDone ? s.itemDone : ""}`}>
             <span className={cls} aria-current={isCurrent ? "step" : undefined}>
               {isBoss ? <BossGlyph /> : isDone ? <CheckGlyph /> : i + 1}
             </span>

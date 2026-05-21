@@ -1,7 +1,14 @@
+/* GameHost frame — light Apple-glass loading + skip states. */
+
 /* Coming-soon skip card for unregistered games. */
 .skip {
-  padding: 32px 28px;
+  padding: 36px 30px;
   text-align: center;
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--landing-shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
 .skipCta {
   margin-top: 24px;
@@ -16,13 +23,19 @@
   align-items: center;
   gap: 16px;
   padding: 56px 20px;
+  border-radius: var(--v2-radius-card);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: var(--landing-shadow-soft);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 .spinner {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  border: 3px solid var(--v2-ring);
-  border-top-color: var(--landing-blue-600);
+  border: 3px solid rgba(0, 102, 204, 0.16);
+  border-top-color: var(--accent, #0066CC);
   animation: spin 720ms linear infinite;
 }
 @keyframes spin {
@@ -34,7 +47,7 @@
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--v2-text-subtle);
+  color: var(--text-muted, #86868b);
 }
 
 @media (prefers-reduced-motion: reduce) {

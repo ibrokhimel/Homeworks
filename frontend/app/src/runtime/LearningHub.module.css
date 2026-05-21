@@ -1,77 +1,169 @@
 /* ============================================================
-   Learning Hub — TOP-DOWN FLOWCHART layout.
-   Two learning entries (top) converge via SVG connector lines into a
-   gated "Homework Practices" block, which drops an arrow to a terminal
-   "Reflection" node. Reuses the shared Apple-glass token system; the
-   page background is a real LAYERED surface (gradient + glass + soft
-   aura), never flat near-black.
+   Learning Hub — TOP-DOWN FLOWCHART in the LIGHT Apple-glass
+   language of landing.css. Two white frosted-glass entry nodes
+   (top) converge via blue SVG connector lines into a gated
+   "Homework Practices" block, which drops an arrow to a terminal
+   "Reflection" node.
+
+   Aesthetic match to landing.css:
+   · #f5f5f7-family page surface (NEVER flat near-black)
+   · white frosted glass: rgba(255,255,255,.72) + backdrop blur+saturate
+   · #0066CC / blue-600 accents, colorful radial glows for depth
+     (blue + fuchsia + emerald, like .hero-bg-glow / .preview-glow tints)
+   · the signature animations replicated verbatim — cube-enter (1.2s),
+     cube-bobble (6.5s float), spring var(--landing-spring), button
+     hover scale(1.045)/translateY(-1px) (inherited from primitives),
+     connector draw-in, all on the no-overshoot Apple spring curve.
+
+   The view is FORCED LIGHT for judging regardless of system dark mode;
+   a tasteful dark variant is wired under [data-theme="dark"] at the end.
    ============================================================ */
 
-/* ---- Shell + layered background ---------------------------------- */
+/* ---- Shell + layered LIGHT background ----------------------------- */
 .shell {
   position: relative;
-  max-width: 860px;
-  /* A real, layered backdrop: a soft top-down tint over the page bg, so the
-     glass cards have something luminous to sit on instead of flat black. */
+  max-width: 920px;
+  isolation: isolate;
+  /* Force the light surface for this view — soft warm-white wash over the
+     page bg so the glass cards sit on something luminous, never flat dark. */
   background:
-    radial-gradient(120% 80% at 50% -8%, var(--hub-aura-top) 0%, transparent 55%),
-    linear-gradient(180deg, var(--hub-grad-a) 0%, var(--hub-grad-b) 100%);
+    radial-gradient(130% 70% at 50% -6%, rgba(255, 255, 255, 0.9) 0%, transparent 55%),
+    linear-gradient(180deg, #f7f8fb 0%, #f1f3f8 100%);
+  color: var(--landing-zinc-950);
 }
 
-/* A blurred accent aura that breathes behind the flow — gives depth without a
-   neon glow. Fixed + pointer-events-none so it never repaints on scroll. */
-.aura {
+/* The luminous hero glow behind the title — identical recipe to
+   landing.css .hero-bg-glow (dbeafe → ede9fe → transparent, blurred). */
+.heroGlow {
   position: absolute;
-  inset: -10% 8% auto 8%;
-  height: 360px;
-  background: radial-gradient(
-    circle,
-    var(--hub-aura-blob-a) 0%,
-    var(--hub-aura-blob-b) 42%,
-    transparent 72%
-  );
+  left: 50%;
+  top: -40px;
+  width: 1100px;
+  height: 520px;
+  max-width: 150vw;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: radial-gradient(circle, #dbeafe 0%, #ede9fe 35%, transparent 70%);
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Three colorful radial glow blobs (blue / fuchsia / emerald) for Apple-glass
+   depth — same tint palette as landing's .preview-glow / .glass-cube tints.
+   Pointer-events none + GPU-only drift so they never repaint on scroll. */
+.auraBlob {
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  border-radius: 999px;
   filter: blur(72px);
   pointer-events: none;
   z-index: 0;
-  opacity: 0.9;
-  animation: hubAuraDrift 14s ease-in-out infinite alternate;
+  opacity: 0.85;
+}
+.auraBlue {
+  left: -140px;
+  top: 120px;
+  background: rgba(37, 99, 235, 0.2);
+  animation: hubAuraDrift 15s ease-in-out infinite alternate;
+}
+.auraFuchsia {
+  right: -150px;
+  top: 60px;
+  background: rgba(217, 70, 239, 0.16);
+  animation: hubAuraDrift 18s ease-in-out 1.5s infinite alternate-reverse;
+}
+.auraEmerald {
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  background: rgba(52, 211, 153, 0.16);
+  animation: hubAuraDriftY 20s ease-in-out infinite alternate;
 }
 @keyframes hubAuraDrift {
   0% { transform: translate3d(-3%, 0, 0) scale(1); }
-  100% { transform: translate3d(3%, 1.5%, 0) scale(1.06); }
+  100% { transform: translate3d(4%, 2%, 0) scale(1.08); }
+}
+@keyframes hubAuraDriftY {
+  0% { transform: translateX(-50%) translateY(0) scale(1); }
+  100% { transform: translateX(-50%) translateY(-4%) scale(1.07); }
+}
+
+/* ---- Signature bobbing glass cube (landing .glass-cube, verbatim recipe) -- */
+.floatingCube {
+  position: absolute;
+  right: 4%;
+  top: 6px;
+  pointer-events: none;
+  z-index: 1;
+  display: none;
+  opacity: 0;
+  transform: scale(0.75);
+  animation: cube-enter 1.2s var(--landing-spring) 0.4s forwards;
+}
+@media (min-width: 940px) {
+  .floatingCube { display: block; }
+}
+@keyframes cube-enter {
+  to { opacity: 1; transform: scale(1); }
+}
+
+.glassCube {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  overflow: hidden;
+  animation: cube-bobble 6.5s ease-in-out infinite;
+}
+@keyframes cube-bobble {
+  0%, 100% { transform: translateY(0) rotateZ(0deg); }
+  50%      { transform: translateY(-14px) rotateZ(3deg); }
+}
+.glassCubeTint {
+  position: absolute;
+  inset: 0;
+  border-radius: 28px;
+  /* blue → cyan, the landing glass-cube--blue tint */
+  background: linear-gradient(to bottom right, rgba(96, 165, 250, 0.5), rgba(34, 211, 238, 0.22));
+  pointer-events: none;
+}
+.glassCubeIcon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--landing-blue-600);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
 }
 
 .intro {
   position: relative;
   z-index: 1;
-}
-
-/* Light-first background tokens; dark overrides below give a layered DEEP
-   surface (zinc, not #000) with a cool aura. */
-.shell {
-  --hub-grad-a: rgba(255, 255, 255, 0.0);
-  --hub-grad-b: rgba(37, 99, 235, 0.04);
-  --hub-aura-top: rgba(96, 165, 250, 0.12);
-  --hub-aura-blob-a: rgba(96, 165, 250, 0.20);
-  --hub-aura-blob-b: rgba(103, 232, 249, 0.10);
-}
-:global(:root[data-theme="dark"]) .shell,
-:global(:root:not([data-theme="light"])) .shell {
-  --hub-grad-a: #121318;
-  --hub-grad-b: #0d0e13;
-  --hub-aura-top: rgba(96, 165, 250, 0.16);
-  --hub-aura-blob-a: rgba(59, 130, 246, 0.28);
-  --hub-aura-blob-b: rgba(103, 232, 249, 0.12);
+  text-align: center;
+  max-width: 660px;
+  margin: 0 auto;
 }
 
 /* ---- The flow column: connectors behind, rows stacked above -------- */
 .flow {
   position: relative;
   z-index: 1;
-  margin-top: 44px;
+  margin-top: 48px;
   display: flex;
   flex-direction: column;
-  gap: clamp(56px, 8vw, 88px); /* generous vertical breathing room for lines */
+  gap: clamp(56px, 8vw, 92px); /* generous vertical breathing room for lines */
 }
 
 /* SVG connector layer fills the whole flow column, painted behind the cards. */
@@ -91,7 +183,32 @@
   z-index: 1; /* above the connector layer */
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* clip the colorful corner glow inside the rounded card */
 }
+.nodeBody {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* A soft colorful glow tucked in the card's top-right corner — same idea as
+   landing's .quick-card__glow / .safe-card__glow, tinted per division. */
+.cardGlow {
+  position: absolute;
+  right: -56px;
+  top: -56px;
+  width: 184px;
+  height: 184px;
+  border-radius: 999px;
+  filter: blur(46px);
+  pointer-events: none;
+  z-index: 0;
+}
+.cardGlowBlue { background: rgba(96, 165, 250, 0.28); }
+.cardGlowFuchsia { background: rgba(217, 70, 239, 0.22); }
+.cardGlowEmerald { background: rgba(52, 211, 153, 0.2); }
 
 .nodeHead {
   display: flex;
@@ -111,9 +228,8 @@
   text-transform: uppercase;
   color: var(--landing-blue-600);
 }
-.divisionLabel[data-inverse="true"] {
-  color: var(--landing-cyan-300);
-}
+.divisionLabelBlue { color: var(--landing-blue-600); }
+.divisionLabelFuchsia { color: var(--landing-fuchsia-500); }
 .divisionNum {
   font-size: 18px;
   font-weight: 700;
@@ -135,22 +251,17 @@
   font-weight: 600;
   color: var(--v2-text-subtle);
 }
-.metaInverse {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.62);
-}
 
 .glyph,
 .subGlyph {
   flex-shrink: 0;
 }
 
-/* ---- TOP ROW: two entry boxes side by side ------------------------- */
+/* ---- TOP ROW: two white frosted-glass entry boxes side by side ----- */
 .entries {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 18px;
+  gap: 20px;
   align-items: stretch;
 }
 @media (min-width: 680px) {
@@ -159,57 +270,51 @@
   }
 }
 
+/* Frosted-glass node: white translucent surface + backdrop blur + saturate,
+   exactly the landing .stat-card / glass vocabulary. The FeatureCard primitive
+   gives the base radius/shadow/spring; we layer the glass + glow over it. */
 .entryNode {
-  min-height: 248px;
-  /* draw-in: rise + fade on mount, staggered per column */
-  animation: hubNodeIn 620ms var(--landing-spring) both;
-  transition: transform 240ms var(--landing-spring), box-shadow 240ms var(--landing-spring),
-    border-color 240ms var(--landing-spring);
-}
-.entryNode:hover {
-  transform: translateY(-6px) scale(1.012);
-}
-.entryDark {
-  /* Normalize DarkSection's hero box-model into the equal-height grid. */
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
+  min-height: 252px;
   padding: 26px;
-  animation-delay: 0ms;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--landing-shadow-card);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  /* draw-in: cube-enter-style rise + fade on mount, staggered per column */
+  animation: hubNodeIn 700ms var(--landing-spring) both;
+  transition: transform 320ms var(--landing-spring), box-shadow 320ms var(--landing-spring),
+    border-color 320ms var(--landing-spring);
 }
-.entryDark:hover {
-  transform: translateY(-6px) scale(1.012);
-}
-/* The DarkSection glow is absolutely positioned + aria-hidden; keep it out of
-   the flex flow so it doesn't bottom-shift content. */
-.entryDark > [aria-hidden="true"] {
-  position: absolute;
-}
-
-/* Right entry wrapper: lets the deck card stretch to the row's full height. */
-.entryRight {
-  display: flex;
-}
-.entryRight .entryNode {
-  flex: 1;
-  animation-delay: 110ms;
+.entryBlue { animation-delay: 80ms; }
+.entryFuchsia { animation-delay: 200ms; }
+.entryNode:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: var(--landing-shadow-card-hover);
 }
 
-/* ---- MIDDLE: gated Homework Practices block ------------------------ */
+/* ---- MIDDLE: gated Homework Practices block (frosted glass) -------- */
 .practicesRow {
   display: flex;
   justify-content: center;
 }
 .practices {
   width: 100%;
-  max-width: 460px;
+  max-width: 470px;
   padding: 24px 26px;
-  animation: hubNodeIn 620ms var(--landing-spring) 240ms both;
-  transition: transform 240ms var(--landing-spring), box-shadow 240ms var(--landing-spring),
-    border-color 240ms var(--landing-spring), background 320ms var(--landing-spring);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--landing-shadow-card);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  animation: hubNodeIn 700ms var(--landing-spring) 320ms both;
+  transition: transform 320ms var(--landing-spring), box-shadow 320ms var(--landing-spring),
+    border-color 320ms var(--landing-spring), background 360ms var(--landing-spring);
 }
 
 .gateScope {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -222,21 +327,22 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
 }
 .subItem {
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 11px 14px;
-  border-radius: 13px;
+  padding: 12px 14px;
+  border-radius: 14px;
   font-size: 14.5px;
   font-weight: 600;
-  color: var(--v2-text);
-  background: var(--v2-card-tinted);
-  border: 1px solid var(--v2-ring);
-  transition: transform 200ms var(--landing-spring), border-color 200ms var(--landing-spring),
-    background 200ms var(--landing-spring);
+  color: var(--landing-zinc-950);
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid var(--landing-ring);
+  box-shadow: var(--landing-shadow-soft);
+  transition: transform 220ms var(--landing-spring), border-color 220ms var(--landing-spring),
+    background 220ms var(--landing-spring), box-shadow 220ms var(--landing-spring);
 }
 .subItem .subGlyph {
   color: var(--landing-blue-600);
@@ -250,30 +356,35 @@
 /* When unlocked, the sub-items become alive on hover of the block. */
 .practicesOpen:hover .subItem {
   border-color: var(--landing-blue-400);
+  background: rgba(255, 255, 255, 0.9);
 }
-.practicesOpen:hover .subItem:nth-child(1) { transform: translateX(3px); }
-.practicesOpen:hover .subItem:nth-child(2) { transform: translateX(3px); transition-delay: 40ms; }
-.practicesOpen:hover .subItem:nth-child(3) { transform: translateX(3px); transition-delay: 80ms; }
+.practicesOpen:hover .subItem:nth-child(1) { transform: translateX(4px); }
+.practicesOpen:hover .subItem:nth-child(2) { transform: translateX(4px); transition-delay: 45ms; }
+.practicesOpen:hover .subItem:nth-child(3) { transform: translateX(4px); transition-delay: 90ms; }
 
 /* Locked vs open framing. */
 .practicesLocked {
-  background: var(--v2-card-tinted);
   border-style: dashed;
+  border-color: var(--landing-zinc-300);
+}
+.practicesLocked .cardGlow {
+  /* dim the emerald glow until the arc is unlocked */
+  opacity: 0.35;
 }
 .practicesLocked:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--landing-shadow-card);
+  transform: translateY(-4px);
+  box-shadow: var(--landing-shadow-card-hover);
 }
 .practicesOpen {
-  border-color: transparent;
-  box-shadow: var(--landing-shadow-card), inset 0 0 0 1.5px var(--landing-emerald-700);
+  border-color: rgba(4, 120, 87, 0.35);
+  box-shadow: var(--landing-shadow-card), inset 0 0 0 1.5px rgba(4, 120, 87, 0.55);
   /* a one-shot "unlock" pop the first time it renders unlocked */
-  animation: hubNodeIn 620ms var(--landing-spring) 240ms both,
-    hubUnlockPop 760ms var(--landing-spring) 900ms 1 both;
+  animation: hubNodeIn 700ms var(--landing-spring) 320ms both,
+    hubUnlockPop 760ms var(--landing-spring) 1000ms 1 both;
 }
 .practicesOpen:hover {
-  transform: translateY(-6px) scale(1.012);
-  box-shadow: var(--landing-shadow-card-hover), inset 0 0 0 1.5px var(--landing-emerald-700);
+  transform: translateY(-8px) scale(1.012);
+  box-shadow: var(--landing-shadow-card-hover), inset 0 0 0 1.5px rgba(4, 120, 87, 0.55);
 }
 
 /* Locked CTA mimics a button but never navigates. */
@@ -288,9 +399,9 @@
   font-size: 14px;
   font-weight: 600;
   cursor: not-allowed;
-  color: var(--v2-text-muted);
-  background: var(--v2-card-bg);
-  border: 1px solid var(--v2-ring);
+  color: var(--landing-zinc-500);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--landing-zinc-200);
   transition: transform 160ms var(--landing-spring);
 }
 .lockedCta:active {
@@ -320,25 +431,28 @@
   gap: 11px;
   padding: 14px 26px;
   border-radius: var(--v2-radius-pill);
-  background: var(--v2-card-tinted);
-  border: 1px dashed var(--v2-ring);
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px dashed var(--landing-zinc-300);
+  box-shadow: var(--landing-shadow-soft);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   color: var(--v2-text-muted);
   /* dim/locked: it only lights up after the Boss is cleared */
-  opacity: 0.62;
-  animation: hubNodeIn 620ms var(--landing-spring) 420ms both;
+  opacity: 0.66;
+  animation: hubNodeIn 700ms var(--landing-spring) 460ms both;
   transition: opacity 240ms var(--landing-spring);
 }
 .reflectionDot {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--v2-text-subtle);
+  background: var(--landing-zinc-400);
   flex-shrink: 0;
 }
 .reflectionLabel {
   font-size: 15px;
   font-weight: 700;
-  color: var(--v2-text);
+  color: var(--landing-zinc-950);
 }
 .reflectionSub {
   font-size: 12.5px;
@@ -350,19 +464,19 @@
 .line {
   stroke-dasharray: 1000;
   stroke-dashoffset: 1000;
-  animation: hubDraw 1100ms var(--landing-spring) 200ms forwards;
+  animation: hubDraw 1100ms var(--landing-spring) 260ms forwards;
 }
 .lineDelay {
-  animation-delay: 340ms;
+  animation-delay: 400ms;
 }
 .lineArrow {
   /* The drop arrow stays dim until the arc unlocks. */
-  opacity: 0.4;
-  animation: hubDraw 900ms var(--landing-spring) 560ms forwards;
+  opacity: 0.45;
+  animation: hubDraw 900ms var(--landing-spring) 620ms forwards;
   transition: opacity 320ms var(--landing-spring), stroke 320ms var(--landing-spring);
 }
 .lineArrowLive {
-  opacity: 0.95;
+  opacity: 1;
 }
 
 /* ---- Keyframes ----------------------------------------------------- */
@@ -370,8 +484,8 @@
   to { stroke-dashoffset: 0; }
 }
 @keyframes hubNodeIn {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes hubUnlockPop {
   0% { transform: scale(1); }
@@ -398,9 +512,14 @@
 
 /* ---- Reduced motion: kill transforms + draw-in, show final state --- */
 @media (prefers-reduced-motion: reduce) {
-  .aura {
-    animation: none;
+  .auraBlue,
+  .auraFuchsia,
+  .auraEmerald,
+  .floatingCube,
+  .glassCube {
+    animation: none !important;
   }
+  .floatingCube { opacity: 1; transform: scale(1); }
   .entryNode,
   .practices,
   .practicesOpen,
@@ -410,10 +529,9 @@
     transform: none;
   }
   .reflection {
-    opacity: 0.62; /* keep the "dim/locked" semantic */
+    opacity: 0.66; /* keep the "dim/locked" semantic */
   }
   .entryNode:hover,
-  .entryDark:hover,
   .practicesLocked:hover,
   .practicesOpen:hover,
   .practicesOpen:hover .subItem {
@@ -429,3 +547,40 @@
     animation: none;
   }
 }
+
+/* ============================================================
+   Dark variant — tasteful, NOT the flat near-black it was. A deep
+   layered zinc surface with the same colorful glows, so it still
+   reads premium if the runtime is ever shown in dark mode. The owner
+   judges LIGHT, but we keep this on-brand rather than flat black.
+   ============================================================ */
+:global(:root[data-theme="dark"]) .shell {
+  background:
+    radial-gradient(130% 70% at 50% -6%, rgba(59, 130, 246, 0.12) 0%, transparent 55%),
+    linear-gradient(180deg, #15161c 0%, #0f1015 100%);
+  color: rgba(244, 244, 245, 0.96);
+}
+:global(:root[data-theme="dark"]) .heroGlow {
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.28) 0%, rgba(99, 102, 241, 0.18) 35%, transparent 70%);
+}
+:global(:root[data-theme="dark"]) .entryNode,
+:global(:root[data-theme="dark"]) .practices {
+  background: rgba(30, 31, 38, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(:root[data-theme="dark"]) .subItem {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(244, 244, 245, 0.96);
+}
+:global(:root[data-theme="dark"]) .reflection {
+  background: rgba(30, 31, 38, 0.66);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+:global(:root[data-theme="dark"]) .reflectionLabel { color: rgba(244, 244, 245, 0.96); }
+:global(:root[data-theme="dark"]) .lockedCta {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(244, 244, 245, 0.7);
+}
+:global(:root[data-theme="dark"]) .glassCubeIcon { color: var(--landing-blue-400); }

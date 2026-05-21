@@ -7,7 +7,6 @@ import {
   Title,
   Lead,
   FeatureCard,
-  DarkSection,
   LessonPanel,
   Button,
 } from "../shared/ui/primitives";
@@ -45,6 +44,7 @@ export function CaseBasedPreview() {
 function Shell({ children, testid }: { children: ReactNode; testid: string }) {
   return (
     <main className="v2-shell" data-testid={testid}>
+      <span className={s.ambient} aria-hidden="true" />
       <div className={s.stage} key={testid}>
         {children}
       </div>
@@ -63,32 +63,35 @@ function Setup() {
   return (
     <Shell testid="cbp-setup">
       <BackToHub onClick={() => goto("hub")} />
-      <DarkSection className={s.hero}>
-        <Eyebrow cyan>Case Study</Eyebrow>
-        <Title size="hero" inverse>
-          {cbp?.title ?? payload?.title ?? "The Case"}
-        </Title>
-        {setup?.story && <Lead inverse>{setup.story}</Lead>}
-        <div className={s.heroFacts}>
-          {setup?.role && (
-            <div className={s.fact}>
-              <span className={s.factLabel}>Your role</span>
-              <span className={s.factValue}>{setup.role}</span>
-            </div>
-          )}
-          {setup?.task && (
-            <div className={s.fact}>
-              <span className={s.factLabel}>Your task</span>
-              <span className={s.factValue}>{setup.task}</span>
-            </div>
-          )}
+      <section className={s.hero}>
+        <span className={s.heroGlow} aria-hidden="true" />
+        <div className={s.heroBody}>
+          <Eyebrow>Case Study</Eyebrow>
+          <Title size="hero">
+            {cbp?.title ?? payload?.title ?? "The Case"}
+          </Title>
+          {setup?.story && <Lead>{setup.story}</Lead>}
+          <div className={s.heroFacts}>
+            {setup?.role && (
+              <div className={s.fact}>
+                <span className={s.factLabel}>Your role</span>
+                <span className={s.factValue}>{setup.role}</span>
+              </div>
+            )}
+            {setup?.task && (
+              <div className={s.fact}>
+                <span className={s.factLabel}>Your task</span>
+                <span className={s.factValue}>{setup.task}</span>
+              </div>
+            )}
+          </div>
+          <div className={s.heroCta}>
+            <Button variant="blue" onClick={() => enterCheckpoint(0)} data-testid="cbp-begin">
+              Begin checkpoints →
+            </Button>
+          </div>
         </div>
-        <div className={s.heroCta}>
-          <Button variant="white" onClick={() => enterCheckpoint(0)} data-testid="cbp-begin">
-            Begin checkpoints →
-          </Button>
-        </div>
-      </DarkSection>
+      </section>
     </Shell>
   );
 }
@@ -230,7 +233,7 @@ function SimulationStage() {
 
   return (
     <Shell testid="cbp-simulation">
-      <Eyebrow cyan>Final simulation</Eyebrow>
+      <Eyebrow>Final simulation</Eyebrow>
       <Title size="section">How the case plays out.</Title>
       <Lead>The path you avoided — and why the lesson mattered.</Lead>
 
