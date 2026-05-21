@@ -1,0 +1,216 @@
+.stage {
+  animation: stageIn var(--landing-dur-md, 480ms) var(--landing-spring) both;
+}
+@keyframes stageIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shell {
+  padding: 64px 32px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--landing-cyan-300);
+  margin: 0 0 18px;
+}
+
+.title {
+  font-size: clamp(30px, 5.5vw, 52px);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  margin: 0 0 14px;
+  color: #fff;
+}
+
+.sub {
+  font-size: clamp(15px, 1.6vw, 18px);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.74);
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+/* ---- the chain-break animation ---- */
+.chain {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 200px;
+  margin: 12px 0 28px;
+}
+
+/* glow burst behind the snapping links */
+.burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 320px;
+  height: 320px;
+  transform: translate(-50%, -50%) scale(0.2);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(103, 232, 249, 0.55) 0%,
+    rgba(96, 165, 250, 0.35) 35%,
+    rgba(217, 70, 239, 0.18) 60%,
+    transparent 75%
+  );
+  filter: blur(20px);
+  opacity: 0;
+  pointer-events: none;
+  animation: burst 1100ms var(--landing-spring) 280ms both;
+}
+@keyframes burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+  100% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(1.25);
+  }
+}
+
+.links {
+  position: relative;
+  z-index: 1;
+  width: 220px;
+  height: 120px;
+}
+
+.linkHalf {
+  position: absolute;
+  top: 50%;
+  width: 64px;
+  height: 64px;
+  border: 9px solid #fff;
+  border-radius: 26px;
+}
+/* left half: open on the right side, snaps left + rotates away */
+.linkLeft {
+  left: calc(50% - 64px);
+  border-right-color: transparent;
+  transform-origin: left center;
+  transform: translateY(-50%);
+  animation: snapLeft 720ms var(--landing-spring) 240ms both;
+}
+/* right half: open on the left side, snaps right + rotates away */
+.linkRight {
+  left: 50%;
+  border-left-color: transparent;
+  transform-origin: right center;
+  transform: translateY(-50%);
+  animation: snapRight 720ms var(--landing-spring) 240ms both;
+}
+@keyframes snapLeft {
+  0% {
+    transform: translateY(-50%) translateX(0) rotate(0);
+  }
+  18% {
+    transform: translateY(-50%) translateX(8px) rotate(0);
+  }
+  100% {
+    transform: translateY(-50%) translateX(-78px) rotate(-26deg);
+    opacity: 0.85;
+  }
+}
+@keyframes snapRight {
+  0% {
+    transform: translateY(-50%) translateX(0) rotate(0);
+  }
+  18% {
+    transform: translateY(-50%) translateX(-8px) rotate(0);
+  }
+  100% {
+    transform: translateY(-50%) translateX(78px) rotate(26deg);
+    opacity: 0.85;
+  }
+}
+
+/* a couple of spark shards flung out at the break point */
+.spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 12px rgba(103, 232, 249, 0.9);
+  opacity: 0;
+}
+.spark1 {
+  animation: spark1 900ms var(--landing-spring) 300ms both;
+}
+.spark2 {
+  animation: spark2 900ms var(--landing-spring) 340ms both;
+}
+.spark3 {
+  animation: spark3 900ms var(--landing-spring) 320ms both;
+}
+@keyframes spark1 {
+  0% { opacity: 0; transform: translate(-50%, -50%); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-220%, -340%) scale(0.4); }
+}
+@keyframes spark2 {
+  0% { opacity: 0; transform: translate(-50%, -50%); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(160%, -300%) scale(0.4); }
+}
+@keyframes spark3 {
+  0% { opacity: 0; transform: translate(-50%, -50%); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(40%, 300%) scale(0.4); }
+}
+
+.cta {
+  margin-top: 8px;
+}
+
+.locked {
+  margin-top: 24px;
+}
+
+/* Reduced motion: skip the snap; show the broken end-state statically. */
+@media (prefers-reduced-motion: reduce) {
+  .stage,
+  .burst,
+  .linkLeft,
+  .linkRight,
+  .spark1,
+  .spark2,
+  .spark3 {
+    animation: none;
+  }
+  .burst {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  .linkLeft {
+    transform: translateY(-50%) translateX(-78px) rotate(-26deg);
+  }
+  .linkRight {
+    transform: translateY(-50%) translateX(78px) rotate(26deg);
+  }
+  .spark {
+    opacity: 0;
+  }
+}

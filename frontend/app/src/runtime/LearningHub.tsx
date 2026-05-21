@@ -38,6 +38,8 @@ export function LearningHub() {
   const payload = useRuntimeStore((st) => st.payload);
   const gate = useRuntimeStore((st) => st.gateState);
   const startCbp = useRuntimeStore((st) => st.startCbp);
+  const enterFlashcards = useRuntimeStore((st) => st.enterFlashcards);
+  const enterUnlockGate = useRuntimeStore((st) => st.enterUnlockGate);
 
   const cbp = cbpStatus(gate?.cbp);
   const mc = mcStatus(gate?.mc);
@@ -87,15 +89,19 @@ export function LearningHub() {
           </div>
           <Title size="section">Lock in the facts.</Title>
           <Lead>
-            Study the deck, then prove recall on the Memory Check. Score 60% to
-            clear.
+            Study the deck, then prove recall on the Memory Check. Score{" "}
+            {gate?.mc.threshold_pct ?? 60}% to clear.
           </Lead>
           <div className={s.tileMeta}>
             <span className={s.meta}>{gate?.mc.score_pct ?? 0}% recall</span>
           </div>
           <div className={s.tileCta}>
-            <Button variant="outline" disabled aria-disabled="true">
-              Coming in F3
+            <Button variant="blue" onClick={enterFlashcards} data-testid="hub-start-fc">
+              {mc === "passed"
+                ? "Review deck →"
+                : mc === "inProgress"
+                ? "Continue →"
+                : "Start flashcards →"}
             </Button>
           </div>
         </FeatureCard>
@@ -122,7 +128,7 @@ export function LearningHub() {
         </div>
         <div className={s.gateAction}>
           {unlocked ? (
-            <Button variant="blue" disabled aria-disabled="true">
+            <Button variant="blue" onClick={enterUnlockGate} data-testid="hub-enter-gate">
               Enter Practice Arc →
             </Button>
           ) : (

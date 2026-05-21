@@ -87,4 +87,35 @@ export function submitCheckpoint(
   });
 }
 
+/**
+ * Submit a Memory Check item answer.
+ * Mirrors {@link submitCheckpoint} exactly but with `phase:"memory_check"`.
+ * Backend resolves the item by `item_index` (0-based) from content_json,
+ * grades server-side, and returns {correct, feedback, learning_block?}.
+ *
+ * The caller is responsible for shaping `answer` per item type:
+ *   - option types (mcq/true_false/choose_explanation): the tapped option
+ *     INDEX as a string (server holds the expected option_index).
+ *   - fill_blank: the typed text.
+ * Correctness is ALWAYS read from the server response, never derived here.
+ */
+export function submitMemoryCheckItem(
+  hwId: string,
+  sessionId: string,
+  itemIndex: number,
+  answer: string
+): Promise<CheckAnswerResult> {
+  return request<CheckAnswerResult>("/api/ai/check-answer", {
+    method: "POST",
+    body: JSON.stringify({
+      phase: "memory_check",
+      homework_id: hwId,
+      session_id: sessionId,
+      question_id: `mc_item${itemIndex}`,
+      item_index: itemIndex,
+      student_answer: answer,
+    }),
+  });
+}
+
 export { ApiError };

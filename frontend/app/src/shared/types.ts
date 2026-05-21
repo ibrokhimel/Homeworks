@@ -15,7 +15,9 @@ export interface HydratePayload {
 export interface ContentJson {
   flow_version?: string;
   case_based_preview?: CaseBasedPreview;
-  // memory_check, practice_arc, etc. land in later phases — kept open.
+  flashcards?: Flashcard[];
+  memory_check?: MemoryCheck;
+  // practice_arc, etc. land in later phases — kept open.
   [key: string]: unknown;
 }
 
@@ -70,6 +72,57 @@ export interface CaseBasedPreview {
   checkpoints?: Checkpoint[];
   final_simulation?: FinalSimulation;
   feedback_summary?: FeedbackSummary;
+}
+
+// ---- Flashcards (Tile B study deck — display-only, no answer fields) ----
+
+/**
+ * A single flashcard from the redacted hydration payload. `front`/`back` are
+ * the two faces; the optional fields are coaching hints. There are NO answer
+ * fields here — flashcards are study material, graded recall happens in the
+ * Memory Check below. The leak guards mirror StudentSafeCheckpoint.
+ */
+export interface Flashcard {
+  id?: string;
+  // Canonical frozen content shape uses {term, def}; front/back are accepted
+  // as aliases. The renderer reads term→front, def→back with fallback.
+  term?: string;
+  def?: string;
+  definition?: string;
+  front?: string;
+  back?: string;
+  hint?: string;
+  example?: string;
+  type?: string;
+  // Explicit leak guards — flashcards are never graded, so no answer fields.
+  answer_spec?: never;
+  correct?: never;
+  expected?: never;
+}
+
+export type MemoryCheckItemType =
+  | "mcq"
+  | "true_false"
+  | "choose_explanation"
+  | "fill_blank";
+
+/**
+ * A Memory Check item. Option-bearing types (`mcq` / `true_false` /
+ * `choose_explanation`) carry `options`; `fill_blank` omits them and expects a
+ * typed answer. `answer_spec` is redacted server-side — correctness is ALWAYS
+ * read from the /check-answer response, never derived here.
+ */
+export interface MemoryCheckItem {
+  type: MemoryCheckItemType;
+  prompt: string;
+  options?: string[];
+  // Explicit leak guard — the redactor strips this subtree before delivery.
+  answer_spec?: never;
+}
+
+export interface MemoryCheck {
+  pass_threshold_pct?: number;
+  items: MemoryCheckItem[];
 }
 
 // ---- Gate state (server-authoritative; the client renders, never decides) ----
