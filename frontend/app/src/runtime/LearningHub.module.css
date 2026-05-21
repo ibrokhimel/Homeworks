@@ -83,6 +83,128 @@
   z-index: 0;
 }
 
+/* ============================================================
+   INTERACTIVE CANDY BACKDROP — a living aurora + drifting soft blobs
+   behind the path. Sits at z-index 0 (under .intro/.path at z-index 1)
+   and is pointer-events:none, so it can NEVER intercept a node tap or
+   the unlock choreography. All motion is GPU-only (transform/opacity).
+
+   Two layers of motion compose:
+     • idle drift  — slow infinite CSS float, always on (per-blob keyframe)
+     • parallax    — JS writes --bx/--by (-1..1, smoothed) on this layer;
+                     each blob multiplies them by its own depth factor so
+                     near blobs move more than far ones. translate3d only.
+   ============================================================ */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;        /* clip blob bleed to the shell */
+  pointer-events: none;    /* HARD RULE: never blocks interaction */
+  contain: layout paint;   /* isolate paints from the rest of the hub */
+  /* parallax offsets, written by the rAF loop in HubBackdrop (default still). */
+  --bx: 0;
+  --by: 0;
+}
+
+/* Living aurora — a soft mesh wash that breathes hue + position forever. */
+.aurora {
+  position: absolute;
+  inset: -12%;
+  background:
+    radial-gradient(38% 44% at 22% 26%, rgba(28, 176, 246, 0.16) 0%, transparent 64%),
+    radial-gradient(40% 46% at 80% 30%, rgba(124, 58, 237, 0.13) 0%, transparent 64%),
+    radial-gradient(46% 50% at 64% 82%, rgba(88, 204, 2, 0.14) 0%, transparent 66%),
+    radial-gradient(40% 44% at 18% 78%, rgba(255, 150, 0, 0.12) 0%, transparent 64%);
+  filter: blur(8px);
+  opacity: 0.9;
+  transform: translate3d(
+    calc(var(--bx) * 10px),
+    calc(var(--by) * 10px),
+    0
+  );
+  animation: hubAurora 26s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes hubAurora {
+  0%   { transform: translate3d(calc(var(--bx) * 10px), calc(var(--by) * 10px), 0) scale(1); }
+  100% { transform: translate3d(calc(var(--bx) * 10px - 18px), calc(var(--by) * 10px + 14px), 0) scale(1.06); }
+}
+
+/* Soft candy blobs — blurred, low-opacity orbs in the Duolingo palette. */
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(34px);
+  opacity: 0.5;
+  /* depth-scaled parallax: --depth set per-blob; translate3d only. */
+  transform: translate3d(
+    calc(var(--bx) * var(--depth, 16px)),
+    calc(var(--by) * var(--depth, 16px)),
+    0
+  );
+}
+/* Each blob idle-floats on its own loop AROUND its parallax position. We nest
+   the parallax translate in the keyframe so the two motions compose cleanly. */
+.blob1 {
+  width: 220px; height: 220px;
+  top: -42px; left: -36px;
+  --depth: 22px;
+  background: radial-gradient(circle at 38% 34%, var(--hub-blue) 0%, transparent 70%);
+  animation: hubFloat1 19s ease-in-out infinite alternate;
+}
+.blob2 {
+  width: 260px; height: 260px;
+  top: 8%; right: -64px;
+  --depth: 30px;
+  background: radial-gradient(circle at 38% 34%, var(--hub-violet-soft) 0%, transparent 70%);
+  animation: hubFloat2 23s ease-in-out infinite alternate;
+}
+.blob3 {
+  width: 200px; height: 200px;
+  top: 46%; left: -52px;
+  --depth: 14px;
+  background: radial-gradient(circle at 38% 34%, var(--hub-green) 0%, transparent 70%);
+  opacity: 0.42;
+  animation: hubFloat3 27s ease-in-out infinite alternate;
+}
+.blob4 {
+  width: 180px; height: 180px;
+  bottom: 6%; right: -28px;
+  --depth: 24px;
+  background: radial-gradient(circle at 38% 34%, var(--hub-orange) 0%, transparent 70%);
+  opacity: 0.4;
+  animation: hubFloat4 21s ease-in-out infinite alternate;
+}
+.blob5 {
+  width: 150px; height: 150px;
+  bottom: -34px; left: 32%;
+  --depth: 18px;
+  background: radial-gradient(circle at 38% 34%, var(--hub-gold) 0%, transparent 72%);
+  opacity: 0.34;
+  animation: hubFloat5 25s ease-in-out infinite alternate;
+}
+@keyframes hubFloat1 {
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 26px), calc(var(--by) * var(--depth) + 34px),  0); }
+}
+@keyframes hubFloat2 {
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) - 32px), calc(var(--by) * var(--depth) + 24px),  0); }
+}
+@keyframes hubFloat3 {
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 30px), calc(var(--by) * var(--depth) - 26px),  0); }
+}
+@keyframes hubFloat4 {
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) - 24px), calc(var(--by) * var(--depth) - 30px),  0); }
+}
+@keyframes hubFloat5 {
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),         0); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 20px), calc(var(--by) * var(--depth) - 22px),  0); }
+}
+
 /* ---- Homework-theme header ---------------------------------------- */
 .intro {
   position: relative;
@@ -752,4 +874,19 @@
   }
   .shell[data-unlock="playing"]::after { background: rgba(20, 24, 28, 0); }
   .shake { animation: none; }
+
+  /* Backdrop: kill all motion + parallax → a calm, near-static wash. The JS
+     also attaches NO input listeners under reduced motion, so --bx/--by stay
+     at 0; we still pin transforms here for belt-and-suspenders safety. */
+  .aurora,
+  .blob,
+  .blob1,
+  .blob2,
+  .blob3,
+  .blob4,
+  .blob5 {
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
 }

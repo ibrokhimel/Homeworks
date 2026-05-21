@@ -144,6 +144,10 @@ export function LearningHub() {
       data-unlock={unlockState}
       data-testid="screen-hub"
     >
+      {/* Interactive candy backdrop — drifting blobs + living aurora, behind
+          everything and pointer-events:none. Never intercepts node taps. */}
+      <HubBackdrop />
+
       {/* Soft luminous backdrop — kept subtle so ink always wins on contrast. */}
       <div className={s.heroGlow} aria-hidden="true" />
 
@@ -205,6 +209,91 @@ export function LearningHub() {
         />
       </div>
     </main>
+  );
+}
+
+// ---- Interactive decorative backdrop -------------------------------------
+// A purely cosmetic layer behind the path: a living aurora wash + 5 soft,
+// blurred candy blobs in the Duolingo palette that idle-drift forever (CSS),
+// AND react to input via a tiny rAF parallax that writes smoothed offsets to
+// two CSS custom properties (--bx / --by) the CSS reads via translate3d:
+//   • desktop  → pointer move (parallax follows the cursor, eased)
+//   • mobile   → scroll position (no hover on touch, so scroll drives drift)
+// Everything is transform/opacity only and the layer is pointer-events:none,
+// so it can NEVER block a node tap or the unlock choreography. Under
+// prefers-reduced-motion we attach NO listeners and emit a static backdrop.
+function HubBackdrop() {
+  const layerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const layer = layerRef.current;
+    if (!layer) return;
+    if (prefersReducedMotion()) return; // static backdrop, no input reactivity
+
+    // Target (input-driven) vs. current (smoothed) offsets, normalized -1..1.
+    let targetX = 0;
+    let targetY = 0;
+    let curX = 0;
+    let curY = 0;
+    let raf = 0;
+    let running = false;
+
+    const tick = () => {
+      // Critically-damped ease toward target (no spring overshoot, calm feel).
+      curX += (targetX - curX) * 0.08;
+      curY += (targetY - curY) * 0.08;
+      layer.style.setProperty("--bx", curX.toFixed(4));
+      layer.style.setProperty("--by", curY.toFixed(4));
+      // Keep animating until we've effectively settled, then idle the loop.
+      if (Math.abs(targetX - curX) > 0.0005 || Math.abs(targetY - curY) > 0.0005) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        running = false;
+      }
+    };
+    const kick = () => {
+      if (running) return;
+      running = true;
+      raf = requestAnimationFrame(tick);
+    };
+
+    // Desktop: pointer parallax. Map cursor → -1..1 about viewport center.
+    const onPointer = (e: PointerEvent) => {
+      if (e.pointerType === "touch") return; // touch handled by scroll instead
+      const w = window.innerWidth || 1;
+      const h = window.innerHeight || 1;
+      targetX = (e.clientX / w) * 2 - 1;
+      targetY = (e.clientY / h) * 2 - 1;
+      kick();
+    };
+
+    // Mobile: scroll parallax. Map scroll progress → a gentle -1..1 sweep.
+    const onScroll = () => {
+      const doc = document.documentElement;
+      const max = Math.max(1, doc.scrollHeight - doc.clientHeight);
+      const p = Math.min(1, Math.max(0, (window.scrollY || 0) / max));
+      targetY = p * 2 - 1;
+      kick();
+    };
+
+    window.addEventListener("pointermove", onPointer, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onPointer);
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return (
+    <div ref={layerRef} className={s.backdrop} aria-hidden="true">
+      <div className={s.aurora} />
+      <span className={`${s.blob} ${s.blob1}`} />
+      <span className={`${s.blob} ${s.blob2}`} />
+      <span className={`${s.blob} ${s.blob3}`} />
+      <span className={`${s.blob} ${s.blob4}`} />
+      <span className={`${s.blob} ${s.blob5}`} />
+    </div>
   );
 }
 
