@@ -200,19 +200,27 @@ function PuzzleLockInner({
   if (allOpen) {
     return (
       <div className={s.wrap} data-testid="puzzle-lock-complete">
-        <div className={s.done}>
-          <div className={s.lockOpenWrap} aria-hidden="true">
-            <LockOpenIcon />
-          </div>
-          <Pill tone="good">Unlocked</Pill>
-          <Title size="section">Lock cracked.</Title>
-          <Lead>
-            You opened all {total} tumbler{total !== 1 ? "s" : ""}. Clean work.
-          </Lead>
-          <div className={s.actions}>
-            <Button variant="blue" onClick={onComplete} data-testid="pl-continue">
-              Continue →
-            </Button>
+        {/* Ambient glow layer */}
+        <div className={s.ambient} aria-hidden="true">
+          <div className={s.auraBlue} />
+          <div className={s.auraFuchsia} />
+          <div className={s.auraEmerald} />
+        </div>
+        <div className={s.content}>
+          <div className={s.done}>
+            <div className={s.lockOpenWrap} aria-hidden="true">
+              <LockOpenIcon />
+            </div>
+            <Pill tone="good">Unlocked</Pill>
+            <Title size="section">Lock cracked.</Title>
+            <Lead>
+              You opened all {total} tumbler{total !== 1 ? "s" : ""}. Clean work.
+            </Lead>
+            <div className={s.actions}>
+              <Button variant="blue" onClick={onComplete} data-testid="pl-continue">
+                Continue →
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -221,109 +229,118 @@ function PuzzleLockInner({
 
   return (
     <div className={s.wrap} data-testid="puzzle-lock">
-      {/* Header */}
-      <div className={s.head}>
-        <Eyebrow>Puzzle Lock</Eyebrow>
-        <span className={s.counter} data-testid="pl-progress">
-          {openedCount}/{total} open
-        </span>
+      {/* Ambient glow layer — blue/fuchsia/emerald radial blobs */}
+      <div className={s.ambient} aria-hidden="true">
+        <div className={s.auraBlue} />
+        <div className={s.auraFuchsia} />
+        <div className={s.auraEmerald} />
       </div>
 
-      <Title size="section">Crack the combination.</Title>
-      <Lead className={s.sub}>Answer each question to open the next tumbler.</Lead>
-
-      {/* Lock body — tumbler strip */}
-      <div className={s.lockBody} aria-label="Combination lock" role="group">
-        <div className={s.tumblerStrip}>
-          {items.map((_, i) => {
-            const state = tumblerStates[i];
-            const isCurrent = i === currentIdx;
-            return (
-              <div
-                key={i}
-                className={[
-                  s.tumbler,
-                  state === "open" && s.tumblerOpen,
-                  state === "wrong" && s.tumblerWrong,
-                  isCurrent && state !== "open" && s.tumblerActive,
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                aria-label={`Tumbler ${i + 1}: ${state}`}
-                data-testid={`pl-tumbler-${i}`}
-              >
-                {state === "open" ? (
-                  <span className={s.tumblerCheckmark} aria-hidden="true">
-                    ✓
-                  </span>
-                ) : (
-                  <span className={s.tumblerDot} aria-hidden="true" />
-                )}
-              </div>
-            );
-          })}
+      <div className={s.content}>
+        {/* Header */}
+        <div className={s.head}>
+          <Eyebrow>Puzzle Lock</Eyebrow>
+          <span className={s.counter} data-testid="pl-progress">
+            {openedCount}/{total} open
+          </span>
         </div>
 
-        {/* Lock shackle — visual */}
-        <div className={[s.shackle, openedCount >= total && s.shackleOpen].filter(Boolean).join(" ")} aria-hidden="true" />
-      </div>
+        <Title size="section">Crack the combination.</Title>
+        <Lead className={s.sub}>Answer each question to open the next tumbler.</Lead>
 
-      {/* Active question card */}
-      <div
-        className={[s.questionCard, shaking && s.questionCardShake].filter(Boolean).join(" ")}
-        data-testid="pl-question-card"
-      >
-        {clue && (
-          <div className={s.clue} data-testid="pl-clue">
-            {clue}
+        {/* Lock body — tumbler strip */}
+        <div className={s.lockBody} aria-label="Combination lock" role="group">
+          <div className={s.tumblerStrip}>
+            {items.map((_, i) => {
+              const state = tumblerStates[i];
+              const isCurrent = i === currentIdx;
+              return (
+                <div
+                  key={i}
+                  className={[
+                    s.tumbler,
+                    state === "open" && s.tumblerOpen,
+                    state === "wrong" && s.tumblerWrong,
+                    isCurrent && state !== "open" && s.tumblerActive,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  aria-label={`Tumbler ${i + 1}: ${state}`}
+                  data-testid={`pl-tumbler-${i}`}
+                >
+                  {state === "open" ? (
+                    <span className={s.tumblerCheckmark} aria-hidden="true">
+                      ✓
+                    </span>
+                  ) : (
+                    <span className={s.tumblerDot} aria-hidden="true" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Lock shackle — visual */}
+          <div className={[s.shackle, openedCount >= total && s.shackleOpen].filter(Boolean).join(" ")} aria-hidden="true" />
+        </div>
+
+        {/* Active question card */}
+        <div
+          className={[s.questionCard, shaking && s.questionCardShake].filter(Boolean).join(" ")}
+          data-testid="pl-question-card"
+        >
+          {clue && (
+            <div className={s.clue} data-testid="pl-clue">
+              {clue}
+            </div>
+          )}
+          {question && (
+            <p className={s.question} data-testid="pl-question">
+              {question}
+            </p>
+          )}
+
+          <div className={s.inputRow}>
+            <input
+              ref={inputRef}
+              type="text"
+              className={s.answerInput}
+              value={inputValue}
+              placeholder="Your answer…"
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={onKeyDown}
+              disabled={submitting}
+              aria-label={`Answer for tumbler ${currentIdx + 1}`}
+              data-testid="pl-answer-input"
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              className={s.submitBtn}
+              onClick={handleSubmit}
+              disabled={submitting || !inputValue.trim()}
+              aria-label="Submit answer"
+              data-testid="pl-submit"
+            >
+              {submitting ? "…" : "→"}
+            </button>
+          </div>
+        </div>
+
+        {/* Feedback (wrong answer) */}
+        {feedback && (
+          <div className={s.feedbackBand} role="status" data-testid="pl-feedback">
+            <Pill tone="warn">Try again</Pill>
+            <span className={s.feedbackText}>{feedback}</span>
           </div>
         )}
-        {question && (
-          <p className={s.question} data-testid="pl-question">
-            {question}
+
+        {error && (
+          <p className={s.error} role="alert" data-testid="pl-error">
+            {error}
           </p>
         )}
-
-        <div className={s.inputRow}>
-          <input
-            ref={inputRef}
-            type="text"
-            className={s.answerInput}
-            value={inputValue}
-            placeholder="Your answer…"
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={onKeyDown}
-            disabled={submitting}
-            aria-label={`Answer for tumbler ${currentIdx + 1}`}
-            data-testid="pl-answer-input"
-            autoComplete="off"
-          />
-          <button
-            type="button"
-            className={s.submitBtn}
-            onClick={handleSubmit}
-            disabled={submitting || !inputValue.trim()}
-            aria-label="Submit answer"
-            data-testid="pl-submit"
-          >
-            {submitting ? "…" : "→"}
-          </button>
-        </div>
       </div>
-
-      {/* Feedback (wrong answer) */}
-      {feedback && (
-        <div className={s.feedbackBand} role="status" data-testid="pl-feedback">
-          <Pill tone="warn">Try again</Pill>
-          <span className={s.feedbackText}>{feedback}</span>
-        </div>
-      )}
-
-      {error && (
-        <p className={s.error} role="alert" data-testid="pl-error">
-          {error}
-        </p>
-      )}
     </div>
   );
 }

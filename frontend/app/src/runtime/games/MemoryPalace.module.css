@@ -1,10 +1,28 @@
 /* MemoryPalace.module.css
-   Mirrors TileMatch.module.css token usage + Apple-glass aesthetic.
-   All transitions respect prefers-reduced-motion (global override in _tokens.css). */
+   v2 light Apple-glass aesthetic — matches CaseBasedPreview / LearningHub recipe:
+   #f5f5f7 page surface, white frosted glass rgba(255,255,255,.7)+blur(24-30px)
+   saturate(180%), accent #0066CC (#2563eb token), blue/fuchsia/emerald radial
+   glows, #1d1d1f titles, #86868b text, spring cubic-bezier(.16,1,.3,1),
+   hover scale(1.045). CSS-only — no markup or data contract changes. */
 
-/* ---- Entry animation ---- */
+/* ---- Ambient page glow (fixed, pointer-events none) ---- */
 .wrap {
+  position: relative;
   animation: fadeIn 320ms var(--landing-spring) both;
+}
+.wrap::before {
+  content: "";
+  position: fixed;
+  inset: -10% 0 auto 0;
+  height: 56vh;
+  max-height: 580px;
+  background:
+    radial-gradient(60% 80% at 20% 10%, rgba(37, 99, 235, 0.18) 0%, transparent 60%),
+    radial-gradient(55% 75% at 80% 5%,  rgba(217, 70, 239, 0.14) 0%, transparent 62%),
+    radial-gradient(50% 70% at 58% 28%, rgba(52, 211, 153, 0.10) 0%, transparent 64%);
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 0;
 }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -13,6 +31,8 @@
 
 /* ---- Shared header row ---- */
 .head {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -26,11 +46,20 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 160px;
+  max-width: 180px;
+  padding: 4px 12px;
+  border-radius: var(--v2-radius-pill);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  box-shadow: var(--landing-shadow-soft);
 }
 
 /* ---- Phase wrapper ---- */
 .phase {
+  position: relative;
+  z-index: 1;
   animation: fadeIn 280ms var(--landing-spring) both;
 }
 .phaseHeader {
@@ -40,7 +69,7 @@
   margin-top: 6px;
 }
 
-/* ---- Progress dots ---- */
+/* ---- Progress dots — pill style from CaseBasedPreview ---- */
 .progressRow {
   display: flex;
   align-items: center;
@@ -48,18 +77,22 @@
   margin-bottom: 20px;
 }
 .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  width: 24px;
+  height: 6px;
+  border-radius: 999px;
   background: var(--v2-ring);
-  transition: background 200ms var(--landing-spring), transform 200ms var(--landing-spring);
+  transition:
+    background 200ms var(--landing-spring),
+    width     200ms var(--landing-spring),
+    transform 200ms var(--landing-spring);
 }
 .dotDone {
   background: var(--landing-emerald-700);
 }
 .dotActive {
+  width: 36px;
   background: var(--landing-blue-600);
-  transform: scale(1.35);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
 }
 .progressLabel {
   font-size: 12px;
@@ -68,19 +101,47 @@
   margin-left: 4px;
 }
 
-/* ---- Station card (location display) ---- */
+/* ---- Station card — frosted glass slab with blue left accent ---- */
 .stationCard {
-  background: var(--v2-card-bg);
-  border: 1px solid var(--v2-ring);
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.70);
+  border: 1px solid rgba(255, 255, 255, 0.60);
   border-left: 3px solid var(--landing-blue-400);
-  border-radius: 14px;
-  padding: 16px 18px;
+  border-radius: 18px;
+  padding: 18px 20px;
   margin-bottom: 16px;
+  box-shadow:
+    var(--landing-shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  animation: stationIn 380ms var(--landing-spring) both;
 }
+/* top-right blue glow inside the card — same as .cardGlow in LearningHub */
+.stationCard::after {
+  content: "";
+  position: absolute;
+  right: -40px;
+  top: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 999px;
+  background: rgba(96, 165, 250, 0.22);
+  filter: blur(36px);
+  pointer-events: none;
+}
+@keyframes stationIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .locationRow {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  position: relative;
+  z-index: 1;
 }
 .locationIcon {
   font-size: 28px;
@@ -93,7 +154,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--v2-text-subtle);
+  color: var(--landing-blue-600);
   margin-bottom: 2px;
 }
 .locationName {
@@ -104,6 +165,8 @@
   line-height: 1.3;
 }
 .sensoryCue {
+  position: relative;
+  z-index: 1;
   margin-top: 10px;
   font-size: 13px;
   color: var(--v2-text-muted);
@@ -111,16 +174,38 @@
   line-height: 1.5;
 }
 
-/* ---- Concept card (study phase only) ---- */
+/* ---- Concept card (study phase) — frosted glass with cyan left accent ---- */
 .conceptCard {
-  background: var(--v2-card-tinted);
-  border: 1px solid var(--v2-ring);
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.58);
   border-left: 3px solid var(--landing-cyan-300);
-  border-radius: 14px;
-  padding: 16px 18px;
+  border-radius: 18px;
+  padding: 18px 20px;
   margin-bottom: 20px;
+  box-shadow:
+    var(--landing-shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+}
+/* soft fuchsia glow — echoes LearningHub .cardGlowFuchsia */
+.conceptCard::after {
+  content: "";
+  position: absolute;
+  right: -44px;
+  top: -44px;
+  width: 148px;
+  height: 148px;
+  border-radius: 999px;
+  background: rgba(217, 70, 239, 0.16);
+  filter: blur(40px);
+  pointer-events: none;
 }
 .conceptLabel {
+  position: relative;
+  z-index: 1;
   display: block;
   font-size: 11px;
   font-weight: 700;
@@ -130,6 +215,8 @@
   margin-bottom: 4px;
 }
 .conceptTerm {
+  position: relative;
+  z-index: 1;
   display: block;
   font-size: 20px;
   font-weight: 700;
@@ -138,12 +225,16 @@
   margin-bottom: 6px;
 }
 .conceptDesc {
+  position: relative;
+  z-index: 1;
   font-size: 14px;
   color: var(--v2-text-muted);
   line-height: 1.55;
   margin: 0;
 }
 .imageCue {
+  position: relative;
+  z-index: 1;
   margin-top: 10px;
   font-size: 13px;
   color: var(--landing-indigo-500);
@@ -159,7 +250,7 @@
   margin: 0 0 12px;
 }
 
-/* ---- Option grid (place + recall) ---- */
+/* ---- Option grid — glass chip buttons (place + recall pickers) ---- */
 .optionGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -167,35 +258,51 @@
   margin-bottom: 20px;
 }
 .optionBtn {
-  padding: 14px 14px;
-  border-radius: 12px;
-  background: var(--v2-card-bg);
-  border: 1px solid var(--v2-ring);
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.58);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
   color: var(--v2-text);
   text-align: left;
   cursor: pointer;
-  transition: transform 200ms var(--landing-spring),
-    border-color 200ms var(--landing-spring),
-    background 200ms var(--landing-spring),
-    box-shadow 200ms var(--landing-spring);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow:
+    var(--landing-shadow-soft),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition:
+    transform     220ms var(--landing-spring),
+    border-color  220ms var(--landing-spring),
+    background    220ms var(--landing-spring),
+    box-shadow    220ms var(--landing-spring);
 }
 .optionBtn:not(:disabled):hover {
-  transform: translateY(-2px);
-  border-color: var(--v2-accent-soft);
-  box-shadow: var(--landing-shadow-card);
+  transform: translateY(-3px) scale(1.025);
+  border-color: rgba(37, 99, 235, 0.35);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    var(--landing-shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.optionBtn:not(:disabled):active {
+  transform: scale(0.98);
 }
 .optionSelected {
-  border-color: var(--landing-blue-600);
-  background: rgba(37, 99, 235, 0.08);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
-  transform: translateY(-2px);
+  border-color: var(--landing-blue-600) !important;
+  background: rgba(37, 99, 235, 0.07) !important;
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+  transform: translateY(-3px) scale(1.025);
 }
 .optionUsed {
-  opacity: 0.35;
+  opacity: 0.30;
   cursor: default;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* ---- Actions row ---- */
@@ -210,21 +317,27 @@
 .error {
   margin-bottom: 12px;
   padding: 12px 16px;
-  border-radius: 12px;
-  background: #fef3c7;
+  border-radius: 14px;
+  background: rgba(254, 243, 199, 0.85);
   color: #92400e;
   font-size: 14px;
   font-weight: 500;
+  border: 1px solid rgba(217, 119, 6, 0.18);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
-/* ---- Result card ---- */
+/* ---- Result phase ---- */
 .result {
+  position: relative;
+  z-index: 1;
   display: grid;
-  gap: 12px;
+  gap: 14px;
   padding: 4px 0;
   animation: fadeIn 360ms var(--landing-spring) both;
 }
 
+/* Stats row — four glass tiles */
 .statsRow {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -235,11 +348,25 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: var(--v2-card-bg);
-  border: 1px solid var(--v2-ring);
-  border-radius: 14px;
-  padding: 14px 10px;
+  background: rgba(255, 255, 255, 0.70);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 18px;
+  padding: 16px 10px;
   gap: 4px;
+  box-shadow:
+    var(--landing-shadow-soft),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  animation: statPop 420ms var(--landing-spring) both;
+}
+.stat:nth-child(1) { animation-delay:  60ms; }
+.stat:nth-child(2) { animation-delay: 120ms; }
+.stat:nth-child(3) { animation-delay: 180ms; }
+.stat:nth-child(4) { animation-delay: 240ms; }
+@keyframes statPop {
+  from { opacity: 0; transform: translateY(12px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
 }
 .statValue {
   font-size: 22px;
@@ -256,22 +383,46 @@
   text-align: center;
 }
 
-/* ---- Missed locations block ---- */
+/* ---- Missed locations block — frosted glass with emerald tint ---- */
 .missedBlock {
-  background: var(--v2-card-tinted);
-  border: 1px solid var(--v2-ring);
-  border-radius: 14px;
-  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(4, 120, 87, 0.22);
+  border-radius: 18px;
+  padding: 16px 18px;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow:
+    var(--landing-shadow-soft),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+/* emerald glow inside the block */
+.missedBlock::before {
+  content: "";
+  position: absolute;
+  right: -36px;
+  top: -36px;
+  width: 120px;
+  height: 120px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.20);
+  filter: blur(32px);
+  pointer-events: none;
 }
 .missedLabel {
-  font-size: 12px;
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--v2-text-subtle);
+  color: var(--landing-emerald-700);
   margin: 0 0 10px;
 }
 .missedList {
+  position: relative;
+  z-index: 1;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -283,6 +434,10 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 .missedStation {
   font-weight: 700;
@@ -302,7 +457,11 @@
   }
   .optionBtn {
     font-size: 14px;
-    padding: 12px 13px;
+    padding: 12px 14px;
+  }
+  .stationCard,
+  .conceptCard {
+    padding: 14px 16px;
   }
 }
 
@@ -310,7 +469,9 @@
 @media (prefers-reduced-motion: reduce) {
   .wrap,
   .phase,
-  .result {
+  .result,
+  .stationCard,
+  .stat {
     animation: none;
   }
   .optionBtn:not(:disabled):hover,
@@ -321,5 +482,9 @@
   .dotActive {
     transform: none;
     transition: none;
+    width: 24px;
+  }
+  .optionBtn:not(:disabled):active {
+    transform: none;
   }
 }

@@ -114,6 +114,7 @@ export default function TileMatch({ onComplete }: GameProps) {
 
   return (
     <div className={s.wrap} data-testid="tile-match">
+      <div className={s.ambient} aria-hidden="true" />
       <div className={s.head}>
         <Eyebrow>Tile Match</Eyebrow>
         <span className={s.counter} data-testid="tile-match-progress">

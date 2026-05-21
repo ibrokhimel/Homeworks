@@ -340,7 +340,8 @@ export default function Ttt({ onComplete }: GameProps) {
         {roundOver ? "" : "Tap a cell to answer a question and claim it. First to 3-in-a-row wins."}
       </Lead>
 
-      {/* 3x3 Board */}
+      {/* 3x3 Board — frosted glass slab wrapper */}
+      <div className={s.boardWrap}>
       <div
         className={s.board}
         role="grid"
@@ -379,6 +380,7 @@ export default function Ttt({ onComplete }: GameProps) {
           );
         })}
       </div>
+      </div>{/* /boardWrap */}
 
       {/* Round result banner */}
       {roundOver && (

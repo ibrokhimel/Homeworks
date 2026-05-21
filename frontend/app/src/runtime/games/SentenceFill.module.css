@@ -1,20 +1,52 @@
 /* ============================================================
-   SentenceFill.module.css — Apple-glass cloze passage game.
-   Uses the shared design tokens from _tokens.css exclusively.
+   SentenceFill.module.css — v2 light Apple-glass cloze game.
+   Recipe mirrors CaseBasedPreview + LearningHub:
+   · #f5f5f7 page surface (set on the runtime shell, not here)
+   · white frosted glass: rgba(255,255,255,.70–.78) + blur(24-30px) saturate(180%)
+   · accent #0066CC / var(--landing-blue-600) #2563eb
+   · blue / fuchsia / emerald radial glows
+   · spring cubic-bezier(.16,1,.3,1) everywhere
+   · hover scale(1.045) / translateY(-2px) on interactive elements
+   Uses shared design tokens exclusively — no hard-coded one-offs.
    ============================================================ */
 
+/* ---- mount entrance ---- */
 .wrap {
-  animation: fadeIn 320ms var(--landing-spring) both;
+  position: relative;
+  isolation: isolate;
+  animation: sfIn 480ms var(--landing-spring, cubic-bezier(.16,1,.3,1)) both;
 }
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes sfIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ---- ambient multi-hue glow (pointer-events:none, GPU-only) ---- */
+.ambient {
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 55vh;
+  max-height: 480px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 80% at 18% 10%, rgba(37, 99, 235, 0.18) 0%, transparent 60%),
+    radial-gradient(50% 70% at 85% 8%,  rgba(217, 70, 239, 0.13) 0%, transparent 62%),
+    radial-gradient(45% 65% at 55% 28%, rgba(52, 211, 153, 0.10) 0%, transparent 64%);
+  filter: blur(56px);
+}
+
+/* All content sits above the ambient layer. */
+.head,
+.sub,
+.badges,
+.passage,
+.bankWrap,
+.explanations,
+.error,
+.done {
+  position: relative;
+  z-index: 1;
 }
 
 /* ---- header ---- */
@@ -28,7 +60,7 @@
 .counter {
   font-size: 13px;
   font-weight: 600;
-  color: var(--v2-text-subtle);
+  color: var(--v2-text-subtle, #86868b);
 }
 .sub {
   margin-top: 6px;
@@ -41,42 +73,70 @@
   margin-top: 12px;
 }
 
-/* ---- passage ---- */
+/* ---- cloze passage — frosted glass slab ---- */
 .passage {
+  position: relative;
   margin-top: 24px;
-  padding: 20px 22px;
-  background: var(--v2-card-bg);
-  border: 1px solid var(--v2-ring);
-  border-radius: 16px;
+  padding: 24px 26px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.70);
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  box-shadow:
+    var(--landing-shadow-card, 0 20px 70px rgba(15, 23, 42, 0.08)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
   font-size: 17px;
   font-weight: 500;
-  line-height: 2.2;
-  color: var(--v2-text);
-  box-shadow: var(--landing-shadow-soft);
+  line-height: 2.25;
+  color: var(--v2-text, #1d1d1f);
+  overflow: hidden;
+}
+
+/* Soft blue→fuchsia corner glow inside the passage card */
+.passage::before {
+  content: "";
+  position: absolute;
+  right: -64px;
+  top: -64px;
+  width: 200px;
+  height: 200px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.18) 0%, rgba(217, 70, 239, 0.12) 50%, transparent 72%);
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+.passage > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* ---- locked blank display ---- */
 .blankLocked {
   display: inline-flex;
   align-items: center;
-  padding: 2px 10px;
-  border-radius: 8px;
+  padding: 2px 11px;
+  border-radius: 10px;
   font-size: 15px;
   font-weight: 700;
   margin: 0 4px;
-  transition: background 200ms var(--landing-spring);
+  vertical-align: middle;
+  transition: background 200ms var(--landing-spring, cubic-bezier(.16,1,.3,1));
 }
 .blankCorrect {
   background: rgba(4, 120, 87, 0.12);
-  color: var(--landing-emerald-700);
-  border: 1px solid rgba(4, 120, 87, 0.22);
+  color: var(--landing-emerald-700, #047857);
+  border: 1px solid rgba(4, 120, 87, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 .blankWrong {
   background: rgba(217, 70, 239, 0.08);
-  color: var(--landing-fuchsia-500);
-  border: 1px solid rgba(217, 70, 239, 0.2);
+  color: var(--landing-fuchsia-500, #d946ef);
+  border: 1px solid rgba(217, 70, 239, 0.22);
   text-decoration: line-through;
-  text-decoration-color: rgba(217, 70, 239, 0.4);
+  text-decoration-color: rgba(217, 70, 239, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 /* ---- word-bank blank target (tap to focus) ---- */
@@ -84,37 +144,43 @@
   display: inline-flex;
   align-items: center;
   min-width: 72px;
-  padding: 3px 10px;
+  padding: 3px 11px;
   margin: 0 4px;
-  border-radius: 8px;
-  background: var(--v2-card-tinted);
-  border: 1.5px dashed var(--v2-ring);
-  color: var(--v2-text-muted);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.60);
+  border: 1.5px dashed rgba(228, 228, 231, 0.85);
+  color: var(--v2-text-muted, #86868b);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: border-color 180ms var(--landing-spring),
-    background 180ms var(--landing-spring),
-    box-shadow 180ms var(--landing-spring);
   vertical-align: middle;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition:
+    border-color 180ms var(--landing-spring, cubic-bezier(.16,1,.3,1)),
+    background  180ms var(--landing-spring, cubic-bezier(.16,1,.3,1)),
+    box-shadow  180ms var(--landing-spring, cubic-bezier(.16,1,.3,1)),
+    transform   180ms var(--landing-spring, cubic-bezier(.16,1,.3,1));
 }
 .blankTarget:not(:disabled):hover {
-  border-color: var(--v2-accent-soft);
-  background: rgba(96, 165, 250, 0.06);
+  border-color: var(--landing-blue-400, #60a5fa);
+  background: rgba(255, 255, 255, 0.80);
+  transform: translateY(-1px) scale(1.03);
 }
 .blankTargetFocused {
-  border-color: var(--landing-blue-600);
   border-style: solid;
+  border-color: var(--landing-blue-600, #2563eb);
   background: rgba(37, 99, 235, 0.07);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 .blankPlaceholder {
-  color: var(--v2-text-subtle);
+  color: var(--v2-text-subtle, #a1a1a6);
   font-weight: 400;
   font-size: 13px;
 }
 
-/* ---- free recall input ---- */
+/* ---- free-recall input ---- */
 .inputWrap {
   display: inline-flex;
   align-items: center;
@@ -124,121 +190,166 @@
 }
 .blankInput {
   min-width: 88px;
-  max-width: 160px;
-  padding: 3px 10px;
-  border-radius: 8px;
-  background: var(--v2-card-tinted);
-  border: 1.5px solid var(--v2-ring);
-  color: var(--v2-text);
+  max-width: 164px;
+  padding: 3px 11px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1.5px solid rgba(228, 228, 231, 0.85);
+  color: var(--v2-text, #1d1d1f);
   font-size: 15px;
   font-weight: 600;
   font-family: inherit;
   outline: none;
-  transition: border-color 180ms var(--landing-spring),
-    box-shadow 180ms var(--landing-spring);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition:
+    border-color 180ms var(--landing-spring, cubic-bezier(.16,1,.3,1)),
+    box-shadow   180ms var(--landing-spring, cubic-bezier(.16,1,.3,1));
 }
 .blankInput:focus {
-  border-color: var(--landing-blue-600);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  border-color: var(--landing-blue-600, #2563eb);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 .submitMini {
   position: absolute;
-  right: -28px;
-  padding: 3px 6px;
-  border-radius: 6px;
-  background: var(--landing-blue-600);
+  right: -30px;
+  padding: 3px 7px;
+  border-radius: 8px;
+  background: var(--landing-blue-600, #2563eb);
   color: #fff;
   font-size: 13px;
+  font-weight: 700;
   border: none;
   cursor: pointer;
-  opacity: 0.85;
-  transition: opacity 150ms ease;
+  opacity: 0.88;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
+  transition: opacity 150ms ease, transform 150ms var(--landing-spring, cubic-bezier(.16,1,.3,1));
 }
 .submitMini:hover {
   opacity: 1;
+  transform: translateY(-1px) scale(1.06);
+}
+.submitMini:active {
+  transform: scale(0.97);
 }
 
 /* ---- flash states (correct / wrong) ---- */
 .blankFlashCorrect {
-  animation: flashCorrect 560ms var(--landing-spring) both;
+  animation: flashCorrect 560ms var(--landing-spring, cubic-bezier(.16,1,.3,1)) both;
 }
 .blankFlashWrong {
-  animation: flashWrong 560ms var(--landing-spring) both;
+  animation: flashWrong 560ms var(--landing-spring, cubic-bezier(.16,1,.3,1)) both;
 }
 @keyframes flashCorrect {
-  0%   { box-shadow: 0 0 0 0 rgba(4, 120, 87, 0); }
-  25%  { box-shadow: 0 0 0 6px rgba(4, 120, 87, 0.28); background: rgba(4, 120, 87, 0.12); }
-  100% { box-shadow: 0 0 0 0 rgba(4, 120, 87, 0); }
+  0%   { box-shadow: 0 0 0 0   rgba(4, 120, 87, 0); }
+  28%  { box-shadow: 0 0 0 7px rgba(4, 120, 87, 0.30); background: rgba(4, 120, 87, 0.12); }
+  100% { box-shadow: 0 0 0 0   rgba(4, 120, 87, 0); }
 }
 @keyframes flashWrong {
-  0%   { transform: translateX(0); }
-  20%  { transform: translateX(-5px); }
-  40%  { transform: translateX(5px); }
-  60%  { transform: translateX(-3px); }
-  80%  { transform: translateX(3px); }
-  100% { transform: translateX(0); }
+  0%   { transform: translateX(0);   }
+  18%  { transform: translateX(-6px);}
+  38%  { transform: translateX(5px); }
+  58%  { transform: translateX(-3px);}
+  78%  { transform: translateX(3px); }
+  100% { transform: translateX(0);   }
 }
 
 /* ---- submitting state ---- */
 .blankSubmitting {
-  opacity: 0.55;
+  opacity: 0.52;
   cursor: wait;
 }
 
-/* ---- word bank ---- */
+/* ---- word bank — frosted glass tray ---- */
 .bankWrap {
+  position: relative;
   margin-top: 24px;
-  padding: 16px 18px;
-  background: var(--v2-card-bg);
-  border: 1px solid var(--v2-ring);
-  border-radius: 16px;
-  box-shadow: var(--landing-shadow-soft);
+  padding: 18px 20px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  box-shadow:
+    var(--landing-shadow-card, 0 20px 70px rgba(15, 23, 42, 0.08)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  overflow: hidden;
 }
+
+/* emerald corner glow inside the bank tray */
+.bankWrap::before {
+  content: "";
+  position: absolute;
+  left: -48px;
+  bottom: -48px;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.22) 0%, transparent 70%);
+  filter: blur(36px);
+  pointer-events: none;
+}
+
 .bankLabel {
+  position: relative;
+  z-index: 1;
   display: block;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--v2-text-subtle);
+  color: var(--landing-blue-600, #2563eb);
   margin-bottom: 12px;
 }
 .chips {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 .chip {
-  padding: 6px 14px;
+  padding: 7px 16px;
   border-radius: 999px;
-  background: var(--v2-card-tinted);
-  border: 1.5px solid var(--v2-ring);
-  color: var(--v2-text);
+  background: rgba(255, 255, 255, 0.68);
+  border: 1.5px solid rgba(228, 228, 231, 0.80);
+  color: var(--v2-text, #1d1d1f);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 180ms var(--landing-spring),
-    border-color 180ms var(--landing-spring),
-    background 180ms var(--landing-spring),
-    box-shadow 180ms var(--landing-spring),
-    opacity 180ms ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), var(--landing-shadow-soft, 0 1px 4px rgba(0,0,0,0.04));
+  transition:
+    transform     200ms var(--landing-spring, cubic-bezier(.16,1,.3,1)),
+    border-color  200ms var(--landing-spring, cubic-bezier(.16,1,.3,1)),
+    background    200ms var(--landing-spring, cubic-bezier(.16,1,.3,1)),
+    box-shadow    200ms var(--landing-spring, cubic-bezier(.16,1,.3,1)),
+    opacity       180ms ease;
+}
+/* active / available chips glow on hover */
+.chipAvailable:not(:disabled) {
+  border-color: var(--landing-blue-400, #60a5fa);
 }
 .chipAvailable:not(:disabled):hover {
-  transform: translateY(-2px);
-  border-color: var(--landing-blue-600);
-  background: rgba(37, 99, 235, 0.07);
-  box-shadow: var(--landing-shadow-card);
+  transform: translateY(-3px) scale(1.045);
+  border-color: var(--landing-blue-600, #2563eb);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 8px 24px rgba(37, 99, 235, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
-.chipAvailable:not(:disabled) {
-  border-color: var(--v2-accent-soft);
+.chipAvailable:not(:disabled):active {
+  transform: translateY(-1px) scale(0.98);
 }
 .chipUsed {
-  opacity: 0.38;
+  opacity: 0.36;
   cursor: default;
   text-decoration: line-through;
+  text-decoration-color: rgba(134, 134, 139, 0.5);
 }
 .chip:disabled:not(.chipUsed) {
-  opacity: 0.6;
+  opacity: 0.58;
   cursor: not-allowed;
 }
 
@@ -247,32 +358,37 @@
   margin-top: 18px;
   display: grid;
   gap: 10px;
-  animation: fadeIn 280ms var(--landing-spring) both;
+  animation: sfIn 300ms var(--landing-spring, cubic-bezier(.16,1,.3,1)) both;
 }
 .explanationRow {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: var(--v2-card-tinted);
-  border: 1px solid var(--v2-ring);
+  padding: 13px 16px;
+  border-radius: 14px;
+  background: rgba(253, 244, 255, 0.82);
+  border: 1px solid rgba(217, 70, 239, 0.20);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80);
 }
 .explanationText {
   font-size: 14px;
-  color: var(--v2-text-muted);
-  line-height: 1.5;
+  color: var(--v2-text-muted, #86868b);
+  line-height: 1.55;
 }
 
 /* ---- error ---- */
 .error {
   margin-top: 16px;
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: #fef3c7;
   color: #92400e;
   font-size: 14px;
   font-weight: 500;
+  border: 1px solid rgba(217, 119, 6, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.70);
 }
 
 /* ---- complete screen ---- */
@@ -280,7 +396,7 @@
   display: grid;
   gap: 12px;
   padding: 12px 0;
-  animation: fadeIn 360ms var(--landing-spring) both;
+  animation: sfIn 380ms var(--landing-spring, cubic-bezier(.16,1,.3,1)) both;
 }
 .actions {
   display: flex;
@@ -293,8 +409,13 @@
 @media (max-width: 560px) {
   .passage {
     font-size: 15px;
-    padding: 16px 14px;
+    padding: 18px 16px;
     line-height: 2;
+    border-radius: 18px;
+  }
+  .bankWrap {
+    padding: 14px 14px;
+    border-radius: 16px;
   }
   .blankInput {
     min-width: 64px;
@@ -312,13 +433,16 @@
   .done,
   .explanations {
     animation: none;
+    opacity: 1;
+    transform: none;
   }
   .blankFlashCorrect,
   .blankFlashWrong {
     animation: none;
   }
   .chip:not(:disabled):hover,
-  .blankTarget:not(:disabled):hover {
+  .blankTarget:not(:disabled):hover,
+  .submitMini:hover {
     transform: none;
   }
 }

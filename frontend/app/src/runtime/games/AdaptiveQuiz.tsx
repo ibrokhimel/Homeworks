@@ -50,11 +50,14 @@ export default function AdaptiveQuiz({ onComplete }: GameProps) {
   if (items.length === 0) {
     return (
       <div className={s.wrap} data-testid="adaptive-quiz-empty">
-        <Lead>No adaptive-quiz questions on this homework.</Lead>
-        <div className={s.actions}>
-          <Button variant="blue" onClick={onComplete}>
-            Skip →
-          </Button>
+        <div className={s.ambient} aria-hidden="true" />
+        <div className={s.stage}>
+          <Lead>No adaptive-quiz questions on this homework.</Lead>
+          <div className={s.actions}>
+            <Button variant="blue" onClick={onComplete}>
+              Skip →
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -152,16 +155,19 @@ function AdaptiveQuizInner({
   if (complete) {
     return (
       <div className={s.wrap} data-testid="adaptive-quiz-complete">
-        <div className={s.done}>
-          <Pill tone="good">All answered</Pill>
-          <Title size="section">Quiz complete.</Title>
-          <Lead>
-            You answered all {totalItems} question{totalItems !== 1 ? "s" : ""}. Keep going.
-          </Lead>
-          <div className={s.actions}>
-            <Button variant="blue" onClick={onComplete} data-testid="aq-continue">
-              Continue →
-            </Button>
+        <div className={s.ambient} aria-hidden="true" />
+        <div className={s.stage}>
+          <div className={s.done}>
+            <Pill tone="good">All answered</Pill>
+            <Title size="section">Quiz complete.</Title>
+            <Lead>
+              You answered all {totalItems} question{totalItems !== 1 ? "s" : ""}. Keep going.
+            </Lead>
+            <div className={s.actions}>
+              <Button variant="blue" onClick={onComplete} data-testid="aq-continue">
+                Continue →
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -170,112 +176,136 @@ function AdaptiveQuizInner({
 
   return (
     <div className={s.wrap} data-testid="adaptive-quiz">
-      {/* Header */}
-      <div className={s.head}>
-        <Eyebrow>Adaptive Quiz</Eyebrow>
-        <span className={s.counter} data-testid="aq-progress">
-          {itemIdx + 1} / {totalItems}
-        </span>
-      </div>
+      {/* Ambient multi-hue glow — presentational only */}
+      <div className={s.ambient} aria-hidden="true" />
 
-      <Title size="section">Answer the question.</Title>
-
-      {/* Question card */}
-      <div className={s.questionCard} data-testid="aq-question">
-        <p className={s.questionText}>{questionText}</p>
-      </div>
-
-      {/* Answer area — options OR text input */}
-      {options ? (
-        <div className={s.optionsList} role="group" aria-label="Answer choices">
-          {options.map((opt, i) => {
-            const isSelected = selectedOption === opt;
-            const isAnswered = result !== null;
-            return (
-              <button
-                key={i}
-                type="button"
-                className={[
-                  s.optionBtn,
-                  isSelected && !isAnswered && s.optionSelected,
-                  isSelected && isAnswered && result.correct && s.optionCorrect,
-                  isSelected && isAnswered && !result.correct && s.optionWrong,
-                  !isSelected && isAnswered && s.optionDimmed,
-                  submitting && isSelected && s.optionSubmitting,
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                disabled={isAnswered || submitting}
-                onClick={() => handleOptionSelect(opt)}
-                data-testid={`aq-option-${i}`}
-                aria-pressed={isSelected}
-              >
-                <span className={s.optionIndex}>{String.fromCharCode(65 + i)}</span>
-                <span className={s.optionText}>{opt}</span>
-              </button>
-            );
-          })}
+      <div className={s.stage}>
+        {/* Header */}
+        <div className={s.head}>
+          <Eyebrow>Adaptive Quiz</Eyebrow>
+          <span className={s.counter} data-testid="aq-progress">
+            {itemIdx + 1} / {totalItems}
+          </span>
         </div>
-      ) : (
-        <div className={s.textInputWrap}>
-          <input
-            type="text"
-            className={[
-              s.textInput,
-              result && result.correct && s.textInputCorrect,
-              result && !result.correct && s.textInputWrong,
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            value={inputValue}
-            placeholder="Type your answer…"
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={result !== null || submitting}
-            aria-label="Your answer"
-            data-testid="aq-text-input"
-          />
-          {!result && (
-            <Button
-              variant="blue"
-              onClick={handleTextSubmit}
-              disabled={!inputValue.trim() || submitting}
-              data-testid="aq-submit"
-            >
-              {submitting ? "Checking…" : "Submit"}
-            </Button>
-          )}
-        </div>
-      )}
 
-      {/* Feedback panel — shown after server responds */}
-      {result && (
-        <div
-          className={[s.feedback, result.correct ? s.feedbackCorrect : s.feedbackWrong].join(" ")}
-          role="status"
-          data-testid="aq-feedback"
-        >
-          <Pill tone={result.correct ? "good" : "warn"}>
-            {result.correct ? "Correct" : "Not quite"}
-          </Pill>
-          <p className={s.feedbackText}>{result.feedback}</p>
-          <div className={s.actions}>
-            <Button
-              variant={itemIdx + 1 < totalItems ? "blue" : "blue"}
-              onClick={handleAdvance}
-              data-testid="aq-next"
-            >
-              {itemIdx + 1 < totalItems ? "Next question →" : "Finish →"}
-            </Button>
+        {/* Progress dots */}
+        <div className={s.progressDots} aria-hidden="true">
+          {items.map((_, i) => (
+            <span
+              key={i}
+              className={[
+                s.dot,
+                i === itemIdx && s.dotActive,
+                i < itemIdx && s.dotDone,
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            />
+          ))}
+        </div>
+
+        <Title size="section">Answer the question.</Title>
+
+        {/* Question card — frosted-glass slab with interior glow */}
+        <div className={s.questionCard} data-testid="aq-question">
+          <div className={s.questionGlow} aria-hidden="true" />
+          <div className={s.questionBody}>
+            <p className={s.questionText}>{questionText}</p>
           </div>
         </div>
-      )}
 
-      {error && (
-        <p className={s.error} role="alert" data-testid="aq-error">
-          {error}
-        </p>
-      )}
+        {/* Answer area — options OR text input */}
+        {options ? (
+          <div className={s.optionsList} role="group" aria-label="Answer choices">
+            {options.map((opt, i) => {
+              const isSelected = selectedOption === opt;
+              const isAnswered = result !== null;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  className={[
+                    s.optionBtn,
+                    isSelected && !isAnswered && s.optionSelected,
+                    isSelected && isAnswered && result.correct && s.optionCorrect,
+                    isSelected && isAnswered && !result.correct && s.optionWrong,
+                    !isSelected && isAnswered && s.optionDimmed,
+                    submitting && isSelected && s.optionSubmitting,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  disabled={isAnswered || submitting}
+                  onClick={() => handleOptionSelect(opt)}
+                  data-testid={`aq-option-${i}`}
+                  aria-pressed={isSelected}
+                >
+                  <span className={s.optionIndex}>{String.fromCharCode(65 + i)}</span>
+                  <span className={s.optionText}>{opt}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className={s.textInputWrap}>
+            <input
+              type="text"
+              className={[
+                s.textInput,
+                result && result.correct && s.textInputCorrect,
+                result && !result.correct && s.textInputWrong,
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              value={inputValue}
+              placeholder="Type your answer…"
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={result !== null || submitting}
+              aria-label="Your answer"
+              data-testid="aq-text-input"
+            />
+            {!result && (
+              <Button
+                variant="blue"
+                onClick={handleTextSubmit}
+                disabled={!inputValue.trim() || submitting}
+                data-testid="aq-submit"
+              >
+                {submitting ? "Checking…" : "Submit"}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Feedback panel — shown after server responds */}
+        {result && (
+          <div
+            className={[s.feedback, result.correct ? s.feedbackCorrect : s.feedbackWrong].join(" ")}
+            role="status"
+            data-testid="aq-feedback"
+          >
+            <Pill tone={result.correct ? "good" : "warn"}>
+              {result.correct ? "Correct" : "Not quite"}
+            </Pill>
+            <p className={s.feedbackText}>{result.feedback}</p>
+            <div className={s.actions}>
+              <Button
+                variant={itemIdx + 1 < totalItems ? "blue" : "blue"}
+                onClick={handleAdvance}
+                data-testid="aq-next"
+              >
+                {itemIdx + 1 < totalItems ? "Next question →" : "Finish →"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <p className={s.error} role="alert" data-testid="aq-error">
+            {error}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
