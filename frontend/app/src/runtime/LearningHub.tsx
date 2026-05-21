@@ -1,7 +1,31 @@
 import { useState, useRef, useEffect } from "react";
 import { useRuntimeStore } from "./store";
 import type { CbpGate, McGate } from "../shared/types";
+import { primeAudio, playDotPop, playUnlockFanfare } from "./hubSound";
 import s from "./LearningHub.module.css";
+
+// ---- Reveal choreography timeline (ms) -------------------------------------
+// The hidden→reveal sequence that plays the FIRST time the client sees the
+// server flip practice_arc_unlocked → true (play-once, non-reduced-motion).
+// One attribute on the shell drives the whole thing: data-unlock="playing".
+//
+//   Beat 1 · Dots draw in   0 → ~900ms   five "trial" dots pop in one-by-one
+//                                          toward the about-to-appear node;
+//                                          playDotPop(i) fires as each lands.
+//   Beat 2 · Node pops in   900 → 1350    spring scale 0→1 (no overshoot);
+//                                          playUnlockFanfare() at the pop.
+//   Beat 3 · Glow ring      1000 → 2400   a bright ring expands + pulses.
+//   Beat 4 · Fireworks      1100 → 2200   radial CSS particles flung out, fade.
+//   Settle                  → 2600        clear playUnlock, mark play-once flag.
+//
+// CSS owns the visuals (delays/keyframes keyed off data-unlock="playing"); JS
+// only schedules the audio cues + the end-of-sequence cleanup, so the two stay
+// in lockstep. Numbers below MUST match LearningHub.module.css §REVEAL.
+const REVEAL_DOT_COUNT = 5;
+const REVEAL_DOT_START = 60; // first dot lands ~here
+const REVEAL_DOT_STEP = 150; // per-dot stagger (matches CSS --d * step)
+const REVEAL_NODE_POP = 950; // node spring-in / fanfare moment
+const REVEAL_TOTAL = 2600; // full sequence length → clears playUnlock + flag
 
 type SectionStatus = "notStarted" | "inProgress" | "passed";
 
@@ -39,7 +63,7 @@ const prefersReducedMotion = () =>
 //
 //   01 · Case-Study        (orange clay 3D-press button)   <- startCbp
 //   02 · Flash cards       (blue clay 3D-press button)     <- enterFlashcards
-//   03 · Homework Practices (single node, CHAINED + GRAY   <- enterUnlockGate
+//   03 · Homework Practices (single node — HIDDEN entirely  <- enterUnlockGate
 //        while gate.practice_arc_unlocked === false)          (once unlocked)
 //
 // The whole node IS the button — colored candy fill + a hard colored bottom-edge
@@ -51,12 +75,21 @@ const prefersReducedMotion = () =>
 // #1d1d1f / white-on-saturated-fill, and the theme-flipping --v2-text* tokens are
 // pinned LIGHT on the .shell so a dark-OS visitor can't wash out the headings.
 //
-// UNLOCK CHOREOGRAPHY (the centerpiece): the first time the hub sees the server
-// flip practice_arc_unlocked → true (and a per-homework localStorage play-once
-// flag is unset), a single ~3.2s timeline plays driven by ONE attribute on the
-// shell (data-unlock="playing"): dim/gray → shake → chains snap → reveal. The
-// localStorage flag is ONLY for animation-play-once; the unlock truth is always
-// the server boolean. prefers-reduced-motion skips straight to the unlocked state.
+// HIDDEN → REVEAL MODEL (the centerpiece). Three render states:
+//   • LOCKED  (practice_arc_unlocked === false): the Practices node AND its
+//     path-connector segment are FULLY HIDDEN — the winding path simply ends at
+//     Flash cards. No chains, no padlock, no grayed placeholder.
+//   • UNLOCKING: the first time the hub sees the server flip the boolean → true
+//     (per-homework localStorage play-once flag unset, NOT reduced-motion), a
+//     single ~2.6s reveal plays — driven by ONE attribute on the shell
+//     (data-unlock="playing"): path dots draw in one-by-one → the node springs
+//     in → a bright glow ring pulses → a firework burst fires. JS schedules the
+//     audio cues (playDotPop per dot, playUnlockFanfare at the pop) + the
+//     end-of-sequence cleanup; CSS owns the visuals.
+//   • OPEN on return (flag set, OR unlocked under reduced-motion): node + its
+//     path segment render STATIC + visible — no draw-in, no fireworks, no sound.
+// The localStorage flag is ONLY for animation-play-once; the unlock truth is
+// always the server boolean. prefers-reduced-motion skips straight to OPEN.
 export function LearningHub() {
   const payload = useRuntimeStore((st) => st.payload);
   const gate = useRuntimeStore((st) => st.gateState);
@@ -85,7 +118,19 @@ export function LearningHub() {
   const nextNode: "case" | "flash" | null =
     cbp !== "passed" ? "case" : mc !== "passed" ? "flash" : null;
 
-  // ---- Unlock choreography: one play-once flag per homework, animation-only ----
+  // ---- Prime audio on first hub interaction ----------------------------------
+  // Browsers block auto-fired audio until a user gesture. The reveal fanfare
+  // fires automatically (off the server gate flip), so we resume/create the
+  // shared AudioContext on the visitor's FIRST pointer/touch — a one-time
+  // listener, removed on unmount. primeAudio() is a safe no-op if audio is
+  // unavailable, so this never affects the visuals.
+  useEffect(() => {
+    const prime = () => primeAudio();
+    window.addEventListener("pointerdown", prime, { once: true, passive: true });
+    return () => window.removeEventListener("pointerdown", prime);
+  }, []);
+
+  // ---- Hidden → reveal: one play-once flag per homework, animation-only -------
   // The flag NEVER decides unlock — that's `unlocked` (server truth). It only
   // gates whether the celebration plays. Key matches the brief exactly.
   const seenKey = `nets_hub_unlock_played_${hwId || "_"}`;
@@ -99,16 +144,29 @@ export function LearningHub() {
     } catch {
       seen = false; // private mode / blocked storage → just play it, harmless
     }
-    if (seen) return; // already celebrated on this device → render final state
+    if (seen) return; // already celebrated on this device → render OPEN (static)
     if (prefersReducedMotion()) {
       try {
         localStorage.setItem(seenKey, "1");
       } catch {
         /* ignore */
       }
-      return; // reduced motion → skip the sequence, show unlocked state directly
+      return; // reduced motion → skip the sequence, show OPEN state directly
     }
-    setPlayUnlock(true); // arm the timeline
+
+    setPlayUnlock(true); // arm the timeline (CSS plays off data-unlock="playing")
+
+    // Schedule the audio cues to land WITH their visual beats. Each is a safe
+    // no-op if audio is unavailable — the visuals never wait on them.
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 0; i < REVEAL_DOT_COUNT; i++) {
+      timers.push(
+        setTimeout(() => playDotPop(i), REVEAL_DOT_START + i * REVEAL_DOT_STEP),
+      );
+    }
+    timers.push(setTimeout(() => playUnlockFanfare(), REVEAL_NODE_POP));
+
+    // End of sequence → drop back to the static OPEN state + mark play-once.
     const done = setTimeout(() => {
       setPlayUnlock(false);
       try {
@@ -116,26 +174,17 @@ export function LearningHub() {
       } catch {
         /* ignore */
       }
-    }, 3200); // total sequence ms (see CSS §5.2 timeline)
-    return () => clearTimeout(done);
+    }, REVEAL_TOTAL);
+    timers.push(done);
+
+    return () => timers.forEach(clearTimeout);
   }, [unlocked, seenKey]);
 
-  // The shell's single source of animation truth.
+  // The shell's single source of animation truth. Three states:
+  //   "playing" → the reveal is running (dots/pop/glow/fireworks)
+  //   "open"    → unlocked + static (return visit, or reduced-motion)
+  //   "locked"  → not unlocked → node + its path segment render NOTHING
   const unlockState = playUnlock ? "playing" : unlocked ? "open" : "locked";
-
-  // Locked Practices node: a click surfaces the requirement inline + a one-shot
-  // nudge shake, rather than navigating anywhere.
-  const [nudged, setNudged] = useState(false);
-  const shakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleLockedClick = () => {
-    setNudged(false);
-    requestAnimationFrame(() => setNudged(true)); // force reflow → re-trigger
-    if (shakeTimer.current) clearTimeout(shakeTimer.current);
-    shakeTimer.current = setTimeout(() => setNudged(false), 600);
-  };
-  useEffect(() => () => {
-    if (shakeTimer.current) clearTimeout(shakeTimer.current);
-  }, []);
 
   return (
     <main
@@ -165,7 +214,12 @@ export function LearningHub() {
 
       {/* ---- The winding path: connector layer behind, nodes stacked above ---- */}
       <div className={s.path}>
-        <PathConnectors cbpPassed={cbp === "passed"} mcPassed={mc === "passed"} unlocked={unlocked} />
+        <PathConnectors
+          cbpPassed={cbp === "passed"}
+          mcPassed={mc === "passed"}
+          unlocked={unlocked}
+          revealing={playUnlock}
+        />
 
         {/* ---- 01 · Case-Study (orange clay 3D-press node) ---- */}
         <LearningNode
@@ -199,14 +253,11 @@ export function LearningHub() {
           testid="hub-start-fc"
         />
 
-        {/* ---- 03 · Homework Practices — single node, CHAINED + GRAY until unlocked ---- */}
-        <PracticesNode
-          unlocked={unlocked}
-          nudged={nudged}
-          mcThreshold={mcThreshold}
-          onLockedClick={handleLockedClick}
-          onEnter={enterUnlockGate}
-        />
+        {/* ---- 03 · Homework Practices — HIDDEN while locked; reveals on unlock ---- */}
+        {/* While locked the node renders NOTHING (the path ends at Flash cards).
+            Once unlocked it appears — springing in during the reveal, or static
+            on a return visit. `revealing` drives the firework/glow markup. */}
+        {unlocked && <PracticesNode revealing={playUnlock} onEnter={enterUnlockGate} />}
       </div>
     </main>
   );
@@ -661,69 +712,58 @@ function LearningNode({
   );
 }
 
-// ---- 03 · Homework Practices: a SINGLE node, chained + gray while locked ----
+// ---- 03 · Homework Practices: the REVEALED node ----------------------------
+// Only mounted once `unlocked` is true (locked state renders nothing at all).
+// `revealing` is true ONLY during the first-time celebration window; it adds the
+// glow ring + firework particles (the node spring-in itself is CSS, keyed off
+// the shell's data-unlock="playing"). On a return visit it renders static.
+const FIREWORK_COUNT = 12; // particles flung radially; matches CSS --i count
+
 function PracticesNode({
-  unlocked,
-  nudged,
-  mcThreshold,
-  onLockedClick,
+  revealing,
   onEnter,
 }: {
-  unlocked: boolean;
-  nudged: boolean;
-  mcThreshold: number;
-  onLockedClick: () => void;
+  revealing: boolean;
   onEnter: () => void;
 }) {
   return (
     <article
       data-testid="hub-division-3"
-      className={[
-        s.node,
-        s.nodePractices,
-        s.alignCenter,
-        unlocked ? s.practicesOpen : s.practicesLocked,
-        nudged ? s.shake : "",
-      ]
+      className={[s.node, s.nodePractices, s.alignCenter, s.practicesOpen]
         .filter(Boolean)
         .join(" ")}
     >
-      {/* Chain overlay — diagonal link band + the snapping halves the unlock
-          choreography animates apart. Hidden once unlocked. */}
-      {!unlocked && (
-        <span className={s.chains} aria-hidden="true">
-          <span className={`${s.chainLink} ${s.chainA}`} />
-          <span className={`${s.chainLink} ${s.chainB}`} />
-          <span className={`${s.chainLink} ${s.chainC}`} />
-          <span className={`${s.chainLink} ${s.chainD}`} />
-          {/* the two halves that snap apart + spark + glow during the sequence */}
-          <span className={s.chainBurst} />
-          <span className={`${s.chainHalf} ${s.chainLinkLeft}`} />
-          <span className={`${s.chainHalf} ${s.chainLinkRight}`} />
-          <span className={`${s.chainSpark} ${s.chainSpark1}`} />
-          <span className={`${s.chainSpark} ${s.chainSpark2}`} />
-          <span className={`${s.chainSpark} ${s.chainSpark3}`} />
+      {/* Reveal-only celebration layer: a bright pulsing glow ring + a radial
+          firework burst in the hub blue/indigo/gold family. Transform/opacity
+          only; pointer-events:none so it never blocks the CTA. Mounted just for
+          the celebration window, then unmounted with `revealing`. */}
+      {revealing && (
+        <span className={s.celebrate} aria-hidden="true">
+          <span className={s.glowRing} />
+          <span className={s.fireworks}>
+            {Array.from({ length: FIREWORK_COUNT }, (_, i) => (
+              <span
+                key={i}
+                className={s.spark}
+                style={{ ["--i" as string]: i, ["--n" as string]: FIREWORK_COUNT }}
+              />
+            ))}
+          </span>
         </span>
       )}
 
       <div className={s.gateScope} data-testid="hub-unlock-gate" aria-live="polite">
         <span className={s.nodeTopline}>
-          <span className={`${s.numRing} ${unlocked ? s.numRingOpen : s.numRingLocked}`} aria-hidden="true">
+          <span className={`${s.numRing} ${s.numRingOpen}`} aria-hidden="true">
             <span className={s.numInner}>
-              {unlocked ? (
-                <span className={s.nodeNum}>03</span>
-              ) : (
-                <span className={s.padlock}>
-                  <LockGlyph />
-                </span>
-              )}
+              <span className={s.nodeNum}>03</span>
             </span>
           </span>
         </span>
 
         <span className={s.nodeTitle}>Homework Practices</span>
 
-        {/* "What's behind the lock" preview — dimmed sub-items. */}
+        {/* What's inside the Practice Arc. */}
         <ul className={s.subItems}>
           <li className={s.subItem}>
             <GameGlyph />
@@ -740,32 +780,15 @@ function PracticesNode({
         </ul>
 
         <div className={s.nodeFoot}>
-          {unlocked ? (
-            <button
-              type="button"
-              className={`${s.enterCta} ${s.ctaBtn}`}
-              onClick={onEnter}
-              data-testid="hub-enter-gate"
-            >
-              Enter Practice Arc →
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={s.lockedCta}
-              onClick={onLockedClick}
-              aria-disabled="true"
-            >
-              <LockGlyph /> Locked
-            </button>
-          )}
+          <button
+            type="button"
+            className={`${s.enterCta} ${s.ctaBtn}`}
+            onClick={onEnter}
+            data-testid="hub-enter-gate"
+          >
+            Enter Practice Arc →
+          </button>
         </div>
-
-        {!unlocked && (
-          <p className={`${s.lockReq} ${nudged ? s.lockReqLoud : ""}`}>
-            Clear Case-Study &amp; Flash cards (≥{mcThreshold}%) to unlock.
-          </p>
-        )}
       </div>
     </article>
   );
@@ -774,14 +797,33 @@ function PracticesNode({
 // The winding path connector. A thick rounded stroke snakes node→node; each
 // segment recolors green once its upstream node is passed. Resolution-independent
 // 0..1000 viewBox stretched to the column (preserveAspectRatio="none").
+//
+// The node-2 → node-3 segment is HIDDEN while locked — the winding path simply
+// ends at Flash cards. It appears only once unlocked, and during the reveal its
+// "trial" dots pop in one-by-one toward the about-to-appear node before the
+// solid stroke settles in.
+const TRIAL_DOTS = 5; // dots that draw in along the node-2 → node-3 segment
+
+// Cubic-Bezier sample points down the node-2 → node-3 curve (the same control
+// points as the stroke `d` below), used to place the draw-in "trial" dots.
+const SEG3_DOTS = [
+  { x: 695, y: 580 },
+  { x: 660, y: 650 },
+  { x: 590, y: 700 },
+  { x: 530, y: 760 },
+  { x: 505, y: 825 },
+];
+
 function PathConnectors({
   cbpPassed,
   mcPassed,
   unlocked,
+  revealing,
 }: {
   cbpPassed: boolean;
   mcPassed: boolean;
   unlocked: boolean;
+  revealing: boolean;
 }) {
   return (
     <svg
@@ -799,39 +841,39 @@ function PathConnectors({
         strokeLinecap="round"
         strokeDasharray="2 26"
       />
-      {/* node 2 (right) → node 3 (center) — renders as the chain segment while
-          locked (dense links), recoloring + flowing green once unlocked. */}
-      <path
-        className={`${s.line} ${unlocked ? s.lineLive : s.lineChained}`}
-        d="M700 540 C 700 720, 500 700, 500 860"
-        fill="none"
-        strokeWidth={unlocked ? 11 : 13}
-        strokeLinecap="round"
-        strokeDasharray={unlocked ? "2 26" : "10 16"}
-      />
+
+      {/* node 2 (right) → node 3 (center) — HIDDEN while locked. Rendered once
+          unlocked; during the reveal the stroke fades in AFTER the trial dots. */}
+      {unlocked && (
+        <path
+          className={`${s.line} ${s.lineLive} ${revealing ? s.lineReveal : ""}`}
+          d="M700 540 C 700 720, 500 700, 500 860"
+          fill="none"
+          strokeWidth="11"
+          strokeLinecap="round"
+          strokeDasharray="2 26"
+        />
+      )}
+
+      {/* Draw-in "trial" dots along the segment — only during the reveal. Each
+          pops in staggered (CSS keyed off --d) toward the appearing node. */}
+      {revealing &&
+        SEG3_DOTS.slice(0, TRIAL_DOTS).map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r="12"
+            className={s.trialDot}
+            style={{ ["--d" as string]: i }}
+          />
+        ))}
+
       {/* faint "all done" glow once everything is cleared */}
       {cbpPassed && mcPassed && unlocked && <circle cx="500" cy="870" r="10" className={s.lineGoal} />}
     </svg>
   );
 }
-
-const LockGlyph = () => (
-  <svg
-    className={s.glyph}
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <rect x="3" y="11" width="18" height="11" rx="2" />
-    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-  </svg>
-);
 
 const CheckGlyph = () => (
   <svg

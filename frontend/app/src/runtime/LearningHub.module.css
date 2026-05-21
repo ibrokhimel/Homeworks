@@ -322,12 +322,39 @@
   stroke: var(--hub-green);
   opacity: 1;
 }
-.lineChained {
-  stroke: var(--hub-subtle);
-}
 .lineGoal {
   fill: var(--hub-green);
   opacity: 0.9;
+}
+
+/* ---- Hidden→reveal path: the node-2 → node-3 segment + its draw-in dots ----
+   While LOCKED the segment + dots aren't rendered at all (the path ends at Flash
+   cards). During the reveal the stroke fades in AFTER the trial dots have popped
+   in, so the line reads as "drawn" by the dots. */
+.lineReveal {
+  opacity: 0;
+  animation: hubLineReveal 520ms cubic-bezier(0.16, 1, 0.3, 1) 760ms both;
+}
+@keyframes hubLineReveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Trial dots that pop in one-by-one toward the appearing node. Staggered by the
+   per-dot --d index; pure transform/opacity (transform-box on the <circle> so
+   scaling pivots on the dot itself, not the SVG origin). */
+.trialDot {
+  fill: var(--hub-green);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hubTrialDot 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(60ms + var(--d, 0) * 150ms);
+}
+@keyframes hubTrialDot {
+  0% { opacity: 0; transform: scale(0); }
+  60% { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 0.92; transform: scale(1); }
 }
 
 /* ============================================================
@@ -417,7 +444,6 @@
   flex-shrink: 0;
 }
 .numRingDone { background: conic-gradient(var(--hub-gold) 100%, rgba(255, 255, 255, 0.28) 0); }
-.numRingLocked { background: rgba(0, 0, 0, 0.07); }
 .numRingOpen { background: conic-gradient(var(--hub-gold) 100%, rgba(91, 108, 255, 0.25) 0); }
 .numInner {
   width: 42px;
@@ -437,8 +463,6 @@
   font-variant-numeric: tabular-nums;
   color: #ffffff;
 }
-.nodePractices .numInner { background: rgba(0, 0, 0, 0.06); color: var(--hub-locked-ink); }
-.padlock { display: grid; place-items: center; color: var(--hub-locked-ink); }
 .practicesOpen .numInner { background: rgba(255, 255, 255, 0.22); color: #ffffff; }
 
 .statusGlyph {
@@ -507,31 +531,19 @@
   color: #ffffff;
 }
 
-.glyph,
 .subGlyph {
   flex-shrink: 0;
 }
 
 /* ============================================================
-   03 · Homework Practices — single node, CHAINED + GRAY while locked
+   03 · Homework Practices — HIDDEN while locked; reveals on unlock
    ============================================================ */
 .nodePractices {
   width: min(360px, 90vw);
   min-height: 168px;
 }
-.practicesLocked {
-  background: var(--hub-locked-face);
-  --node-edge: var(--hub-locked-edge);
-  color: var(--hub-locked-ink);
-  cursor: not-allowed;
-  box-shadow: 0 6px 0 var(--hub-locked-edge), 0 8px 16px rgba(0, 0, 0, 0.08);
-  filter: grayscale(0.35);
-}
-.practicesLocked:hover { filter: grayscale(0.35); }
-.practicesLocked:active { transform: none; box-shadow: 0 6px 0 var(--hub-locked-edge); } /* dead press */
-.practicesLocked .nodeTitle { color: var(--hub-ink); }
-
-/* unlocked look: violet→green legendary clay fill */
+/* unlocked look: violet→green legendary clay fill (the ONLY Practices state —
+   the locked node isn't rendered at all). */
 .practicesOpen {
   background: linear-gradient(135deg, var(--hub-violet) 0%, var(--hub-green) 100%);
   --node-edge: var(--hub-green-edge);
@@ -548,7 +560,7 @@
   flex: 1;
 }
 
-/* "what's behind the lock" preview — dimmed sub-items */
+/* what's inside the Practice Arc — sub-item list on the unlocked node */
 .subItems {
   list-style: none;
   margin: 14px 0 0;
@@ -565,35 +577,11 @@
   font-size: 14px;
   font-weight: 700;
 }
-.practicesLocked .subItem { color: var(--hub-locked-ink); opacity: 0.85; }
-.practicesLocked .subItem .subGlyph { color: var(--hub-subtle); }
 .practicesOpen .subItem { color: rgba(255, 255, 255, 0.95); }
 .practicesOpen .subItem .subGlyph { color: #ffffff; }
 .subItemBoss { font-weight: 800; }
-.practicesLocked .subItemBoss .subGlyph { color: var(--hub-red); opacity: 0.7; }
 
-/* Locked CTA — looks like a key but never navigates. */
-.lockedCta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  height: 46px;
-  padding: 0 20px;
-  border: none;
-  border-radius: 16px;
-  font-family: var(--font-hub-display);
-  font-size: 15px;
-  font-weight: 700;
-  cursor: not-allowed;
-  color: var(--hub-locked-ink);
-  background: rgba(0, 0, 0, 0.06);
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.08);
-  touch-action: manipulation;
-}
-.lockedCta:active { transform: translateY(3px); box-shadow: 0 0 0 rgba(0, 0, 0, 0.08); }
-
-/* Unlocked "Enter Practice Arc →" CTA — a white 3D-press chip on the node. */
+/* "Enter Practice Arc →" CTA — a white 3D-press chip on the unlocked node. */
 .ctaBtn {
   display: inline-flex;
   align-items: center;
@@ -618,233 +606,117 @@
 /* hook the unlocked CTA carries so the choreography (beat 4) can scale it in */
 .enterCta { will-change: transform, opacity; }
 
-.lockReq {
-  margin: 12px 0 0;
-  font-family: var(--font-hub-body);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.4;
-  color: var(--hub-secondary);
-  transition: color 220ms var(--landing-spring, cubic-bezier(0.16, 1, 0.3, 1));
-}
-.lockReqLoud { color: var(--hub-red); }
-
-/* ---- Chain overlay (locked node) ----------------------------------- */
-.chains {
-  position: absolute;
-  inset: -8px;
-  pointer-events: none;
-  z-index: 3;
-}
-/* four static decorative links shackling the node corners */
-.chainLink {
-  position: absolute;
-  width: 26px;
-  height: 26px;
-  border: 6px solid var(--hub-subtle);
-  border-radius: 11px;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.22));
-}
-.chainA { top: -6px; left: 22%; transform: rotate(-18deg); }
-.chainB { top: -6px; right: 22%; transform: rotate(16deg); }
-.chainC { bottom: -6px; left: 28%; transform: rotate(20deg); }
-.chainD { bottom: -6px; right: 28%; transform: rotate(-16deg); }
-
-/* glow burst behind the break point */
-.chainBurst {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 220px;
-  height: 220px;
-  transform: translate(-50%, -50%) scale(0.2);
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(255, 194, 77, 0.55) 0%,
-    rgba(91, 108, 255, 0.32) 38%,
-    rgba(10, 114, 224, 0.18) 62%,
-    transparent 76%
-  );
-  filter: blur(14px);
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* the two link halves that snap apart across the node center */
-.chainHalf {
-  position: absolute;
-  top: 50%;
-  width: 48px;
-  height: 48px;
-  border: 8px solid var(--hub-subtle);
-  border-radius: 18px;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
-}
-.chainLinkLeft {
-  left: calc(50% - 48px);
-  border-right-color: transparent;
-  transform-origin: left center;
-  transform: translateY(-50%);
-}
-.chainLinkRight {
-  left: 50%;
-  border-left-color: transparent;
-  transform-origin: right center;
-  transform: translateY(-50%);
-}
-
-/* spark shards flung at the break */
-.chainSpark {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--hub-gold);
-  box-shadow: 0 0 12px rgba(255, 194, 77, 0.9);
-  opacity: 0;
-}
-
 /* ============================================================
-   UNLOCK CHOREOGRAPHY — one ~3.2s timeline driven by ONE attribute
-   on the shell: data-unlock="playing". Four beats:
-     1 · Dim     0–600ms   scrim fades in, learning nodes desaturate
-     2 · Shake   600–1150  node 3 shakes
-     3 · Break   1150–2000 chains snap apart + burst + sparks
-     4 · Reveal  2000–3200 scrim lifts, node 3 un-grays + pops, CTA in
-   All transforms/opacity only. Reused snap/burst/spark geometry from
-   UnlockGate.module.css, retimed for this in-hub moment.
+   HIDDEN → REVEAL CHOREOGRAPHY — a ~2.6s celebration driven by ONE
+   attribute on the shell: data-unlock="playing". The locked node is not
+   rendered at all (no scrim, no shake, no chains); the reveal builds the
+   node UP rather than breaking it free. Beats (all transform/opacity only):
+     1 · Dots draw in   0 → ~900ms   five SVG "trial" dots pop in one-by-one
+                                       toward the appearing node (see .trialDot)
+     2 · Node pops in   950 → 1400   spring scale 0→1 (Apple no-overshoot)
+     3 · Glow ring      1000 → 2400  a bright ring expands + pulses (see .glowRing)
+     4 · Fireworks      1100 → 2200  radial particles flung out + fade (.spark)
+       + the path stroke fades in (.lineReveal) and the CTA scales in.
+   On a return visit `data-unlock="open"` → no animation, the node is static.
    ============================================================ */
 
-/* scrim that dims the whole hub during the sequence */
-.shell::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: rgba(20, 24, 28, 0);
-  pointer-events: none;
-}
-.shell[data-unlock="playing"]::after {
-  animation: hubScrim 3.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.shell[data-unlock="playing"] .path .node:not(.nodePractices) {
-  animation: hubDesat 3.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-@keyframes hubScrim {
-  0% { background: rgba(20, 24, 28, 0); }
-  18% { background: rgba(20, 24, 28, 0.55); }
-  62% { background: rgba(20, 24, 28, 0.55); }
-  100% { background: rgba(20, 24, 28, 0); }
-}
-@keyframes hubDesat {
-  0% { filter: grayscale(0); }
-  18%, 62% { filter: grayscale(0.85) brightness(0.85); }
-  100% { filter: grayscale(0); }
-}
-
-/* Beat 2 (shake) + Beat 4 (reveal) chained on node 3 */
-@keyframes hubUnlockShake {
-  0%, 100% { transform: translateX(0); }
-  10% { transform: translateX(-8px) rotate(-1.5deg); }
-  20% { transform: translateX(7px) rotate(1.2deg); }
-  30% { transform: translateX(-6px) rotate(-1deg); }
-  40% { transform: translateX(5px) rotate(0.8deg); }
-  50% { transform: translateX(-3px); }
-  60% { transform: translateX(2px); }
-}
-@keyframes hubUnlockReveal {
-  0% { filter: grayscale(0.35); transform: scale(1); }
-  40% { filter: grayscale(0); transform: scale(1.06); }
-  70% { transform: scale(0.985); }
-  100% { filter: grayscale(0); transform: scale(1); }
-}
+/* Beat 2 — the Practices node springs in from scale 0 (no overshoot). The node
+   carries `transform: translateY()` from its base only on :active, and is
+   .alignCenter (no static translate), so a clean scale here is collision-free. */
 .shell[data-unlock="playing"] .nodePractices {
-  animation:
-    hubUnlockShake 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.6s 1 both,
-    hubUnlockReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) 2s 1 both;
+  transform-origin: center;
+  animation: hubNodePop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.95s both;
+}
+@keyframes hubNodePop {
+  0% { opacity: 0; transform: scale(0); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
-/* Beat 3 — chains snap apart (delay 1.15s) */
-.shell[data-unlock="playing"] .chainBurst {
-  animation: hubBurst 1100ms cubic-bezier(0.16, 1, 0.3, 1) 1.3s both;
-}
-.shell[data-unlock="playing"] .chainLinkLeft {
-  animation: hubSnapLeft 720ms cubic-bezier(0.16, 1, 0.3, 1) 1.15s both;
-}
-.shell[data-unlock="playing"] .chainLinkRight {
-  animation: hubSnapRight 720ms cubic-bezier(0.16, 1, 0.3, 1) 1.15s both;
-}
-.shell[data-unlock="playing"] .chainA,
-.shell[data-unlock="playing"] .chainB,
-.shell[data-unlock="playing"] .chainC,
-.shell[data-unlock="playing"] .chainD {
-  animation: hubLinkFade 600ms cubic-bezier(0.16, 1, 0.3, 1) 1.15s both;
-}
-.shell[data-unlock="playing"] .chainSpark1 { animation: hubSpark1 900ms cubic-bezier(0.16, 1, 0.3, 1) 1.35s both; }
-.shell[data-unlock="playing"] .chainSpark2 { animation: hubSpark2 900ms cubic-bezier(0.16, 1, 0.3, 1) 1.39s both; }
-.shell[data-unlock="playing"] .chainSpark3 { animation: hubSpark3 900ms cubic-bezier(0.16, 1, 0.3, 1) 1.37s both; }
-
-@keyframes hubBurst {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
-  45% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
-}
-@keyframes hubSnapLeft {
-  0% { transform: translateY(-50%) translateX(0) rotate(0); }
-  18% { transform: translateY(-50%) translateX(8px) rotate(0); }
-  100% { transform: translateY(-50%) translateX(-86px) rotate(-26deg); opacity: 0; }
-}
-@keyframes hubSnapRight {
-  0% { transform: translateY(-50%) translateX(0) rotate(0); }
-  18% { transform: translateY(-50%) translateX(-8px) rotate(0); }
-  100% { transform: translateY(-50%) translateX(86px) rotate(26deg); opacity: 0; }
-}
-@keyframes hubLinkFade {
-  to { opacity: 0; transform: scale(0.6) translateY(8px); }
-}
-@keyframes hubSpark1 {
-  0% { opacity: 0; transform: translate(-50%, -50%); }
-  20% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-220%, -340%) scale(0.4); }
-}
-@keyframes hubSpark2 {
-  0% { opacity: 0; transform: translate(-50%, -50%); }
-  20% { opacity: 1; }
-  100% { opacity: 0; transform: translate(180%, -300%) scale(0.4); }
-}
-@keyframes hubSpark3 {
-  0% { opacity: 0; transform: translate(-50%, -50%); }
-  20% { opacity: 1; }
-  100% { opacity: 0; transform: translate(40%, 300%) scale(0.4); }
-}
-
-/* Beat 4 — the CTA scales in (delay 2.4s). Only animates during the play. */
+/* The CTA scales in just after the node lands. Only animates during the play. */
 .shell[data-unlock="playing"] .enterCta {
-  animation: hubCtaIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 2.4s both;
+  animation: hubCtaIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 1.45s both;
 }
 @keyframes hubCtaIn {
   from { opacity: 0; transform: translateY(10px) scale(0.9); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ---- mount draw-in + locked nudge shake ---------------------------- */
+/* ---- Celebration layer: glow ring + fireworks (reveal-only) -------------
+   Mounted by JS only during the reveal window. Absolutely centered over the
+   node, pointer-events:none, behind the node content (z-index 0 inside the
+   node, content sits at z-index 1+). All transform/opacity. */
+.celebrate {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Beat 3 — a bright ring that expands out from the node center and pulses,
+   colored from the hub blue/indigo family. Two pulses then settle to nothing. */
+.glowRing {
+  position: absolute;
+  width: 56%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 4px solid var(--hub-violet);
+  box-shadow:
+    0 0 22px 4px rgba(91, 108, 255, 0.55),
+    inset 0 0 18px 2px rgba(10, 114, 224, 0.4);
+  opacity: 0;
+  animation: hubGlowRing 1.4s cubic-bezier(0.16, 1, 0.3, 1) 1s both;
+}
+@keyframes hubGlowRing {
+  0% { opacity: 0; transform: scale(0.5); }
+  25% { opacity: 1; transform: scale(1.35); border-color: var(--hub-green); }
+  55% { opacity: 0.65; transform: scale(1.75); }
+  80% { opacity: 0.3; transform: scale(2.05); }
+  100% { opacity: 0; transform: scale(2.2); }
+}
+
+/* Beat 4 — firework burst. Each .spark is a small dot at the node center; the
+   per-particle --i / --n drive a CSS-trig radial direction so all 12 fan out
+   evenly, then fade. Reused dot geometry, retimed for this reveal. */
+.fireworks {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.spark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px;
+  border-radius: 50%;
+  /* alternate the blue family across particles for a lively burst */
+  background: var(--hub-violet);
+  box-shadow: 0 0 10px 2px rgba(91, 108, 255, 0.85);
+  opacity: 0;
+  /* even radial angle for this particle, + travel distance */
+  --angle: calc(var(--i) / var(--n) * 360deg);
+  --dist: 92px;
+  --dx: calc(cos(var(--angle)) * var(--dist));
+  --dy: calc(sin(var(--angle)) * var(--dist));
+  animation: hubSpark 0.95s cubic-bezier(0.22, 0.61, 0.36, 1) 1.1s both;
+}
+/* every 3rd particle in azure / gold for color variety */
+.spark:nth-child(3n + 1) { background: var(--hub-green); box-shadow: 0 0 10px 2px rgba(10, 114, 224, 0.85); }
+.spark:nth-child(3n + 2) { background: var(--hub-gold); box-shadow: 0 0 10px 2px rgba(255, 194, 77, 0.85); }
+@keyframes hubSpark {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.4); }
+  18% { opacity: 1; transform: translate(calc(var(--dx) * 0.3), calc(var(--dy) * 0.3)) scale(1.15); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.5); }
+}
+
+/* ---- node mount draw-in -------------------------------------------- */
 @keyframes hubNodeIn {
   from { opacity: 0; transform: translateY(18px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-@keyframes hubShake {
-  0%, 100% { transform: translateX(0); }
-  15% { transform: translateX(-7px); }
-  30% { transform: translateX(6px); }
-  45% { transform: translateX(-4px); }
-  60% { transform: translateX(3px); }
-  75% { transform: translateX(-2px); }
-}
-.shake { animation: hubShake 0.55s cubic-bezier(0.16, 1, 0.3, 1); }
-.shake:hover { transform: none; }
 
 /* ============================================================
    Responsive — single winding column at every width (NO 2-up grid;
@@ -870,8 +742,11 @@
 }
 
 /* ============================================================
-   prefers-reduced-motion — final state instantly, no shake/snap/scrim/bob.
-   The JS in LearningHub.tsx also short-circuits the play-once arming.
+   prefers-reduced-motion — final state instantly, no draw-in/pop/glow/burst.
+   The JS in LearningHub.tsx ALSO short-circuits the play-once arming (it never
+   sets data-unlock="playing" under reduced motion → straight to "open"), so the
+   reveal layer never even mounts. These rules are belt-and-suspenders for the
+   case where the OS toggle flips mid-sequence.
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   .node,
@@ -881,24 +756,19 @@
     animation: none;
     opacity: 1;
   }
-  .shell[data-unlock="playing"]::after,
-  .shell[data-unlock="playing"] .path .node:not(.nodePractices),
   .shell[data-unlock="playing"] .nodePractices,
-  .shell[data-unlock="playing"] .chainBurst,
-  .shell[data-unlock="playing"] .chainLinkLeft,
-  .shell[data-unlock="playing"] .chainLinkRight,
-  .shell[data-unlock="playing"] .chainA,
-  .shell[data-unlock="playing"] .chainB,
-  .shell[data-unlock="playing"] .chainC,
-  .shell[data-unlock="playing"] .chainD,
-  .shell[data-unlock="playing"] .chainSpark1,
-  .shell[data-unlock="playing"] .chainSpark2,
-  .shell[data-unlock="playing"] .chainSpark3,
-  .shell[data-unlock="playing"] .enterCta {
+  .shell[data-unlock="playing"] .enterCta,
+  .glowRing,
+  .spark,
+  .trialDot,
+  .lineReveal {
     animation: none;
+    opacity: 1;
   }
-  .shell[data-unlock="playing"]::after { background: rgba(20, 24, 28, 0); }
-  .shake { animation: none; }
+  /* keep the revealed node at its final scale, not the 0-scale pop start */
+  .shell[data-unlock="playing"] .nodePractices { transform: none; }
+  /* the celebration layer is purely decorative — hide it entirely */
+  .celebrate { display: none; }
 
   /* Backdrop: kill all motion + parallax → a calm, near-static wash. The JS
      also attaches NO input listeners under reduced motion, so --bx/--by stay
