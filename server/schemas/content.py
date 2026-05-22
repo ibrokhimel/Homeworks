@@ -416,11 +416,40 @@ class SentenceFillItem(BaseModel):
 # --------------------------------------------------------------------------- #
 
 
+class ReflectionAnalysis(_Permissive):
+    """Server-authoritative reflection debrief block (additive — absent on
+    legacy homeworks). The reflection engine reads real `phase_attempts` data,
+    computes a verdict + mark, and surfaces a debrief.
+
+    Student-visible fields (`narrative`, `weak_points`, `strong_points`,
+    `next_steps`, `redo_recommendation`) SURVIVE hydration — they come back in
+    the debrief. The grading config (`analysis_rubric`, the keyword buckets,
+    `pass_threshold`) is answer-bearing and is stripped by the runtime redactor
+    (these keys live in ANSWER_BEARING_KEYS). The server reads the full object
+    from the DB row to grade; the browser only ever sees the debrief fields.
+    """
+
+    # ---- Student-visible (survive redaction) — these come back in the debrief ----
+    narrative: Optional[str] = None
+    weak_points: Optional[List[str]] = None
+    strong_points: Optional[List[str]] = None
+    next_steps: Optional[List[str]] = None
+    redo_recommendation: Optional[str] = None
+
+    # ---- Server-only grading config (STRIPPED before hydration) ----
+    analysis_rubric: Optional[Dict[str, Any]] = None
+    weak_point_keywords: Optional[List[str]] = None
+    strong_point_keywords: Optional[List[str]] = None
+    pass_threshold: Optional[int] = None
+
+
 class ReflectionPhase(_Permissive):
     summary: Optional[str] = None
     question: Optional[str] = None
     spaced_rep: Optional[str] = None
     closing: Optional[str] = None
+    # Server-authoritative reflection debrief + grading config (additive).
+    analysis: Optional[ReflectionAnalysis] = None
 
 
 # --------------------------------------------------------------------------- #

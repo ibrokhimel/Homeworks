@@ -65,6 +65,16 @@ ANSWER_BEARING_KEYS = frozenset(
         # Boss-Arena authored grading anchor (spec §6) — the concept list the
         # answer-checker grades coverage against. Server-only; never hydrated.
         "expected_concepts",
+        # Reflection "analysis" debrief — server-only grading config. The
+        # student-visible debrief fields (narrative / weak_points / strong_points
+        # / next_steps / redo_recommendation) SURVIVE hydration; only the rubric
+        # + keyword buckets + pass_threshold are stripped. (content.py
+        # ReflectionAnalysis.) `pass_threshold` is distinct from `pass_score`
+        # above (the CBP reasoning anchor) — both are server-only.
+        "analysis_rubric",
+        "weak_point_keywords",
+        "strong_point_keywords",
+        "pass_threshold",
         # short answer aliases + invariants the grader keys on
         "a",
         "answer",

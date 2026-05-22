@@ -166,6 +166,11 @@ export interface GateState {
   cbp: CbpGate;
   mc: McGate;
   practice_arc_unlocked: boolean;
+  // Additive completion flags (server-set once the whole journey is done). The
+  // hub renders a small "Done ✓ / Needs Retry" indicator off these; they never
+  // decide unlock. Optional so older gate payloads stay valid.
+  all_divisions_complete?: boolean;
+  reflection_passed?: boolean;
 }
 
 // ---- Per-interaction submit ----
@@ -296,15 +301,53 @@ export interface ReflectionPerformance {
 }
 
 /**
- * AI debrief returned by POST /api/ai/reflection. The server produces a warm
- * coaching `feedback` paragraph, 2–3 concrete `next_steps`, and a one-line
- * `encouragement`. `ai_unavailable` flags the canned fallback. Pass/score are
- * NOT decided here — the client derives Pass | Needs Retry from gate/perf.
+ * LEGACY AI debrief returned by the old POST /api/ai/reflection (coaching prose
+ * only; pass/score were derived client-side). Kept for back-compat with any
+ * caller still on the v1 endpoint — the v2 flow uses {@link ReflectionDebrief}.
  */
 export interface ReflectionResult {
   feedback: string;
   next_steps: string[];
   encouragement: string;
+  ai_unavailable?: boolean;
+}
+
+/**
+ * One per-division breakdown row in the server debrief. `key` identifies the
+ * division (cbp / mc / practice / boss); `label` is the human name; `pct` is
+ * the score 0..100; `correct`/`total` the raw tally; `status` the per-division
+ * verdict. Rendered as a small score chip/bar in the debrief.
+ */
+export interface ReflectionDivision {
+  key: "cbp" | "mc" | "practice" | "boss";
+  label: string;
+  pct: number;
+  correct: number;
+  total: number;
+  status: "passed" | "needs_retry" | "incomplete";
+}
+
+/**
+ * The rich, SERVER-AUTHORITATIVE debrief returned by
+ * POST /api/runtime/reflection/finalize (and GET …/reflection/{hw_id} on
+ * resume). The `verdict` here is the source of truth — the client no longer
+ * derives Pass | Needs Retry. The server composes the band, per-division
+ * breakdown, strong/weak points, next steps, and the AI narrative +
+ * encouragement; `ai_unavailable` flags the canned fallback narrative.
+ */
+export interface ReflectionDebrief {
+  verdict: "passed" | "needs_retry";
+  verdict_label: string; // Uzbek headline
+  overall_pct: number; // 0..100
+  band: { key: string; name: string };
+  divisions: ReflectionDivision[];
+  weak_points: string[];
+  strong_points: string[];
+  next_steps: string[];
+  narrative: string;
+  encouragement: string;
+  redo_recommendation: string; // "none" | a phase key
+  mistake_repairs: number;
   ai_unavailable?: boolean;
 }
 

@@ -1,38 +1,211 @@
-/* Reflection / Debrief (F5) — the closing screen.
-   Apple design system: white cards, ~20px radius, soft diffusion shadow
-   (matching LearningHub.module.css .node recipe), category-gradient top-accent,
-   corner glow, crisp #1d1d1f ink, gentle spring hover, Onest global.
+/* Reflection / Debrief (F5) — the closing screen. Full Hub-DNA redesign:
+   a full-bleed living backdrop (aurora + candy blobs + pointer color-trail,
+   mirroring CbpBackdrop/HubBackdrop) behind a centered Apple-glass content
+   stage. Calm CLOSING blue→violet palette — a quieter, reflective cousin of the
+   Hub sky for the "look back" beat, still unmistakably Hub family.
 
-   Pass accent:  emerald/blue  (--grad-interaction tinted emerald)
-   Retry accent: amber/orange  (--grad-content)
-   Both surfaces stay on #fbfbfd light — only the top-accent bar + pill change.
-   Dark mode: frosted glass lift. Reduced-motion: final state shown instantly.
-*/
+   Verdict is SERVER-AUTHORITATIVE (ReflectionDebrief): passed → cool brand-blue
+   celebratory accent; needs_retry → warm amber accent. Both stay on the light
+   Apple-glass surface — only the accent tint + pill change.
 
-/* ---- prompt stage ---- */
+   Recipe (nets-design-system §2–§4): white cards, 20px radius, soft diffusion
+   shadow, 4px category-gradient top-accent, faint corner glow, hard #1d1d1f ink,
+   spring var(--landing-spring), Onest global. The §4 contrast pin (--v2-text*)
+   is re-asserted on .shell so a dark-OS visitor never washes out the ink.
+   Reduced-motion: final state shown instantly; all hover transforms killed. */
+
+/* =====================================================================
+   FULL-BLEED IMMERSIVE SHELL
+   ===================================================================== */
+.shell {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  min-height: 100dvh;
+  width: 100%;
+  margin: 0;
+  padding-top: max(28px, env(safe-area-inset-top));
+  padding-bottom: max(40px, env(safe-area-inset-bottom));
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  overflow-x: clip;
+
+  /* Pin theme-flipping tokens to LIGHT (the §4 dark-OS washout fix). */
+  --v2-text: #1d1d1f;
+  --v2-text-muted: #6e6e73;
+  --v2-text-subtle: #86868b;
+
+  /* Closing-phase accent tokens — calm blue→violet. */
+  --refl-blue: #5b6cff;       /* indigo — the closing accent solid */
+  --refl-blue-soft: #8e9bf0;  /* periwinkle */
+  --refl-amber: #f4a261;      /* needs-retry warm accent (--c-yellow family) */
+  --refl-emerald: #34d399;    /* pass celebratory warm-cool blend */
+
+  background:
+    radial-gradient(120% 56% at 50% -6%, #ffffff 0%, transparent 56%),
+    radial-gradient(90% 40% at 50% 4%, rgba(91, 108, 255, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #f6f7ff 0%, #eceefb 100%);
+}
+
+/* The centered content column — caps content width; backdrop stays full-bleed. */
+.stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding-bottom: 80px;
+  animation: stageIn var(--landing-dur-md, 480ms) var(--landing-spring) both;
+}
+@keyframes stageIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+/* =====================================================================
+   LIVING BACKDROP (mirrors CbpBackdrop / HubBackdrop)
+   Aurora wash + 5 candy blobs (idle-float + --bx/--by parallax) + a
+   pointer/touch color-trail canvas. All pointer-events:none at z0, GPU-only.
+   Closing blue→violet family. Numerics mirror the CBP backdrop verbatim.
+   ===================================================================== */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint;
+  --bx: 0;
+  --by: 0;
+}
+
+.aurora {
+  position: absolute;
+  inset: -12%;
+  background:
+    radial-gradient(38% 44% at 22% 26%, rgba(91, 108, 255, 0.15) 0%, transparent 64%),
+    radial-gradient(40% 46% at 80% 30%, rgba(122, 168, 236, 0.13) 0%, transparent 64%),
+    radial-gradient(46% 50% at 64% 82%, rgba(165, 155, 240, 0.13) 0%, transparent 66%),
+    radial-gradient(40% 44% at 18% 78%, rgba(134, 194, 239, 0.11) 0%, transparent 64%);
+  filter: blur(8px);
+  opacity: 0.9;
+  transform: translate3d(calc(var(--bx) * 10px), calc(var(--by) * 10px), 0);
+  animation: reflAurora 22s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+@keyframes reflAurora {
+  0%   { transform: translate3d(calc(var(--bx) * 10px), calc(var(--by) * 10px), 0) scale(1); opacity: 0.84; }
+  50%  { opacity: 0.94; }
+  100% { transform: translate3d(calc(var(--bx) * 10px - 28px), calc(var(--by) * 10px + 22px), 0) scale(1.1); opacity: 0.9; }
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(34px);
+  opacity: 0.46;
+  transform: translate3d(
+    calc(var(--bx) * var(--depth, 16px)),
+    calc(var(--by) * var(--depth, 16px)),
+    0
+  );
+}
+.blob1 {
+  width: 220px; height: 220px;
+  top: -42px; left: -36px;
+  --depth: 22px;
+  background: radial-gradient(circle at 38% 34%, #7aa8ec 0%, transparent 70%);
+  animation: reflFloat1 16s ease-in-out infinite alternate;
+}
+.blob2 {
+  width: 260px; height: 260px;
+  top: 8%; right: -64px;
+  --depth: 30px;
+  background: radial-gradient(circle at 38% 34%, #a59bf0 0%, transparent 70%);
+  animation: reflFloat2 20s ease-in-out infinite alternate;
+}
+.blob3 {
+  width: 200px; height: 200px;
+  top: 46%; left: -52px;
+  --depth: 14px;
+  background: radial-gradient(circle at 38% 34%, #5b6cff 0%, transparent 70%);
+  opacity: 0.4;
+  animation: reflFloat3 23s ease-in-out infinite alternate;
+}
+.blob4 {
+  width: 180px; height: 180px;
+  bottom: 6%; right: -28px;
+  --depth: 24px;
+  background: radial-gradient(circle at 38% 34%, #86c2ef 0%, transparent 70%);
+  opacity: 0.38;
+  animation: reflFloat4 18s ease-in-out infinite alternate;
+}
+.blob5 {
+  width: 150px; height: 150px;
+  bottom: -34px; left: 32%;
+  --depth: 18px;
+  background: radial-gradient(circle at 38% 34%, #9fb6f4 0%, transparent 72%);
+  opacity: 0.32;
+  animation: reflFloat5 21s ease-in-out infinite alternate;
+}
+@keyframes reflFloat1 {
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),        0) scale(1); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 40px), calc(var(--by) * var(--depth) + 52px), 0) scale(1.05); }
+}
+@keyframes reflFloat2 {
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),        0) scale(1); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) - 50px), calc(var(--by) * var(--depth) + 38px), 0) scale(1.06); }
+}
+@keyframes reflFloat3 {
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),        0) scale(1); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 46px), calc(var(--by) * var(--depth) - 40px), 0) scale(1.04); }
+}
+@keyframes reflFloat4 {
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),        0) scale(1); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) - 38px), calc(var(--by) * var(--depth) - 46px), 0) scale(1.05); }
+}
+@keyframes reflFloat5 {
+  0%   { transform: translate3d(calc(var(--bx) * var(--depth)),        calc(var(--by) * var(--depth)),        0) scale(1); }
+  100% { transform: translate3d(calc(var(--bx) * var(--depth) + 32px), calc(var(--by) * var(--depth) - 34px), 0) scale(1.06); }
+}
+
+/* Pointer/touch color trail — a single <canvas> painted by useColorTrail.
+   Inside .backdrop (z0, pointer-events:none) so it can NEVER block a control. */
+.trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: normal;
+}
+
+/* =====================================================================
+   PROMPT STAGE — header + glass prompt cards
+   ===================================================================== */
+.eyebrow {
+  margin: 0 0 14px;
+}
 .prompts {
   display: flex;
   flex-direction: column;
   gap: 16px;
   margin-top: 28px;
 }
-
 .promptCard {
-  /* FeatureCard already supplies the card chrome; this adds the draw-in. */
   animation: cardIn 420ms var(--landing-spring) both;
+  transition:
+    transform 280ms var(--landing-spring),
+    box-shadow 280ms var(--landing-spring);
 }
-.promptCard:nth-child(2) {
-  animation-delay: 70ms;
+.promptCard:nth-child(2) { animation-delay: 70ms; }
+.promptCard:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.09);
 }
 @keyframes cardIn {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .promptLabel {
@@ -43,7 +216,6 @@
   margin-bottom: 12px;
   line-height: 1.45;
 }
-
 .promptInput {
   width: 100%;
   padding: 14px 16px;
@@ -58,40 +230,45 @@
   transition: border-color 200ms var(--landing-spring),
     box-shadow 200ms var(--landing-spring);
 }
-.promptInput::placeholder {
-  color: var(--text-secondary, #86868b);
-}
+.promptInput::placeholder { color: var(--text-secondary, #86868b); }
 .promptInput:focus {
   outline: none;
-  border-color: var(--c-blue, #5e9ed6);
-  box-shadow: 0 0 0 3px rgba(94, 158, 214, 0.14);
+  border-color: var(--refl-blue, #5b6cff);
+  box-shadow: 0 0 0 3px rgba(91, 108, 255, 0.16);
 }
 
-/* ---- status frame: Hub-style card, light for both outcomes ---- */
+/* =====================================================================
+   DEBRIEF STAGE — STAGED REVEAL
+   Each block fades+rises (transform/opacity only) on a stagger, gated by
+   reduced-motion. Verdict frame → score ring → divisions → strengths →
+   weaknesses → repairs → next steps → narrative.
+   ===================================================================== */
+.debrief {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* Stagger helper — apply .reveal + a --i index for the cascade. */
+.reveal {
+  animation: revealIn 520ms var(--landing-spring) both;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+@keyframes revealIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* ---- verdict frame: Hub-style glass card, accent by verdict ---- */
 .statusFrame {
   position: relative;
   margin-top: 8px;
   overflow: hidden;
   text-align: center;
-  /* Hub .node recipe: white card, 20px radius, soft diffusion shadow */
   border-radius: 24px;
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.05);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
-  animation: shellIn 520ms var(--landing-spring) both;
 }
-@keyframes shellIn {
-  from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Hub-pattern: 4px gradient accent bar across the top of the card. */
 .statusFrame::before {
   content: "";
   position: absolute;
@@ -102,21 +279,18 @@
   border-radius: 24px 24px 0 0;
 }
 .statusPass::before {
-  /* emerald/blue: nod to --grad-interaction with an emerald warm */
-  background: linear-gradient(135deg, #34d399, #5e9ed6);
+  /* cool brand-blue → emerald celebratory blend */
+  background: linear-gradient(135deg, #34d399, #5b6cff);
 }
 .statusRetry::before {
-  /* amber/orange: --grad-content */
   background: var(--grad-content, linear-gradient(135deg, #ffd166, #f4a261));
 }
 
 .statusInner {
   position: relative;
   z-index: 1;
-  padding: 52px 36px;
+  padding: 48px 36px 44px;
 }
-
-/* soft colorful radial corner glow (Hub .cardGlow pattern) */
 .statusGlow {
   position: absolute;
   left: 50%;
@@ -128,112 +302,244 @@
   border-radius: 999px;
   filter: blur(64px);
   pointer-events: none;
-  opacity: 0.72;
+  opacity: 0.7;
 }
 .statusPass .statusGlow {
   background: radial-gradient(
     circle,
-    rgba(52, 211, 153, 0.44) 0%,
-    rgba(94, 158, 214, 0.28) 44%,
+    rgba(52, 211, 153, 0.4) 0%,
+    rgba(91, 108, 255, 0.26) 44%,
     transparent 72%
   );
 }
 .statusRetry .statusGlow {
   background: radial-gradient(
     circle,
-    rgba(255, 209, 102, 0.38) 0%,
+    rgba(255, 209, 102, 0.36) 0%,
     rgba(244, 162, 97, 0.22) 46%,
     transparent 74%
   );
 }
-
 .statusPill {
   display: flex;
   justify-content: center;
   margin-bottom: 18px;
 }
+.verdictLabel {
+  margin: 14px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary, #6e6e73);
+  line-height: 1.5;
+}
 
-/* ---- score tiles: Hub .node mini variant ---- */
-.scoreRow {
+/* ---- overall score ring ---- */
+.scoreBlock {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 22px;
+  flex-wrap: wrap;
   margin-top: 30px;
 }
-.scoreStat {
+.ring {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  /* conic fill driven by --pct (0..100); track behind. */
+  background:
+    radial-gradient(closest-side, #ffffff 78%, transparent 79%),
+    conic-gradient(var(--ring-color, #5b6cff) calc(var(--pct, 0) * 1%), rgba(0, 0, 0, 0.06) 0);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.06);
+}
+.ringPass  { --ring-color: #5b6cff; }
+.ringRetry { --ring-color: #f4a261; }
+.ringInner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  min-width: 128px;
-  padding: 20px 24px;
-  /* Hub .node recipe on tile scale */
-  border-radius: 20px;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
-  transition: transform 280ms var(--landing-spring),
-    box-shadow 280ms var(--landing-spring);
+  gap: 2px;
 }
-.scoreStat:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.09);
-}
-.scoreValue {
-  font-size: clamp(26px, 3vw, 32px);
+.ringPct {
+  font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.025em;
   color: var(--ink, #1d1d1f);
   font-variant-numeric: tabular-nums;
 }
-.scoreLabel {
-  font-size: 11px;
+.ringPctLabel {
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-secondary, #86868b);
 }
+.bandWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  min-width: 0;
+}
+.bandKicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--refl-blue, #5b6cff);
+}
+.bandName {
+  font-size: clamp(20px, 3vw, 26px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink, #1d1d1f);
+  line-height: 1.15;
+}
 
-/* ---- coaching cards: Hub padding cadence ---- */
-.feedbackCard,
-.nextCard {
-  margin-top: 18px;
-  animation: cardIn 440ms var(--landing-spring) both;
-  /* Hover: Hub entryNode lift */
-  transition: transform 280ms var(--landing-spring),
+/* =====================================================================
+   SHARED PANEL — Apple glass card with a top-accent bar (closing indigo)
+   ===================================================================== */
+.panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  padding: 24px 24px 26px;
+  transition:
+    transform 280ms var(--landing-spring),
     box-shadow 280ms var(--landing-spring);
 }
-.feedbackCard:hover,
-.nextCard:hover {
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  border-radius: 20px 20px 0 0;
+  background: linear-gradient(135deg, #5b6cff, #8e9bf0);
+  z-index: 2;
+  pointer-events: none;
+}
+.panel::after {
+  content: "";
+  position: absolute;
+  right: -64px;
+  top: -64px;
+  width: 188px;
+  height: 188px;
+  border-radius: 999px;
+  background: rgba(91, 108, 255, 0.18);
+  filter: blur(52px);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+.panel > * { position: relative; z-index: 1; }
+.panel:hover {
   transform: translateY(-3px) scale(1.01);
   box-shadow: 0 14px 44px rgba(0, 0, 0, 0.09);
 }
-.nextCard {
-  animation-delay: 80ms;
+/* warm accent variant (weak points / retry-leaning) */
+.panelWarm::before { background: var(--grad-content, linear-gradient(135deg, #ffd166, #f4a261)); }
+.panelWarm::after  { background: rgba(244, 162, 97, 0.2); }
+/* emerald accent variant (strong points) */
+.panelGood::before { background: linear-gradient(135deg, #34d399, #4fb6e6); }
+.panelGood::after  { background: rgba(52, 211, 153, 0.2); }
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
 }
-.feedbackText {
-  margin-top: 12px;
-}
-.encouragement {
-  margin: 16px 0 0;
-  font-size: 15px;
-  font-weight: 600;
-  /* interaction blue — matches Hub .hub-blue */
-  color: #0071e3;
-  line-height: 1.5;
+.panelTitle {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink, #1d1d1f);
 }
 
-/* next steps list — Hub .subItems pattern */
-.nextList {
+/* ---- per-division breakdown: small score bars ---- */
+.divisions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.divRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: center;
+}
+.divLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink, #1d1d1f);
+}
+.divStat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.divPct {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink, #1d1d1f);
+  min-width: 38px;
+  text-align: right;
+}
+.divTally {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #86868b);
+}
+.divBarTrack {
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+.divBarFill {
+  height: 100%;
+  border-radius: 999px;
+  width: calc(var(--pct, 0) * 1%);
+  transform-origin: left center;
+  animation: barGrow 640ms var(--landing-spring) both;
+  animation-delay: calc(var(--i, 0) * 80ms + 120ms);
+}
+@keyframes barGrow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.divPassed     .divBarFill { background: linear-gradient(90deg, #34d399, #5b6cff); }
+.divNeedsRetry .divBarFill { background: linear-gradient(90deg, #f4a261, #ffd166); }
+.divIncomplete .divBarFill { background: rgba(0, 0, 0, 0.18); }
+.divStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.divPassed     .divStatusDot { background: #34d399; }
+.divNeedsRetry .divStatusDot { background: #f4a261; }
+.divIncomplete .divStatusDot { background: rgba(0, 0, 0, 0.22); }
+
+/* ---- strong / weak / next-step lists ---- */
+.pointList {
   list-style: none;
-  margin: 14px 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.nextItem {
+.pointItem {
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -245,31 +551,90 @@
   color: var(--ink, #1d1d1f);
   background: #f5f5f7;
   border: 1px solid rgba(0, 0, 0, 0.04);
-  transition: transform 200ms var(--landing-spring),
-    background 200ms var(--landing-spring);
 }
-.nextCard:hover .nextItem {
-  background: #eef0f3;
+.pointIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  width: 18px;
+  height: 18px;
 }
-.nextCard:hover .nextItem:nth-child(1) { transform: translateX(4px); }
-.nextCard:hover .nextItem:nth-child(2) { transform: translateX(4px); transition-delay: 45ms; }
-.nextCard:hover .nextItem:nth-child(3) { transform: translateX(4px); transition-delay: 90ms; }
-
-/* accent dot — interaction-blue glow bead */
+.iconGood { color: #16a34a; }
+.iconWarn { color: #d97706; }
 .nextDot {
   flex-shrink: 0;
   width: 9px;
   height: 9px;
   margin-top: 7px;
   border-radius: 50%;
-  background: var(--c-blue, #5e9ed6);
-  box-shadow: 0 0 0 4px rgba(94, 158, 214, 0.16);
+  background: var(--refl-blue, #5b6cff);
+  box-shadow: 0 0 0 4px rgba(91, 108, 255, 0.16);
 }
 
-/* ---- retake note: amber-tinted panel (--grad-content accent) ---- */
+/* ---- mistake repairs highlight ---- */
+.repairs {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.12), rgba(91, 108, 255, 0.1));
+  border: 1px solid rgba(52, 211, 153, 0.28);
+}
+.repairsBadge {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #34d399, #5b6cff);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 6px 18px rgba(52, 211, 153, 0.3);
+}
+.repairsText { display: flex; flex-direction: column; gap: 2px; }
+.repairsTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink, #1d1d1f);
+}
+.repairsSub {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary, #6e6e73);
+  line-height: 1.45;
+}
+
+/* ---- AI narrative + encouragement ---- */
+.narrative {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--ink, #1d1d1f);
+}
+.encouragement {
+  margin: 16px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--refl-blue, #5b6cff);
+  line-height: 1.5;
+}
+.aiNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #86868b);
+}
+
+/* ---- retake note (needs-retry) ---- */
 .retakeNote {
   position: relative;
-  margin: 22px 0 0;
+  margin: 4px 0 0;
   padding: 16px 18px;
   border-radius: 16px;
   background: #ffffff;
@@ -277,10 +642,9 @@
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04);
   font-size: 14px;
   line-height: 1.55;
-  color: var(--text-secondary, #86868b);
+  color: var(--text-secondary, #6e6e73);
   overflow: hidden;
 }
-/* 3px amber left-accent strip */
 .retakeNote::before {
   content: "";
   position: absolute;
@@ -309,70 +673,81 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 32px;
+  margin-top: 28px;
 }
 
+/* =====================================================================
+   RESPONSIVE — mobile 375px
+   ===================================================================== */
 @media (max-width: 520px) {
-  .statusInner {
-    padding: 40px 22px;
-  }
-  .scoreStat {
-    min-width: 0;
-    flex: 1;
-  }
-  .actions {
-    flex-direction: column;
-  }
+  .statusInner { padding: 38px 22px 34px; }
+  .scoreBlock { gap: 16px; }
+  .bandWrap { text-align: center; align-items: center; }
+  .actions { flex-direction: column; }
+  .actions > * { width: 100%; }
 }
 
-/* ---- dark mode: lift surfaces to frosted glass ---- */
-:global([data-theme="dark"]) .statusFrame {
+/* =====================================================================
+   DARK-OS surface lift (the §4 contrast pin keeps ink dark; this only
+   frosts the card surfaces if a host ever flips data-theme=dark).
+   ===================================================================== */
+:global([data-theme="dark"]) .statusFrame,
+:global([data-theme="dark"]) .panel,
+:global([data-theme="dark"]) .retakeNote {
   background: rgba(24, 24, 27, 0.86);
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: 0 4px 28px rgba(0, 0, 0, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
-:global([data-theme="dark"]) .statusFrame::before {
-  opacity: 0.9;
-}
-:global([data-theme="dark"]) .scoreStat {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-:global([data-theme="dark"]) .scoreValue {
-  color: #f4f4f5;
-}
-:global([data-theme="dark"]) .nextItem {
+:global([data-theme="dark"]) .pointItem {
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.06);
   color: #f4f4f5;
-}
-:global([data-theme="dark"]) .retakeNote {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.07);
-}
-:global([data-theme="dark"]) .error {
-  background: rgba(201, 58, 58, 0.14);
-  border-color: rgba(201, 58, 58, 0.35);
-  color: #fca5a5;
 }
 :global([data-theme="dark"]) .promptInput {
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.08);
   color: #f4f4f5;
 }
+:global([data-theme="dark"]) .ring {
+  background:
+    radial-gradient(closest-side, #18181b 78%, transparent 79%),
+    conic-gradient(var(--ring-color, #5b6cff) calc(var(--pct, 0) * 1%), rgba(255, 255, 255, 0.1) 0);
+}
+:global([data-theme="dark"]) .ringPct,
+:global([data-theme="dark"]) .bandName,
+:global([data-theme="dark"]) .divLabel,
+:global([data-theme="dark"]) .divPct,
+:global([data-theme="dark"]) .panelTitle,
+:global([data-theme="dark"]) .narrative,
+:global([data-theme="dark"]) .repairsTitle { color: #f4f4f5; }
+:global([data-theme="dark"]) .error {
+  background: rgba(201, 58, 58, 0.14);
+  border-color: rgba(201, 58, 58, 0.35);
+  color: #fca5a5;
+}
 
+/* =====================================================================
+   REDUCED MOTION — show final state instantly, no transforms/anim.
+   The backdrop hooks already bail out (no listeners/rAF) under reduced
+   motion; here we kill the CSS-driven entrances + hover lifts.
+   ===================================================================== */
 @media (prefers-reduced-motion: reduce) {
+  .stage,
   .promptCard,
+  .reveal,
   .statusFrame,
-  .feedbackCard,
-  .nextCard {
+  .divBarFill {
     animation: none;
   }
-  .feedbackCard:hover,
-  .nextCard:hover,
-  .nextCard:hover .nextItem,
-  .scoreStat:hover {
+  .divBarFill { transform: none; }
+  .promptCard:hover,
+  .panel:hover {
     transform: none;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  }
+  .aurora,
+  .blob {
+    animation: none;
   }
 }

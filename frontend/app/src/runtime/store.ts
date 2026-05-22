@@ -10,8 +10,8 @@ import type {
   GateState,
   HydratePayload,
   ReasoningResult,
+  ReflectionDebrief,
   ReflectionPerformance,
-  ReflectionResult,
   TutorTurn,
 } from "../shared/types";
 import {
@@ -19,11 +19,12 @@ import {
   bossGenerateQuestion,
   bossStart,
   bossSubmitAnswer,
+  finalizeReflection,
   getGateState,
+  redoReflection,
   submitCheckpoint,
   submitMemoryCheckItem,
   submitReasoning,
-  submitReflection,
   tutorChat,
 } from "../shared/api";
 import { resolveGameOrder } from "./gameOrder";
@@ -168,21 +169,24 @@ interface BossState {
 }
 
 // Reflection / Debrief (F5): the closing screen after the Boss. A short
-// free-text reflection sub-stage ("prompt") → on submit we POST the reflection
-// + a performance snapshot and render the AI debrief ("debrief"). Pass | Needs
-// Retry is DERIVED from the server gate + boss outcome, never decided by the
-// reflection endpoint (which only returns coaching prose).
+// free-text reflection sub-stage ("prompt") → on submit we POST the answers to
+// the finalize endpoint and render the rich SERVER-AUTHORITATIVE debrief
+// ("debrief"). The verdict (passed | needs_retry) now comes FROM the server
+// response — `enterReflection` keeps only a PROVISIONAL client guess for the
+// loading copy; once the debrief returns it is the source of truth.
 export type ReflectionStage = "prompt" | "debrief";
 
 interface ReflectionState {
   stage: ReflectionStage;
   prompts: string[]; // 1–2 reflection prompts shown to the student
   answers: string[]; // the student's free-text answers, one per prompt
-  debrief: ReflectionResult | null; // AI coaching response
-  performance: ReflectionPerformance | null; // snapshot sent + rendered
-  passed: boolean; // derived Pass vs. Needs Retry
-  submitting: boolean;
+  debrief: ReflectionDebrief | null; // server-authoritative rich debrief
+  performance: ReflectionPerformance | null; // provisional snapshot (loading copy)
+  passed: boolean; // SERVER verdict once `debrief` lands; provisional before
+  submitting: boolean; // finalize POST in flight
   submitError: string | null;
+  retaking: boolean; // redo POST in flight (the retake CTA)
+  retakeError: string | null;
 }
 
 // Docked tutor (F5): persistent, collapsible help channel across every screen.
@@ -252,10 +256,10 @@ interface RuntimeState {
   retryBoss: () => Promise<void>; // POST /start force_fresh → restart clean
 
   // ---- Reflection / Debrief (F5) ----
-  enterReflection: () => void; // Boss finish → closing screen; seeds prompts + perf
+  enterReflection: () => void; // Boss finish → closing screen; seeds prompts + provisional verdict
   setReflectionAnswer: (index: number, value: string) => void;
-  submitReflection: () => Promise<ReflectionResult | null>;
-  retakeFromReflection: () => void; // Needs Retry → fresh Practice Arc (same concepts)
+  submitReflection: () => Promise<ReflectionDebrief | null>; // POST finalize → server-authoritative debrief
+  retakeFromReflection: () => Promise<void>; // Needs Retry → POST redo, then fresh Practice Arc
 
   // ---- Docked tutor (F5) ----
   toggleTutor: (open?: boolean) => void;
@@ -344,6 +348,8 @@ const initialReflection: ReflectionState = {
   passed: false,
   submitting: false,
   submitError: null,
+  retaking: false,
+  retakeError: null,
 };
 
 const initialTutor: TutorState = {
@@ -925,9 +931,10 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
 
   // Enter the closing screen. We seed the reflection prompts (author override
   // via content_json.reflection.prompts, else the Flow-v2 defaults) and capture
-  // a performance snapshot. Pass | Needs Retry is DERIVED here — never from the
-  // reflection endpoint: a Boss win + a passed gate is the pass; a Boss loss or
-  // a failed gate is Needs Retry. The server gate stays authoritative on grading.
+  // a performance snapshot. The Pass | Needs Retry shown here is only a
+  // PROVISIONAL client guess (Boss win + passed gates), used purely for the
+  // prompt-stage copy + the loading state. The REAL verdict arrives from the
+  // finalize endpoint in submitReflection() and overwrites `passed`.
   enterReflection: () => {
     const { payload, gateState, boss, fc } = get();
     const refl = (payload?.content_json.reflection ?? {}) as {
@@ -978,34 +985,30 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
       return { reflection: { ...st.reflection, answers } };
     }),
 
-  // POST the combined reflection + performance snapshot and render the debrief.
-  // The endpoint returns coaching prose only ({feedback, next_steps[],
-  // encouragement}); pass/score were already derived in enterReflection.
+  // POST the student's prompt answers to the SERVER-AUTHORITATIVE finalize
+  // endpoint and render the rich debrief. The server scores every division,
+  // decides the verdict, assigns a band, and composes the narrative — so the
+  // returned `verdict` overwrites the provisional `passed` from enterReflection
+  // (the client no longer derives Pass | Needs Retry).
   submitReflection: async () => {
-    const { payload, reflection } = get();
+    const { hwId, sessionId, reflection } = get();
     set((st) => ({ reflection: { ...st.reflection, submitting: true, submitError: null } }));
-    const studentReflection = reflection.prompts
-      .map((p, i) => `${p}\n${(reflection.answers[i] ?? "").trim()}`)
-      .join("\n\n")
-      .trim();
-    const summary =
-      (payload?.content_json.case_based_preview?.case_setup?.task as string | undefined) ??
-      (payload?.subject ?? "");
-    const gradeNum =
-      typeof payload?.grade === "number"
-        ? payload.grade
-        : Number.parseInt(String(payload?.grade ?? ""), 10);
+    // One trimmed answer per prompt, in prompt order (the backend pairs them
+    // back to its own prompt list by index).
+    const reflectionAnswers = reflection.prompts.map((_, i) =>
+      (reflection.answers[i] ?? "").trim()
+    );
     try {
-      const debrief = await submitReflection({
-        homeworkTitle: payload?.title ?? "",
-        homeworkSummary: summary,
-        studentReflection,
-        performance: reflection.performance ?? { passed: reflection.passed },
-        ...(payload?.subject ? { subject: payload.subject } : {}),
-        ...(Number.isFinite(gradeNum) ? { grade: gradeNum } : {}),
-      });
+      const debrief = await finalizeReflection({ sessionId, hwId, reflectionAnswers });
       set((st) => ({
-        reflection: { ...st.reflection, submitting: false, debrief, stage: "debrief" },
+        reflection: {
+          ...st.reflection,
+          submitting: false,
+          debrief,
+          // SERVER verdict is now the source of truth.
+          passed: debrief.verdict === "passed",
+          stage: "debrief",
+        },
       }));
       return debrief;
     } catch (err) {
@@ -1020,11 +1023,37 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
     }
   },
 
-  // Needs Retry → retake = SAME concepts, fresh questions. We re-enter the
-  // Practice Arc from the top (which re-resolves the game order and resets the
-  // Boss); the backend serves fresh questions for the same concepts.
-  retakeFromReflection: () => {
-    void get().enterPracticeArc();
+  // Needs Retry → retake = SAME concepts, fresh questions. FIRST POST the redo
+  // endpoint (resets server attempt state + reshuffles the pool); only on a
+  // confirmed {ok} do we re-enter the Practice Arc (which re-resolves the game
+  // order and resets the Boss). A redo failure surfaces `retakeError` and keeps
+  // the student on the debrief — we never optimistically enter a stale arc.
+  retakeFromReflection: async () => {
+    const { hwId, sessionId } = get();
+    set((st) => ({ reflection: { ...st.reflection, retaking: true, retakeError: null } }));
+    try {
+      const res = await redoReflection({ sessionId, hwId });
+      if (!res.ok) {
+        set((st) => ({
+          reflection: {
+            ...st.reflection,
+            retaking: false,
+            retakeError: "Couldn't start the retake. Try again.",
+          },
+        }));
+        return;
+      }
+      set((st) => ({ reflection: { ...st.reflection, retaking: false } }));
+      await get().enterPracticeArc();
+    } catch (err) {
+      set((st) => ({
+        reflection: {
+          ...st.reflection,
+          retaking: false,
+          retakeError: (err as Error).message || "Couldn't start the retake.",
+        },
+      }));
+    }
   },
 
   // ---- Docked tutor (F5) ----

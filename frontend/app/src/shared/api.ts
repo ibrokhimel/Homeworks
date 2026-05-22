@@ -11,6 +11,7 @@ import type {
   GateState,
   HydratePayload,
   ReasoningResult,
+  ReflectionDebrief,
   ReflectionPerformance,
   ReflectionResult,
   TileMatchResult,
@@ -302,14 +303,75 @@ export function bossGiveUp(bossSessionId: string): Promise<BossStateResponse> {
   });
 }
 
-// ---- F5: Reflection / Debrief ----
+// ---- F5: Reflection / Debrief (v2 — SERVER-AUTHORITATIVE) ----
 
 /**
- * Submit the student's closing reflection and fetch the AI debrief.
+ * Finalize the journey and fetch the rich, server-authoritative debrief.
+ * POST /api/runtime/reflection/finalize — the server scores every division,
+ * decides the verdict (passed | needs_retry), assigns a band, and composes the
+ * AI narrative + strong/weak points + next steps. The verdict here is the
+ * SOURCE OF TRUTH — the client no longer derives Pass | Needs Retry.
+ *
+ * `reflectionAnswers` is the student's free-text prompt answers (one per prompt,
+ * in order), forwarded so the narrative can reference what they wrote.
+ */
+export function finalizeReflection(opts: {
+  sessionId: string;
+  hwId: string;
+  reflectionAnswers: string[];
+}): Promise<ReflectionDebrief> {
+  return request<ReflectionDebrief>("/api/runtime/reflection/finalize", {
+    method: "POST",
+    body: JSON.stringify({
+      session_id: opts.sessionId,
+      hw_id: opts.hwId,
+      reflection_answers: opts.reflectionAnswers,
+    }),
+  });
+}
+
+/**
+ * Kick off a retake on a `needs_retry` verdict — same concepts, fresh
+ * questions. POST /api/runtime/reflection/redo resets the server-side attempt
+ * state and reshuffles the question pool; the client then re-enters the
+ * Practice Arc (which re-resolves the game order). Returns {ok, reshuffled}.
+ */
+export function redoReflection(opts: {
+  sessionId: string;
+  hwId: string;
+}): Promise<{ ok: boolean; reshuffled: boolean }> {
+  return request<{ ok: boolean; reshuffled: boolean }>(
+    "/api/runtime/reflection/redo",
+    {
+      method: "POST",
+      body: JSON.stringify({ session_id: opts.sessionId, hw_id: opts.hwId }),
+    }
+  );
+}
+
+/**
+ * Re-fetch a previously-finalized debrief for resume (e.g. a refresh on the
+ * debrief screen). GET /api/runtime/reflection/{hw_id}?session_id= → the same
+ * ReflectionDebrief the finalize call returned.
+ */
+export function getReflection(
+  hwId: string,
+  sessionId: string
+): Promise<ReflectionDebrief> {
+  const qs = new URLSearchParams({ session_id: sessionId });
+  return request<ReflectionDebrief>(
+    `/api/runtime/reflection/${encodeURIComponent(hwId)}?${qs}`
+  );
+}
+
+// ---- F5: Reflection / Debrief (LEGACY v1) ----
+
+/**
+ * LEGACY: submit the student's closing reflection and fetch coaching prose.
  * POST /api/ai/reflection — the server composes a warm coaching paragraph,
  * 2–3 next steps, and a one-line encouragement from the reflection text +
- * the performance snapshot. Pass/score are derived client-side from the gate
- * + performance; the endpoint itself returns coaching prose only.
+ * the performance snapshot. Pass/score were derived client-side. The v2 flow
+ * uses {@link finalizeReflection} instead; this stays for back-compat.
  */
 export function submitReflection(opts: {
   homeworkTitle: string;

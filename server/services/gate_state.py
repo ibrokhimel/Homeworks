@@ -24,6 +24,59 @@ CBP_PHASE = "case_based_preview"
 MC_PHASE = "memory_check"
 CBP_MIN_CORRECT = 2          # locked rule: ≥2 of 3 checkpoints
 DEFAULT_MC_THRESHOLD_PCT = 60
+# Boss attempts persist under one of two phase strings depending on which boss
+# subsystem graded them: the legacy adaptive boss (ai_plan5.py) writes
+# phase="boss"; the v2 React Final Boss adapter (ai.py) uses phase="final-boss".
+# We treat EITHER as a boss-arc signal so practice_arc_completed is robust
+# across both render paths.
+BOSS_PHASES = ("final-boss", "boss")
+
+
+async def _practice_arc_completed(session_id: Optional[str], hw_id: str) -> bool:
+    """True iff the student has a WON boss for this (session, hw).
+
+    Defensive derivation from persisted `phase_attempts` only (no in-memory
+    state, no provider): a boss arc is "completed" when boss attempt rows exist
+    AND the latest boss attempt indicates a pass (correct == 1). With no boss
+    data we report False. We check both boss phase strings (see BOSS_PHASES) and
+    take the chronologically-latest attempt across them as the win signal.
+    """
+    if not session_id:
+        return False
+    latest_correct: Optional[bool] = None
+    saw_any = False
+    for phase in BOSS_PHASES:
+        try:
+            rows = await list_phase_attempts(session_id, hw_id, phase=phase, limit=500)
+        except Exception:  # noqa: BLE001 — boss arc is best-effort; never break the gate
+            rows = []
+        # rows are created_at ASC; the last row is the latest for this phase.
+        for r in rows:
+            saw_any = True
+            latest_correct = bool(r.get("correct"))
+    if not saw_any:
+        return False
+    return bool(latest_correct)
+
+
+async def _reflection_passed(session_id: Optional[str], hw_id: str) -> bool:
+    """True iff a persisted reflection mark with verdict=="passed" exists.
+
+    The reflection engine (parallel agent) writes the mark into the
+    `final_reports` row's `report_json` with a top-level `verdict`. We read it
+    via `final_report_repo.get_final_report`. Import is lazy + guarded so a
+    missing/renamed repo never breaks the gate — absent ⇒ False (defensive).
+    """
+    if not session_id:
+        return False
+    try:
+        from ..db.final_report_repo import get_final_report
+        report = await get_final_report(session_id, hw_id)
+    except Exception:  # noqa: BLE001 — reflection mark is best-effort; never break the gate
+        return False
+    if not isinstance(report, dict):
+        return False
+    return str(report.get("verdict") or "").lower() == "passed"
 
 
 def latest_correct_by_key(attempts: list[dict]) -> dict[str, bool]:
@@ -95,6 +148,15 @@ async def compute_gate_state(session_id: Optional[str], hw_id: str) -> dict:
     mc_score_pct = min(mc_score_pct, 100)
     mc_passed = mc_total > 0 and mc_score_pct >= mc_threshold
 
+    # ---- Additive v3 completion flags (do NOT change existing keys). ----
+    # The reflection phase is authored / default-on when content_json carries a
+    # `reflection` block (closing phase). The reflection engine (parallel agent)
+    # persists a server-authoritative mark in `final_reports.report_json` with a
+    # top-level `verdict`; "passed" there means the reflection cleared.
+    reflection_required = bool(content.get("reflection"))
+    practice_arc_completed = await _practice_arc_completed(session_id, hw_id)
+    reflection_passed = await _reflection_passed(session_id, hw_id)
+
     return {
         "cbp": {
             "passed": cbp_passed,
@@ -112,6 +174,11 @@ async def compute_gate_state(session_id: Optional[str], hw_id: str) -> dict:
             "threshold_pct": mc_threshold,
         },
         "practice_arc_unlocked": bool(cbp_passed and mc_passed),
+        # ---- Additive completion flags (consumed by the v3 reflection flow). ----
+        "practice_arc_completed": bool(practice_arc_completed),
+        "reflection_required": bool(reflection_required),
+        "reflection_passed": bool(reflection_passed),
+        "all_divisions_complete": bool(cbp_passed and mc_passed and practice_arc_completed),
     }
 
 

@@ -587,6 +587,31 @@ async def _check_answer_sentence_fill(req: CheckAnswerRequest) -> dict:
     xp_base = 100 if is_correct else 0
     xp_first = 25 if (is_correct and attempt_number == 1) else 0
 
+    # Persist attempt (best-effort side-effect — never breaks answer-checking).
+    # Mirrors the CBP/MC/Phase-2B persisting calls. Only when session_id is
+    # present (some preview/anon calls omit it); homework_id is already required
+    # above. The Reflection engine reads these rows to extract real performance.
+    if req.session_id and req.homework_id:
+        import json as _json
+        try:
+            from ..db.attempts_repo import add_phase_attempt as _add_phase_attempt
+            await _add_phase_attempt(
+                session_id=req.session_id,
+                hw_id=req.homework_id,
+                phase="sentence-fill",
+                subphase=f"blank_{req.blank_idx}",
+                question_id=req.question_id or f"{req.item_id}_{req.blank_idx}",
+                item_id=req.item_id,
+                attempt_number=attempt_number,
+                student_answer=str(student_value),
+                answer_spec_json=_json.dumps({"type": "text_fuzzy"}),
+                checker_source="phase_adapter:sentence-fill",
+                correct=1 if is_correct else 0,
+                score=1.0 if is_correct else 0.0,
+            )
+        except Exception as _e:  # noqa: BLE001 — attempt persistence is best-effort
+            _log.warning("SF: failed to persist attempt: %s", _e)
+
     return {
         "correct": is_correct,
         "lock": locked,
@@ -928,6 +953,32 @@ async def _check_answer_tile_match(req: CheckAnswerRequest) -> dict:
         }
         for idx in sorted(state["matched_pair_ids"])
     ]
+
+    # Persist attempt (best-effort side-effect — never breaks answer-checking).
+    # Mirrors the CBP/MC persisting calls. `subphase` keys off the SERVER-DERIVED
+    # canonical pair index (matched_key) — never the opaque client tokens. Only
+    # when session_id is present (homework_id is already required above). The
+    # `already_matched` no-op is still persisted as a 0/correct=False attempt so
+    # the Reflection engine sees the full interaction stream.
+    if req.session_id and req.homework_id:
+        import json as _json
+        try:
+            from ..db.attempts_repo import add_phase_attempt as _add_phase_attempt
+            await _add_phase_attempt(
+                session_id=req.session_id,
+                hw_id=req.homework_id,
+                phase="tile-match",
+                subphase=f"pair_{matched_key}",
+                question_id=req.question_id or f"tile-match_{matched_key}",
+                item_id=req.item_id,
+                attempt_number=req.attempt_number or 1,
+                answer_spec_json=_json.dumps({"type": "tile_match"}),
+                checker_source="phase_adapter:tile-match",
+                correct=1 if is_correct else 0,
+                score=1.0 if is_correct else 0.0,
+            )
+        except Exception as _e:  # noqa: BLE001 — attempt persistence is best-effort
+            _log.warning("TM: failed to persist attempt: %s", _e)
 
     return {
         "correct": is_correct,
@@ -1468,6 +1519,44 @@ async def _check_answer_real_life_challenge(req: CheckAnswerRequest) -> dict:
             "total": int(total_xp_field),
         }
 
+    # Persist attempt (best-effort side-effect — never breaks answer-checking).
+    # RLC is AMR-graded: for reasoning steps `reasoning_score` is 0-100 (AI), so
+    # we normalize to a 0-1 `score`; for decision/concept steps score mirrors
+    # `is_correct`. `subphase` is the step_id (server-validated above). No
+    # misconception tags are computed by the RLC grader, so the field stays None.
+    # Only when session_id is present (homework_id is already required above).
+    if req.session_id and req.homework_id:
+        import json as _json
+        if reasoning_score is not None:
+            _persist_score = max(0.0, min(1.0, float(reasoning_score) / 100.0))
+        else:
+            _persist_score = 1.0 if is_correct else 0.0
+        _student_answer = (
+            req.reasoning_text
+            if kind == "reasoning"
+            else (req.selected_option_id or req.selected_chip_id)
+        )
+        try:
+            from ..db.attempts_repo import add_phase_attempt as _add_phase_attempt
+            await _add_phase_attempt(
+                session_id=req.session_id,
+                hw_id=req.homework_id,
+                phase="real-life-challenge",
+                subphase=req.step_id,
+                question_id=req.question_id or req.step_id,
+                item_id=req.item_id,
+                step_id=req.step_id,
+                attempt_number=req.attempt_number or 1,
+                student_answer=str(_student_answer) if _student_answer is not None else None,
+                answer_spec_json=_json.dumps({"type": "rlc", "kind": kind}),
+                checker_source="phase_adapter:real-life-challenge",
+                correct=1 if is_correct else 0,
+                score=_persist_score,
+                feedback=reasoning_feedback,
+            )
+        except Exception as _e:  # noqa: BLE001 — attempt persistence is best-effort
+            _log.warning("RLC: failed to persist attempt: %s", _e)
+
     response: dict[str, Any] = {
         "step_id": req.step_id,
         "kind": kind,
@@ -1861,6 +1950,41 @@ async def _check_answer_final_boss(req: CheckAnswerRequest) -> dict:
         response["stars"] = stars
         response["outcome_xp"] = int(outcome_xp)
 
+    # Persist attempt (best-effort side-effect — never breaks answer-checking).
+    # THIS is the path the v2 React `bossTurn()` hits (POST /api/ai/check-answer
+    # phase="final-boss"). `score` comes from tutor.boss_turn's 0-1 AMR score;
+    # `correct` mirrors the grader verdict. `tutor.boss_turn` does NOT emit
+    # misconception tags, so that field stays None. `time_ms` is unavailable —
+    # CheckAnswerRequest carries no timing field. `subphase` is the boss
+    # question id (server-validated above) or the attempt cursor when the caller
+    # submits via the legacy free-form `question` slot. Only when session_id is
+    # present (homework_id is already required above).
+    if req.session_id and req.homework_id:
+        import json as _json
+        try:
+            _fb_score = boss_response.get("score")
+            _fb_score = float(_fb_score) if isinstance(_fb_score, (int, float)) else (
+                1.0 if is_correct else 0.0
+            )
+            from ..db.attempts_repo import add_phase_attempt as _add_phase_attempt
+            await _add_phase_attempt(
+                session_id=req.session_id,
+                hw_id=req.homework_id,
+                phase="final-boss",
+                subphase=req.question_id or f"attempt_{attempt_number}",
+                question_id=req.question_id,
+                item_id=req.item_id,
+                attempt_number=attempt_number,
+                student_answer=str(req.student_answer or ""),
+                answer_spec_json=_json.dumps({"type": "boss_amr"}),
+                checker_source="phase_adapter:final-boss",
+                correct=1 if is_correct else 0,
+                score=_fb_score,
+                misconception_tags_json=None,
+            )
+        except Exception as _e:  # noqa: BLE001 — attempt persistence is best-effort
+            _log.warning("FB: failed to persist attempt: %s", _e)
+
     return response
 
 
@@ -2004,6 +2128,31 @@ async def _check_answer_ttt(req: CheckAnswerRequest) -> dict:
         mercy = random.random() < float(cfg["mercy_chance"])
         xp_delta = int(cfg["xp_mercy"]) if mercy else 0
 
+    # Persist attempt (best-effort side-effect — never breaks answer-checking).
+    # `subphase` keys off the item_id (server-resolved against the answer key
+    # above). `score` mirrors `is_correct`. Only when session_id is present
+    # (homework_id is already required above).
+    if req.session_id and req.homework_id:
+        import json as _json
+        try:
+            from ..db.attempts_repo import add_phase_attempt as _add_phase_attempt
+            await _add_phase_attempt(
+                session_id=req.session_id,
+                hw_id=req.homework_id,
+                phase="ttt",
+                subphase=f"pick_{item_id}",
+                question_id=req.question_id or item_id,
+                item_id=item_id,
+                attempt_number=req.attempt_number or 1,
+                student_answer=str(picked_norm),
+                answer_spec_json=_json.dumps({"type": "ttt"}),
+                checker_source="phase_adapter:ttt",
+                correct=1 if is_correct else 0,
+                score=1.0 if is_correct else 0.0,
+            )
+        except Exception as _e:  # noqa: BLE001 — attempt persistence is best-effort
+            _log.warning("TTT: failed to persist attempt: %s", _e)
+
     return {
         "is_correct": is_correct,
         "mercy": mercy,
@@ -2072,6 +2221,34 @@ async def _check_answer_ttt_session(req: CheckAnswerRequest) -> dict:
     total_games = len(cleaned)
     mastery_tier = _ttt_mastery_tier(wins + draws, total_games)
     duolingo_remediation = (wins == 0 and draws == 0)
+
+    # Persist attempt (best-effort side-effect — never breaks answer-checking).
+    # This is the end-of-session TALLY (one row per completed session). `score`
+    # is the draw+win mastery ratio (0-1); `correct` is 1 unless the student
+    # earned zero non-loss outcomes (duolingo_remediation). `subphase` is the
+    # fixed "tally" marker. Only when session_id is present (homework_id is
+    # already required above).
+    if req.session_id and req.homework_id:
+        import json as _json
+        _ratio = ((wins + draws) / total_games) if total_games else 0.0
+        try:
+            from ..db.attempts_repo import add_phase_attempt as _add_phase_attempt
+            await _add_phase_attempt(
+                session_id=req.session_id,
+                hw_id=req.homework_id,
+                phase="ttt-session",
+                subphase="tally",
+                question_id=req.question_id,
+                item_id=req.item_id,
+                attempt_number=req.attempt_number or 1,
+                answer_spec_json=_json.dumps({"type": "ttt_session"}),
+                checker_source="phase_adapter:ttt-session",
+                correct=0 if duolingo_remediation else 1,
+                score=_ratio,
+                feedback=mastery_tier,
+            )
+        except Exception as _e:  # noqa: BLE001 — attempt persistence is best-effort
+            _log.warning("TTT-session: failed to persist attempt: %s", _e)
 
     return {
         "session_xp": int(session_xp),

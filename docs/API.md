@@ -2063,6 +2063,109 @@ authors a `decision_process_explanation`. They do NOT gate `practice_arc_unlocke
 
 ---
 
+### POST /api/runtime/reflection/finalize
+
+Run the server-authoritative finalization pipeline after all three divisions
+complete: EXTRACT the per-attempt rows → ANALYZE (proven session metrics + the
+grading scorecard + mistake-repair count) → AI ANALYSIS (warm Uzbek debrief
+narrative — prose only, never decides the verdict) → MARK (the DETERMINISTIC
+verdict, persisted to `final_reports` with a top-level `verdict` key + the
+session-level mark). Idempotent-ish: re-finalizing recomputes from the current
+attempts and overwrites the report.
+
+**Request**
+```json
+{
+  "session_id": "string",
+  "hw_id": "string",
+  "reflection_answers": ["string — the student's free-text reflection answers"]
+}
+```
+
+**Response 200**
+```json
+{
+  "verdict": "passed",
+  "verdict_label": "Tabriklaymiz, vazifa topshirildi",
+  "overall_pct": 78,
+  "band": {"key": "proficient", "name": "Proficient"},
+  "divisions": [
+    {"key": "cbp",      "label": "Vaziyatli kirish", "pct": 100.0, "correct": 3, "total": 3, "status": "passed"},
+    {"key": "mc",       "label": "Xotira sinovi",    "pct": 80.0,  "correct": 4, "total": 5, "status": "passed"},
+    {"key": "practice", "label": "Amaliyot maydoni", "pct": 75.0,  "correct": 6, "total": 8, "status": "passed"},
+    {"key": "boss",     "label": "Yakuniy jang",     "pct": 100.0, "correct": 1, "total": 1, "status": "passed"}
+  ],
+  "weak_points": ["string"],
+  "strong_points": ["string"],
+  "next_steps": ["string"],
+  "narrative": "string — 2-4 sentence Uzbek summary",
+  "encouragement": "string",
+  "redo_recommendation": "none",
+  "mistake_repairs": 2,
+  "ai_unavailable": false
+}
+```
+
+- `verdict` is DETERMINISTIC: `"passed"` iff `overall_pct >= 60` AND the boss
+  passed (a win, or pool-exhausted-with-solid-damage) AND the CBP + Memory Check
+  gates passed; otherwise `"needs_retry"`. The AI never decides this.
+- `verdict_label` is the formal-Uzbek display string (never "Not Completed").
+- `mistake_repairs`: count of concepts the student got wrong early
+  (CBP / Memory Check / practice) then right in the Boss — the strongest
+  learning signal.
+- `redo_recommendation`: a phase string to revisit first, or `"none"`. A
+  suggestion only; it never changes the verdict.
+- `ai_unavailable: true` when the AI backend was down — the response is still a
+  complete, deterministic debrief with neutral prose.
+- The response NEVER contains answer-bearing data (expected answers, accepted
+  lists, rubric text, or the weak/strong keyword anchors).
+
+**Tests**: `tests/test_reflection_engine.py`.
+
+---
+
+### GET /api/runtime/reflection/{hw_id}
+
+Return the persisted mark/debrief for a finalized session. `session_id` query
+param is required. Returns the same shape as the finalize response (plus
+`created_at` / `updated_at` from the `final_reports` row). 404 if the homework
+was never finalized for this session.
+
+**Response 200**: same shape as `POST /api/runtime/reflection/finalize`.
+
+**Response 404**
+```json
+{"detail": {"error": "No reflection report for this session", "code": "NOT_FINALIZED"}}
+```
+
+**Tests**: `tests/test_reflection_engine.py`.
+
+---
+
+### POST /api/runtime/reflection/redo
+
+Re-route a `needs_retry` session back into the Practice Arc. Flips
+`sessions.status` → `active` and CLEARS the Division-3 (Practice Arc games +
+Final Boss) `phase_attempts` rows for this session so the runtime re-presents
+the arc with a reshuffle. CBP + Memory Check attempts are preserved, so the
+Practice-Arc gate stays unlocked across the redo. Does NOT regenerate questions.
+
+**Request**
+```json
+{"session_id": "string", "hw_id": "string"}
+```
+
+**Response 200**
+```json
+{"ok": true, "reshuffled": true, "cleared": 8}
+```
+
+- `cleared`: number of Division-3 attempt rows removed.
+
+**Tests**: `tests/test_reflection_engine.py`.
+
+---
+
 ### POST /api/ai/check-answer  *(phase = `"case_based_preview_reasoning"`, commit 92824a3)*
 
 Server-grades the student's free-text reasoning after the 3 CBP checkpoints.

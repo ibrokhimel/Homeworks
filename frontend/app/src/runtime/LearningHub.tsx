@@ -131,6 +131,13 @@ export function LearningHub() {
   const unlocked = gate?.practice_arc_unlocked ?? false;
   const mcThreshold = gate?.mc.threshold_pct ?? 60;
 
+  // Additive completion indicator (server-set flags). When the whole journey is
+  // done the "X/3 cleared" chip flips to a "Done ✓ / Needs Retry" badge. These
+  // flags are optional + additive to gate_state — absent on older payloads, in
+  // which case the chip stays in its "X/3 cleared" form. Minimal additive touch.
+  const allDone = gate?.all_divisions_complete ?? false;
+  const reflectionPassed = gate?.reflection_passed ?? false;
+
   // ---- Homework-theme header (subject eyebrow · real title · topic) ----
   const meta = payload?.content_json.meta;
   const subjectEyebrow =
@@ -272,11 +279,24 @@ export function LearningHub() {
         {subjectEyebrow && <p className={s.eyebrow}>{subjectEyebrow}</p>}
         <h1 className={s.pageTitle}>{homeworkTitle}</h1>
         {themeSub && <p className={s.pageSub}>{themeSub}</p>}
-        <p className={s.progressChip} aria-label={`${cleared} of 3 stations cleared`}>
-          <CrownGlyph />
-          <strong>{cleared}</strong>
-          <span>/ 3 cleared</span>
-        </p>
+        {allDone ? (
+          <p
+            className={`${s.progressChip} ${reflectionPassed ? s.progressChipDone : s.progressChipRetry}`}
+            data-testid="hub-completion-badge"
+            data-complete={reflectionPassed ? "passed" : "needs_retry"}
+            aria-label={reflectionPassed ? "Homework complete — passed" : "Homework complete — needs retry"}
+          >
+            {reflectionPassed ? <CheckGlyph /> : <CrownGlyph />}
+            <strong>{reflectionPassed ? "Done" : "Needs Retry"}</strong>
+            {reflectionPassed && <span aria-hidden="true">✓</span>}
+          </p>
+        ) : (
+          <p className={s.progressChip} aria-label={`${cleared} of 3 stations cleared`}>
+            <CrownGlyph />
+            <strong>{cleared}</strong>
+            <span>/ 3 cleared</span>
+          </p>
+        )}
       </header>
 
       {/* ---- The winding path: connector layer behind, nodes stacked above ---- */}

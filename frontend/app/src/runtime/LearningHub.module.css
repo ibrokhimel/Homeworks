@@ -291,6 +291,23 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Completion badge — the "X/3 cleared" chip flips to this once the whole
+   journey is done (server gate flags all_divisions_complete + reflection_passed).
+   Additive: a tinted border + accent ink, same chip chrome. */
+.progressChipDone {
+  border-color: rgba(10, 114, 224, 0.4);
+  box-shadow: 0 3px 0 rgba(10, 114, 224, 0.12);
+}
+.progressChipDone svg { color: var(--hub-green); }
+.progressChipDone strong { color: var(--hub-green); }
+.progressChipDone span { color: var(--hub-green); font-weight: 700; }
+.progressChipRetry {
+  border-color: rgba(240, 85, 95, 0.42);
+  box-shadow: 0 3px 0 rgba(240, 85, 95, 0.12);
+}
+.progressChipRetry svg { color: var(--hub-red); }
+.progressChipRetry strong { color: var(--hub-red); }
+
 /* ---- The winding path: connectors behind, nodes stacked above ----- */
 .path {
   position: relative;
