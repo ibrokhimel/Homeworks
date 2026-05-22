@@ -5,7 +5,6 @@ import type { GameProps } from "../GameHost";
 import { Eyebrow, Title, Lead, Pill, Button } from "../../shared/ui/primitives";
 import { useAnswerTelemetry } from "../hooks/useAnswerTelemetry";
 import IntegrityNudge from "../IntegrityNudge";
-import { play } from "../sfx";
 import s from "./PuzzleLock.module.css";
 
 // ---------------------------------------------------------------------------
@@ -162,17 +161,13 @@ function PuzzleLockInner({
         const newOpenCount = next.filter((t) => t === "open").length;
         if (newOpenCount >= total) {
           // All tumblers open — lock pops open
-          play("correct");
-          play("complete");
           setAllOpen(true);
         } else {
-          play("correct");
           // Advance to next locked tumbler
           const nextIdx = next.findIndex((t, i) => i > currentIdx && t === "locked");
           setCurrentIdx(nextIdx >= 0 ? nextIdx : currentIdx + 1);
         }
       } else {
-        play("wrong");
         // Wrong — shake + show feedback, allow retry
         setFeedback(res.feedback || "Not quite — try again.");
 
@@ -286,15 +281,12 @@ function PuzzleLockInner({
                       ✓
                     </span>
                   ) : (
-                    <span className={s.tumblerDot} aria-hidden="true" />
+                    <LockClosedIcon className={s.tumblerLockIcon} small />
                   )}
                 </div>
               );
             })}
           </div>
-
-          {/* Lock shackle — visual */}
-          <div className={[s.shackle, openedCount >= total && s.shackleOpen].filter(Boolean).join(" ")} aria-hidden="true" />
         </div>
 
         {/* Active question card */}
@@ -331,7 +323,7 @@ function PuzzleLockInner({
             <button
               type="button"
               className={s.submitBtn}
-              onClick={() => { play("tick"); handleSubmit(); }}
+              onClick={handleSubmit}
               disabled={submitting || !inputValue.trim()}
               aria-label="Submit answer"
               data-testid="pl-submit"
@@ -369,8 +361,39 @@ function PuzzleLockInner({
 }
 
 // ---------------------------------------------------------------------------
-// Lock-open SVG — shown on the completion screen.
+// Padlock icons — locked + unlocked share one design language.
+// Same body (rect 5,10 w14 h11 rx2.5), same keyhole, same stroke weight.
+// The ONLY visual delta between the two is the shackle path:
+//   locked  → full closed arch sitting on top of the body
+//   open    → right leg still planted on body top-right; left leg has
+//             detached and arcs up-and-over, clearly broken from the body
+// Inputs: `small` shrinks the rendered size from 64px to 22px for tumblers.
 // ---------------------------------------------------------------------------
+function LockClosedIcon({ small, className }: { small?: boolean; className?: string }) {
+  const size = small ? 22 : 64;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {/* Shackle — closed arch resting on body top */}
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      {/* Body — rounded rectangle */}
+      <rect x="5" y="10" width="14" height="11" rx="2.5" />
+      {/* Keyhole — filled dot, slightly above center */}
+      <circle cx="12" cy="15" r="1.25" fill="currentColor" />
+    </svg>
+  );
+}
+
 function LockOpenIcon() {
   return (
     <svg
@@ -379,18 +402,20 @@ function LockOpenIcon() {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={s.lockOpenSvg}
       aria-hidden="true"
     >
-      {/* Shackle open (swung left) */}
-      <path d="M8 11V6a4 4 0 0 1 7.93-.93" />
-      {/* Lock body */}
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-      {/* Keyhole */}
-      <circle cx="12" cy="16" r="1" fill="currentColor" />
+      {/* Shackle — right leg planted on body top-right (16,10), arcs */}
+      {/* counterclockwise up to ~(8,4); left leg ends free, not touching */}
+      {/* the body. Identical proportions to the closed variant.        */}
+      <path d="M16 10V7a4 4 0 0 0 -8 0" />
+      {/* Body — same rect as the locked variant */}
+      <rect x="5" y="10" width="14" height="11" rx="2.5" />
+      {/* Keyhole — same dot position */}
+      <circle cx="12" cy="15" r="1.25" fill="currentColor" />
     </svg>
   );
 }
