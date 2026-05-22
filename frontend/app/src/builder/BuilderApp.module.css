@@ -202,6 +202,21 @@
   color: #ef4444;
 }
 
+/* ---------- Readiness (share gate) — sits below the save status ---------- */
+.readiness {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.readyOk {
+  color: #16a34a;
+}
+.readyWarn {
+  color: #d97706; /* amber — informational, never blocks authoring */
+  cursor: help;
+}
+
 /* ---------- RIGHT WORKSPACE (legacy .builder-main.glass-card) ---------- */
 .main {
   flex: 1 1 auto;

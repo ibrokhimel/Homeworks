@@ -8,7 +8,8 @@ import { PracticeArcSection } from "./PracticeArcSection";
 import { BuilderPreview } from "./BuilderPreview";
 import type { PreviewSurface } from "./BuilderPreview";
 import { emptyDraft, fromContentJson, toContentJson } from "./draft";
-import { getHomework, putHomework } from "./builderApi";
+import { getHomework, putHomework, getReadiness } from "./builderApi";
+import type { Readiness } from "./builderApi";
 import type { BuilderDraft } from "./types";
 import s from "./BuilderApp.module.css";
 
@@ -146,9 +147,19 @@ export function BuilderApp() {
   const [surface, setSurface] = useState<PreviewSurface>("cbp");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState<Readiness | null>(null);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
+
+  // Strict (delivery-grade) readiness — the autosave is lenient so authors can
+  // save half-finished questions, but a homework still must be COMPLETE before
+  // it's worth sharing. Refresh after load + every successful save; never throws.
+  const refreshReadiness = useCallback((id: string) => {
+    getReadiness(id)
+      .then(setReadiness)
+      .catch(() => setReadiness(null));
+  }, []);
 
   // Load the unredacted authoring blob when a homework is opened.
   const openHomework = useCallback(async (id: string, seed?: BuilderDraft) => {
@@ -161,11 +172,12 @@ export function BuilderApp() {
     try {
       const row = await getHomework(id);
       setDraft(fromContentJson(row.content_json ?? {}));
+      refreshReadiness(id);
     } catch (err) {
       setLoadError((err as Error).message || "Couldn't load this homework.");
       setDraft(emptyDraft());
     }
-  }, []);
+  }, [refreshReadiness]);
 
   // Entry: the legacy dashboard sends us /app/builder?id=<hwId>. Read it once on
   // mount → load that homework. No `id` means the builder was reached without a
@@ -191,13 +203,14 @@ export function BuilderApp() {
           dirtyRef.current = false;
           setSaveStatus("saved");
           setSaveError(null);
+          refreshReadiness(id);
         } catch (err) {
           setSaveStatus("error");
           setSaveError((err as Error).message || "Save failed.");
         }
       }, SAVE_DEBOUNCE_MS);
     },
-    []
+    [refreshReadiness]
   );
 
   useEffect(() => {
@@ -285,6 +298,29 @@ export function BuilderApp() {
             {saveStatus === "idle" && "All changes saved"}
           </span>
         </div>
+
+        {readiness && (
+          <div
+            className={s.readiness}
+            data-ready={readiness.ready ? "true" : "false"}
+            data-testid="builder-readiness"
+          >
+            {readiness.ready ? (
+              <span className={s.readyOk}>✓ Ready to share</span>
+            ) : (
+              <span
+                className={s.readyWarn}
+                title={readiness.issues
+                  .map((i) => `• ${i.msg.replace(/^Value error,\s*/, "")}`)
+                  .join("\n")}
+              >
+                {readiness.issues.length} thing
+                {readiness.issues.length === 1 ? "" : "s"} to finish before
+                sharing
+              </span>
+            )}
+          </div>
+        )}
       </aside>
 
       <section className={s.main} aria-label="Homework builder workspace">

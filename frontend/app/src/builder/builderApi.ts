@@ -123,6 +123,26 @@ export function putHomework(
   });
 }
 
+/** One unmet delivery-grade rule on the stored content_json. */
+export interface ReadinessIssue {
+  path: string;
+  msg: string;
+}
+/** Strict (delivery-grade) readiness of a homework — whether it's complete
+ * enough to share. The builder autosaves leniently; this is the share gate. */
+export interface Readiness {
+  ready: boolean;
+  issues: ReadinessIssue[];
+}
+
+/** GET strict readiness — used to surface "fix N issues before sharing".
+ * Mirrors GET /api/homeworks/{id}/readiness. */
+export function getReadiness(id: string): Promise<Readiness> {
+  return request<Readiness>(
+    `/api/homeworks/${encodeURIComponent(id)}/readiness`
+  );
+}
+
 /** Partial content_json merge (server deep-merges the keys you send). */
 export function patchHomeworkContent(
   id: string,
