@@ -638,3 +638,30 @@ Full pytest **3306 passed** (incl. injection/leak canaries, signal-ingestion, fl
 
 ### Deferred (out of scope)
 Proctored exam-sim lockdown; Turnitin/detection integration; full teacher dashboard UI (affirmation is API + minimal `/view`); `sophistication_jump` flag (stub).
+
+---
+
+## v3 closing phase — Reflection / Debrief / Marking — COMPLETE (DaddysBranch)
+
+The homework cycle's closing phase (runs after all 3 divisions: Case-Based Preview, Flashcards+Memory-Check, Practice-Arc+Boss). Server-authoritative — the AI narrates, deterministic logic decides the verdict. Commits: `ef91cc5` (engine), `7964b4b` (endpoint/audit fixes).
+
+### Working (verified live + tested)
+- **Pipeline** (`server/services/reflection_engine.py`): EXTRACT (`list_phase_attempts` grouped by division) → ANALYZE (`recompute_session_metrics` + `grading.aggregate` → weak/strong topics, mastery, mistake-repair) → AI narrate (`server/prompts/runtime/reflection-analysis.md`, never echoes answers, Uzbek formal "Siz", deterministic fallback) → MARK (deterministic verdict: `overall_pct ≥ 60` AND boss pass AND gates) → PERSIST (`final_reports` + `sessions.status/overall_score/ended_at`).
+- **Data extraction is now 100% DB-backed:** the previously memory-only game handlers (tile-match, sentence-fill, real-life-challenge, final-boss, TTT) persist to `phase_attempts`, so the engine sees every reasoning phase across restarts.
+- **Endpoints** (`server/routes/reflection.py`): `POST /api/runtime/reflection/finalize`, `GET /api/runtime/reflection/{hw_id}?session_id=`, `POST /api/runtime/reflection/redo` (resets Division-3 attempts → gate reopens the Arc → reshuffled order/subset, no identical replay). Legacy `POST /api/ai/reflection` kept for v1.
+- **Gate flags** (`gate_state.compute_gate_state`): additive `practice_arc_completed`, `reflection_required`, `reflection_passed`, `all_divisions_complete`. Boss-pass derivation matches `reflection_engine.boss_passed` (HP floor / pooled solid-damage) so gate + verdict never contradict.
+- **Hub-DNA reflection redesign** (`Reflection.tsx` + `ReflectionBackdrop.tsx`, reuses `useColorTrail`): staged-reveal scorecard, per-division breakdown, weak/strong points, mistake-repairs, next-steps, narrative. All 7 `data-testid`s preserved.
+- **Verdict terminology:** "Needs Retry" / "Attempt completed, homework not passed" — never "Not Completed".
+
+### Case-Based Preview redesign + authored blocks (commit `956b7f5`, `4e56a92`)
+- **Authored presentation order:** additive `case_based_preview.blocks[]` overlay (`{type:"text"}` / `{type:"checkpoint", ref}`) — text pages and checkpoints render where the author places them. `checkpoints[]` stays canonical for grading/gate (unchanged contract). Roadmap removed; builder `CbpEditor.tsx` gained reorder UI + ref bookkeeping + back-compat seeding.
+- **Inline marking:** a tapped checkpoint option marks `correct`/`wrong` in place on submit (no separate results screen).
+- **Reasoning step is NON-BLOCKING** (`gate_state.py:159` `cbp_passed = mcq_passed`): the open-ended "Decision Process Explanation" still grades + surfaces as feedback, but a missed/pending reasoning attempt no longer holds back a 3/3-checkpoint student (previously showed a spurious "Needs retry"). `reasoning_required`/`reasoning_passed` are still reported for display. Guarded by `test_v2_gate_flow.py::test_cbp_reasoning_is_non_blocking_for_the_gate`.
+- **Hub gate-refresh** `useEffect` on mount keeps Division-3 unlock state honest after returning to the Hub.
+
+### Migration prod-boot fix (commit `ad3cb96`)
+`idx_review_queue_kind` was created **inside `_SCHEMA`** (run first via `executescript`) over the `kind` column, but on a pre-existing DB `kind` only arrives later via the post-`executescript` ALTER loop → `no such column: kind` → `init_db` crashed → server wouldn't boot on any upgraded DB (dev + prod Mac mini). Fixed: index removed from `_SCHEMA` (NOTE left in place); single source of truth is the post-loop `CREATE INDEX` that runs after `kind` is provisioned for both fresh and upgraded DBs. Regression: `tests/test_migrations_existing_db.py` (static guard + old-DB + fresh-DB integration).
+
+### Notes
+- **Existing test homeworks are forward-compatible** — these are all additive (`extra="allow"`) schema + new endpoints + new gate keys; no `content_json` key was renamed, so the seeded test homework keeps working without a re-create.
+- **Deferred:** true same-concept question REGENERATION on redo (touches the LLM generation pipeline); teacher-facing reflection dashboard UI.
