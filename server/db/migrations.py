@@ -77,8 +77,14 @@ CREATE INDEX IF NOT EXISTS idx_versions_hw_saved
 CREATE INDEX IF NOT EXISTS idx_review_pending
     ON review_queue(question_id, student_answer) WHERE status='pending';
 
-CREATE INDEX IF NOT EXISTS idx_review_queue_kind
-    ON review_queue(status, kind, created_at);
+-- NOTE: idx_review_queue_kind is deliberately NOT created here. On a
+-- pre-existing DB the `review_queue` table already exists WITHOUT `kind`, so
+-- `CREATE TABLE IF NOT EXISTS` above is a no-op and `kind` only arrives via the
+-- ADD COLUMN in init_db()'s migration loop (which runs AFTER this _SCHEMA
+-- executescript). Creating the index here would reference `kind` before it
+-- exists on an upgraded DB and crash executescript / init_db. The single
+-- source of truth for this index is the POST-LOOP creation in init_db(), which
+-- runs only after `kind` has been provisioned for both fresh and upgraded DBs.
 
 CREATE TABLE IF NOT EXISTS tutor_conversations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
