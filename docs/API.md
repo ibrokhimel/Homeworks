@@ -544,9 +544,20 @@ Evaluates a student's answer using a phase-aware grading pipeline and persists t
   "answer_type": "string",
   "student_answer": "any",
   "student_work_text": "string",
-  "attempt_number": 1
+  "attempt_number": 1,
+  "client_time_ms": 0,
+  "paste_detected": false
 }
 ```
+
+`client_time_ms` (optional) and `paste_detected` (optional) are ADVISORY
+anti-cheat signals. They are recorded (into `phase_attempts.time_ms` and a
+`integrity:paste` session event) and fed to a best-effort integrity flag engine
+AFTER grading — they NEVER change the grade. `client_time_ms` is clamped
+server-side (accepted only as an `int` in `(0, 86_400_000)`, else discarded). A
+follow-up submit carrying `client_context.nudge_response` (or
+`subphase="integrity-nudge"`) records an advisory `integrity_nudge_response`
+event and is never scored.
 
 **Response Body:**
 ```json
@@ -560,9 +571,15 @@ Evaluates a student's answer using a phase-aware grading pipeline and persists t
   "misconception_tags": ["string"],
   "next_hint": "string",
   "requires_review": false,
-  "attempt_number": 1
+  "attempt_number": 1,
+  "integrity_nudge": null
 }
 ```
+
+`integrity_nudge` is `null` unless a strong (sudden-mastery) integrity flag
+fired, in which case it is `{ "type": "explain_reasoning", "message": "..." }` —
+a soft-friction pedagogical prompt that NEVER gates progress. The reason code
+and thresholds are teacher-only and are not sent to the client.
 
 **400** `MISSING_QUESTION_ID` when `question_id` is absent. **404** `HW_NOT_FOUND` or `QUESTION_NOT_RESOLVED`. **422** `ANSWER_TARGET_NOT_GRADABLE` when the resolved backend item lacks trusted question text or answer material. AI judging routes through `ai_gateway` task `ANSWER_CHECK`; deterministic grading can still answer without an AI call.
 
@@ -1152,9 +1169,16 @@ Backend owns HP, trials, and difficulty. The model never receives `answer_spec.e
 {
   "boss_session_id": "string",
   "question_id": "string",
-  "student_answer": "string"
+  "student_answer": "string",
+  "client_time_ms": 0,
+  "paste_detected": false
 }
 ```
+
+`client_time_ms` / `paste_detected` are optional ADVISORY anti-cheat signals
+(same semantics as `/runtime/submit-answer`). They are fed to a best-effort
+integrity flag engine AFTER grading and NEVER change `is_correct` / `score` /
+`hp` / `boss_status`.
 
 **200**
 ```json
@@ -1169,9 +1193,14 @@ Backend owns HP, trials, and difficulty. The model never receives `answer_spec.e
   "current_difficulty": "medium",
   "boss_status": "active|won|failed",
   "should_retry_same_skill": false,
-  "misconception_tags": ["string"]
+  "misconception_tags": ["string"],
+  "integrity_nudge": null
 }
 ```
+
+`integrity_nudge` is `null` unless a strong (sudden-mastery) integrity flag
+fired; when present it is `{ "type": "explain_reasoning", "message": "..." }` and
+NEVER gates progress (all grade/HP/status fields above are already final).
 
 ### POST /api/ai/boss/state
 
@@ -1336,15 +1365,25 @@ Reports which AI backend is active plus the resolved effective model for every g
 
 Returns all `status = "pending"` items.
 
-**200** array of `{ "id": int, "question_id": "string", "student_answer": "string", "answer_spec": {...}, "ai_response": {...}, "status": "pending", "created_at": "..." }`.
+**Query params:** `kind` (optional) — when set to `"grading"` or `"integrity"`,
+filters the listing to that lane. Omit it to return both lanes (legacy
+behavior). Integrity rows are ADVISORY academic-integrity flags (teacher
+intelligence) — they never participated in grading.
+
+**200** array of `{ "id": int, "question_id": "string", "student_answer": "string", "answer_spec": {...}, "ai_response": {...}, "status": "pending", "created_at": "...", "kind": "grading" | "integrity", "integrity_reason": "string|null", "integrity_severity": "low|medium|strong|null", "session_id": "string|null" }`.
 
 ---
 
 ### POST /api/ai/review-queue/{id}/decide
 
 ```json
-{ "correct": true, "score": 1.0, "feedback": "string" }
+{ "correct": true, "score": 1.0, "feedback": "string",
+  "integrity_reason": "string (optional)",
+  "integrity_outcome": "string (optional, e.g. cleared|confirmed|dismissed)" }
 ```
+
+`integrity_reason` / `integrity_outcome` are optional and used when resolving an
+integrity-lane row; the full request is persisted verbatim into `decision_json`.
 
 **200** `{ "status": "ok" }`. **404** — item not found or already resolved.
 
@@ -2215,3 +2254,88 @@ Practice Arc.
 | 400 | `CBP_NO_REASONING` | `reasoning_text` absent or blank |
 | 404 | `HW_NOT_FOUND` | `homework_id` does not resolve |
 | 403 | `CBP_REASONING_NOT_AUTHORED` | homework has no `decision_process_explanation` field |
+
+## Academic integrity (teacher intelligence)
+
+Per `docs/NETS_Academic_Integrity_AntiCheat_Research.md` §9.6. Integrity here is
+**teacher intelligence**, never an automated grade-penalty or hard block. An
+*authorship affirmation* is a teacher's human-in-the-loop record that they
+reviewed a session and affirm (or decline to affirm) the student's authorship.
+These endpoints compute no grade and no verdict — affirmations are advisory
+metadata only.
+
+### POST /api/integrity/affirm
+
+Record a teacher's authorship affirmation for a session. Optionally resolves the
+integrity review-queue items the teacher addressed when affirming, so the audit
+trail links the affirmation to the signals it covers.
+
+**Request**
+```json
+{
+  "session_id": "string",
+  "homework_id": "string",
+  "teacher_id": "string | null",
+  "affirmed": false,
+  "note": "string | null",
+  "checkpoints": [],
+  "resolve_queue_ids": [123, 124]
+}
+```
+
+- `affirmed`: the teacher's verdict (default `false`).
+- `checkpoints`: optional free-form list of the review points the teacher
+  inspected (stored verbatim).
+- `resolve_queue_ids`: review-queue item ids to mark resolved with a
+  `{"resolved_by": "teacher_affirmation", ...}` decision. Only ids that are still
+  `pending` resolve; the returned `resolved_queue_ids` reflects what actually
+  resolved.
+
+**Response 200**
+```json
+{
+  "ok": true,
+  "affirmation": {
+    "id": 1,
+    "session_id": "string",
+    "homework_id": "string",
+    "teacher_id": "string | null",
+    "affirmed": false,
+    "note": "string | null",
+    "checkpoints": [],
+    "integrity_queue_ids": [123],
+    "created_at": "ISO-8601 string"
+  },
+  "resolved_queue_ids": [123]
+}
+```
+
+### GET /api/integrity/affirmations
+
+List affirmations, optionally filtered. Newest first.
+
+**Query params**
+
+| Param | Type | When |
+|---|---|---|
+| `session_id` | string? | filter to one session |
+| `homework_id` | string? | filter to one homework |
+
+With neither filter, returns all rows (admin/audit view).
+
+**Response 200** — a JSON array of affirmation records (same shape as
+`affirmation` above). An empty result is `[]`.
+
+### GET /api/integrity/affirmations/view
+
+Read-only `<pre>` JSON dump of a session's affirmations (no framework — a plain
+HTML inspection surface for a teacher).
+
+**Query params**
+
+| Param | Type | When |
+|---|---|---|
+| `session_id` | string? | filter to one session |
+
+**Response 200** — `text/html`: a single `<pre>` element containing the
+pretty-printed (HTML-escaped) affirmation JSON.

@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Any
 
 from ..services import tutor, ai_orchestrator, injector, ai_debug, ai_context, ai_gateway
+from ..services.tutor import _fence_untrusted, _strip_fence_tags
 from ..services.slur_filter import classify, detect_slurs
 from ..services import warnings as warnings_svc
 from ..services.gate_state import is_practice_unlocked
@@ -43,6 +44,12 @@ class RuntimeAnswerSubmitRequest(BaseModel):
     student_work_text: Optional[str] = None
     client_context: dict[str, Any] = Field(default_factory=dict)
     attempt_number: Optional[int] = None
+    # Anti-cheat signal ingestion (ADVISORY — never alters grading). Both
+    # optional; an absent value is treated as "unknown / not measured" and
+    # produces zero integrity signal. `client_time_ms` is clamped server-side
+    # before use; `paste_detected` only matters on opt-in assessment phases.
+    client_time_ms: Optional[int] = None
+    paste_detected: Optional[bool] = None
 
 class CheckAnswerRequest(BaseModel):
     # Legacy free-form fields (made optional so sentence-fill phase callers
@@ -116,6 +123,24 @@ class CheckAnswerRequest(BaseModel):
     # client NEVER sends the expected answer value.
     item_index: Optional[int] = None
 
+    # Anti-cheat signal ingestion (ADVISORY — never alters grading). Optional;
+    # absent = "unknown / not measured" → zero integrity signal. Mirrors the
+    # fields on RuntimeAnswerSubmitRequest so the legacy /check-answer surface
+    # can carry the same signals.
+    client_time_ms: Optional[int] = None
+    paste_detected: Optional[bool] = None
+
+    # Soft-friction follow-up (anti-cheat wiring). When the runtime surfaces an
+    # `integrity_nudge` (a strong-flag "explain in your own words" prompt), the
+    # student's free-text reply is posted back here. A submit that carries a
+    # `nudge_response` (or `subphase=="integrity-nudge"`) is recorded as an
+    # ADVISORY session event and EARLY-RETURNS `{"advisory": true}` — it is NEVER
+    # graded and never produces a score. Mirrors the same contract on the
+    # /ai/runtime/submit-answer surface. `subphase` is also threaded into the
+    # integrity engine on graded submits (G1).
+    subphase: Optional[str] = None
+    nudge_response: Optional[str] = None
+
 
 class FinalizeCheckAnswerRequest(BaseModel):
     phase: str
@@ -174,6 +199,13 @@ class ReviewDecideRequest(BaseModel):
     correct: bool
     score: float
     feedback: str
+    # Integrity-resolution fields (anti-cheat wiring, 2026-05-22). Optional so
+    # the legacy grading-review decide path is unchanged. The whole request is
+    # persisted verbatim into `decision_json`, so a teacher can record how an
+    # integrity flag was resolved (e.g. integrity_outcome="cleared" /
+    # "confirmed" / "dismissed") without a schema change.
+    integrity_reason: Optional[str] = None
+    integrity_outcome: Optional[str] = None
 
 
 # Wave F1 — live tutor chat + boss-plan + history.
@@ -258,6 +290,77 @@ def _result_action(result: dict[str, Any]) -> str:
     if result.get("correct") is False:
         return "rejected"
     return "completed"
+
+
+async def _attach_integrity(
+    req: CheckAnswerRequest,
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    """Shared post-grading integrity hook for the /ai/check-answer surface (G1).
+
+    The v2 React runtime submits CBP checkpoints, CBP reasoning, Memory Check
+    and the practice-arc games to ``POST /api/ai/check-answer`` — which NEVER
+    routes through ``tutor.process_runtime_answer``. So the integrity engine +
+    signal ingestion + soft-friction nudge only ran for the tutor runtime + the
+    boss before this hook. This wires the SAME engine into the check-answer
+    branches by REUSING ``evaluate_runtime_submit`` (no forked flag logic).
+
+    ADVISORY + BEST-EFFORT, exactly like the runtime path:
+      - never changes ``correct`` / ``is_correct`` / ``score`` / ``feedback`` /
+        ``passed`` — it only *adds* an optional ``integrity_nudge`` key,
+      - any failure is swallowed and the graded ``result`` is returned unchanged,
+      - ``client_time_ms`` is clamped via ``clamp_client_time_ms`` (H1),
+      - it runs AFTER the branch persisted its ``phase_attempt`` row, so the
+        assessment correct-rate the engine derives includes THIS submit.
+
+    Covers ``case_based_preview`` / ``case_based_preview_reasoning`` /
+    ``memory_check`` (the assessment phases) plus the games (which the engine
+    no-ops as non-assessment under the AI-use policy). Returns ``result``.
+    """
+    if not isinstance(result, dict):
+        return result
+    try:
+        from ..services.integrity_wiring import (
+            evaluate_runtime_submit,
+            clamp_client_time_ms,
+        )
+
+        session_id = req.session_id or "default"
+        hw_id = req.homework_id
+        if not hw_id:
+            return result  # no homework context → nothing to attribute a flag to
+
+        # Resolve the per-homework anti-cheat policy + grade-level from
+        # content_json (mirrors the runtime path's boss_meta sourcing).
+        boss_meta = None
+        hw_grade = None
+        try:
+            homework = await db.get_homework(hw_id)
+            content_json = (homework or {}).get("content_json") or {}
+            boss_meta = content_json.get("boss_meta")
+            hw_grade = content_json.get("grade") or (homework or {}).get("grade")
+        except Exception:
+            boss_meta = None
+            hw_grade = None
+
+        nudge = await evaluate_runtime_submit(
+            session_id=session_id,
+            hw_id=hw_id,
+            phase=req.phase or "",
+            subphase=req.subphase or None,
+            question_id=req.question_id or None,
+            time_ms=clamp_client_time_ms(req.client_time_ms),
+            paste_detected=req.paste_detected,
+            grade=hw_grade,
+            boss_meta=boss_meta,
+        )
+        if nudge:
+            result["integrity_nudge"] = nudge
+    except Exception as _integrity_exc:  # never break grading
+        _log.warning(
+            "check-answer integrity hook failed (non-fatal): %s", _integrity_exc
+        )
+    return result
 
 
 def _attach_check_answer_debug(
@@ -373,14 +476,43 @@ async def ai_status() -> dict:
 # --- Review-queue endpoints (Fix #5: moved under /ai/ prefix for consistency) ---
 
 @router.get("/ai/review-queue")
-async def get_review_queue():
+async def get_review_queue(kind: Optional[str] = Query(default=None)):
+    """List pending review items.
+
+    Without ``?kind=`` this returns every pending row (grading + integrity),
+    preserving the legacy behavior. With ``?kind=integrity`` (or
+    ``?kind=grading``) the listing is filtered to that lane so a teacher can
+    triage ADVISORY integrity flags separately from grading-review items.
+    """
     from .. import db
-    return await db.get_review_queue()
+    return await db.get_review_queue(kind=kind)
 
 @router.post("/ai/review-queue/{id}/decide")
 async def decide_review_queue(req: ReviewDecideRequest, id: int = PathParam(...)):
     from .. import db
-    success = await db.resolve_review_item(id, req.model_dump())
+
+    # M2 — an ADVISORY kind='integrity' row is NOT gradeable. A teacher resolves
+    # it by recording an `integrity_outcome` (e.g. "cleared" / "confirmed" /
+    # "dismissed"), never a normal {correct, score, feedback} grading verdict.
+    # Refuse a grading decision against an integrity row so a flag can never be
+    # mistaken for / converted into a grade.
+    kind = await db.get_review_item_kind(id)
+    if kind == "integrity" and not req.integrity_outcome:
+        raise HTTPException(
+            400,
+            detail={
+                "error": (
+                    "integrity review rows are advisory — resolve them with an "
+                    "integrity_outcome, not a grading decision"
+                ),
+                "code": "RQ_INTEGRITY_NOT_GRADEABLE",
+            },
+        )
+
+    # exclude_none keeps the legacy {correct, score, feedback} decision payload
+    # byte-identical when the optional integrity-resolution fields are omitted;
+    # they only appear in `decision_json` when a teacher actually sets them.
+    success = await db.resolve_review_item(id, req.model_dump(exclude_none=True))
     if not success:
         raise HTTPException(404, detail="Review item not found or already resolved")
     return {"status": "ok"}
@@ -1099,7 +1231,10 @@ async def _grade_rlc_reasoning(
         "expert_role": expert_role or "general",
         "case_intro": case_intro or "",
         "step_prompt": step.get("prompt", "") if isinstance(step, dict) else "",
-        "student_text": text or "",
+        # Fence the student's free text — the server-only acceptable_keywords ride
+        # in the same prompt, so the student value must be treated strictly as
+        # data to grade, never as instructions.
+        "student_text": _fence_untrusted(text or ""),
         # Server-only anchor — never echoed back to client; prompt instructs
         # the LLM to use these as a check, not to quote them.
         "acceptable_keywords": (
@@ -1132,7 +1267,9 @@ async def _grade_rlc_reasoning(
     except (TypeError, ValueError):
         score = 0
     score = max(0, min(100, score))
-    feedback = str(ai_response.get("feedback") or "")
+    # Defensive: strip any fence tags the model echoed back so a fenced copy of
+    # the student's text can't surface in the returned feedback.
+    feedback = _strip_fence_tags(str(ai_response.get("feedback") or ""))
     return (score, feedback)
 
 
@@ -1200,7 +1337,11 @@ async def _grade_cbp_reasoning(
     payload = {
         "case_setup": case_setup_str,
         "prompt": dpe.get("prompt", "") if isinstance(dpe, dict) else "",
-        "student_text": text or "",
+        # Fence the student's free text — the server-only keyword anchors ride in
+        # the same prompt, so the student value must be treated strictly as data
+        # to grade, never as instructions. (cbp-reasoning-checker.md already
+        # carries the matching "treat as untrusted" rule.)
+        "student_text": _fence_untrusted(text or ""),
         # Server-only anchors — never echoed back to client; prompt instructs
         # the LLM to use these as a check, not to quote them.
         "concept_keywords": (dpe.get("concept_keywords") or []) if isinstance(dpe, dict) else [],
@@ -1230,7 +1371,9 @@ async def _grade_cbp_reasoning(
     except (TypeError, ValueError):
         score = 0
     score = max(0, min(100, score))
-    feedback = str(ai_response.get("feedback") or "")
+    # Defensive: strip any fence tags the model echoed back so a fenced copy of
+    # the student's text can't surface in the returned feedback.
+    feedback = _strip_fence_tags(str(ai_response.get("feedback") or ""))
     return (score, feedback)
 
 
@@ -1640,6 +1783,39 @@ def _fb_grade_band_from_grade(grade: Optional[int]) -> str:
     return "g9_11"
 
 
+# One-time deprecation flag for the legacy boss HP/outcome path. The v2 boss
+# (POST /ai/boss/*) is server-authoritative on HP; the legacy turn path only
+# mirrors a client-reported HP cursor, which a tampered client could inflate.
+# We keep the endpoint working (the v1 template still calls it) but no longer
+# let client HP push stars/XP beyond what the boss's own max_hp allows.
+_LEGACY_BOSS_HP_WARNED = False
+
+
+def _legacy_boss_hp_warn_once() -> None:
+    """Log the legacy-path deprecation warning at most once per process."""
+    global _LEGACY_BOSS_HP_WARNED
+    if not _LEGACY_BOSS_HP_WARNED:
+        _LEGACY_BOSS_HP_WARNED = True
+        _log.warning("legacy boss-turn path is deprecated; v2 uses /ai/boss/*")
+
+
+def _safe_outcome_hp(client_hp: Optional[int], max_hp: int) -> int:
+    """Clamp a client-reported HP cursor into ``[0, max_hp]`` for outcome math.
+
+    Conservative anti-inflation guard (Gap C): the legacy path can only TRUST a
+    client HP value up to the boss's own maximum. A forged ``hp_remaining`` above
+    ``max_hp`` (or below 0) can no longer inflate the star/XP outcome. This does
+    NOT make HP server-authoritative — that's the v2 boss's job — it just stops
+    the legacy path's outcome from being driven past its server-known ceiling.
+    """
+    try:
+        hp = int(client_hp or 0)
+    except (TypeError, ValueError):
+        hp = 0
+    ceiling = max(1, int(max_hp or 1))
+    return max(0, min(hp, ceiling))
+
+
 # XP table per spec §11 — by boss_type and stars (1-3).
 # Mythical only rewards 3-star defeats; lesser stars award 0.
 _FB_XP_TABLE: dict[str, dict[int, int]] = {
@@ -1934,8 +2110,10 @@ async def _check_answer_final_boss(req: CheckAnswerRequest) -> dict:
     # client-reported HP (defeat = hp_remaining > 0 AND attempt_number is final).
     done = bool(boss_response.get("done"))
     if done:
+        # Gap C: legacy path — do not trust client HP beyond the boss ceiling.
+        _legacy_boss_hp_warn_once()
         outcome, stars, outcome_xp = _boss_outcome_for(
-            hp_remaining=int(req.hp_remaining or 0),
+            hp_remaining=_safe_outcome_hp(req.hp_remaining, int(max_hp)),
             max_hp=int(max_hp),
             hints_used=int(req.attempts_used or state.get("hints_used", 0) or 0),
             attempt_number=attempt_number,
@@ -3037,16 +3215,46 @@ async def _check_answer_puzzle_lock(req: CheckAnswerRequest) -> dict:
 @router.post("/ai/runtime/submit-answer")
 async def submit_runtime_answer(req: RuntimeAnswerSubmitRequest):
     from ..services.runtime_answer_resolver import resolve_runtime_answer
-    
+
     if req.session_id:
         tutor._validate_session_id(req.session_id)
-        
+
+    # Soft-friction follow-up (anti-cheat wiring). A submit that carries a
+    # `nudge_response` (in client_context, or via subphase=="integrity-nudge")
+    # records an ADVISORY session event and is NEVER scored. Best-effort.
+    nudge_response = None
+    if isinstance(req.client_context, dict):
+        nudge_response = req.client_context.get("nudge_response")
+    if nudge_response is not None or req.subphase == "integrity-nudge":
+        try:
+            from ..db import session_events_repo
+
+            await session_events_repo.add_session_event(
+                session_id=req.session_id,
+                hw_id=req.homework_id,
+                event_type="integrity_nudge_response",
+                payload={
+                    "question_id": req.question_id,
+                    "nudge_response": nudge_response,
+                },
+                phase=req.phase or None,
+                subphase=req.subphase or None,
+                question_id=req.question_id or None,
+            )
+        except Exception as _nudge_exc:
+            _log.warning(
+                "integrity_nudge_response session_event failed (non-fatal): %s",
+                _nudge_exc,
+            )
+
     try:
         target = await resolve_runtime_answer(req)
         result = await tutor.process_runtime_answer(
             target=target.model_dump(),
             student_answer=req.student_answer,
-            attempt_number=req.attempt_number or 1
+            attempt_number=req.attempt_number or 1,
+            client_time_ms=req.client_time_ms,
+            paste_detected=req.paste_detected,
         )
         return result
     except HTTPException:
@@ -3060,6 +3268,36 @@ async def submit_runtime_answer(req: RuntimeAnswerSubmitRequest):
 
 @router.post("/ai/check-answer")
 async def check_answer(req: CheckAnswerRequest):
+    # C2 — Soft-friction follow-up. A submit carrying a `nudge_response` (or
+    # marked subphase=="integrity-nudge") is the student's reply to a
+    # strong-flag "explain in your own words" nudge. It is ADVISORY, never a
+    # gradeable answer: record a session_events `integrity_nudge_response` event
+    # and EARLY-RETURN `{"advisory": true}` BEFORE any grading dispatch below.
+    # This must precede every phase branch so a nudge reply never falls through
+    # to a real grader (and never produces a score).
+    if req.nudge_response is not None or req.subphase == "integrity-nudge":
+        try:
+            from ..db import session_events_repo
+
+            await session_events_repo.add_session_event(
+                session_id=req.session_id or "default",
+                hw_id=req.homework_id or "",
+                event_type="integrity_nudge_response",
+                payload={
+                    "question_id": req.question_id or None,
+                    "nudge_response": req.nudge_response,
+                },
+                phase=req.phase or None,
+                subphase=req.subphase or None,
+                question_id=req.question_id or None,
+            )
+        except Exception as _nudge_exc:  # never break on the advisory write
+            _log.warning(
+                "integrity_nudge_response session_event failed (non-fatal): %s",
+                _nudge_exc,
+            )
+        return {"advisory": True}
+
     # Phase dispatch — the new sentence-fill grading branch is keyed on
     # phase=="sentence-fill" AND presence of `homework_id`. The phase string
     # alone is insufficient because pre-existing tests/clients submit
@@ -3166,6 +3404,7 @@ async def check_answer(req: CheckAnswerRequest):
     if req.phase == "case_based_preview_reasoning" and req.homework_id:
         try:
             result = await _check_answer_cbp_reasoning(req)
+            result = await _attach_integrity(req, result)
             return _attach_check_answer_debug(
                 req, result, checker_path="phase_adapter:case_based_preview_reasoning"
             )
@@ -3180,6 +3419,7 @@ async def check_answer(req: CheckAnswerRequest):
     if req.phase == "case_based_preview" and req.homework_id:
         try:
             result = await _check_answer_case_based_preview(req)
+            result = await _attach_integrity(req, result)
             return _attach_check_answer_debug(
                 req, result, checker_path="phase_adapter:case_based_preview"
             )
@@ -3194,6 +3434,7 @@ async def check_answer(req: CheckAnswerRequest):
     if req.phase == "memory_check" and req.homework_id:
         try:
             result = await _check_answer_memory_check(req)
+            result = await _attach_integrity(req, result)
             return _attach_check_answer_debug(
                 req, result, checker_path="phase_adapter:memory_check"
             )
@@ -3207,6 +3448,7 @@ async def check_answer(req: CheckAnswerRequest):
     if req.phase == "adaptive-quiz" and req.homework_id:
         try:
             result = await _check_answer_adaptive_quiz(req)
+            result = await _attach_integrity(req, result)
             return _attach_check_answer_debug(
                 req, result, checker_path="phase_adapter:adaptive-quiz"
             )
@@ -3220,6 +3462,7 @@ async def check_answer(req: CheckAnswerRequest):
     if req.phase == "mystery-box" and req.homework_id:
         try:
             result = await _check_answer_mystery_box(req)
+            result = await _attach_integrity(req, result)
             return _attach_check_answer_debug(
                 req, result, checker_path="phase_adapter:mystery-box"
             )
@@ -3233,6 +3476,7 @@ async def check_answer(req: CheckAnswerRequest):
     if req.phase == "puzzle-lock" and req.homework_id:
         try:
             result = await _check_answer_puzzle_lock(req)
+            result = await _attach_integrity(req, result)
             return _attach_check_answer_debug(
                 req, result, checker_path="phase_adapter:puzzle-lock"
             )
@@ -3344,8 +3588,10 @@ async def boss_turn(req: BossTurnRequest):
             boss_type = req.boss_type if req.boss_type in _FB_XP_TABLE else "sub"
             grade_band = req.grade_band or _fb_grade_band_from_grade(req.grade)
             max_hp = int(req.max_hp) if req.max_hp else _fb_default_hp_for_grade_band(grade_band)
+            # Gap C: legacy path — do not trust client HP beyond the boss ceiling.
+            _legacy_boss_hp_warn_once()
             outcome, stars, outcome_xp = _boss_outcome_for(
-                hp_remaining=int(req.hp_remaining or 0),
+                hp_remaining=_safe_outcome_hp(req.hp_remaining, int(max_hp)),
                 max_hp=max_hp,
                 hints_used=int(req.hints_used or 0),
                 attempt_number=int(req.attempt_number or 1),
