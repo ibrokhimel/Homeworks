@@ -13,6 +13,9 @@ import {
 import type { Checkpoint, CheckpointKind } from "../shared/types";
 import CbpBackdrop from "./CbpBackdrop";
 import CbpJourney from "./CbpJourney";
+import IntegrityNudge from "./IntegrityNudge";
+import { useAnswerTelemetry } from "./hooks/useAnswerTelemetry";
+import { acknowledgeNudge } from "../shared/api";
 import s from "./CaseBasedPreview.module.css";
 
 const KIND_LABEL: Record<CheckpointKind, string> = {
@@ -132,6 +135,8 @@ function CheckpointStage() {
   const total = checkpoints.length || 3;
   const checkpoint = checkpoints[index] as Checkpoint | undefined;
   const [selected, setSelected] = useState<number | null>(null);
+  // Advisory anti-cheat — MCQ taps → timing only (no paste handler needed).
+  const tele = useAnswerTelemetry(index);
 
   // Reset selection whenever we move to a different checkpoint.
   useEffect(() => setSelected(null), [index]);
@@ -148,8 +153,9 @@ function CheckpointStage() {
     if (selected === null || submitting) return;
     // Tap-MCQ checkpoints grade by option index (answer_spec.type=option_index).
     // We submit the tapped index as a string; the server holds the expected
-    // index and decides correctness — the client never self-grades.
-    void submit(index, String(selected));
+    // index and decides correctness — the client never self-grades. Telemetry
+    // is advisory only (timing for these taps).
+    void submit(index, String(selected), tele.read());
   };
 
   return (
@@ -202,6 +208,10 @@ function LearningBlockStage() {
   const advance = useRuntimeStore((st) => st.advanceFromLearningBlock);
   const retry = useRuntimeStore((st) => st.retryCheckpoint);
   const payload = useRuntimeStore((st) => st.payload);
+  const nudge = useRuntimeStore((st) => st.cbp.lastNudge);
+  const dismissNudge = useRuntimeStore((st) => st.dismissCbpNudge);
+  const hwId = useRuntimeStore((st) => st.hwId);
+  const sessionId = useRuntimeStore((st) => st.sessionId);
 
   const correct = results[index];
   const total = payload?.content_json.case_based_preview?.checkpoints?.length ?? 3;
@@ -226,6 +236,15 @@ function LearningBlockStage() {
           </div>
         )}
       </FeatureCard>
+
+      {/* Advisory anti-cheat nudge — beside feedback, never gates Continue. */}
+      <IntegrityNudge
+        nudge={nudge}
+        onDismiss={dismissNudge}
+        onRespond={(choice) =>
+          acknowledgeNudge(hwId, sessionId, "case_based_preview", choice)
+        }
+      />
 
       <div className={s.actions}>
         {!correct && (
@@ -253,10 +272,16 @@ function ReasoningStage() {
   const setText = useRuntimeStore((st) => st.setReasoningText);
   const submit = useRuntimeStore((st) => st.submitReasoning);
   const enterSim = useRuntimeStore((st) => st.enterSimulation);
+  const nudge = useRuntimeStore((st) => st.cbp.lastNudge);
+  const dismissNudge = useRuntimeStore((st) => st.dismissCbpNudge);
+  const hwId = useRuntimeStore((st) => st.hwId);
+  const sessionId = useRuntimeStore((st) => st.sessionId);
   const dpe = useRuntimeStore(
     (st) =>
       st.payload?.content_json.case_based_preview?.decision_process_explanation
   );
+  // Advisory anti-cheat — stable resetKey for this single reasoning step.
+  const tele = useAnswerTelemetry("cbp-reasoning");
 
   // The authored prompt + min length drive the step (we only reach here when a
   // prompt exists). Fall back to sane defaults that match the server's gate.
@@ -271,7 +296,7 @@ function ReasoningStage() {
 
   const onSubmit = () => {
     if (!meetsMin || submitting) return;
-    void submit();
+    void submit(tele.read());
   };
 
   return (
@@ -290,6 +315,7 @@ function ReasoningStage() {
           className={s.reasoningInput}
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onPaste={tele.onPaste}
           placeholder="Walk through your thinking: the concept, the method, and the trap to avoid…"
           rows={6}
           disabled={submitting}
@@ -322,6 +348,15 @@ function ReasoningStage() {
           {submitError}
         </p>
       )}
+
+      {/* Advisory anti-cheat nudge — beside the verdict, never gates submit. */}
+      <IntegrityNudge
+        nudge={nudge}
+        onDismiss={dismissNudge}
+        onRespond={(choice) =>
+          acknowledgeNudge(hwId, sessionId, "case_based_preview_reasoning", choice)
+        }
+      />
 
       <div className={s.actions}>
         <Button

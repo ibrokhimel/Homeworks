@@ -11,6 +11,9 @@ import {
   Button,
 } from "../shared/ui/primitives";
 import type { MemoryCheckItem, MemoryCheckItemType } from "../shared/types";
+import IntegrityNudge from "./IntegrityNudge";
+import { useAnswerTelemetry } from "./hooks/useAnswerTelemetry";
+import { acknowledgeNudge } from "../shared/api";
 import s from "./MemoryCheck.module.css";
 
 const KIND_LABEL: Record<MemoryCheckItemType, string> = {
@@ -43,6 +46,12 @@ function ItemStage() {
   const submitMemoryItem = useRuntimeStore((st) => st.submitMemoryItem);
   const advanceMemoryItem = useRuntimeStore((st) => st.advanceMemoryItem);
   const goto = useRuntimeStore((st) => st.goto);
+  const nudge = useRuntimeStore((st) => st.fc.lastNudge);
+  const dismissNudge = useRuntimeStore((st) => st.dismissMcNudge);
+  const hwId = useRuntimeStore((st) => st.hwId);
+  const sessionId = useRuntimeStore((st) => st.sessionId);
+  // Advisory anti-cheat — re-baseline timing/paste per item.
+  const tele = useAnswerTelemetry(itemIndex);
 
   const items = (payload?.content_json.memory_check?.items ?? []) as MemoryCheckItem[];
   const total = items.length;
@@ -75,13 +84,14 @@ function ItemStage() {
     if (hasOptions) {
       if (selected === null) return;
       // Option types grade by option_index server-side: submit the tapped
-      // index as a string. The client never decides correctness.
-      void submitMemoryItem(itemIndex, String(selected));
+      // index as a string. The client never decides correctness. Telemetry is
+      // advisory (timing for taps; no paste on options).
+      void submitMemoryItem(itemIndex, String(selected), tele.read());
     } else {
-      // fill_blank: submit the typed text verbatim.
+      // fill_blank: submit the typed text verbatim, with advisory telemetry.
       const trimmed = text.trim();
       if (!trimmed) return;
-      void submitMemoryItem(itemIndex, trimmed);
+      void submitMemoryItem(itemIndex, trimmed, tele.read());
     }
   };
 
@@ -146,6 +156,7 @@ function ItemStage() {
             onKeyDown={(e) => {
               if (e.key === "Enter") onSubmit();
             }}
+            onPaste={tele.onPaste}
             data-testid="mc-fill-input"
             autoComplete="off"
           />
@@ -173,6 +184,15 @@ function ItemStage() {
           <p className={s.feedbackBody}>{lastFeedback}</p>
         </div>
       )}
+
+      {/* Advisory anti-cheat nudge — beside feedback, never gates Continue. */}
+      <IntegrityNudge
+        nudge={nudge}
+        onDismiss={dismissNudge}
+        onRespond={(choice) =>
+          acknowledgeNudge(hwId, sessionId, "memory_check", choice)
+        }
+      />
 
       <div className={s.actions}>
         {!answered ? (
