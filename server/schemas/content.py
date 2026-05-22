@@ -775,6 +775,29 @@ class DecisionProcessExplanation(_Permissive):
     pass_score: Optional[int] = None
 
 
+class CaseBlock(_Permissive):
+    """One entry in CaseBasedPreview.blocks[] — a PRESENTATION-ORDER overlay
+    that lets authors interleave text pages and checkpoints in the sequence
+    they want shown (additive; absent on legacy/v1 CBPs).
+
+    A `blocks[]` entry is a presentation reference ONLY — it never carries
+    grading data. `checkpoints[]` stays the canonical checkpoint list; a
+    checkpoint block just points at it via `ref` = the index into
+    `CaseBasedPreview.checkpoints`. So grading (ai.py
+    `_check_answer_case_based_preview`) and gate_state index `checkpoints[ref]`
+    unchanged, and redaction needs no new key: text blocks carry no answer
+    fields, and a checkpoint block carries only an int `ref` (the answer lives
+    in `checkpoints[].answer_spec`, already stripped server-side).
+    """
+
+    type: Optional[str] = None            # "text" | "checkpoint"
+    # ---- text block (student-visible) ----
+    title: Optional[str] = None
+    body: Optional[str] = None
+    # ---- checkpoint block — presentation-order reference into checkpoints[] ----
+    ref: Optional[int] = None             # index into CaseBasedPreview.checkpoints
+
+
 class CaseBasedPreview(_Permissive):
     """Tile A of the Learning Hub — guided 3-checkpoint real-life learning case."""
 
@@ -784,6 +807,11 @@ class CaseBasedPreview(_Permissive):
     visual_plan: Optional[List[Dict[str, Any]]] = None
     case_setup: Optional[Dict[str, Any]] = None   # {story, role, task}
     checkpoints: Optional[List[CaseCheckpoint]] = None
+    # Presentation-order overlay of text pages + checkpoint refs (additive).
+    # A PRESENTATION layer only: `checkpoints[]` above stays canonical; a
+    # checkpoint block carries `ref` = index into `checkpoints[]`. No grading
+    # or redaction change — see CaseBlock docstring.
+    blocks: Optional[List[CaseBlock]] = None
     # Open-ended AI-graded reasoning step after the 3 MCQ checkpoints (additive).
     decision_process_explanation: Optional[DecisionProcessExplanation] = None
     final_simulation: Optional[Dict[str, Any]] = None  # {correct_path(redacted), wrong_path}
