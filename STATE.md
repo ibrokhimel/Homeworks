@@ -665,3 +665,17 @@ The homework cycle's closing phase (runs after all 3 divisions: Case-Based Previ
 ### Notes
 - **Existing test homeworks are forward-compatible** — these are all additive (`extra="allow"`) schema + new endpoints + new gate keys; no `content_json` key was renamed, so the seeded test homework keeps working without a re-create.
 - **Deferred:** true same-concept question REGENERATION on redo (touches the LLM generation pipeline); teacher-facing reflection dashboard UI.
+
+---
+
+## Builder authoring-drafts fix — COMPLETE (DaddysBranch, commits `b02ed8a` + `c1d463e`)
+
+**Symptom:** the v2 builder 400'd on every keystroke (`PUT /api/homeworks/{id}`) — an author couldn't save. Root cause: the builder autosaves the WHOLE `content_json` on every change, and `_validate_content_json` (the documented strict PUT/PATCH boundary) ran delivery-grade per-item completeness checks on half-written questions. A single in-progress Sentence-Fill item (`gb_sentence_fill.0: "passage must contain at least one '___' blank marker"`) rejected the entire blob, taking every other edit with it. ~12 game-item models hard-validate the same way; the builder's `compact()` also drops empty strings/arrays so required fields arrived absent → structural "Field required" 400s too.
+
+**Fix — "server allows drafts" (server-authoritative split of save vs. share):**
+- `_validate_content_json(content, *, authoring=False)` → `ContentJSON.model_validate(content, context={"authoring": authoring})`. PUT + PATCH pass `authoring=True`. A `_is_authoring(info)` guard makes the 7 delivery-grade business validators (`BossMeta`, `TileMatchPair`, `SentenceFillItem`, `RealLifeChallengeCase`, `MemoryPalaceGame`, `ContentJSON._validate_tile_match_collection`, `_validate_mythical_boss_hints`) early-return in authoring mode. **Structure + types are STILL enforced** (the original "dropped-key corruption" guard). Default `authoring=False` keeps every other caller fully strict — the newer resolver games already used non-raising `_advise` validators, so they needed no change.
+- Strict (non-`_Permissive`) game-item models got safe defaults on required scalar/list fields (`SentenceFillItem`, `TileMatchPair`, the RLC chain) so a compacted in-progress payload validates structurally.
+- **NEW `GET /api/homeworks/{id}/readiness`** runs STRICT validation (no authoring context) → `{ready, issues:[{path,msg}]}`. Re-enforces delivery-grade completeness at the SHARE boundary instead of the SAVE boundary. Documented in `docs/API.md`.
+- **Builder readiness indicator** (`BuilderApp.tsx` footer): fetches readiness on load + after each successful save → "✓ Ready to share" / "N things to finish before sharing" (issues on hover). Informational/amber — never blocks authoring. `getReadiness` in `builderApi.ts`; `data-testid="builder-readiness"`.
+
+**Verification:** `tests/test_authoring_draft_save.py` (8 — in-progress sentence_fill/tile PUT 200, readiness flags incomplete + true-for-complete, **strict-still-raises-without-context** so the schema isn't globally weakened). One existing test retargeted: a duplicate-left board now SAVES (business rule deferred) but its serializable-400 guarantee is re-asserted via `/readiness`. Full suite **3386 passed** (3 pre-existing env-only `AI_BACKEND_PREFERENCE` failures, unrelated). FE **64 vitest** + `tsc -b` clean; bundle rebuilt (`BuilderApp-DRcWyQGJ.js`). Verified live on :8765 — in-progress PUT 200, `/readiness` `ready=False`, new bundle served / old 404.
