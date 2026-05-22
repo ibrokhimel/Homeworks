@@ -706,6 +706,30 @@ class CaseCheckpoint(_Permissive):
     feedback: Optional[str] = None
 
 
+class DecisionProcessExplanation(_Permissive):
+    """Open-ended, AI-graded "Decision Process Explanation" step appended after
+    the 3 CBP MCQ checkpoints (additive — absent on legacy/v1 homeworks).
+
+    Student-visible fields (`prompt`, `min_chars`) survive hydration; everything
+    else is answer-bearing and is stripped by the runtime redactor (the keyword
+    buckets + `rubric` + `pass_score` are in ANSWER_BEARING_KEYS). The server
+    reads the full object from the DB row to grade; the browser only ever sees
+    `prompt` + `min_chars`.
+    """
+
+    # ---- Student-visible (survive redaction) ----
+    prompt: Optional[str] = None
+    min_chars: Optional[int] = None
+
+    # ---- Answer-bearing (stripped before hydration; server-only grading anchors) ----
+    concept_keywords: Optional[List[str]] = None
+    method_keywords: Optional[List[str]] = None
+    mistake_keywords: Optional[List[str]] = None
+    acceptable_keywords: Optional[List[str]] = None
+    rubric: Optional[Dict[str, Any]] = None
+    pass_score: Optional[int] = None
+
+
 class CaseBasedPreview(_Permissive):
     """Tile A of the Learning Hub — guided 3-checkpoint real-life learning case."""
 
@@ -715,6 +739,8 @@ class CaseBasedPreview(_Permissive):
     visual_plan: Optional[List[Dict[str, Any]]] = None
     case_setup: Optional[Dict[str, Any]] = None   # {story, role, task}
     checkpoints: Optional[List[CaseCheckpoint]] = None
+    # Open-ended AI-graded reasoning step after the 3 MCQ checkpoints (additive).
+    decision_process_explanation: Optional[DecisionProcessExplanation] = None
     final_simulation: Optional[Dict[str, Any]] = None  # {correct_path(redacted), wrong_path}
     feedback_summary: Optional[Dict[str, Any]] = None
     completion_rules: Optional[Dict[str, Any]] = None

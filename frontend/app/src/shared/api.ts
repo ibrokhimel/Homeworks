@@ -7,6 +7,7 @@ import type {
   CheckAnswerResult,
   GateState,
   HydratePayload,
+  ReasoningResult,
   ReflectionPerformance,
   ReflectionResult,
   TileMatchResult,
@@ -123,6 +124,29 @@ export function submitMemoryCheckItem(
       question_id: `mc_item${itemIndex}`,
       item_index: itemIndex,
       student_answer: answer,
+    }),
+  });
+}
+
+/**
+ * Submit the open-ended Case-Based Preview reasoning ("Decision Process
+ * Explanation"). Uses the SAME /api/ai/check-answer endpoint + request() helper
+ * as {@link submitCheckpoint}, with phase="case_based_preview_reasoning". The
+ * server grades the typed reasoning and returns {passed, score, feedback}.
+ * The verdict is ALWAYS the server's — the client never self-grades.
+ */
+export function submitReasoning(
+  hwId: string,
+  sessionId: string,
+  text: string
+): Promise<ReasoningResult> {
+  return request<ReasoningResult>("/api/ai/check-answer", {
+    method: "POST",
+    body: JSON.stringify({
+      homework_id: hwId,
+      session_id: sessionId,
+      phase: "case_based_preview_reasoning",
+      reasoning_text: text,
     }),
   });
 }

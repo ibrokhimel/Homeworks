@@ -11,7 +11,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+from unittest.mock import patch, AsyncMock
+
 import pytest
+
+import server.routes.ai as _ai_routes
 
 
 # ---------------------------------------------------------------------------
@@ -296,3 +300,180 @@ def test_mc_numeric_wrong_answer(client):
     code, data = _post_mc(client, hw_id, item_index=2, student_answer="15")
     assert code == 200, data
     assert data["correct"] is False, data
+
+
+# ---------------------------------------------------------------------------
+# Case-Based Preview "Decision Process Explanation" (open-ended, AI-graded)
+# ---------------------------------------------------------------------------
+#
+# Contract (must match the frontend exactly):
+#   request  { homework_id, session_id, phase: "case_based_preview_reasoning",
+#              reasoning_text }
+#   response { passed: bool, score: number(0..100), feedback: str }
+#
+# Grading combines deterministic keyword coverage (concept/method/mistake →
+# det_count 0..3) with AI judgment:
+#   score  = round(0.6*ai_score + 0.4*100*det_count/3)
+#   passed = score >= pass_score(default 60) AND det_count >= 2
+# On AI error: passed = det_count >= 2 (pure deterministic fallback).
+# The mock patches _grade_cbp_reasoning RLC-style so no live provider is hit.
+
+# Keyword buckets: concept="force", method="diagram", mistake="friction".
+_DPE = {
+    "prompt": "Explain which concept applies, why this method, and the mistake to avoid.",
+    "min_chars": 80,
+    "concept_keywords": ["force"],
+    "method_keywords": ["diagram"],
+    "mistake_keywords": ["friction"],
+    "acceptable_keywords": ["equilibrium"],
+    "rubric": {"concept": 40, "method": 40, "mistake": 20},
+    "pass_score": 60,
+}
+
+# A long reasoning text that hits ≥2 buckets (force + diagram → det_count 2).
+_LONG_TWO = (
+    "The key concept here is force balance, and I would use a free body diagram "
+    "to lay out every push and pull acting on the block before solving."
+)
+# A long reasoning text that hits all three buckets.
+_LONG_THREE = _LONG_TWO + " I would avoid the common friction mistake by accounting for it."
+# A long reasoning text that hits ZERO buckets (none of the keywords present).
+_LONG_ZERO = (
+    "I simply guessed the answer because it looked correct and felt right to me "
+    "at the time, without really thinking through the situation in any detail."
+)
+
+
+def _seed_v2_homework_with_reasoning(client) -> str:
+    payload = {
+        "title": "V2 CBP reasoning test HW",
+        "subject": "math-algebra",
+        "grade": 8,
+        "mode": "hard",
+        "family": "aniq-fanlar",
+        "content_json": {
+            "meta": {"title": "V2 CBP reasoning test HW"},
+            "flashcards": [],
+            "boss_questions": [],
+            "case_based_preview": {
+                "case_setup": {"story": "A block on a ramp", "role": "physicist", "task": "explain"},
+                "checkpoints": _CBP_CHECKPOINTS,
+                "decision_process_explanation": _DPE,
+            },
+            "memory_check": {"items": _MC_ITEMS},
+        },
+    }
+    resp = client.post("/api/homeworks", json=payload)
+    assert resp.status_code == 200, f"Seed failed: {resp.text}"
+    return resp.json()["id"]
+
+
+def _post_reasoning(client, hw_id: str, reasoning_text: str, **extra) -> tuple[int, dict]:
+    body = {
+        "phase": "case_based_preview_reasoning",
+        "homework_id": hw_id,
+        "reasoning_text": reasoning_text,
+        "session_id": extra.pop("session_id", "test-session-cbp-reasoning"),
+        **extra,
+    }
+    resp = client.post("/api/ai/check-answer", json=body)
+    try:
+        return resp.status_code, resp.json()
+    except Exception:
+        return resp.status_code, {"_raw": resp.text}
+
+
+def test_cbp_reasoning_too_short_rejected(client):
+    """Below min_chars → 400 CBP_REASONING_TOO_SHORT BEFORE any LLM call."""
+    hw_id = _seed_v2_homework_with_reasoning(client)
+    fake_grader = AsyncMock()
+    with patch.object(_ai_routes, "_grade_cbp_reasoning", new=fake_grader):
+        code, data = _post_reasoning(client, hw_id, reasoning_text="Too short.")
+    assert code == 400, data
+    # The cheap min-char gate runs first — grader must NOT be called.
+    fake_grader.assert_not_called()
+
+
+def test_cbp_reasoning_keyword_coverage_passes_on_ai_fail(client):
+    """When the AI grader is unavailable, det_count>=2 still passes (fallback).
+
+    The grader raising simulates provider downtime; the handler must NOT 500 and
+    must fall back to the deterministic verdict (passed = det_count >= 2)."""
+    hw_id = _seed_v2_homework_with_reasoning(client)
+
+    async def _boom(*a, **k):
+        raise RuntimeError("provider down")
+
+    with patch.object(_ai_routes, "_grade_cbp_reasoning", new=_boom):
+        code, data = _post_reasoning(client, hw_id, reasoning_text=_LONG_TWO)
+    assert code == 200, data
+    # _LONG_TWO hits concept+method buckets → det_count=2 → fallback passes.
+    assert data["passed"] is True, data
+    assert isinstance(data["score"], int)
+    assert 0 <= data["score"] <= 100
+
+
+def test_cbp_reasoning_keyword_empty_fails_even_if_ai_high(client):
+    """A high AI score CANNOT pass when keyword coverage is below 2 buckets.
+
+    Defends against gaming the open-ended step with fluent but off-topic prose:
+    passed requires det_count>=2 regardless of how high the AI scores."""
+    hw_id = _seed_v2_homework_with_reasoning(client)
+
+    async def _fake_high(*a, **k):
+        return (100, "Ajoyib!")
+
+    with patch.object(_ai_routes, "_grade_cbp_reasoning", new=_fake_high):
+        code, data = _post_reasoning(client, hw_id, reasoning_text=_LONG_ZERO)
+    assert code == 200, data
+    # det_count == 0 → fails the AND-gate even though AI returned 100.
+    assert data["passed"] is False, data
+
+
+def test_cbp_reasoning_ai_high_and_keywords_present_passes(client):
+    """High AI score AND >=2 keyword buckets → passed True with a combined score."""
+    hw_id = _seed_v2_homework_with_reasoning(client)
+
+    async def _fake_high(*a, **k):
+        return (90, "Tushuncha va usulni aniq ko'rsatdingiz.")
+
+    with patch.object(_ai_routes, "_grade_cbp_reasoning", new=_fake_high):
+        code, data = _post_reasoning(client, hw_id, reasoning_text=_LONG_THREE)
+    assert code == 200, data
+    assert data["passed"] is True, data
+    # score = round(0.6*90 + 0.4*100*3/3) = round(54 + 40) = 94
+    assert data["score"] == 94, data
+    assert data["feedback"] == "Tushuncha va usulni aniq ko'rsatdingiz."
+
+
+def test_cbp_reasoning_response_never_leaks_keywords_or_rubric(client):
+    """The response body carries ONLY {passed, score, feedback} — never the
+    keyword buckets, the acceptable_keywords, the rubric, or pass_score."""
+    hw_id = _seed_v2_homework_with_reasoning(client)
+
+    async def _fake(*a, **k):
+        return (80, "Yaxshi izoh.")
+
+    with patch.object(_ai_routes, "_grade_cbp_reasoning", new=_fake):
+        code, data = _post_reasoning(client, hw_id, reasoning_text=_LONG_THREE)
+    assert code == 200, data
+
+    blob = json.dumps(data)
+    # No grading-anchor value or key may surface in the response.
+    for tok in ("force", "diagram", "friction", "equilibrium", "rubric", "pass_score"):
+        assert tok not in blob, f"reasoning grading anchor leaked into response: {tok}"
+    # Only the contract keys are present in the grading payload.
+    assert data.get("rubric") is None
+    assert data.get("concept_keywords") is None
+    assert data.get("acceptable_keywords") is None
+    assert set(("passed", "score", "feedback")).issubset(data.keys())
+
+
+def test_cbp_reasoning_no_reasoning_authored_returns_404(client):
+    """A CBP without a decision_process_explanation → 404 CBP_NO_REASONING."""
+    hw_id = _seed_v2_homework(client)  # no reasoning block
+    fake_grader = AsyncMock()
+    with patch.object(_ai_routes, "_grade_cbp_reasoning", new=fake_grader):
+        code, data = _post_reasoning(client, hw_id, reasoning_text=_LONG_THREE)
+    assert code == 404, data
+    fake_grader.assert_not_called()

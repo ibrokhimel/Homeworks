@@ -82,6 +82,16 @@ export interface CaseBasedPreview {
   checkpoints?: Checkpoint[];
   final_simulation?: FinalSimulation;
   feedback_summary?: FeedbackSummary;
+  // Optional open-ended "Decision Process Explanation" step. Only the student-
+  // safe fields survive hydration (the keyword buckets / rubric / pass_score are
+  // stripped server-side). When absent, the runtime skips the reasoning step.
+  decision_process_explanation?: DecisionProcessExplanation;
+}
+
+/** Student-safe view of the reasoning step — prompt + min length only. */
+export interface DecisionProcessExplanation {
+  prompt?: string;
+  min_chars?: number;
 }
 
 // ---- Flashcards (Tile B study deck — display-only, no answer fields) ----
@@ -164,6 +174,21 @@ export interface CheckAnswerResult {
   correct: boolean;
   feedback: string;
   learning_block: string | null;
+}
+
+/**
+ * Result of grading the open-ended "Decision Process Explanation" step.
+ * The student types their reasoning (which concept applies, why this method,
+ * what mistake to avoid); the backend grades it server-side and returns a
+ * pass/fail verdict, a `score` (integer 0..100, a blend of AI judgment +
+ * deterministic keyword coverage), and coaching feedback. Correctness is ALWAYS
+ * read from the server — the client never self-grades. Non-blocking: on
+ * `passed:false` the student may edit + resubmit, then advance regardless.
+ */
+export interface ReasoningResult {
+  passed: boolean;
+  score: number;
+  feedback: string;
 }
 
 // ---- F4: Practice Arc spine ----

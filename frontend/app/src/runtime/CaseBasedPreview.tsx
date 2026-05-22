@@ -11,6 +11,8 @@ import {
   Button,
 } from "../shared/ui/primitives";
 import type { Checkpoint, CheckpointKind } from "../shared/types";
+import CbpBackdrop from "./CbpBackdrop";
+import CbpJourney from "./CbpJourney";
 import s from "./CaseBasedPreview.module.css";
 
 const KIND_LABEL: Record<CheckpointKind, string> = {
@@ -19,9 +21,16 @@ const KIND_LABEL: Record<CheckpointKind, string> = {
   justify: "Justify",
 };
 
+// Fallback minimum characters before the reasoning step can be submitted when a
+// homework doesn't author its own `min_chars`. Mirrors the server's default
+// gate (80) so the client soft-gate and the server's hard 400 agree.
+const MIN_REASONING_CHARS = 80;
+
 // The Case-Based Preview sub-machine:
-//   setup → (checkpoint → learningBlock) ×3 → sim → feedback
-// Correctness is NEVER assumed client-side — we read the server `{correct}`.
+//   setup → (checkpoint → learningBlock) ×3 → reasoning → sim → feedback
+// Correctness is NEVER assumed client-side — we read the server `{correct}` /
+// `{passed}`. The MCQ checkpoints stay the gated, server-authoritative grade;
+// the reasoning step is server-graded but non-blocking.
 export function CaseBasedPreview() {
   const subStage = useRuntimeStore((st) => st.cbp.subStage);
 
@@ -32,6 +41,8 @@ export function CaseBasedPreview() {
       return <CheckpointStage />;
     case "learningBlock":
       return <LearningBlockStage />;
+    case "reasoning":
+      return <ReasoningStage />;
     case "sim":
       return <SimulationStage />;
     case "feedback":
@@ -41,18 +52,31 @@ export function CaseBasedPreview() {
   }
 }
 
-function Shell({ children, testid }: { children: ReactNode; testid: string }) {
+// Full-bleed immersive shell: the living CbpBackdrop sits at z0 (aurora + blobs
+// + pointer trail), the winding CbpJourney rides above the content stage, and
+// the per-substage content animates in at z1. The shell re-pins the §4 contrast
+// tokens so a dark-OS visitor never washes out the ink.
+function Shell({
+  children,
+  testid,
+  journey = true,
+}: {
+  children: ReactNode;
+  testid: string;
+  journey?: boolean;
+}) {
   return (
-    <main className="v2-shell" data-testid={testid}>
-      <span className={s.ambient} aria-hidden="true" />
+    <main className={s.shell} data-testid={testid}>
+      <CbpBackdrop />
       <div className={s.stage} key={testid}>
+        {journey && <CbpJourney />}
         {children}
       </div>
     </main>
   );
 }
 
-// ---- setup: dramatic dark hero with case_setup ----
+// ---- setup: dramatic hero with case_setup ----
 function Setup() {
   const payload = useRuntimeStore((st) => st.payload);
   const enterCheckpoint = useRuntimeStore((st) => st.enterCheckpoint);
@@ -210,14 +234,119 @@ function LearningBlockStage() {
           </Button>
         )}
         <Button variant="blue" onClick={advance} data-testid="cbp-continue">
-          {isLast ? "See the outcome →" : "Next checkpoint →"}
+          {isLast ? "Explain your reasoning →" : "Next checkpoint →"}
         </Button>
       </div>
     </Shell>
   );
 }
 
-// ---- sim: final_simulation.wrong_path + server feedback ----
+// ---- reasoning: open-ended Decision Process Explanation (server-graded) ----
+// The student types WHY they decided as they did. The grade is the server's
+// (passed/score/feedback); it teaches but never blocks — a failed pass lets the
+// student edit + resubmit, and they can continue to the simulation regardless.
+function ReasoningStage() {
+  const text = useRuntimeStore((st) => st.cbp.reasoningText);
+  const result = useRuntimeStore((st) => st.cbp.reasoningResult);
+  const submitting = useRuntimeStore((st) => st.cbp.reasoningSubmitting);
+  const submitError = useRuntimeStore((st) => st.cbp.submitError);
+  const setText = useRuntimeStore((st) => st.setReasoningText);
+  const submit = useRuntimeStore((st) => st.submitReasoning);
+  const enterSim = useRuntimeStore((st) => st.enterSimulation);
+  const dpe = useRuntimeStore(
+    (st) =>
+      st.payload?.content_json.case_based_preview?.decision_process_explanation
+  );
+
+  // The authored prompt + min length drive the step (we only reach here when a
+  // prompt exists). Fall back to sane defaults that match the server's gate.
+  const minChars = dpe?.min_chars ?? MIN_REASONING_CHARS;
+  const promptText =
+    dpe?.prompt?.trim() ||
+    "Which concept applies here? Why this method over the alternatives? And what mistake would you warn another student to avoid?";
+  const chars = text.trim().length;
+  const meetsMin = chars >= minChars;
+  const passed = result?.passed === true;
+  const failed = result != null && !result.passed;
+
+  const onSubmit = () => {
+    if (!meetsMin || submitting) return;
+    void submit();
+  };
+
+  return (
+    <Shell testid="cbp-reasoning-stage" journey>
+      <Eyebrow>Decision Process</Eyebrow>
+      <Title size="section">Explain your reasoning.</Title>
+      <Lead>{promptText}</Lead>
+
+      <FeatureCard className={s.reasoningCard}>
+        <label className={s.reasoningLabel} htmlFor="cbp-reasoning">
+          Your decision process
+        </label>
+        <textarea
+          id="cbp-reasoning"
+          data-testid="cbp-reasoning"
+          className={s.reasoningInput}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Walk through your thinking: the concept, the method, and the trap to avoid…"
+          rows={6}
+          disabled={submitting}
+          aria-describedby="cbp-reasoning-count"
+        />
+        <div className={s.reasoningMeta}>
+          <span
+            id="cbp-reasoning-count"
+            className={`${s.reasoningCount} ${meetsMin ? s.reasoningCountOk : ""}`}
+          >
+            {chars}/{minChars} characters minimum
+          </span>
+        </div>
+      </FeatureCard>
+
+      {result && (
+        <FeatureCard className={passed ? s.reasoningResultGood : s.reasoningResultWarn}>
+          <div className={s.lbHead}>
+            {passed ? <Pill tone="good">✓ Strong reasoning</Pill> : <Pill tone="warn">Sharpen it</Pill>}
+            {typeof result.score === "number" && (
+              <span className={s.lbCounter}>{Math.round(result.score)}% match</span>
+            )}
+          </div>
+          {result.feedback && <Lead className={s.lbText}>{result.feedback}</Lead>}
+        </FeatureCard>
+      )}
+
+      {submitError && (
+        <p className={s.error} role="alert">
+          {submitError}
+        </p>
+      )}
+
+      <div className={s.actions}>
+        <Button
+          variant="blue"
+          onClick={onSubmit}
+          disabled={!meetsMin || submitting}
+          data-testid="cbp-reasoning-submit"
+        >
+          {submitting ? "Reviewing…" : failed ? "Resubmit reasoning" : "Submit reasoning"}
+        </Button>
+        {failed && (
+          <Button variant="outline" onClick={enterSim}>
+            Continue anyway →
+          </Button>
+        )}
+      </div>
+    </Shell>
+  );
+}
+
+// ---- sim: staged reveal of final_simulation.wrong_path → takeaway ----
+// The wrong-path card animates in (amber) first; after a beat the correct /
+// takeaway card snaps in (emerald) with a connecting arrow between them. All
+// motion is transform/opacity, reduced-motion gated (the CSS shows both cards
+// instantly under reduce).
 function SimulationStage() {
   const payload = useRuntimeStore((st) => st.payload);
   const feedback = useRuntimeStore((st) => st.cbp.lastFeedback);
@@ -237,12 +366,22 @@ function SimulationStage() {
       <Title size="section">How the case plays out.</Title>
       <Lead>The path you avoided — and why the lesson mattered.</Lead>
 
-      <div className={s.simGrid}>
+      <div className={s.simReveal}>
         {sim?.wrong_path && (
           <FeatureCard className={s.simWrong}>
             <Pill tone="warn">If you’d slipped</Pill>
             <p className={s.simBody}>{sim.wrong_path}</p>
           </FeatureCard>
+        )}
+        {/* Connecting arrow snaps in between the two cards after the beat. */}
+        {sim?.wrong_path && feedback && (
+          <span className={s.simArrow} aria-hidden="true">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14" />
+              <path d="m6 13 6 6 6-6" />
+            </svg>
+          </span>
         )}
         {feedback && (
           <FeatureCard className={s.simRight}>

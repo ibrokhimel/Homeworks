@@ -406,3 +406,54 @@ def test_redactor_does_not_mutate_input():
     redact_for_runtime(raw)
     # original still has the answer (deep-copied, not mutated)
     assert raw["case_based_preview"]["checkpoints"][0]["answer_spec"]["expected"] == "keep"
+
+
+def test_hydration_strips_cbp_reasoning_keywords_and_rubric():
+    """The CBP "Decision Process Explanation" answer fields (concept/method/
+    mistake keyword buckets + acceptable_keywords + rubric + pass_score) are
+    stripped from hydration. ONLY the student-visible `prompt` + `min_chars`
+    survive.
+
+    If this fails, the open-ended reasoning step ships its grading anchors to
+    the browser — a direct answer leak. Release blocker."""
+    raw = {
+        "case_based_preview": {
+            "checkpoints": [
+                {"question": "Q1", "answer_spec": {"expected": "LEAK_CKP"}},
+            ],
+            "decision_process_explanation": {
+                "prompt": "Explain which concept applies and why this method.",
+                "min_chars": 90,
+                "concept_keywords": ["LEAK_CONCEPT_KW"],
+                "method_keywords": ["LEAK_METHOD_KW"],
+                "mistake_keywords": ["LEAK_MISTAKE_KW"],
+                "acceptable_keywords": ["LEAK_ACCEPTABLE_KW"],
+                "rubric": {"concept": "LEAK_RUBRIC"},
+                "pass_score": 65,
+            },
+        }
+    }
+    safe = redact_for_runtime(raw, hw_id="HW-CBP-R")
+    dpe = safe["case_based_preview"]["decision_process_explanation"]
+
+    # Student-visible fields survive verbatim.
+    assert dpe.get("prompt") == "Explain which concept applies and why this method."
+    assert dpe.get("min_chars") == 90
+
+    # Every answer-bearing key is gone — at this nesting level.
+    for k in (
+        "concept_keywords", "method_keywords", "mistake_keywords",
+        "acceptable_keywords", "rubric", "pass_score",
+    ):
+        assert k not in dpe, f"answer-bearing field survived hydration: {k}"
+
+    # And no anchor value appears anywhere in the serialized payload.
+    blob = json.dumps(safe)
+    for tok in (
+        "LEAK_CONCEPT_KW", "LEAK_METHOD_KW", "LEAK_MISTAKE_KW",
+        "LEAK_ACCEPTABLE_KW", "LEAK_RUBRIC",
+    ):
+        assert tok not in blob, f"reasoning anchor leaked: {tok}"
+
+    # Input is never mutated (server still reads the full object to grade).
+    assert raw["case_based_preview"]["decision_process_explanation"]["pass_score"] == 65

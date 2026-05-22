@@ -8,6 +8,7 @@ import type {
   CheckAnswerResult,
   GateState,
   HydratePayload,
+  ReasoningResult,
   ReflectionPerformance,
   ReflectionResult,
   TutorTurn,
@@ -17,6 +18,7 @@ import {
   getGateState,
   submitCheckpoint,
   submitMemoryCheckItem,
+  submitReasoning,
   submitReflection,
   tutorChat,
 } from "../shared/api";
@@ -52,8 +54,18 @@ export function screenToTutorPhase(
   return { phase: "preview" }; // hub
 }
 
-// CBP sub-machine: setup → ck0 → lb0 → ck1 → lb1 → ck2 → lb2 → sim → feedback.
-export type CbpSubStage = "setup" | "checkpoint" | "learningBlock" | "sim" | "feedback";
+// CBP sub-machine:
+//   setup → ck0 → lb0 → ck1 → lb1 → ck2 → lb2 → reasoning → sim → feedback.
+// The "reasoning" step (open-ended Decision Process Explanation) sits between
+// the last learning block and the simulation; it's server-graded but
+// non-blocking (a failed pass still advances to sim after a resubmit).
+export type CbpSubStage =
+  | "setup"
+  | "checkpoint"
+  | "learningBlock"
+  | "reasoning"
+  | "sim"
+  | "feedback";
 
 // Flashcards/Memory-Check sub-machine (Tile B):
 //   flashcards (study the deck) → memoryCheck (graded recall) → result.
@@ -90,6 +102,10 @@ interface CbpState {
   lastLearningBlock: string | null; // learning block returned post-submit
   submitting: boolean;
   submitError: string | null;
+  // ---- Reasoning step (Decision Process Explanation) ----
+  reasoningText: string; // the student's typed reasoning (controlled textarea)
+  reasoningResult: ReasoningResult | null; // server verdict (passed/score/feedback)
+  reasoningSubmitting: boolean; // POST in flight
 }
 
 interface FcState {
@@ -193,6 +209,8 @@ interface RuntimeState {
   enterCheckpoint: (index: number) => void;
   submitCheckpointAnswer: (index: number, answer: string) => Promise<CheckAnswerResult | null>;
   advanceFromLearningBlock: () => void;
+  setReasoningText: (text: string) => void;
+  submitReasoning: () => Promise<ReasoningResult | null>;
   enterSimulation: () => void;
   finishCbp: () => Promise<void>;
   retryCheckpoint: (index: number) => void;
@@ -240,6 +258,9 @@ const initialCbp: CbpState = {
   lastLearningBlock: null,
   submitting: false,
   submitError: null,
+  reasoningText: "",
+  reasoningResult: null,
+  reasoningSubmitting: false,
 };
 
 const initialFc: FcState = {
@@ -392,7 +413,63 @@ export const useRuntimeStore = create<RuntimeState>((set, get) => ({
     if (next < total) {
       get().enterCheckpoint(next);
     } else {
-      get().enterSimulation();
+      // All checkpoints done. If the homework authored an open-ended reasoning
+      // step, go there (server-graded but non-blocking; submitReasoning() then
+      // routes onward via enterSimulation()). If not (legacy / no reasoning
+      // authored), skip straight to the simulation — never strand the student
+      // on an empty reasoning step the server would 404.
+      const hasReasoning = Boolean(
+        payload?.content_json.case_based_preview?.decision_process_explanation
+          ?.prompt
+      );
+      if (!hasReasoning) {
+        get().enterSimulation();
+        return;
+      }
+      set((st) => ({
+        cbp: {
+          ...st.cbp,
+          subStage: "reasoning",
+          reasoningResult: null,
+          submitError: null,
+        },
+      }));
+    }
+  },
+
+  // Controlled textarea binding for the reasoning step.
+  setReasoningText: (text) =>
+    set((st) => ({ cbp: { ...st.cbp, reasoningText: text } })),
+
+  // Submit the open-ended reasoning to the server grader. The verdict is the
+  // server's (we never self-grade). On a pass we advance to the simulation; on
+  // a fail we keep the student on the reasoning step to edit + resubmit (the
+  // step teaches but never blocks — the gate is the MCQ checkpoints). Either
+  // way the typed text + result stay in state for the feedback panel.
+  submitReasoning: async () => {
+    const { hwId, sessionId, cbp } = get();
+    const text = cbp.reasoningText.trim();
+    set((st) => ({
+      cbp: { ...st.cbp, reasoningSubmitting: true, submitError: null },
+    }));
+    try {
+      const res = await submitReasoning(hwId, sessionId, text);
+      set((st) => ({
+        cbp: { ...st.cbp, reasoningSubmitting: false, reasoningResult: res },
+      }));
+      if (res.passed) {
+        get().enterSimulation();
+      }
+      return res;
+    } catch (err) {
+      set((st) => ({
+        cbp: {
+          ...st.cbp,
+          reasoningSubmitting: false,
+          submitError: (err as Error).message || "Couldn't grade your reasoning.",
+        },
+      }));
+      return null;
     }
   },
 

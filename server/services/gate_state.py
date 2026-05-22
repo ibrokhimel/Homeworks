@@ -62,12 +62,24 @@ async def compute_gate_state(session_id: Optional[str], hw_id: str) -> dict:
     # CBP threshold generalizes: ≥2 OR ≥60% of however many checkpoints exist.
     cbp_threshold = max(CBP_MIN_CORRECT, math.ceil(0.6 * cbp_total))
 
+    # Is the open-ended "Decision Process Explanation" authored on this case?
+    # When present, the CBP gate ALSO requires its reasoning attempt to pass.
+    reasoning_required = bool(cbp.get("decision_process_explanation"))
+
     cbp_correct = 0
     mc_correct = 0
+    reasoning_passed = False
     if session_id:
         cbp_attempts = await list_phase_attempts(session_id, hw_id, phase=CBP_PHASE, limit=500)
         mc_attempts = await list_phase_attempts(session_id, hw_id, phase=MC_PHASE, limit=500)
-        cbp_correct = sum(1 for v in latest_correct_by_key(cbp_attempts).values() if v)
+        cbp_latest = latest_correct_by_key(cbp_attempts)
+        # The open-ended reasoning step persists under subphase="reasoning". It
+        # must NOT inflate the MCQ checkpoint count (which is compared against
+        # checkpoints_total) — count only the checkpoint_* keys here.
+        reasoning_passed = bool(cbp_latest.get("reasoning", False))
+        cbp_correct = sum(
+            1 for k, v in cbp_latest.items() if v and k != "reasoning"
+        )
         mc_correct = sum(1 for v in latest_correct_by_key(mc_attempts).values() if v)
 
     # Defensive clamp: a server-derived key set can't exceed the authored total,
@@ -75,7 +87,10 @@ async def compute_gate_state(session_id: Optional[str], hw_id: str) -> dict:
     cbp_correct = min(cbp_correct, cbp_total)
     mc_correct = min(mc_correct, mc_total) if mc_total else mc_correct
 
-    cbp_passed = cbp_correct >= cbp_threshold
+    mcq_passed = cbp_correct >= cbp_threshold
+    # When a reasoning step is authored, the CBP gate requires BOTH the MCQ
+    # threshold AND a passing reasoning attempt; otherwise MCQ alone gates.
+    cbp_passed = mcq_passed and (reasoning_passed if reasoning_required else True)
     mc_score_pct = round(100 * mc_correct / mc_total) if mc_total else 0
     mc_score_pct = min(mc_score_pct, 100)
     mc_passed = mc_total > 0 and mc_score_pct >= mc_threshold
@@ -86,6 +101,8 @@ async def compute_gate_state(session_id: Optional[str], hw_id: str) -> dict:
             "checkpoints_correct": cbp_correct,
             "checkpoints_total": cbp_total,
             "threshold": cbp_threshold,
+            "reasoning_required": reasoning_required,
+            "reasoning_passed": reasoning_passed,
         },
         "mc": {
             "passed": mc_passed,

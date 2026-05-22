@@ -53,6 +53,15 @@ ANSWER_BEARING_KEYS = frozenset(
         # CBP teaching text — post-submit only (returned by /check-answer
         # response in ai.py); never in hydration.
         "learning_block",
+        # CBP "Decision Process Explanation" — open-ended AI-graded reasoning
+        # step. The keyword buckets + pass_score are server-only grading anchors;
+        # the recursive _scrub strips them inside decision_process_explanation so
+        # hydration exposes ONLY `prompt` + `min_chars`. (`acceptable_keywords` +
+        # `rubric` are already deny-listed above.)
+        "concept_keywords",
+        "method_keywords",
+        "mistake_keywords",
+        "pass_score",
         # short answer aliases + invariants the grader keys on
         "a",
         "answer",

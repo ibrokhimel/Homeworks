@@ -1058,6 +1058,104 @@ async def _grade_rlc_reasoning(
     return (score, feedback)
 
 
+def _score_reasoning_coverage(text: str, dpe: dict) -> int:
+    """Deterministic keyword-coverage count for the CBP reasoning step.
+
+    Counts how many of the three answer buckets — concept / method / mistake —
+    the student's free text touches (case-insensitive substring presence of ANY
+    keyword in the bucket). Returns ``det_count`` in ``0..3``.
+
+    No expected text is ever returned — only the integer count. The keyword
+    buckets stay server-only (they live on the DB row, stripped before
+    hydration). An empty bucket cannot be "covered" — it contributes 0, so a
+    homework that authored no keywords yields det_count==0 (the AI score then
+    decides via the combine rule).
+    """
+    if not isinstance(dpe, dict):
+        return 0
+    haystack = (text or "").lower()
+    if not haystack.strip():
+        return 0
+    count = 0
+    for bucket in ("concept_keywords", "method_keywords", "mistake_keywords"):
+        kws = dpe.get(bucket) or []
+        if not isinstance(kws, list):
+            continue
+        for kw in kws:
+            if isinstance(kw, str) and kw.strip() and kw.strip().lower() in haystack:
+                count += 1
+                break  # one hit per bucket is enough
+    return count
+
+
+async def _grade_cbp_reasoning(
+    text: str,
+    dpe: dict,
+    case_setup: Any,
+) -> tuple[int, str]:
+    """Grade the CBP Decision-Process Explanation via the LLM. Returns (score 0-100, feedback).
+
+    Cloned from ``_grade_rlc_reasoning`` — loads the `cbp-reasoning-checker`
+    runtime prompt and calls the SAME ``ai_orchestrator.generate_json`` adapter
+    used by ``tutor.check_answer``. Anchors the LLM on the dpe keyword buckets
+    (server-only) + the case setup context. The min-char gate is enforced BEFORE
+    this is called (cheap reject).
+
+    The keyword buckets ride into the PROMPT INPUT only as grading anchors — the
+    prompt instructs the LLM never to echo them — and never appear in the
+    response body. Tests mock this function directly (RLC-style), so they never
+    hit the live provider. On any AI unavailability we return a neutral score so
+    the deterministic fallback in the caller can still decide pass/fail.
+    """
+    from ..services.tutor import _load_runtime_prompt
+
+    prompt = _load_runtime_prompt("cbp-reasoning-checker")
+    # Normalize case_setup to a compact string for the prompt context.
+    if isinstance(case_setup, dict):
+        case_setup_str = " ".join(
+            str(case_setup.get(k) or "")
+            for k in ("story", "role", "task")
+        ).strip() or str(case_setup)
+    else:
+        case_setup_str = str(case_setup or "")
+
+    payload = {
+        "case_setup": case_setup_str,
+        "prompt": dpe.get("prompt", "") if isinstance(dpe, dict) else "",
+        "student_text": text or "",
+        # Server-only anchors — never echoed back to client; prompt instructs
+        # the LLM to use these as a check, not to quote them.
+        "concept_keywords": (dpe.get("concept_keywords") or []) if isinstance(dpe, dict) else [],
+        "method_keywords": (dpe.get("method_keywords") or []) if isinstance(dpe, dict) else [],
+        "mistake_keywords": (dpe.get("mistake_keywords") or []) if isinstance(dpe, dict) else [],
+        "acceptable_keywords": (dpe.get("acceptable_keywords") or []) if isinstance(dpe, dict) else [],
+    }
+    schema = {
+        "score": "integer 0..100",
+        "feedback": "1-2 sentence string in the case's language",
+    }
+    try:
+        input_section = ai_orchestrator.build_input_section(payload)
+        ai_response = await ai_orchestrator.generate_json(
+            f"{prompt}\n\n{input_section}",
+            schema_hint=schema,
+            model=ai_orchestrator.FAST_MODEL,
+        )
+    except (ai_orchestrator.PromptTooLargeError, RuntimeError):
+        # AI grading unavailable — neutral "needs human review" score; the caller
+        # falls back to the deterministic keyword-coverage verdict.
+        return (50, "AI baholash hozir mavjud emas — javobingiz keyinroq tekshiriladi.")
+
+    raw_score = ai_response.get("score", 0)
+    try:
+        score = int(round(float(raw_score)))
+    except (TypeError, ValueError):
+        score = 0
+    score = max(0, min(100, score))
+    feedback = str(ai_response.get("feedback") or "")
+    return (score, feedback)
+
+
 def _resolve_rlc_case(content_json: dict) -> Optional[dict]:
     """Locate the RLC case dict on a homework's content_json.
 
@@ -2266,6 +2364,121 @@ async def _check_answer_case_based_preview(req: CheckAnswerRequest) -> dict:
     return result
 
 
+async def _check_answer_cbp_reasoning(req: CheckAnswerRequest) -> dict:
+    """Open-ended, AI-graded "Decision Process Explanation" branch for CBP.
+
+    Contract (must match the frontend exactly):
+      request  POST /api/ai/check-answer
+               { homework_id, session_id, phase: "case_based_preview_reasoning",
+                 reasoning_text }
+      response { passed: bool, score: number(0..100), feedback: str }
+
+    Grading combines a deterministic keyword-coverage count (concept / method /
+    mistake buckets → det_count 0..3) with the AI judgment:
+
+        score  = round(0.6 * ai_score + 0.4 * 100 * det_count / 3)
+        passed = score >= pass_score(default 60) AND det_count >= 2
+
+    On AI error the AI grader returns a neutral 50, but to avoid a soft
+    AI-down pass we fall back to a purely deterministic verdict:
+        passed = det_count >= 2.
+
+    No-leak invariants: the response NEVER includes the keyword buckets, the
+    rubric, the pass_score, or any expected text — only {passed, score, feedback}.
+    """
+    if not req.homework_id:
+        raise HTTPException(400, detail={
+            "error": "homework_id required for phase=case_based_preview_reasoning",
+            "code": "CBP_MISSING_HW",
+        })
+
+    hw = await db.get_homework(req.homework_id)
+    if hw is None:
+        raise HTTPException(404, detail={
+            "error": f"homework {req.homework_id} not found",
+            "code": "HW_NOT_FOUND",
+        })
+
+    content = hw.get("content_json") or {}
+    cbp = content.get("case_based_preview")
+    if not isinstance(cbp, dict):
+        raise HTTPException(404, detail={
+            "error": "case_based_preview content not found on this homework",
+            "code": "CBP_NO_CONTENT",
+        })
+
+    dpe = cbp.get("decision_process_explanation")
+    if not isinstance(dpe, dict):
+        raise HTTPException(404, detail={
+            "error": "no decision_process_explanation authored on this case_based_preview",
+            "code": "CBP_NO_REASONING",
+        })
+
+    text = (req.reasoning_text or "").strip()
+    min_chars = int(dpe.get("min_chars") or 80)
+    if len(text) < min_chars:
+        raise HTTPException(400, detail={
+            "error": (
+                f"reasoning_text below min_chars={min_chars} "
+                f"(got {len(text)} chars)"
+            ),
+            "code": "CBP_REASONING_TOO_SHORT",
+            "min_chars": min_chars,
+        })
+
+    # Deterministic keyword coverage (no expected text returned).
+    det_count = _score_reasoning_coverage(text, dpe)
+
+    pass_score = int(dpe.get("pass_score") or 60)
+    case_setup = cbp.get("case_setup")
+
+    # AI judgment — clone of the RLC reasoning grader path.
+    ai_unavailable = False
+    try:
+        ai_score, feedback = await _grade_cbp_reasoning(text, dpe, case_setup)
+    except Exception as _e:  # noqa: BLE001 — never 500 on grader failure
+        _log.warning("CBP reasoning: AI grader raised, falling back: %s", _e)
+        ai_unavailable = True
+        ai_score, feedback = 50, "AI baholash hozir mavjud emas — javobingiz keyinroq tekshiriladi."
+
+    score = int(round(0.6 * ai_score + 0.4 * 100 * det_count / 3))
+    score = max(0, min(100, score))
+
+    if ai_unavailable:
+        # Pure deterministic fallback — don't let a neutral AI score gate.
+        passed = det_count >= 2
+    else:
+        passed = score >= pass_score and det_count >= 2
+
+    # Persist the attempt under the CBP phase, subphase="reasoning".
+    session_id = req.session_id or "default"
+    try:
+        from ..db.attempts_repo import add_phase_attempt as _add_phase_attempt
+        await _add_phase_attempt(
+            session_id=session_id,
+            hw_id=req.homework_id,
+            phase="case_based_preview",
+            subphase="reasoning",
+            question_id=req.question_id or "cbp_reasoning",
+            item_id=req.item_id,
+            attempt_number=req.attempt_number or 1,
+            student_answer=text,
+            checker_source="phase_adapter:case_based_preview_reasoning",
+            correct=1 if passed else 0,
+            score=score / 100,
+            feedback=feedback,
+        )
+    except Exception as _e:  # noqa: BLE001 — attempt persistence is best-effort
+        _log.warning("CBP reasoning: failed to persist attempt: %s", _e)
+
+    # Response carries ONLY the contract fields — no keywords / rubric / expected.
+    return {
+        "passed": bool(passed),
+        "score": int(score),
+        "feedback": str(feedback),
+    }
+
+
 async def _check_answer_memory_check(req: CheckAnswerRequest) -> dict:
     """Per-item grading branch for Memory Check (v2 React runtime).
 
@@ -2708,6 +2921,22 @@ async def check_answer(req: CheckAnswerRequest):
             result = await _check_answer_memory_palace(req)
             return _attach_check_answer_debug(
                 req, result, checker_path="phase_adapter:memory-palace"
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            _handle_exc(e)
+
+    # Case-Based Preview open-ended reasoning branch (v2 React runtime). The
+    # "Decision Process Explanation" step after the 3 MCQ checkpoints — graded
+    # by deterministic keyword coverage + AI judgment. Distinct phase string so
+    # it never collides with the MCQ checkpoint branch below. Same back-compat
+    # gate (require homework_id).
+    if req.phase == "case_based_preview_reasoning" and req.homework_id:
+        try:
+            result = await _check_answer_cbp_reasoning(req)
+            return _attach_check_answer_debug(
+                req, result, checker_path="phase_adapter:case_based_preview_reasoning"
             )
         except HTTPException:
             raise
