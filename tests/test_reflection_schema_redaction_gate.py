@@ -277,3 +277,43 @@ def test_gate_reflection_required_false_when_no_reflection_block(client):
     assert gs["practice_arc_completed"] is False
     assert gs["reflection_passed"] is False
     assert gs["all_divisions_complete"] is False
+
+
+def _seed_boss_rows(session_id, hw_id, scores):
+    """Persist boss attempts with correct=0 and the given scores (no win row)."""
+    from server.db import attempts_repo
+
+    async def go():
+        for i, sc in enumerate(scores):
+            await attempts_repo.add_phase_attempt(
+                session_id=session_id, hw_id=hw_id,
+                phase="boss", subphase=None, question_id=f"boss-q{i}",
+                checker_source="boss_judge", correct=0, score=sc,
+            )
+    _run(go())
+
+
+def test_practice_arc_completed_matches_boss_passed_on_solid_damage(client):
+    """A trials-exhausted boss arc with NO correct==1 row but mean score >= 0.6
+    (pool-exhausted-with-solid-damage, per the Boss spec) must read as PASSED by
+    BOTH the gate's practice_arc_completed AND reflection_engine.boss_passed.
+    They previously DIVERGED — the gate used latest-row-correct only, so it read
+    such an arc as NOT passed while the verdict read it as PASSED."""
+    from server.services import reflection_engine as RE
+    hw_id = _make_v2_homework(client, with_reflection=True)
+
+    # Solid damage: mean 0.7 >= 0.6, no correct row.
+    sid_solid = "boss-solid-damage"
+    _seed_boss_rows(sid_solid, hw_id, [0.7, 0.7, 0.65])
+    gs_solid = _run(compute_gate_state(sid_solid, hw_id))
+    rows_solid = [{"correct": 0, "score": s} for s in (0.7, 0.7, 0.65)]
+    assert gs_solid["practice_arc_completed"] is True
+    assert RE.boss_passed(rows_solid) is True            # gate ↔ verdict agree
+
+    # Weak damage: mean ~0.3 < 0.6, no correct row → both NOT passed.
+    sid_weak = "boss-weak-damage"
+    _seed_boss_rows(sid_weak, hw_id, [0.3, 0.2, 0.4])
+    gs_weak = _run(compute_gate_state(sid_weak, hw_id))
+    rows_weak = [{"correct": 0, "score": s} for s in (0.3, 0.2, 0.4)]
+    assert gs_weak["practice_arc_completed"] is False
+    assert RE.boss_passed(rows_weak) is False

@@ -31,32 +31,39 @@ DEFAULT_MC_THRESHOLD_PCT = 60
 # across both render paths.
 BOSS_PHASES = ("final-boss", "boss")
 
+# Boss "solid damage" floor — MUST match reflection_engine._BOSS_SOLID_DAMAGE_MEAN
+# so this gate and the reflection verdict agree on the SAME persisted boss rows.
+_BOSS_SOLID_DAMAGE_MEAN = 0.6
+
 
 async def _practice_arc_completed(session_id: Optional[str], hw_id: str) -> bool:
-    """True iff the student has a WON boss for this (session, hw).
+    """True iff the student PASSED the boss arc for this (session, hw).
 
     Defensive derivation from persisted `phase_attempts` only (no in-memory
-    state, no provider): a boss arc is "completed" when boss attempt rows exist
-    AND the latest boss attempt indicates a pass (correct == 1). With no boss
-    data we report False. We check both boss phase strings (see BOSS_PHASES) and
-    take the chronologically-latest attempt across them as the win signal.
+    state, no provider). The boss-pass rule MUST match
+    `reflection_engine.boss_passed` so this gate and the verdict never contradict
+    each other on the same rows (Boss spec: a win OR pool-exhausted-with-solid-
+    damage both count). Previously this used "latest attempt correct" only, which
+    could read a trials-exhausted-but-solid arc as NOT passed while the verdict
+    read it as PASSED. We now pool ALL boss rows across both phase strings (see
+    BOSS_PHASES) — fixing the prior phase-loop bug where the per-phase iteration
+    let the last phase's last row override the true cross-phase latest — and
+    apply: any correct attempt → pass; else mean score ≥ the solid-damage floor.
     """
     if not session_id:
         return False
-    latest_correct: Optional[bool] = None
-    saw_any = False
+    boss_rows: list[dict] = []
     for phase in BOSS_PHASES:
         try:
-            rows = await list_phase_attempts(session_id, hw_id, phase=phase, limit=500)
+            boss_rows.extend(await list_phase_attempts(session_id, hw_id, phase=phase, limit=500))
         except Exception:  # noqa: BLE001 — boss arc is best-effort; never break the gate
-            rows = []
-        # rows are created_at ASC; the last row is the latest for this phase.
-        for r in rows:
-            saw_any = True
-            latest_correct = bool(r.get("correct"))
-    if not saw_any:
+            pass
+    if not boss_rows:
         return False
-    return bool(latest_correct)
+    if any(r.get("correct") == 1 for r in boss_rows):
+        return True
+    scores = [float(r.get("score") or 0.0) for r in boss_rows]
+    return bool(scores) and (sum(scores) / len(scores)) >= _BOSS_SOLID_DAMAGE_MEAN
 
 
 async def _reflection_passed(session_id: Optional[str], hw_id: str) -> bool:

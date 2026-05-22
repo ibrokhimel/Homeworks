@@ -154,23 +154,47 @@ def _correct_total(rows: list[dict]) -> tuple[int, int]:
 
 # ── 2. ANALYZE ──────────────────────────────────────────────────────────────
 
+# The v2 runtime persists newer phase strings than grading.aggregate's v1-era
+# PHASE_METHOD/PHASE_DISPLAY_ORDER table, so several Division-3 attempts were
+# being SILENTLY DROPPED from overall_pct: real-life-challenge (the key AMR
+# reasoning signal), the dynamic boss ("boss"), and the v2-only Game-Break games.
+# Map each v2 phase to the canonical grading key so it counts. We alias here
+# (not in grading.py) so the shared v1 scorecard is untouched — and finalize()
+# reads ONLY `overall_pct` + `band` from the scorecard (never its per-phase
+# rows), so routing the v2-only games onto a counted closed key affects the
+# donut total only; the student-facing per-division breakdown comes from
+# divisions[] (the real per-phase buckets), never from this alias.
+_GRADING_PHASE_ALIAS: dict[str, str] = {
+    "real-life-challenge": "real-life",   # v2 string for the AMR real-life phase
+    "boss": "final-boss",                 # dynamic /ai/boss/* boss → AMR boss row
+    "mystery-box": "adaptive-quiz",       # v2-only closed Game-Break → counted closed
+    "puzzle-lock": "adaptive-quiz",
+    "ttt": "adaptive-quiz",
+    "memory-palace": "adaptive-quiz",
+    # tile-match / sentence-fill / adaptive-quiz already match grading keys.
+    # ttt-session (the redundant tally) is intentionally NOT aliased so it stays
+    # uncounted and never double-counts the per-pick "ttt" rows.
+}
+
+
 def _grading_items_from_attempts(attempts: list[dict]) -> list[dict]:
     """Build the ``grading.aggregate`` items list from extracted attempt rows.
 
     Each item is ``{phase, correct, score, axis_1, axis_2}`` — exactly the shape
-    ``grading.aggregate`` coerces. We pass the runtime phase strings through; the
-    aggregate's PHASE_METHOD table decides closed vs amr vs ungraded. Phases the
-    aggregate doesn't know about contribute nothing (it skips them), which is
-    fine — the deterministic verdict below uses the division buckets, not the
-    scorecard rows, for pass/fail.
+    ``grading.aggregate`` coerces. Runtime phase strings are normalized to the
+    grading table's canonical keys via ``_GRADING_PHASE_ALIAS`` so every graded
+    Division-3 attempt contributes to overall_pct. Phases the aggregate still
+    doesn't know about contribute nothing (it skips them); the deterministic
+    verdict below uses the division buckets, not the scorecard rows, for pass/fail.
     """
     items: list[dict] = []
     for a in attempts:
-        div = _division_for_phase(a.get("phase"))
+        phase = a.get("phase")
+        div = _division_for_phase(phase)
         if div is None:
             continue
         items.append({
-            "phase": a.get("phase"),
+            "phase": _GRADING_PHASE_ALIAS.get(phase, phase),
             "correct": a.get("correct") == 1,
             "score": a.get("score"),
             "axis_1": a.get("axis_1"),

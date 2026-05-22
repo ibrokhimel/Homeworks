@@ -2450,6 +2450,33 @@ async def _check_answer_memory_palace(req: CheckAnswerRequest) -> dict:
     ])
     retry_offered = (outcome != "perfect")
 
+    # Persist attempt rows (best-effort side-effect — never breaks grading).
+    # Memory Palace grades the whole recall set in one POST; persist one row per
+    # recall location so the Reflection engine sees per-item memory-palace
+    # performance like every other Practice-Arc game (it was previously the only
+    # graded game writing NOTHING, so Reflection was blind to it). Only when
+    # session_id is present (homework_id is already required above).
+    if req.session_id and req.homework_id:
+        import json as _json
+        for rr in recomputed:
+            try:
+                from ..db.attempts_repo import add_phase_attempt as _add_phase_attempt
+                await _add_phase_attempt(
+                    session_id=req.session_id,
+                    hw_id=req.homework_id,
+                    phase="memory-palace",
+                    subphase=f"loc_{rr['location_idx']}",
+                    question_id=f"memory-palace_{req.palace_key}_{rr['location_idx']}",
+                    attempt_number=req.attempt_number or 1,
+                    answer_spec_json=_json.dumps({"type": "memory_palace"}),
+                    checker_source="phase_adapter:memory-palace",
+                    correct=1 if rr["is_correct"] else 0,
+                    score=1.0 if rr["is_correct"] else 0.0,
+                    time_ms=int(rr.get("elapsed_ms") or 0),
+                )
+            except Exception as _e:  # noqa: BLE001 — attempt persistence is best-effort
+                _log.warning("MP: failed to persist attempt: %s", _e)
+
     return {
         "outcome": outcome,
         "outcome_title": outcome_title,

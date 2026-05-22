@@ -161,6 +161,31 @@ def test_extraction_groups_dynamic_boss_phase_into_boss_division():
     assert RE.boss_passed([_attempt("boss", correct=1)]) is True
 
 
+def test_grading_items_alias_maps_v2_phases_so_they_count_in_overall_pct():
+    # The v2 runtime persists newer phase strings than grading's v1 table, so
+    # real-life-challenge (the key AMR signal), the dynamic "boss", and the
+    # v2-only Game-Break games were SILENTLY dropped from overall_pct. The alias
+    # in _grading_items_from_attempts must normalize them onto counted keys.
+    rows = [
+        _attempt("real-life-challenge", correct=1, score=0.9),
+        _attempt("boss", correct=1, score=0.8),
+        _attempt("mystery-box", correct=1),
+        _attempt("puzzle-lock", correct=1),
+        _attempt("ttt", correct=1),
+        _attempt("memory-palace", correct=1),
+    ]
+    items = RE._grading_items_from_attempts(rows)
+    phases = {it["phase"] for it in items}
+    # exact semantic remaps
+    assert "real-life" in phases and "real-life-challenge" not in phases
+    assert "final-boss" in phases and "boss" not in phases
+    # v2-only closed games routed onto a counted closed Game-Break key
+    assert "adaptive-quiz" in phases
+    # and they actually contribute to overall_pct (was 0 before the alias)
+    from server.services import grading
+    assert grading.aggregate(items)["overall_pct"] > 0
+
+
 # ── DETERMINISTIC VERDICT ───────────────────────────────────────────────────
 
 def test_verdict_is_needs_retry_at_59_pct_even_with_boss_and_gates_ok():
