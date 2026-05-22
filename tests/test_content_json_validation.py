@@ -354,10 +354,19 @@ def test_put_with_invalid_content_json_returns_400_invalid_content(client):
     assert "details" in detail
 
 
-def test_put_with_model_validator_error_returns_serializable_400(client):
-    """Model-level ValueError ctx must not turn validation failures into 500s."""
+def test_model_validator_error_surfaces_serializable_via_readiness(client):
+    """Model-level ValueError ctx must not turn validation failures into 500s.
+
+    Since the "server allows drafts" fix, PUT autosaves leniently
+    (authoring=True) and DEFERS per-item business rules — a duplicate-left
+    Tile Match board no longer 400s the save (so the author doesn't lose
+    their other edits). The delivery-grade business rule is re-enforced by
+    the strict /readiness endpoint, which must surface the model-validator
+    ValueError as JSON-SERIALIZABLE issues (raw exception `ctx` stripped) —
+    the original regression this test guards.
+    """
     hw_id = _create_minimal_homework(client)
-    resp = client.put(
+    put_resp = client.put(
         f"/api/homeworks/{hw_id}",
         json={
             "content_json": {
@@ -368,11 +377,17 @@ def test_put_with_model_validator_error_returns_serializable_400(client):
             }
         },
     )
-    assert resp.status_code == 400, resp.text
-    detail = resp.json()["detail"]
-    assert detail["code"] == "INVALID_CONTENT"
-    assert "ctx" not in detail["details"][0]
-    assert "left strings must be unique" in detail["details"][0]["msg"]
+    # Authoring autosave accepts the in-progress (business-incomplete) board.
+    assert put_resp.status_code == 200, put_resp.text
+
+    # Strict readiness re-enforces the duplicate-left rule, serializably.
+    r = client.get(f"/api/homeworks/{hw_id}/readiness")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["ready"] is False
+    # JSON-round-trips (no raw ValueError ctx leaking → no 500).
+    assert json.dumps(body)
+    assert any("left strings must be unique" in issue["msg"] for issue in body["issues"]), body["issues"]
 
 
 def test_put_accepts_empty_tile_match_from_compat_read_path(client):

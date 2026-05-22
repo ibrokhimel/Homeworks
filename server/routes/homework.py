@@ -17,12 +17,18 @@ from server.services.routing import SUBJECTS, ALWAYS_HARD, SUBJECT_GRADES, SUBJE
 router = APIRouter(prefix="/homeworks", tags=["homework"])
 
 
-def _validate_content_json(content: Any) -> None:
+def _validate_content_json(content: Any, *, authoring: bool = False) -> None:
     """Run `content` through ContentJSON. Raises 400 INVALID_CONTENT on failure.
 
     GPT-5.5 audit (2026-04-29) flagged content_json as the largest long-term
     safety risk: a frontend or agent that drops a key silently corrupts a
     homework. This is the single boundary hook gating PUT + PATCH.
+
+    `authoring=True` (the in-progress builder autosave path) keeps STRUCTURE +
+    TYPE validation but DEFERS per-item delivery-grade completeness business
+    rules, so a half-written question doesn't 400 the whole save. Completeness
+    is re-enforced strictly by the readiness endpoint that gates sharing.
+    Default `authoring=False` keeps every other caller fully strict.
     """
     if content is None:
         return
@@ -36,7 +42,7 @@ def _validate_content_json(content: Any) -> None:
             },
         )
     try:
-        ContentJSON.model_validate(content)
+        ContentJSON.model_validate(content, context={"authoring": authoring})
     except ValidationError as exc:
         # Pydantic model validators can include raw exception objects under
         # `ctx.error`. FastAPI cannot JSON-serialize those, so omit context
@@ -445,12 +451,35 @@ async def update_homework(hw_id: str, hw_update: HomeworkUpdate):
         write_files=True,
     )
         _normalize_boss_question_advisory_levels(updates["content_json"])
-        _validate_content_json(updates["content_json"])
+        # Builder autosaves the WHOLE blob on every keystroke; defer delivery-
+        # grade per-item completeness so an in-progress question doesn't 400 the
+        # whole save. Readiness endpoint re-enforces strictly before sharing.
+        _validate_content_json(updates["content_json"], authoring=True)
         # PR 2 — bloat check on the FULL content_json (PUT is full overwrite).
         _check_no_inline_bloat(updates["content_json"])
         _normalize_boss_question_ids(updates["content_json"])
 
     return await db.update_homework(hw_id, updates)
+
+
+@router.get("/{hw_id}/readiness")
+async def homework_readiness(hw_id: str):
+    """Strict (delivery-grade) validation of the stored content_json, used to
+    gate SHARING. The builder autosaves leniently (authoring=True); this
+    reports whether the homework is complete enough to share. Returns
+    {ready: bool, issues: [{path, msg}]}."""
+    hw = await db.get_homework(hw_id)
+    if not hw:
+        raise HTTPException(status_code=404, detail={"error": "Not found", "code": "NOT_FOUND"})
+    content = hw.get("content_json") or {}
+    try:
+        ContentJSON.model_validate(content)  # strict — no authoring context
+        return {"ready": True, "issues": []}
+    except ValidationError as exc:
+        issues = [{"path": ".".join(str(x) for x in e["loc"]), "msg": e["msg"]}
+                  for e in exc.errors(include_context=False)]
+        return {"ready": False, "issues": issues}
+
 
 @router.patch("/{hw_id}/content")
 async def patch_homework_content(hw_id: str, body: ContentPatch):
@@ -478,8 +507,10 @@ async def patch_homework_content(hw_id: str, body: ContentPatch):
     merged = _deep_merge_content(existing, incoming_patch)
     _normalize_boss_question_advisory_levels(merged)
     # Validate the *merged* result, not just the patch — otherwise an
-    # accidental key drop in the patch wouldn't be caught.
-    _validate_content_json(merged)
+    # accidental key drop in the patch wouldn't be caught. Authoring mode:
+    # defer per-item completeness (builder PATCHes in-progress items); structure
+    # + types still enforced. Readiness endpoint re-enforces strictly.
+    _validate_content_json(merged, authoring=True)
     # PR 2 — bloat check on the INCOMING patch only (not the merged result).
     # Existing rows may carry pre-fix bloat; we don't want to block authors
     # from patching them with clean values. Only NEW bloat is rejected.

@@ -23,7 +23,17 @@ Phase types covered (matches STATE.md + fixtures):
 
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
+
+
+def _is_authoring(info: "ValidationInfo") -> bool:
+    """True when validation was invoked with context={'authoring': True} —
+    the in-progress builder autosave path. Defers delivery-grade completeness
+    checks so a half-written question doesn't 400 the whole save."""
+    try:
+        return bool((info.context or {}).get("authoring"))
+    except Exception:
+        return False
 
 
 # --------------------------------------------------------------------------- #
@@ -200,7 +210,9 @@ class BossMeta(BaseModel):
     use_dynamic_boss: bool = False                 # author opt-in; static boss_questions remain fallback
 
     @model_validator(mode="after")
-    def _validate(self) -> "BossMeta":
+    def _validate(self, info: ValidationInfo) -> "BossMeta":
+        if _is_authoring(info):
+            return self
         if self.attempts_max is not None and self.attempts_max < 1:
             raise ValueError("attempts_max must be >= 1 (use None for unlimited)")
         if self.starting_hp_override is not None and self.starting_hp_override < 10:
@@ -344,9 +356,9 @@ class TileMatchPair(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    id: str                                                     # stable per-pair id, e.g. "tm_001"
-    left: str                                                   # concept side (formula / term / symbol)
-    right: str                                                  # definition side (description / example)
+    id: str = ""                                                # stable per-pair id, e.g. "tm_001"
+    left: str = ""                                              # concept side (formula / term / symbol)
+    right: str = ""                                             # definition side (description / example)
     tier: Literal["basic", "premium"] = "basic"
     concept_family: Optional[str] = None                        # branch-complete grouping
     subject_family: Optional[SubjectFamily] = None              # Buzan color hook
@@ -356,7 +368,9 @@ class TileMatchPair(BaseModel):
     explanation: Optional[str] = None                          # premium "why this is wrong" note
 
     @model_validator(mode="after")
-    def _validate_pair(self):
+    def _validate_pair(self, info: ValidationInfo):
+        if _is_authoring(info):
+            return self
         if not self.left.strip():
             raise ValueError("left must be non-empty")
         if not self.right.strip():
@@ -374,10 +388,10 @@ class SentenceFillItem(BaseModel):
     """gb_sentence_fill — cloze passage with per-blank answers + optional word bank."""
 
     model_config = ConfigDict(extra="allow")
-    id: str
-    mode: Literal["word_bank", "free_recall"]
-    passage: str
-    answers: List[str]
+    id: str = ""
+    mode: Literal["word_bank", "free_recall"] = "word_bank"
+    passage: str = ""
+    answers: List[str] = Field(default_factory=list)
     word_bank: Optional[List[str]] = None
     explanations: Optional[List[Optional[str]]] = None
     tags: Optional[str] = None
@@ -389,7 +403,9 @@ class SentenceFillItem(BaseModel):
     tier: Literal["basic", "premium"] = "basic"
 
     @model_validator(mode="after")
-    def _validate(self):
+    def _validate(self, info: ValidationInfo):
+        if _is_authoring(info):
+            return self
         blanks = self.passage.count("___")
         if blanks == 0:
             raise ValueError("passage must contain at least one '___' blank marker")
@@ -502,8 +518,8 @@ PisaLevel = Literal["L1", "L2", "L3", "L4", "L5", "L6"]
 class RLCDecisionOption(BaseModel):
     """A single MC option on a decision step."""
     model_config = ConfigDict(extra="allow")
-    id: str                            # stable per-option id, e.g., "a", "b", "c"
-    label: str                         # student-visible text, ≤200 chars
+    id: str = ""                       # stable per-option id, e.g., "a", "b", "c"
+    label: str = ""                    # student-visible text, ≤200 chars
     is_correct: bool = False           # SERVER-ONLY — stripped from injector
     consequence: Optional[str] = None  # SERVER-ONLY — shown only after wrong/correct via endpoint response
     info_cost: Optional[Dict[str, str]] = None  # for info-request steps; {time?, budget?, access?}
@@ -512,19 +528,19 @@ class RLCDecisionOption(BaseModel):
 class RLCConceptChip(BaseModel):
     """A concept chip for the concept-select step."""
     model_config = ConfigDict(extra="allow")
-    id: str
-    label: str
+    id: str = ""
+    label: str = ""
     is_correct: bool = False           # SERVER-ONLY
 
 
 class RLCStep(BaseModel):
     """One of the 5 steps in the case flow."""
     model_config = ConfigDict(extra="allow")
-    id: str                                              # "step1" .. "step5"
+    id: str = ""                                         # "step1" .. "step5"
     kind: Literal["decision", "info_request", "final_decision",
-                  "concept_select", "reasoning"]
-    title: str                                           # e.g., "1-bosqich. Vaziyatni baholash"
-    prompt: str                                          # student-visible (HTML allowed; sanitized)
+                  "concept_select", "reasoning"] = "decision"
+    title: str = ""                                      # e.g., "1-bosqich. Vaziyatni baholash"
+    prompt: str = ""                                     # student-visible (HTML allowed; sanitized)
     options: Optional[List[RLCDecisionOption]] = None    # for decision/info_request/final_decision
     concept_chips: Optional[List[RLCConceptChip]] = None  # for concept_select
     placeholder: Optional[str] = None                   # for reasoning step
@@ -535,34 +551,34 @@ class RLCStep(BaseModel):
 class RLCStakeholder(BaseModel):
     """Character in the case (deferred runtime visual; schema-ready)."""
     model_config = ConfigDict(extra="allow")
-    id: str
-    name: str
-    role: str                           # "Bozor sotuvchisi", "Mahalla raisi", etc.
+    id: str = ""
+    name: str = ""
+    role: str = ""                      # "Bozor sotuvchisi", "Mahalla raisi", etc.
     avatar_emoji: Optional[str] = None  # for v1; image URL fields are future
 
 
 class RLCConsequence(BaseModel):
     """Post-decision ripple node (deferred runtime visual; schema-ready)."""
     model_config = ConfigDict(extra="allow")
-    label: str                         # "Oilani himoya qildi" / "Qo'shni do'konlarga zarar"
-    impact: Literal["positive", "negative", "neutral"]
+    label: str = ""                    # "Oilani himoya qildi" / "Qo'shni do'konlarga zarar"
+    impact: Literal["positive", "negative", "neutral"] = "neutral"
     weight: Optional[int] = None       # 1-5 ripple-distance
 
 
 class RealLifeChallengeCase(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    id: str                                      # stable case id, e.g., "rlc_001"
-    expert_role: ExpertRole
-    title: str                                   # case title, ≤200 chars
-    intro: str                                   # 1-3 sentence scenario hook
+    id: str = ""                                 # stable case id, e.g., "rlc_001"
+    expert_role: ExpertRole = "general"
+    title: str = ""                              # case title, ≤200 chars
+    intro: str = ""                              # 1-3 sentence scenario hook
     pisa_level: PisaLevel = "L4"
     tier: Literal["basic", "premium"] = "basic"
     grade_band: Literal["g1_3", "g4_6", "g7_9", "g10_11"] = "g7_9"
     variant: Literal["standard", "creative_thinking"] = "standard"
 
     # Required: exactly 5 steps in spec order
-    steps: List[RLCStep]                         # length == 5
+    steps: List[RLCStep] = Field(default_factory=list)  # length == 5 (enforced strict only)
 
     # Optional: schema-ready forward-compat
     stakeholders: Optional[List[RLCStakeholder]] = None
@@ -572,7 +588,9 @@ class RealLifeChallengeCase(BaseModel):
     memory_palace_location: Optional[str] = None           # deferred Memory Palace
 
     @model_validator(mode="after")
-    def _validate_structure(self):
+    def _validate_structure(self, info: ValidationInfo):
+        if _is_authoring(info):
+            return self
         if len(self.steps) != 5:
             raise ValueError("RLC case must have exactly 5 steps per spec §1")
 
@@ -684,7 +702,9 @@ class MemoryPalaceGame(_Permissive):
     concepts: List[MemoryPalaceConcept] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def _validate_memory_palace_game(self):
+    def _validate_memory_palace_game(self, info: ValidationInfo):
+        if _is_authoring(info):
+            return self
         # Palace key uniqueness
         if self.palaces:
             keys = [p.key for p in self.palaces]
@@ -1109,7 +1129,9 @@ class ContentJSON(_Permissive):
     reflection: Optional[ReflectionPhase] = None
 
     @model_validator(mode="after")
-    def _validate_tile_match_collection(self):
+    def _validate_tile_match_collection(self, info: ValidationInfo):
+        if _is_authoring(info):
+            return self
         pairs = self.gb_tile_match
         if not pairs:
             return self
@@ -1146,13 +1168,15 @@ class ContentJSON(_Permissive):
         return self
 
     @model_validator(mode="after")
-    def _validate_mythical_boss_hints(self) -> "ContentJSON":
+    def _validate_mythical_boss_hints(self, info: ValidationInfo) -> "ContentJSON":
         """Mythical boss spec §11: zero hints per question.
 
         If boss_meta.boss_type == 'mythical' and any question has non-empty
         hints, raise ValidationError. This prevents accidental hint leakage
         on the highest-difficulty boss type.
         """
+        if _is_authoring(info):
+            return self
         if self.boss_meta is None or self.boss_meta.boss_type != "mythical":
             return self
         questions = self.boss_questions or []

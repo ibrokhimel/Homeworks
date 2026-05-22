@@ -80,7 +80,23 @@ All fields optional. `content_json` schema: [CONTRACTS.md §1](../CONTRACTS.md#1
 
 **`content_json` is fully replaced** — every key you omit gets wiped from the stored blob. Use `PATCH /…/{id}/content` (below) when you only want to update a subset. The builder UI always sends the complete blob.
 
+**Authoring autosave is lenient.** PUT validates `content_json` STRUCTURE + TYPES strictly, but DEFERS per-item delivery-grade *completeness* business rules (e.g. a Sentence-Fill passage with no `___` blanks yet, an empty Tile Match pair). This lets the builder autosave a half-written question on every keystroke without 400-ing the whole save. Completeness is re-enforced by `GET /…/{id}/readiness` (below), which gates sharing.
+
 **200** updated record. **404** `NOT_FOUND`. **409** `TRASHED`.
+
+---
+
+### GET /api/homeworks/{hw_id}/readiness
+
+Strict (delivery-grade) validation of the STORED `content_json`. Used to gate **sharing**: the builder autosaves leniently (see PUT above), so this is how the UI decides whether the homework is complete enough to publish.
+
+```json
+{ "ready": false, "issues": [{ "path": "gb_sentence_fill.0", "msg": "Value error, passage must contain at least one '___' blank marker" }] }
+```
+
+Re-runs the full `ContentJSON` schema with NO authoring context, so every per-item business rule fires. `ready: true` with `issues: []` means safe to share.
+
+**200** `{ ready: bool, issues: [{ path, msg }] }`. **404** `NOT_FOUND`.
 
 ---
 
