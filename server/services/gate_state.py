@@ -148,9 +148,15 @@ async def compute_gate_state(session_id: Optional[str], hw_id: str) -> dict:
     mc_correct = min(mc_correct, mc_total) if mc_total else mc_correct
 
     mcq_passed = cbp_correct >= cbp_threshold
-    # When a reasoning step is authored, the CBP gate requires BOTH the MCQ
-    # threshold AND a passing reasoning attempt; otherwise MCQ alone gates.
-    cbp_passed = mcq_passed and (reasoning_passed if reasoning_required else True)
+    # The MCQ checkpoints ARE the CBP gate: pass on >= threshold correct
+    # checkpoints. The open-ended reasoning step (Decision Process Explanation)
+    # TEACHES but never BLOCKS — it's still graded and surfaced as feedback, but
+    # a failed reasoning attempt must NOT hold back a student who cleared the
+    # checkpoints (3/3 checkpoints + a missed reasoning step previously showed
+    # "Needs retry", which contradicts the runtime's own non-blocking intent in
+    # CaseBasedPreview.tsx). `reasoning_required`/`reasoning_passed` are still
+    # reported below for display — they just no longer gate the verdict.
+    cbp_passed = mcq_passed
     mc_score_pct = round(100 * mc_correct / mc_total) if mc_total else 0
     mc_score_pct = min(mc_score_pct, 100)
     mc_passed = mc_total > 0 and mc_score_pct >= mc_threshold

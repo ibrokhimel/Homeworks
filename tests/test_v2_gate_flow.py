@@ -186,35 +186,38 @@ def _post_reasoning(client, hw_id, sid, text):
     }).json()
 
 
-def test_cbp_gate_requires_reasoning_pass_when_present(client):
-    """When a decision_process_explanation is authored, 3/3 MCQ alone does NOT
-    pass the CBP gate — a passing reasoning attempt is also required. The
-    reasoning attempt must NOT inflate checkpoints_correct past the MCQ count."""
+def test_cbp_reasoning_is_non_blocking_for_the_gate(client):
+    """The open-ended reasoning step (decision_process_explanation) TEACHES but
+    never BLOCKS the CBP gate: 3/3 MCQ checkpoints pass even with the reasoning
+    attempt still failed/pending — matching the runtime's non-blocking intent
+    (a 3/3 student must not see "Needs retry" because of the reasoning step).
+    `reasoning_required`/`reasoning_passed` are still REPORTED for display, just
+    not gating, and the reasoning attempt must NOT inflate checkpoints_correct."""
     hw_id = _make_v2_homework_with_reasoning(client)
     sid = "reasoning-gate"
 
     async def _fake_high(*a, **k):
         return (90, "Aniq izoh.")
 
-    # 3/3 MCQ correct (expected indices 1,0,1) — but no reasoning yet.
+    # 3/3 MCQ correct (expected indices 1,0,1) — no reasoning attempt yet.
     assert _cbp(client, hw_id, sid, 0, "1")["correct"] is True
     assert _cbp(client, hw_id, sid, 1, "0")["correct"] is True
     assert _cbp(client, hw_id, sid, 2, "1")["correct"] is True
 
     g = _gate(client, hw_id, sid)
     assert g["cbp"]["checkpoints_correct"] == 3
-    assert g["cbp"]["reasoning_required"] is True
-    assert g["cbp"]["reasoning_passed"] is False
-    assert g["cbp"]["passed"] is False  # MCQ done, reasoning still pending
+    assert g["cbp"]["reasoning_required"] is True   # still authored + reported
+    assert g["cbp"]["reasoning_passed"] is False     # still reported (not yet attempted)
+    assert g["cbp"]["passed"] is True  # NON-BLOCKING: 3/3 MCQ passes regardless
 
-    # Now submit a passing reasoning explanation (mock grader high + keywords).
+    # A passing reasoning attempt still grades + reports, and must NOT inflate
+    # the MCQ checkpoint count.
     with patch.object(_ai_routes, "_grade_cbp_reasoning", new=_fake_high):
         r = _post_reasoning(client, hw_id, sid, _REASONING_TEXT)
     assert r["passed"] is True, r
 
     g2 = _gate(client, hw_id, sid)
-    # Reasoning must NOT inflate the MCQ count.
-    assert g2["cbp"]["checkpoints_correct"] == 3
+    assert g2["cbp"]["checkpoints_correct"] == 3     # reasoning didn't inflate
     assert g2["cbp"]["reasoning_passed"] is True
     assert g2["cbp"]["passed"] is True
 
