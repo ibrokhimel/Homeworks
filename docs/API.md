@@ -13,7 +13,7 @@ All responses JSON unless marked **HTML**. Errors: `{ "detail": { "error": "..."
 | Render | GET /h/{id} (HTML), GET /api/homeworks/{id}/preview (HTML) |
 | Library | GET /api/library, GET /api/library/facets |
 | Quotes | GET /api/quotes |
-| AI tutor | POST /api/ai/check-answer, /api/ai/boss-turn, /api/ai/reflection, /api/ai/tutor |
+| AI tutor | POST /api/ai/check-answer (incl. phase=case_based_preview_reasoning), /api/ai/boss-turn, /api/ai/reflection, /api/ai/tutor |
 | AI live tutor (Wave F1) | POST /api/ai/tutor/chat, /api/ai/tutor/boss-plan, GET /api/ai/tutor/history |
 | AI meta | GET /api/ai/status, POST /api/ai/session/final-report |
 | Review queue | GET /api/ai/review-queue, POST /api/ai/review-queue/{id}/decide |
@@ -2041,11 +2041,74 @@ both learning sections pass. `session_id` query param scopes the attempt log.
 **Response 200**
 ```json
 {
-  "cbp": {"passed": true, "checkpoints_correct": 3, "checkpoints_total": 3, "threshold": 2},
+  "cbp": {
+    "passed": true,
+    "checkpoints_correct": 3,
+    "checkpoints_total": 3,
+    "threshold": 2,
+    "reasoning_required": true,
+    "reasoning_passed": true
+  },
   "mc":  {"passed": true, "score_pct": 60, "correct": 3, "total": 5, "threshold_pct": 60},
   "practice_arc_unlocked": true
 }
 ```
 
+`reasoning_required` / `reasoning_passed` are present only when the homework
+authors a `decision_process_explanation`. They do NOT gate `practice_arc_unlocked`
+— the MCQ checkpoint count is the sole unlock signal.
+
 **Tests**: `tests/test_runtime_hydration_redaction.py` (redaction fence),
 `tests/test_v2_gate_flow.py` (unlock sequence).
+
+---
+
+### POST /api/ai/check-answer  *(phase = `"case_based_preview_reasoning"`, commit 92824a3)*
+
+Server-grades the student's free-text reasoning after the 3 CBP checkpoints.
+Dispatched from `CaseBasedPreview` only when the homework authors a
+`decision_process_explanation` field. Non-blocking: result does not gate the
+Practice Arc.
+
+**Request**
+```json
+{
+  "phase": "case_based_preview_reasoning",
+  "homework_id": "string",
+  "session_id": "string",
+  "reasoning_text": "string"
+}
+```
+
+- `reasoning_text` is the student's typed explanation.
+- `homework_id` is used to load the server-side keyword lists and rubric
+  (`concept_keywords`, `method_keywords`, `mistake_keywords`,
+  `acceptable_keywords`, `pass_score`) — these fields are answer-bearing and are
+  never sent to the client.
+
+**Response 200**
+```json
+{
+  "passed": true,
+  "score": 78,
+  "feedback": "string — coaching feedback shown to student"
+}
+```
+
+- `score`: 0–100.
+- `passed`: `score >= pass_score` (authored field, default 60).
+
+**Grading order**
+1. Deterministic keyword-coverage check (concept + method keywords).
+2. AI judgment via `server/prompts/runtime/cbp-reasoning-checker.md` (cloned
+   RLC grader); higher confidence wins over the deterministic score.
+3. Deterministic fallback if AI is unavailable.
+
+**Errors**
+
+| Status | code | When |
+|---|---|---|
+| 400 | `CBP_REASONING_TOO_SHORT` | `reasoning_text` shorter than `min_chars` (client-visible field) before any AI call |
+| 400 | `CBP_NO_REASONING` | `reasoning_text` absent or blank |
+| 404 | `HW_NOT_FOUND` | `homework_id` does not resolve |
+| 403 | `CBP_REASONING_NOT_AUTHORED` | homework has no `decision_process_explanation` field |

@@ -115,13 +115,77 @@ Assert the hydration response JSON contains NONE of: `expected`, `ans`, `accepte
  └─ <RuntimeBoot> (fetch /api/runtime/homeworks/{id} + gate-state)
      └─ <V2FlowController> (Zustand store)
          ├─ <LearningHub> → <SectionTile kind="cbp"|"fc">
-         ├─ <CaseBasedPreview> → CaseSetup→Checkpoint→LearningBlock→FinalSimulation→CbpFeedback
+         ├─ <CaseBasedPreview>
+         │    CaseSetup → Checkpoint×3 → [ReasoningStep?] → FinalSimulation → CbpFeedback
+         │    (ReasoningStep only when decision_process_explanation authored)
          ├─ <Flashcards> → <MemoryCheck> → <MemoryItem type=mcq|fill|choose|tf|tile|term>
          ├─ <UnlockGate> (chain-break; gated on practice_arc_unlocked)
          ├─ <PracticeArc> → <GameHost registry> → games + <BossArena> (Why→How→What)
          ├─ <Reflection> (Passed | Needs Retry)
          └─ <TutorWidget> (docked, persistent; leak-safe)
 ```
+
+### C.1.1 Case-Based Preview — immersive redesign + reasoning step (commit 92824a3)
+
+#### Sub-stage flow
+
+```
+case_setup
+  → checkpoint_0   (MCQ, graded: phase="case_based_preview")
+  → checkpoint_1
+  → checkpoint_2
+  → [reasoning_step]   ← only when decision_process_explanation authored
+  → final_simulation
+  → cbp_feedback
+```
+
+The reasoning step is **non-blocking**. Unlock gate logic:
+- Practice Arc unlocks when MCQ checkpoints ≥ `threshold` (≥2 of 3) — unchanged.
+- `gate_state` additionally exposes `reasoning_required` / `reasoning_passed`
+  and folds `reasoning_passed` into `cbp.passed`, but the MCQ count drives the
+  arc gate. Students who skip or fail reasoning still progress.
+
+#### Key components
+
+| Component | File | Role |
+|---|---|---|
+| `CaseBasedPreview` | `frontend/app/src/runtime/CaseBasedPreview.tsx` | Sub-stage state machine, data orchestration |
+| `CbpBackdrop` | `frontend/app/src/runtime/CbpBackdrop.tsx` | Full-bleed living backdrop (brand-blue Apple-glass) |
+| `CbpJourney` | `frontend/app/src/runtime/CbpJourney.tsx` | Winding 9-node journey rail; nodes illuminate as student advances |
+
+Visual language: 3D press-buttons, staged before/after consequence reveal. Matches
+the Hub's brand-blue palette.
+
+#### Shared `useColorTrail` hook
+
+`frontend/app/src/runtime/hooks/useColorTrail.ts` — the Hub's pointer/touch
+color-trail (eased smoothed head, destination-out fade, click burst) extracted
+into a reusable hook. Consumed by both `<LearningHub>` and `<CaseBasedPreview>`;
+zero regression on the Hub.
+
+#### Reasoning-step grading
+
+Endpoint: `POST /api/ai/check-answer` with `phase="case_based_preview_reasoning"`.
+
+Request additions beyond the base check-answer shape:
+```json
+{
+  "phase": "case_based_preview_reasoning",
+  "homework_id": "string",
+  "session_id": "string",
+  "reasoning_text": "string"
+}
+```
+
+Response: `{ "passed": bool, "score": int (0–100), "feedback": "string" }`.
+
+Grading order: keyword-coverage deterministic check → AI judgment
+(`server/prompts/runtime/cbp-reasoning-checker.md`, cloned from the RLC grader)
+→ deterministic fallback on AI failure.
+
+Redaction guarantee: `concept_keywords`, `method_keywords`, `mistake_keywords`,
+`acceptable_keywords`, `rubric`, and `pass_score` are in `ANSWER_BEARING_KEYS`
+and are stripped at hydration. Only `prompt` and `min_chars` reach the client.
 
 ### C.2 State: **Zustand** (~1KB) — selector subscriptions so TutorWidget re-render doesn't churn PracticeArc. Server-authoritative `gate.*` hydrated from API, never optimistic.
 

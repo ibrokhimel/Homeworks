@@ -511,6 +511,23 @@ unchanged injector path.
 - **Full `landing.css` light Apple-glass redesign** applied across all v2
   screens + games.
 
+### Confirmed working (continued — CBP redesign + reasoning step, commit 92824a3)
+
+- **CBP immersive redesign** (`frontend/app/src/runtime/CaseBasedPreview.tsx`):
+  full-bleed living backdrop (`CbpBackdrop.tsx`), winding 9-node journey rail
+  (`CbpJourney.tsx`) that lights up as the student advances, 3D press-buttons,
+  and a staged before/after consequence reveal. Matches Hub brand-blue Apple-glass
+  style.
+- **Shared `useColorTrail` hook** (`frontend/app/src/runtime/hooks/useColorTrail.ts`):
+  Hub's pointer/touch color-trail extracted into a shared hook consumed by both
+  the Hub and CBP. Zero regression on the Hub.
+- **"Decision Process Explanation" reasoning step**: after the 3 MCQ checkpoints,
+  the student types their reasoning. Server-graded via
+  `POST /api/ai/check-answer?phase=case_based_preview_reasoning`. Non-blocking
+  (the MCQ checkpoints remain the unlock gate). Only rendered when the homework
+  authors a `decision_process_explanation` sub-object; legacy CBPs without it skip
+  straight to the simulation.
+
 ### Known
 
 - **story_mode** (`gb_story_mode` → `story_mode` game key) is unbuilt

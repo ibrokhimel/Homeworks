@@ -717,6 +717,38 @@ soon" skip card).
 }
 ```
 
+#### `case_based_preview.decision_process_explanation` (additive, commit 92824a3)
+
+An **optional** sub-object on `case_based_preview`. When absent, the CBP flow goes
+directly from the 3 checkpoints to the simulation (legacy behaviour preserved).
+When present, a "Decision Process Explanation" step is inserted between the
+checkpoints and the simulation.
+
+```json
+"decision_process_explanation": {
+  "prompt": "string — student-visible instruction text",
+  "min_chars": 80,
+  "concept_keywords":    ["..."],
+  "method_keywords":     ["..."],
+  "mistake_keywords":    ["..."],
+  "acceptable_keywords": ["..."],
+  "rubric": "string — AI grading rubric",
+  "pass_score": 60
+}
+```
+
+**Answer-bearing fields (stripped at hydration; never reach the client):**
+`concept_keywords`, `method_keywords`, `mistake_keywords`, `acceptable_keywords`,
+`rubric`, `pass_score`.
+
+**Client-visible fields only:** `prompt`, `min_chars`.
+
+Grading is via `POST /api/ai/check-answer` with `phase="case_based_preview_reasoning"`
+(see `docs/API.md`). The step is **non-blocking**: `gate_state.compute_gate_state`
+includes `reasoning_required` and `reasoning_passed` flags and factors
+`reasoning_passed` into `cbp.passed`, but the MCQ checkpoints remain the
+Practice-Arc unlock gate.
+
 ### `memory_check` (MemoryCheck)
 
 ```json
