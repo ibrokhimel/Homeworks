@@ -219,6 +219,24 @@
   background: var(--pl-line);
 }
 
+/* Small padlock SVG inside each tumbler. Inherits `currentColor` from the
+   tumbler container; on an active tumbler the parent flips currentColor to
+   the interaction-blue so the lock highlights without re-coloring the SVG. */
+.tumblerLockIcon {
+  color: var(--pl-line);
+  width: 22px;
+  height: 22px;
+  transition: color 220ms var(--landing-spring, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.tumblerActive .tumblerLockIcon {
+  color: var(--pl-blue);
+}
+
+.tumblerWrong .tumblerLockIcon {
+  color: #c93a3a;
+}
+
 /* ---- Question card — white Apple card, interaction-blue accent ---- */
 .questionCard {
   position: relative;
