@@ -428,33 +428,33 @@
       "features": [
         {
           "title": "Требования к выпускным сертификатам",
-          "body": "Ученикам 10–11-го классов для получения аттестата теперь нужен признанный языковой сертификат — IELTS, CEFR или TOEFL. Ваша школа должна подготовить каждого ученика к этой планке."
+          "body": "Ученикам 10–11-го классов для аттестата теперь нужен признанный сертификат — IELTS, CEFR или TOEFL. Каждого нужно подготовить к этой планке."
         },
         {
           "title": "Базовая программа",
-          "body": "Ряд ключевых предметов исключён из обязательного ядра 10–11-го классов. IT и иностранные языки теперь формируют основу учебного плана. Школе нужна глубина в том, что осталось, и строгость в том, что добавилось."
+          "body": "Ряд ключевых предметов исключён из ядра 10–11-го классов; теперь его формируют IT и языки. Школе нужна глубина в том, что осталось, и строгость в новом."
         },
         {
           "title": "Ожидания родителей",
-          "body": "Родители видят, что дают международные школы, и хотят тех же результатов от вашей. Вашей школе нужно показывать, что она производит, — не только то, чему учит."
+          "body": "Родители видят результаты международных школ и хотят их же от вашей. Показывайте, что школа производит, — не только то, чему учит."
         }
       ],
       "delivers": {
         "eyebrow": "Что получают школы",
         "title": "Школы выбирают NETS, потому что он решает три задачи одновременно.",
-        "lead": "Освоение программы, которую вы уже преподаёте, признанные сертификаты в руках выпускников и операционная прозрачность для школы — в одной платформе.",
+        "lead": "Освоение программы, которую вы уже преподаёте, признанные сертификаты в руках выпускников и операционная прозрачность — в одной платформе.",
         "items": [
           {
             "title": "Освоение программы, которую вы уже преподаёте",
-            "body": "Математика, естественные науки, языки, обществознание — всё выровнено по вашим действующим учебникам, поурочным планам и рабочим программам. NETS усиливает то, что вы преподаёте, и никогда не подменяет это."
+            "body": "Математика, науки, языки, обществознание — всё выровнено по вашим учебникам и поурочным планам. NETS усиливает то, что вы преподаёте, и никогда не подменяет."
           },
           {
             "title": "Признанные сертификаты, которые останутся у выпускников",
-            "body": "IELTS, TOEFL, английский по CEFR, SAT Math, SAT Reading & Writing, предметные треки по AP, основы IT и AI — всё внутри той же платформы, которой ученики пользуются каждый день. Одна платформа. Один договор. Все результаты."
+            "body": "IELTS, TOEFL, английский по CEFR, SAT, предметные треки по AP, основы IT и AI — в платформе, которой ученики пользуются каждый день. Один договор. Все результаты."
           },
           {
             "title": "Операционная прозрачность для вашей школы",
-            "body": "Каждый ученик, каждый предмет, каждый разговор с родителем, каждый отчёт — в одном месте. Данные передаются в Kundalik автоматически. Соответствует ZRU-547. Разработано под реальную работу узбекских школ."
+            "body": "Каждый ученик, предмет, разговор с родителем и отчёт — в одном месте. Данные передаются в Kundalik автоматически. Соответствует ZRU-547."
           }
         ]
       },
@@ -467,7 +467,7 @@
         ["Вечер дома", "Вечер дома", "Ученики могут вернуться к любому уроку, изучить свой трек или просто отдохнуть. Домашняя работа уже сделана — в школе, в присутствии учителя."]
       ],
       "day": {
-        "supporting": "Формат контролируемого блока — не случайное решение. Именно так NETS превращает AI в инструмент учителя, а не в лазейку для ученика. Cambridge, AP Capstone и International Baccalaureate опираются на ту же идею: контроль процесса, а не программы-детекторы — вот что делает академическую честность реальной. NETS воплощает эту идею в программном обеспечении и даёт вашим учителям время и обзор, необходимые для качественной работы."
+        "supporting": "Контролируемый блок — не случайность: именно так NETS делает AI инструментом учителя, а не лазейкой для ученика. Cambridge, AP Capstone и International Baccalaureate исходят из той же идеи: честность держится на контроле процесса. NETS воплощает это в ПО и даёт учителям время и обзор для качественной работы."
       },
       "previewEyebrow": "Внутри модуля домашних заданий",
       "previewTitle": "NETS переосмыслил домашнее задание с нуля.",
@@ -499,7 +499,7 @@
         }
       ],
       "homework": {
-        "detail": "Ученики, не достигшие освоения с первой попытки, получают другую историю на ту же тему — до трёх раз. Трудность становится данными для учителя, а не отметкой о провале для ученика. Те, кто справляется легко, тоже дают информацию — слишком ли прост материал, опережает ли ученик класс, нужно ли повысить сложность."
+        "detail": "Кто не достиг освоения, получает другую историю на ту же тему — до трёх раз. Трудность становится данными для учителя, а не отметкой о провале. Те, кто справляется легко, тоже подают сигнал — что сложность пора повысить."
       },
       "phone": {
         "header": "Домашнее задание",
@@ -513,11 +513,11 @@
       "tracks": {
         "eyebrow": "Сертификаты, которые остаются с учеником",
         "title": "Каждый ученик NETS движется к признанному результату.",
-        "lead": "Библиотека треков NETS охватывает сертификаты и навыки, с которыми ученики должны выйти из школы, — подготовка начинается с первого дня, а не в последний год.",
+        "lead": "Библиотека треков NETS охватывает сертификаты и навыки, с которыми ученики выходят из школы, — подготовка с первого дня, а не в последний год.",
         "items": [
           {
             "name": "IELTS",
-            "body": "Полная подготовка по спецификациям Cambridge IELTS. Аудирование, чтение, письмо, говорение. Привязка к CEFR для выполнения выпускных требований."
+            "body": "Полная подготовка по спецификациям Cambridge IELTS. Аудирование, чтение, письмо, говорение — с привязкой к CEFR для выпуска."
           },
           {
             "name": "TOEFL",
@@ -525,11 +525,11 @@
           },
           {
             "name": "SAT Math & SAT Reading and Writing",
-            "body": "По спецификациям College Board. Для учеников, нацеленных на поступление в университеты США."
+            "body": "По спецификациям College Board. Для нацеленных на поступление в университеты США."
           },
           {
             "name": "AP-aligned subject tracks",
-            "body": "Университетская глубина по основным предметам — для учеников, готовящихся к зачёту продвинутых курсов."
+            "body": "Университетская глубина по основным предметам — для готовящихся к зачёту продвинутых курсов."
           },
           {
             "name": "K1–4 Puzzle Library",
@@ -545,7 +545,7 @@
       "learner": {
         "eyebrow": "Кто выпускается из NETS",
         "title": "Мы измеряем, кем становятся ваши ученики, — а не только их баллы.",
-        "lead": "NETS отслеживает шесть качеств ученика по каждому предмету и каждому треку. Родители видят картину развития своего ребёнка. Учителя видят, что работает. Школы видят, кого они выпускают.",
+        "lead": "NETS отслеживает шесть качеств ученика по каждому предмету и треку. Родители видят развитие ребёнка. Учителя — что работает. Школы — кого они выпускают.",
         "items": [
           {
             "title": "Исследователи",
@@ -580,19 +580,19 @@
         "items": [
           {
             "title": "Для учеников",
-            "body": "Все уроки, треки, задания и оценки — в одном приложении. AI-тьютор объясняет, когда что-то непонятно. Прогресс по каждому треку виден самому ученику. Доступ к любому уроку, который захотелось пересмотреть, не теряется никогда."
+            "body": "Все уроки, треки, задания и оценки — в одном приложении. AI-тьютор объясняет, когда непонятно, а любой пройденный урок всегда открыт для повторения."
           },
           {
             "title": "Для учителей",
-            "body": "Поурочные планы, слайды и домашние задания по вашей программе — готовы к использованию. Работы, проверенные AI, с очередью только тех, где нужен живой взгляд. Видимость развития навыков и качеств по каждому ученику — обновляется в процессе работы. Кураторство итоговых проектов со встроенными контрольными точками. Отчёты, совместимые с Kundalik."
+            "body": "Готовые поурочные планы, слайды и домашние задания по вашей программе. Работы, проверенные AI, с очередью только для живого взгляда, развитие навыков по каждому ученику в реальном времени и отчёты, совместимые с Kundalik."
           },
           {
             "title": "Для родителей",
-            "body": "Успеваемость ребёнка, его трек, развитие качеств, итоговый проект и сообщения учителя — в телефоне, на узбекском, русском или английском. Реальная картина того, что происходит в школе, — а не раз в четверть на родительском собрании."
+            "body": "Успеваемость ребёнка, его трек, качества, итоговый проект и сообщения учителя — в телефоне, на узбекском, русском или английском. Реальная картина, а не раз в четверть."
           },
           {
             "title": "Для администрации школы",
-            "body": "Каждая оценка, каждый класс, каждый ученик — успеваемость, посещаемость, вовлечённость. Готовность когорт по трекам сертификации. Распределение нагрузки учителей. Галереи итоговых проектов. Отчёты, которые автоматически передаются в Kundalik."
+            "body": "Успеваемость, посещаемость и вовлечённость по каждому классу. Готовность когорт по трекам, нагрузка учителей, галереи итоговых проектов и отчёты, передаваемые в Kundalik автоматически."
           }
         ]
       },
@@ -669,12 +669,12 @@
           "title": "NETS Configurable",
           "body": "Для школ с действующей системой, от которой они пока не готовы отказаться. Подключите нужные модули NETS — модуль домашних заданий, отдельный трек, приложение для родителей — к тому, что уже есть. Цена согласовывается по объёму."
         },
-        "subline": "NETS арендуется, а не дорабатывается под заказ. Ваша школа настраивает продукт — сам продукт при этом остаётся продуктом. Именно так он остаётся быстрым, актуальным и выровненным по мировым стандартам, которые нужны вашим ученикам."
+        "subline": "NETS арендуется, а не дорабатывается под заказ. Школа настраивает продукт — сам продукт остаётся продуктом. Именно так он остаётся быстрым, актуальным и выровненным по мировым стандартам."
       },
       "trackRecord": {
         "eyebrow": "Доверие",
         "title": "Что мы измеряем — то и показываем.",
-        "body": "NETS не обещает результатов, которых ещё не достиг. Мы обещаем прозрачность в том, что измеряем: развитие ученика по шести качествам, освоение программы, которую преподаёт ваша школа, и готовность по каждому треку сертификации. Школы, работающие с NETS, видят важные данные каждый день. По мере того как первые когорты завершат учебный год и сдадут первые сертификационные экзамены в NETS, мы опубликуем их результаты. До этого момента мы просим школы оценивать нас по тому, что видно в платформе, — а не по заявлениям, которые мы пока не можем подкрепить.",
+        "body": "NETS не обещает результатов, которых ещё не достиг. Мы обещаем прозрачность в том, что измеряем: развитие по шести качествам, освоение программы вашей школы и готовность по каждому треку сертификации. Когда первые когорты завершат учебный год и сдадут первые экзамены в NETS, мы опубликуем их результаты. До тех пор оценивайте нас по тому, что видно в платформе, — а не по заявлениям, которые мы пока не можем подкрепить.",
         "subline": "Это та же позиция, которую занимают International Baccalaureate, Cambridge International и College Board. Результаты сначала зарабатываются — потом называются."
       },
       "faq": {
@@ -764,33 +764,33 @@
       "features": [
         {
           "title": "Graduation requirements",
-          "body": "Grades 10 and 11 now need a recognized language certificate to graduate — IELTS, CEFR, or TOEFL. Your school needs to prepare every student to clear that bar."
+          "body": "Grades 10 and 11 now need a recognized language certificate — IELTS, CEFR, or TOEFL — to graduate. Every student has to clear that bar."
         },
         {
           "title": "The core curriculum",
-          "body": "Major academic subjects have moved out of the grades 10–11 core. IT and languages now anchor what students take. Your school needs depth in what remains and rigor in what's been added."
+          "body": "Major subjects moved out of the grades 10–11 core; IT and languages now anchor it. Your school needs depth in what remains and rigor in what's new."
         },
         {
           "title": "Parent expectations",
-          "body": "Parents see what international schools deliver, and they want the same outcomes from yours. Your school needs to show what it produces — not just what it teaches."
+          "body": "Parents see what international schools deliver and want the same from yours. Show what your school produces — not just what it teaches."
         }
       ],
       "delivers": {
         "eyebrow": "What schools get",
         "title": "Schools choose NETS because it delivers three things at once.",
-        "lead": "Mastery of the curriculum you already teach, recognized credentials students carry forward, and operational clarity for your school — in one platform.",
+        "lead": "Mastery of the curriculum you already teach, recognized credentials students carry forward, and operational clarity — in one platform.",
         "items": [
           {
             "title": "Mastery of the curriculum you already teach",
-            "body": "Math, sciences, languages, social studies — all aligned to your existing textbooks, lesson plans, and scheme of work. NETS enhances what you teach; it never replaces it."
+            "body": "Math, sciences, languages, social studies — aligned to your textbooks and lesson plans. NETS enhances what you teach; it never replaces it."
           },
           {
             "title": "Recognized credentials students carry forward",
-            "body": "IELTS, TOEFL, CEFR-aligned English, SAT Math, SAT Reading & Writing, AP-aligned subject tracks, and IT & AI foundations — delivered inside the same platform students use every day. One platform. One contract. Every outcome covered."
+            "body": "IELTS, TOEFL, CEFR-aligned English, SAT, AP-aligned subjects, and IT & AI foundations — in the platform students use daily. One contract. Every outcome covered."
           },
           {
             "title": "Operational clarity for your school",
-            "body": "Every student, every subject, every parent conversation, every report — in one place. Feeds your Kundalik reporting automatically. Compliant with ZRU-547. Built for how Uzbek schools actually operate."
+            "body": "Every student, subject, parent conversation, and report in one place. Feeds Kundalik automatically. Compliant with ZRU-547."
           }
         ]
       },
@@ -803,7 +803,7 @@
         ["Evening at home", "Evening at home", "Students can revisit any lesson, explore their outcome track, or simply rest. Homework is already done — at school, with a teacher present."]
       ],
       "day": {
-        "supporting": "The supervised-block design is not an accident. It's how NETS makes AI a teacher's tool, not a student's shortcut. Cambridge, AP Capstone, and the International Baccalaureate all rely on the same insight: process supervision, not detection software, is what makes academic integrity real. NETS implements that insight in software, and gives your teachers the time and visibility they need to do it well."
+        "supporting": "The supervised block is no accident — it's how NETS makes AI a teacher's tool, not a student's shortcut. Cambridge, AP Capstone, and the International Baccalaureate share the same insight: integrity comes from supervising the process. NETS builds that into software and gives teachers the time and visibility to do it well."
       },
       "previewEyebrow": "Inside the homework engine",
       "previewTitle": "NETS rebuilt homework from scratch.",
@@ -835,7 +835,7 @@
         }
       ],
       "homework": {
-        "detail": "Students who don't reach mastery on the first attempt get a different story for the same concept, up to three times. Struggle becomes data for the teacher, never a failure mark on the student. The students who breeze through also surface information — whether the content is too easy, whether the student is further along than the class, whether the difficulty needs to shift."
+        "detail": "Students who don't reach mastery get a fresh story for the same concept, up to three times. Struggle becomes data for the teacher, never a failure mark. Students who breeze through signal it too — that the difficulty may need to shift."
       },
       "phone": {
         "header": "Homework",
@@ -849,31 +849,31 @@
       "tracks": {
         "eyebrow": "Credentials students can carry",
         "title": "Every NETS student is on a track to somewhere recognized.",
-        "lead": "The NETS Outcome Track Library covers the credentials and skills students leave school needing — preparation that begins on day one, not in the final year.",
+        "lead": "The NETS Outcome Track Library covers the credentials and skills students leave school needing — prep that begins on day one, not the final year.",
         "items": [
           {
             "name": "IELTS",
-            "body": "Full preparation aligned to Cambridge IELTS specifications. Listening, Reading, Writing, Speaking. CEFR-mapped for graduation requirements."
+            "body": "Full prep aligned to Cambridge IELTS. Listening, Reading, Writing, Speaking — CEFR-mapped for graduation."
           },
           {
             "name": "TOEFL",
-            "body": "Aligned to ETS specifications. Parallel preparation for students whose target test is American."
+            "body": "Aligned to ETS specifications. A parallel track for students whose target test is American."
           },
           {
             "name": "SAT Math & SAT Reading and Writing",
-            "body": "Aligned to College Board specifications. For students targeting US university admission."
+            "body": "Aligned to College Board. For students targeting US university admission."
           },
           {
             "name": "AP-aligned subject tracks",
-            "body": "College-level depth in core subjects, for students preparing for university advanced placement."
+            "body": "College-level depth in core subjects, for students preparing for advanced placement."
           },
           {
             "name": "K1–4 Puzzle Library",
-            "body": "Gamified foundational learning for early years. Where mastery begins."
+            "body": "Gamified foundational learning for the early years. Where mastery begins."
           },
           {
             "name": "IT and AI Foundations",
-            "body": "Aligned to what the grade 10–11 curriculum now requires in core. Practical, applied, current."
+            "body": "Aligned to what the grade 10–11 core now requires. Practical, applied, current."
           }
         ],
         "closing": "A NETS student isn't waiting until grade 11 to start preparing for the certificate their graduation depends on. They're building toward it from the day their school turns NETS on."
@@ -881,7 +881,7 @@
       "learner": {
         "eyebrow": "Who graduates from NETS",
         "title": "We measure who your students become, not just what they score.",
-        "lead": "NETS tracks six learner attributes across every subject and every track. Parents see their child's development picture. Teachers see what's working. Schools see what they produce.",
+        "lead": "NETS tracks six learner attributes across every subject and track. Parents see their child's growth. Teachers see what's working. Schools see what they produce.",
         "items": [
           {
             "title": "Inquirers",
@@ -916,19 +916,19 @@
         "items": [
           {
             "title": "For students",
-            "body": "Every lesson, track, assignment, and grade in one app. The AI tutor explains when they're stuck. Their progress on every outcome track is visible to them. They never lose access to a lesson they wanted to revisit."
+            "body": "Every lesson, track, assignment, and grade in one app. The AI tutor explains when they're stuck, and any past lesson stays open to revisit."
           },
           {
             "title": "For teachers",
-            "body": "Lesson plans, slide decks, and homework for your curriculum, ready to use. AI-graded work with a Review Queue that surfaces only what needs a human eye. Skill and attribute development visibility per student, updated as students work. Capstone supervision with built-in checkpoints. Reports compatible with Kundalik."
+            "body": "Ready-to-use lesson plans, slides, and homework for your curriculum. AI-graded work with a Review Queue for what needs a human eye, live skill tracking per student, and Kundalik-compatible reports."
           },
           {
             "title": "For parents",
-            "body": "Their child's progress, track, attribute development, capstone, and teacher messages — in their hand, in Uzbek, Russian, or English. Real visibility into what's happening at school, not the once-a-term parent meeting."
+            "body": "Their child's progress, track, attributes, capstone, and teacher messages — in their hand, in Uzbek, Russian, or English. Real visibility, not a once-a-term meeting."
           },
           {
             "title": "For school administration",
-            "body": "Every grade, class, and student — performance, attendance, engagement. Outcome track readiness across cohorts. Teacher workload distribution. Capstone galleries. Reports that feed Kundalik automatically."
+            "body": "Performance, attendance, and engagement across every class. Cohort readiness by track, teacher workload, capstone galleries, and reports that feed Kundalik automatically."
           }
         ]
       },
@@ -1005,12 +1005,12 @@
           "title": "NETS Configurable",
           "body": "For schools with an existing system they're not ready to replace. Plug specific NETS surfaces — the homework engine, an outcome track, the parent app — into what you already have. Negotiated pricing based on scope."
         },
-        "subline": "NETS is rented, not customized. Your school configures the product; the product stays the product. That's how it stays fast, current, and aligned to the global standards your students need."
+        "subline": "NETS is rented, not customized. Your school configures the product; the product stays the product. That's how it stays fast, current, and aligned to global standards."
       },
       "trackRecord": {
         "eyebrow": "Trust",
         "title": "What we measure, we show.",
-        "body": "NETS does not promise outcomes we haven't yet delivered. We promise transparency in what we measure — student development on the six learner attributes, mastery against the curriculum your school teaches, readiness across each outcome track. Schools running NETS see the data that matters, every day. As cohorts complete their first year and their first credential exams under NETS, we will publish what those students achieved. Until then, we ask schools to evaluate us on what they can see in the platform, not on claims we can't yet back.",
+        "body": "NETS does not promise outcomes we haven't yet delivered. We promise transparency in what we measure — development on the six learner attributes, mastery of the curriculum your school teaches, readiness across each outcome track. As the first cohorts finish their first year and credential exams under NETS, we'll publish what those students achieved. Until then, judge us on what you can see in the platform, not on claims we can't yet back.",
         "subline": "This is the same posture the International Baccalaureate, Cambridge International, and the College Board take. Outcomes are earned, then named."
       },
       "faq": {
@@ -1019,27 +1019,27 @@
         "items": [
           {
             "q": "Does NETS replace our teachers?",
-            "a": "No. NETS gives your teachers visibility, time back, and tools they don't currently have. The supervised-block design specifically requires a teacher in the room — that role is essential, not optional. What NETS lets your school do is have one supervising teacher cover what previously required multiple specialists during homework hours."
+            "a": "No. NETS gives teachers visibility, time back, and tools they don't have today. The supervised block requires a teacher in the room — that role is essential. One supervising teacher can now cover what once took several specialists during homework hours."
           },
           {
             "q": "Does NETS replace Kundalik?",
-            "a": "No. Kundalik remains your mandatory national reporting system. NETS sits above Kundalik and feeds it automatically. Your school stops doing duplicate data entry. Kundalik stays the official record."
+            "a": "No. Kundalik stays your mandatory national reporting system and official record. NETS sits above it and feeds it automatically, so your school stops entering data twice."
           },
           {
             "q": "What language is NETS in?",
-            "a": "Full Uzbek and Russian for the entire platform. English is available track-by-track, especially for outcome tracks aligned to international credentials. Parents pick the language they prefer; students pick theirs; teachers pick theirs."
+            "a": "Full Uzbek and Russian across the platform. English is available track-by-track, especially for tracks aligned to international credentials. Everyone picks the language they prefer."
           },
           {
             "q": "Do you use our textbooks?",
-            "a": "Yes. Your school's existing textbooks and lesson plans remain the source of truth. NETS enhances them — adds the homework engine, the outcome tracks, the operational layer — but never replaces them."
+            "a": "Yes. Your textbooks and lesson plans stay the source of truth. NETS enhances them with the homework engine, outcome tracks, and operational layer — but never replaces them."
           },
           {
             "q": "How do you handle student data?",
-            "a": "NETS is built in compliance with Uzbekistan's data privacy law ZRU-547. Student data stays where it should stay. School administrators have full visibility into what data is collected and where it lives."
+            "a": "NETS is built to comply with Uzbekistan's data privacy law ZRU-547. Student data stays where it should, and administrators have full visibility into what's collected and where it lives."
           },
           {
             "q": "What about students using ChatGPT to do their homework?",
-            "a": "NETS homework happens during a supervised block at school. A teacher is in the room. External AI tools are not. For higher-stakes work like capstone projects, your teacher completes a documented authentication that the work is the student's own — the same approach Cambridge, AP Capstone, and the International Baccalaureate all use."
+            "a": "NETS homework happens in a supervised block at school: a teacher in the room, external AI tools off. For higher-stakes work like capstone projects, the teacher documents that the work is the student's own — the same approach Cambridge, AP Capstone, and the International Baccalaureate use."
           }
         ]
       },
