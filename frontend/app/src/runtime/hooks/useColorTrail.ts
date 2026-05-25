@@ -377,8 +377,10 @@ export function useColorTrail(
       // `butt` AND by drawing each frame's segment as a midpoint-control
       // quadratic curve (Phase C below) so consecutive strokes share the
       // same tangent at their endpoints — no stacked caps, no circles.
+      // Idle-boost: when no recent pointer input, chew the persistent canvas
+      // faster so the tail visibly shrinks instead of merely fading in place.
       ctx.globalCompositeOperation = "destination-out";
-      ctx.fillStyle = fade;
+      ctx.fillStyle = framesSinceInput >= 4 ? "rgba(0, 0, 0, 0.075)" : fade;
       ctx.fillRect(0, 0, cssW, cssH);
 
       // Phase B — additive blend for the glowing comet body + click effects.
@@ -436,27 +438,37 @@ export function useColorTrail(
           const [ur, ug, ub] = sampleColor(huePos);
           ctx.lineCap  = "round";
           ctx.lineJoin = "round";
-          ctx.strokeStyle = `rgba(${ur}, ${ug}, ${ub}, 0.022)`;
-          ctx.lineWidth = ribbonWidth + HALO_EXTRA + 6;
-          ctx.beginPath();
-          ctx.moveTo(heads[0].x, heads[0].y);
-          if (heads.length === 2) {
-            ctx.lineTo(heads[1].x, heads[1].y);
-          } else {
-            // Smooth Catmull-Rom-style spline via midpoint-quadratic
-            // control points — same trick the per-frame stamp uses, just
-            // stretched across the whole buffer for one continuous path.
-            for (let i = 1; i < heads.length - 1; i++) {
-              const cur = heads[i];
-              const nxt = heads[i + 1];
-              const mx = (cur.x + nxt.x) * 0.5;
-              const my = (cur.y + nxt.y) * 0.5;
-              ctx.quadraticCurveTo(cur.x, cur.y, mx, my);
+          // Per-segment tapered underlay: width and alpha scale with the
+          // segment's position in the buffer. Oldest (tail) → thin & faint;
+          // newest (head) → full width & full underlay alpha. This makes
+          // the trail visually narrow toward the tail instead of being a
+          // uniform-width ribbon that only fades in alpha.
+          const denom = Math.max(1, heads.length - 1);
+          const maxUnderlayW = ribbonWidth + HALO_EXTRA + 6;
+          for (let i = 1; i < heads.length; i++) {
+            const t = i / denom; // 0 at oldest neighbor, 1 at newest head
+            const w = maxUnderlayW * t;
+            if (w < 0.5) continue;
+            const a = 0.022 * (0.25 + t * 0.75);
+            ctx.strokeStyle = `rgba(${ur}, ${ug}, ${ub}, ${a})`;
+            ctx.lineWidth = w;
+            const prev = heads[i - 1];
+            const cur = heads[i];
+            ctx.beginPath();
+            if (i >= 2 && i < heads.length - 1) {
+              const next = heads[i + 1];
+              const m1x = (prev.x + cur.x) * 0.5;
+              const m1y = (prev.y + cur.y) * 0.5;
+              const m2x = (cur.x + next.x) * 0.5;
+              const m2y = (cur.y + next.y) * 0.5;
+              ctx.moveTo(m1x, m1y);
+              ctx.quadraticCurveTo(cur.x, cur.y, m2x, m2y);
+            } else {
+              ctx.moveTo(prev.x, prev.y);
+              ctx.lineTo(cur.x, cur.y);
             }
-            const last = heads[heads.length - 1];
-            ctx.lineTo(last.x, last.y);
+            ctx.stroke();
           }
-          ctx.stroke();
         }
 
         if (heads.length >= 3 && ribbonWidth > 0.5 && segLen > 0.01) {
