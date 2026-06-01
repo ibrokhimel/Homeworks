@@ -1,4 +1,4 @@
-{$DOMAIN} {
+__DOMAIN__ {
     encode gzip zstd
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -20,5 +20,5 @@
         format json
     }
 }
-# Caddy auto-issues a Let's Encrypt cert for {$DOMAIN} via HTTP-01.
+# Caddy auto-issues a Let's Encrypt cert for __DOMAIN__ via HTTP-01.
 # 80->443 redirect is automatic; no need to define :80 separately.

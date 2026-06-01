@@ -139,7 +139,14 @@ systemctl restart homeworks
 
 log "9/13 Render Caddyfile with DOMAIN=${DOMAIN}"
 install -d -m 0755 /etc/caddy
-DOMAIN="${DOMAIN}" envsubst '${DOMAIN}' < "${APP_DIR}/deploy/Caddyfile" > /etc/caddy/Caddyfile
+# sed (not envsubst) — Caddy uses ${VAR} syntax of its own, so the template
+# uses a non-conflicting __DOMAIN__ placeholder substituted here.
+sed "s|__DOMAIN__|${DOMAIN}|g" "${APP_DIR}/deploy/Caddyfile" > /etc/caddy/Caddyfile
+# Ensure caddy can write its access log. Some Caddy starts leave behind a
+# root-owned access.log from a prior failed boot; rm + chown so the next
+# start can recreate it as the caddy user.
+install -d -m 0755 -o caddy -g caddy "${CADDY_LOG_DIR}"
+rm -f "${CADDY_LOG_DIR}/access.log"
 systemctl enable caddy
 systemctl reload caddy || systemctl restart caddy
 
