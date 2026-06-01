@@ -326,6 +326,25 @@ CREATE TABLE IF NOT EXISTS authorship_affirmations (
 );
 CREATE INDEX IF NOT EXISTS idx_affirmations_session
 ON authorship_affirmations(session_id, homework_id, created_at);
+
+CREATE TABLE IF NOT EXISTS applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    full_name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    role TEXT NOT NULL,
+    school TEXT,
+    city TEXT,
+    grades TEXT,
+    subjects TEXT,
+    phone TEXT,
+    message TEXT,
+    ip_hash TEXT,
+    user_agent TEXT,
+    status TEXT NOT NULL DEFAULT 'new'
+);
+CREATE INDEX IF NOT EXISTS idx_applications_created ON applications(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status, created_at DESC);
 """
 
 

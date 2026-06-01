@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="uz" data-page="apply">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n-title="apply.title">Homeworks · Platformaga ariza</title>
+  <meta name="description" content="Apply to join the Homeworks pilot — teachers, students, parents and admins." />
+  <meta name="robots" content="index, follow" />
+  <link rel="preload" href="/css/landing.css?v=__VERSION__" as="style" />
+  <link rel="stylesheet" href="/css/landing.css?v=__VERSION__" />
+  <link rel="stylesheet" href="/css/apply.css?v=__VERSION__" />
+  <script src="/js/theme.js?v=__VERSION__"></script>
+</head>
+<body class="landing-body">
+  <a class="skip-link" href="#apply-main">Skip to content</a>
+
+  <header class="landing-header" role="banner">
+    <nav class="landing-nav" aria-label="Primary">
+      <a href="/" class="brand-link" aria-label="Homeworks home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5-9 5Zm5 5v4c2.5 2 5.5 2 8 0v-4M19 10v6"></path></svg>
+        </span>
+        <span class="brand-text" data-i18n="brand">Homeworks</span>
+      </a>
+
+      <div class="nav-links" role="navigation" aria-label="Sections">
+        <a href="/" class="nav-link" data-i18n="apply.back">← Bosh sahifa</a>
+      </div>
+
+      <div class="nav-actions">
+        <div class="lang-toggle" role="group" aria-label="Language">
+          <button type="button" class="lang-pill" data-lang="uz">UZ</button>
+          <button type="button" class="lang-pill" data-lang="ru">RU</button>
+          <button type="button" class="lang-pill" data-lang="en">EN</button>
+        </div>
+        <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch to dark mode" aria-pressed="false">🌙</button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="apply-main" class="apply-wrap">
+    <section class="apply-card" aria-labelledby="apply-title">
+      <header class="apply-card__head">
+        <h1 id="apply-title" data-i18n="apply.title">Platformaga ariza</h1>
+        <p class="apply-card__lead" data-i18n="apply.subtitle">Bizga oz narsani ayting — biz tez orada javob beramiz.</p>
+      </header>
+
+      <form id="apply-form" class="apply-form" method="post" action="/api/applications" novalidate>
+        <div class="field field--full">
+          <label for="apply-full_name">
+            <span data-i18n="apply.label.full_name">To‘liq ism</span>
+            <span class="req" aria-hidden="true">*</span>
+          </label>
+          <input
+            id="apply-full_name"
+            name="full_name"
+            type="text"
+            required
+            aria-required="true"
+            autocomplete="name"
+            maxlength="120"
+            data-i18n-placeholder="apply.placeholder.full_name"
+            placeholder="Aliyev Akmal"
+          />
+          <p class="field-error" data-error-for="full_name" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="apply-email">
+            <span data-i18n="apply.label.email">Email</span>
+            <span class="req" aria-hidden="true">*</span>
+          </label>
+          <input
+            id="apply-email"
+            name="email"
+            type="email"
+            required
+            aria-required="true"
+            autocomplete="email"
+            maxlength="200"
+            data-i18n-placeholder="apply.placeholder.email"
+            placeholder="you@example.com"
+          />
+          <p class="field-error" data-error-for="email" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="apply-role">
+            <span data-i18n="apply.label.role">Rol</span>
+            <span class="req" aria-hidden="true">*</span>
+          </label>
+          <select
+            id="apply-role"
+            name="role"
+            required
+            aria-required="true"
+          >
+            <option value="" data-i18n="apply.role.placeholder">Tanlang…</option>
+            <option value="teacher" data-i18n="apply.role.teacher">O‘qituvchi</option>
+            <option value="student" data-i18n="apply.role.student">O‘quvchi</option>
+            <option value="parent" data-i18n="apply.role.parent">Ota-ona</option>
+            <option value="admin" data-i18n="apply.role.admin">Maktab rahbari</option>
+            <option value="other" data-i18n="apply.role.other">Boshqa</option>
+          </select>
+          <p class="field-error" data-error-for="role" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="apply-school" data-i18n="apply.label.school">Maktab / tashkilot</label>
+          <input
+            id="apply-school"
+            name="school"
+            type="text"
+            autocomplete="organization"
+            maxlength="160"
+            data-i18n-placeholder="apply.placeholder.school"
+            placeholder="Maktab #1"
+          />
+        </div>
+
+        <div class="field">
+          <label for="apply-city" data-i18n="apply.label.city">Shahar</label>
+          <input
+            id="apply-city"
+            name="city"
+            type="text"
+            autocomplete="address-level2"
+            maxlength="80"
+            data-i18n-placeholder="apply.placeholder.city"
+            placeholder="Toshkent"
+          />
+        </div>
+
+        <div class="field">
+          <label for="apply-grades" data-i18n="apply.label.grades">Sinflar</label>
+          <input
+            id="apply-grades"
+            name="grades"
+            type="text"
+            maxlength="120"
+            placeholder="1, 6, 8"
+          />
+        </div>
+
+        <div class="field">
+          <label for="apply-subjects" data-i18n="apply.label.subjects">Fanlar</label>
+          <input
+            id="apply-subjects"
+            name="subjects"
+            type="text"
+            maxlength="160"
+            placeholder="biology, math-algebra"
+          />
+        </div>
+
+        <div class="field">
+          <label for="apply-phone" data-i18n="apply.label.phone">Telefon</label>
+          <input
+            id="apply-phone"
+            name="phone"
+            type="tel"
+            autocomplete="tel"
+            maxlength="40"
+            inputmode="tel"
+            data-i18n-placeholder="apply.placeholder.phone"
+            placeholder="+998 90 123 45 67"
+          />
+          <p class="field-error" data-error-for="phone" hidden></p>
+        </div>
+
+        <div class="field field--full">
+          <label for="apply-message" data-i18n="apply.label.message">Izoh</label>
+          <textarea
+            id="apply-message"
+            name="message"
+            rows="4"
+            maxlength="2000"
+            data-i18n-placeholder="apply.placeholder.message"
+            placeholder="Bizga oz narsani yozing…"
+          ></textarea>
+        </div>
+
+        <div class="hp-field" aria-hidden="true" style="position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden;">
+          <label for="apply-website">Website</label>
+          <input
+            id="apply-website"
+            name="website"
+            type="text"
+            tabindex="-1"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="field field--full apply-submit-row">
+          <button type="submit" class="btn-primary-pill apply-submit" data-i18n="apply.submit">Yuborish</button>
+        </div>
+
+        <div
+          id="apply-status"
+          class="apply-status"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        ></div>
+      </form>
+    </section>
+  </main>
+
+  <footer class="landing-footer" role="contentinfo">
+    <div class="apply-footer__inner">
+      <span data-i18n="brand">Homeworks</span>
+      <span class="landing-footer__sep" aria-hidden="true">·</span>
+      <span data-i18n="apply.footer">© 2026 — beta loyiha.</span>
+      <span class="landing-footer__sep" aria-hidden="true">·</span>
+      <a href="/" class="apply-footer__link" data-i18n="apply.back">← Bosh sahifa</a>
+    </div>
+  </footer>
+
+  <script src="/js/apply.js?v=__VERSION__" defer></script>
+</body>
+</html>

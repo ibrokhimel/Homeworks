@@ -21,6 +21,7 @@ from server.routes.equations import router as equations_router
 from server.routes.runtime import router as runtime_router
 from server.routes.reflection import router as reflection_router
 from server.routes.integrity import router as integrity_router
+from server.routes.applications import router as applications_router
 from server import db
 from server.config import BASE_DIR
 
@@ -126,6 +127,7 @@ app.include_router(equations_router, prefix="/api")
 app.include_router(runtime_router, prefix="/api")
 app.include_router(reflection_router, prefix="/api")
 app.include_router(integrity_router, prefix="/api")
+app.include_router(applications_router, prefix="/api")
 
 _FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 
@@ -133,8 +135,10 @@ _FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fronte
 # pages. To add a new page, add a row here — the route + cache-bust
 # substitution come for free.
 _HTML_PAGES: dict[str, str] = {
-    "/":              "index.html",
+    "/":              "landing.html",
     "/index.html":    "index.html",
+    "/apply":         "apply.html",
+    "/apply.html":    "apply.html",
     "/builder.html":  "builder.html",
     "/library.html":  "library.html",
     "/landing.html":  "landing.html",

@@ -1,0 +1,24 @@
+[Unit]
+Description=Homeworks FastAPI (uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=homeworks
+Group=homeworks
+WorkingDirectory=/opt/homeworks
+EnvironmentFile=/etc/homeworks/env
+ExecStart=/opt/homeworks/.venv/bin/uvicorn server.app:app --host 127.0.0.1 --port 8000 --workers 2
+Restart=always
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/homeworks/var /var/log/homeworks
+AmbientCapabilities=
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target
