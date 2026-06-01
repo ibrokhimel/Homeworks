@@ -21,11 +21,12 @@ __DOMAIN__ {
     }
 }
 
-# app.<DOMAIN> -- legacy URL that was handed to an AWS submission while the
-# real product was behind a Cloudflare quick-tunnel. 301 to apex so the URL
-# stays valid forever without standing up a second service. Preserves path
-# + query string via {uri}.
-app.__DOMAIN__ {
+# www and app subdomains both 301 to apex (one canonical URL).
+#  - www: the conventional alias every visitor expects to work.
+#  - app: legacy URL handed to an AWS submission while the real product was
+#    behind a Cloudflare quick-tunnel; kept alive forever via this redirect.
+# {uri} preserves the request path + query string.
+www.__DOMAIN__, app.__DOMAIN__ {
     redir https://__DOMAIN__{uri} 301
 }
 
