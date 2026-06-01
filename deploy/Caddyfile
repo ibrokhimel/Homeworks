@@ -20,5 +20,14 @@ __DOMAIN__ {
         format json
     }
 }
+
+# app.<DOMAIN> -- legacy URL that was handed to an AWS submission while the
+# real product was behind a Cloudflare quick-tunnel. 301 to apex so the URL
+# stays valid forever without standing up a second service. Preserves path
+# + query string via {uri}.
+app.__DOMAIN__ {
+    redir https://__DOMAIN__{uri} 301
+}
+
 # Caddy auto-issues a Let's Encrypt cert for __DOMAIN__ via HTTP-01.
 # 80->443 redirect is automatic; no need to define :80 separately.
