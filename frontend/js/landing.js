@@ -62,7 +62,8 @@
         workflow: "Jarayon",
         launch: "Boshlash",
       },
-      tryBeta: "Beta’ni sinash",
+      tryBeta: "Beta’ga ariza",
+      requestBetaAccess: "Betaga kirish uchun ariza",
       heroBadge: "Aqlliroq uy vazifalari uchun beta loyiha",
       heroTitle: "Uy vazifasi endi majburiyatdek tuyilmaydi.",
       heroText:
@@ -175,7 +176,8 @@
         workflow: "Процесс",
         launch: "Запуск",
       },
-      tryBeta: "Попробовать бету",
+      tryBeta: "Подать заявку",
+      requestBetaAccess: "Подать заявку на бета-доступ",
       heroBadge: "Бета-проект для умных домашних заданий",
       heroTitle: "Домашка, которая не ощущается как наказание.",
       heroText:
@@ -288,7 +290,8 @@
         workflow: "How it works",
         launch: "Get started",
       },
-      tryBeta: "Try the beta",
+      tryBeta: "Request access",
+      requestBetaAccess: "Request access to beta",
       heroBadge: "A beta project for smarter homework",
       heroTitle: "Homework that doesn’t feel like a chore.",
       heroText:
@@ -415,12 +418,19 @@
   }
 
   // ── Translation rendering ───────────────────────────────────────────────
+  // Safe deep-lookup: reject __proto__/constructor/prototype keys and require
+  // own-property to avoid prototype-pollution surface. Why: data-i18n attribute
+  // values flow into here; never let one walk into Object.prototype.
   function getDeep(obj, path) {
     const parts = path.split(".");
     let cur = obj;
     for (let i = 0; i < parts.length; i++) {
-      if (cur == null) return undefined;
-      cur = cur[parts[i]];
+      if (cur == null || typeof cur !== "object") return undefined;
+      const key = parts[i];
+      if (key === "__proto__" || key === "constructor" || key === "prototype") return undefined;
+      const desc = Object.getOwnPropertyDescriptor(cur, key);
+      if (!desc) return undefined;
+      cur = desc.value;
     }
     return cur;
   }
