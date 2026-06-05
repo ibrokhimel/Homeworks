@@ -1,5 +1,5 @@
 /* ============================================================
-   Homeworks — Apply page (vanilla JS)
+   Class A Education — Apply page (vanilla JS)
    - i18n (uz/ru/en), shares the landing.js localStorage key
    - Lang pill toggle
    - Client-side validation + honeypot-safe submit
@@ -21,37 +21,37 @@
   var PHONE_MAX = 40;
 
   var i18n = {
-    uz: { brand: "Homeworks", apply: {
-      title: "Platformaga ariza",
-      subtitle: "Bizga oz narsani ayting — biz tez orada javob beramiz.",
+    uz: { brand: "Class A Education", apply: {
+      title: "Maktabingiz uchun demo so'rang",
+      subtitle: "Maktabingiz haqida ayting — biz sinov (pilot) loyihasini sozlaymiz.",
       submit: "Yuborish", submitSending: "Yuborilmoqda…",
-      success: "Rahmat! Arizangiz qabul qilindi. Tez orada bog‘lanamiz.",
-      back: "← Bosh sahifa", footer: "© 2026 — beta loyiha.",
+      success: "Rahmat! Maktab sinov loyihasi bo'yicha tez orada Siz bilan bog'lanamiz.",
+      back: "← Bosh sahifa", footer: "© 2026 Class-A-Technologies MCHJ.",
       label: { full_name: "To‘liq ism", email: "Email", role: "Rol", school: "Maktab / tashkilot", city: "Shahar", grades: "Sinflar", subjects: "Fanlar", phone: "Telefon", message: "Izoh" },
       placeholder: { full_name: "Aliyev Akmal", email: "you@example.com", school: "Maktab #1", city: "Toshkent", phone: "+998 90 123 45 67", message: "Bizga oz narsani yozing…" },
-      role: { placeholder: "Tanlang…", teacher: "O‘qituvchi", student: "O‘quvchi", parent: "Ota-ona", admin: "Maktab rahbari", other: "Boshqa" },
+      role: { placeholder: "Tanlang…", teacher: "O‘qituvchi", student: "O‘quvchi", parent: "Ota-ona", admin: "Maktab ma'muri / Direktor", other: "Boshqa" },
       error: { required: "Iltimos, majburiy maydonlarni to‘ldiring.", email: "Email manzili noto‘g‘ri ko‘rinmoqda.", phone: "Telefon raqami noto‘g‘ri ko‘rinmoqda.", network: "Yuborib bo‘lmadi. Iltimos, keyinroq urinib ko‘ring.", server: "Server xatosi. Iltimos, keyinroq urinib ko‘ring." }
     } },
-    ru: { brand: "Homeworks", apply: {
-      title: "Заявка на платформу",
-      subtitle: "Расскажите коротко о себе — мы скоро свяжемся.",
+    ru: { brand: "Class A Education", apply: {
+      title: "Запросите демо для вашей школы",
+      subtitle: "Расскажите о вашей школе — мы настроим пилот.",
       submit: "Отправить", submitSending: "Отправка…",
-      success: "Спасибо! Заявка получена. Мы скоро напишем.",
-      back: "← На главную", footer: "© 2026 — бета-проект.",
+      success: "Спасибо! Мы скоро свяжемся с вами по пилоту для вашей школы.",
+      back: "← На главную", footer: "© 2026 Class-A-Technologies MCHJ.",
       label: { full_name: "Полное имя", email: "Email", role: "Роль", school: "Школа / организация", city: "Город", grades: "Классы", subjects: "Предметы", phone: "Телефон", message: "Комментарий" },
       placeholder: { full_name: "Алиев Акмал", email: "you@example.com", school: "Школа №1", city: "Ташкент", phone: "+998 90 123 45 67", message: "Напишите пару слов…" },
-      role: { placeholder: "Выберите…", teacher: "Учитель", student: "Ученик", parent: "Родитель", admin: "Администрация", other: "Другое" },
+      role: { placeholder: "Выберите…", teacher: "Учитель", student: "Ученик", parent: "Родитель", admin: "Администратор школы / Директор", other: "Другое" },
       error: { required: "Заполните, пожалуйста, обязательные поля.", email: "Email выглядит некорректно.", phone: "Номер телефона выглядит некорректно.", network: "Не удалось отправить. Попробуйте позже.", server: "Ошибка сервера. Попробуйте позже." }
     } },
-    en: { brand: "Homeworks", apply: {
-      title: "Apply to the platform",
-      subtitle: "Tell us a bit about yourself — we'll get back to you soon.",
+    en: { brand: "Class A Education", apply: {
+      title: "Request a demo for your school",
+      subtitle: "Tell us about your school and we'll set up a pilot.",
       submit: "Submit", submitSending: "Sending…",
-      success: "Thanks! Your application is in. We'll be in touch shortly.",
-      back: "← Home", footer: "© 2026 — beta project.",
+      success: "Thanks! We'll be in touch about your school pilot shortly.",
+      back: "← Home", footer: "© 2026 Class-A-Technologies MCHJ.",
       label: { full_name: "Full name", email: "Email", role: "Role", school: "School / organisation", city: "City", grades: "Grades", subjects: "Subjects", phone: "Phone", message: "Message" },
       placeholder: { full_name: "Akmal Aliyev", email: "you@example.com", school: "School #1", city: "Tashkent", phone: "+998 90 123 45 67", message: "A few words about your situation…" },
-      role: { placeholder: "Choose…", teacher: "Teacher", student: "Student", parent: "Parent", admin: "School admin", other: "Other" },
+      role: { placeholder: "Choose…", teacher: "Teacher", student: "Student", parent: "Parent", admin: "School admin / Principal", other: "Other" },
       error: { required: "Please fill in the required fields.", email: "That email doesn't look right.", phone: "That phone number doesn't look right.", network: "Couldn't submit. Please try again later.", server: "Server error. Please try again later." }
     } }
   };
@@ -109,7 +109,7 @@
     document.querySelectorAll("[data-i18n-title]").forEach(function (el) {
       var v = getDeep(dict, el.getAttribute("data-i18n-title"));
       if (typeof v !== "string") return;
-      if (el.tagName === "TITLE") el.textContent = v + " · Homeworks";
+      if (el.tagName === "TITLE") el.textContent = v + " · Class A Education";
       else el.setAttribute("title", v);
     });
     document.documentElement.setAttribute("lang", lang);

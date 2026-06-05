@@ -1,9 +1,9 @@
 /* ============================================================
-   Homeworks Landing Page — vanilla JS
+   Class A Education Landing Page — vanilla JS
    - i18n (uz/ru/en) with localStorage persistence
    - View Transitions API panel switching
-   - IntersectionObserver scroll reveals
-   - rAF-throttled hero parallax
+   - IntersectionObserver scroll reveals (+ clip-path title wipe)
+   - rAF-throttled hero + preview parallax
    - Inline SVG icon set (matches the JSX iconPaths map)
    ============================================================ */
 
@@ -51,346 +51,357 @@
   }
 
   // ── i18n strings (uz, ru, en) ───────────────────────────────────────────
+  // Brand: Class A Education — an AI-gamified K–11 LMS sold to schools (B2B).
+  // EN is canonical; UZ (source/fallback) + RU use a formal register.
   const i18n = {
     uz: {
-      brand: "Homeworks",
-      footerNote: "Interaktiv darslar uchun beta loyiha.",
+      brand: "Class A Education",
+      footerNote: "© 2026 Class-A-Technologies MCHJ",
+      footer: { privacy: "Maxfiylik siyosati", terms: "Foydalanish shartlari" },
       nav: {
-        overview: "Umumiy",
-        preview: "Ko‘rinish",
-        tutor: "AI tutor",
-        workflow: "Jarayon",
-        launch: "Boshlash",
+        overview: "Bu nima",
+        preview: "Ilova ichida",
+        tutor: "AI repetitor",
+        workflow: "Qanday ishlaydi",
+        launch: "Demo so‘rash",
       },
-      tryBeta: "Beta’ga ariza",
-      requestBetaAccess: "Betaga kirish uchun ariza",
-      heroBadge: "Aqlliroq uy vazifalari uchun beta loyiha",
-      heroTitle: "Uy vazifasi endi majburiyatdek tuyilmaydi.",
+      tryBeta: "Demo so‘rash",
+      requestBetaAccess: "Maktab uchun demo so‘rash",
+      heroBadge: "K–11 maktablar uchun AI ta’lim tizimi",
+      heroTitle: "Har qanday fanni o‘rgating. Natijani isbotlang.",
       heroText:
-        "Homeworks o‘qituvchiga oddiy topshiriq o‘rniga interaktiv dars yaratishga yordam beradi: tushuntirish, mashq, AI tutor va feedback bitta sahifada.",
-      watchPreview: "Namunani ko‘rish",
-      seeWorkflow: "Jarayonni ko‘rish",
+        "Class A Education maktabingizning o‘z darsliklarini o‘yinlashtirilgan, AI yo‘naltirgan mahorat sari yo‘lga aylantiradi — va o‘qituvchilar bilan ota-onalarga har bir o‘quvchi nimani o‘zlashtirganini aniq ko‘rsatadi. O‘zbekiston maktablari uchun: o‘zbek, rus va ingliz tillarida.",
       stats: [
-        ["1 ta link", "dars, mashq va yordam bitta sahifada"],
-        ["AI tutor", "javobni aytmay, tushunishga yo‘naltiradi"],
-        ["Oson", "o‘qituvchi ulashadi, o‘quvchi darhol boshlaydi"],
+        ["Sizning darsliklaringiz", "almashtirilmaydi, balki kuchaytiriladi — siz o‘qitayotgan o‘quv dasturi asosida"],
+        ["IELTS · SAT · AP mos", "o‘quvchilar bitirish uchun zarur sertifikatlarga bog‘langan natija yo‘nalishlari"],
+        ["2–3 kun", "maktabni ulashga — oylar emas"],
       ],
-      floating: { panels: "Bosqichlar", tutor: "AI tutor", grade: "Baholash" },
-      overviewEyebrow: "Umumiy",
-      overviewTitle: "To‘liq dars bitta chiroyli havola ichida.",
+      floating: { panels: "Mahorat", tutor: "AI repetitor", grade: "Kuzatuvsiz" },
+      overviewEyebrow: "Bu nima",
+      overviewTitle: "Maktabingizni natijalar sari boshqaradigan yagona tizim.",
       overviewText:
-        "Oddiy forma o‘rniga har bir uy vazifasi kichik darsga aylanadi: o‘qish, mashq, feedback va tutor yordami bir joyda.",
-      previewEyebrow: "Ko‘rinish",
-      previewTitle: "Avval tushuntiradi. Keyin tekshiradi.",
+        "Ustiga qo‘shilgan uy vazifasi ilovasi emas — o‘qituvchilar, o‘quvchilar va ota-onalar birlashadigan yagona AI ta’lim tizimi.",
+      previewEyebrow: "Ilova ichida",
+      previewTitle: "O‘quvchilar chindan ham ochgisi keladigan ta’lim.",
       previewText:
-        "Yangi ko‘rinishda har bir bosqich aniq ajratilgan: o‘quvchi avval mavzuni o‘qiydi, keyin tekshiruvga o‘tadi va oxirida natijani ko‘radi. Tartib chalkashmaydi.",
-      tutorEyebrow: "AI tutor",
-      tutorTitle: "O‘quvchi savolni qanday yozsa ham, tutor ma’noni tushunadi.",
+        "O‘quvchilar telefonida o‘yinlashtirilgan mahorat yo‘lini oladi — aniq taraqqiyot, keyingi to‘g‘ri sinov va javobni aytib bermay, tushunishga yordam beradigan repetitor.",
+      tutorEyebrow: "AI repetitor",
+      tutorTitle: "Yo‘naltiradigan — va hech qachon kuzatmaydigan haqiqiy repetitor.",
       studentLabel: "O‘quvchi",
-      studentMessage: "aka narx oshsa nega keyin pul kamayib ketadi?",
-      tutorLabel: "AI tutor",
+      studentMessage: "aka nega daromad avval oshib, keyin tushib ketadi?",
+      tutorLabel: "AI repetitor",
       tutorMessage:
-        "Chunki narx juda baland bo‘lsa, kamroq odam sotib oladi. Daromad uchun narx ham, xaridor soni ham muhim.",
-      usefulTitle: "Kamroq robot. Ko‘proq foyda.",
+        "Chunki narx haddan tashqari oshsa, kamroq odam sotib oladi. Daromad uchun ham mos narx, ham yetarli xaridor kerak — keling, ular muvozanatlashadigan nuqtani topamiz.",
+      usefulTitle: "Kuzatuvsiz. Dizayn darajasida.",
       usefulText:
-        "Tutor oddiy gaplarni ham tushunadi, mavzuni sodda tilda ochib beradi va o‘quvchini aniqroq akademik javobga yo‘naltiradi.",
-      workflowEyebrow: "Jarayon",
-      workflowTitle: "O‘qituvchi g‘oyasidan o‘quvchi sahifasigacha.",
-      quickCardTitle: "O‘qituvchi uchun tez.",
+        "Class A o‘quvchining ishini uni kuzatish uchun emas, o‘rganishiga yordam berish uchun o‘qiydi. Repetitor javobni berib qo‘ymaydi, tushuntiradi — va har bir natijani Cambridge, AP va IB mezonlari bo‘yicha tekshirish mumkin.",
+      workflowEyebrow: "Qanday ishlaydi",
+      workflowTitle: "O‘quv dasturingizdan o‘lchanadigan natijalargacha.",
+      quickCardTitle: "Choraklar emas, kunlarda ishga tushadi.",
       quickCardText:
-        "Har safar uy vazifasini noldan yig‘ish shart emas. Tayyor namunadan boshlang, darsni o‘zingizga moslang va o‘quvchiga ulashing.",
-      safeCardTitle: "Dizayni xavfsizroq.",
+        "Siz o‘qitayotgan o‘quv dasturi asosida ishlaymiz, shu bois hech narsani noldan qurish shart emas — AI mashq blokini nazorat qilgani uchun o‘qituvchilaringiz baholash va kuzatishga kamroq soat sarflaydi.",
+      safeCardTitle: "Dizayn darajasida — avvalo maxfiylik.",
       safeCardText:
-        "Keyingi beta bosqichida uzun va tasodifiy havolalar, so‘rovlar uchun chegaralar va o‘quvchi sahifalari uchun maxfiylik himoyasi qo‘shiladi.",
-      launchTitle: "Uy vazifasini tushunarli darsga aylantiring.",
+        "Bolalarni kuzatish yo‘q — veb-kamera, ko‘z harakatini kuzatish yoki tugma bosishlarini yozish yo‘q. Kundalik’ga mos, o‘quvchi ma’lumotlari birinchi kundan himoyalangan.",
+      launchTitle: "Class A Education’ni maktabingizga olib keling.",
       launchText:
-        "Oddiy topshiriq o‘rniga o‘quvchi tushunadigan, mashq qiladigan va feedback oladigan interaktiv sahifa yarating.",
-      openBuilder: "Yaratishni boshlash",
-      viewApi: "Kutubxonani ko‘rish",
+        "Demo so‘rang — biz pilotni sozlaymiz: sizning darsliklaringiz, sizning o‘quvchilaringiz, bir necha haftada haqiqiy natijalar.",
       phone: {
-        header: "Uy vazifasi",
-        subject: "Kvadratik daromad",
-        checkpoint: "Tekshiruv",
-        aiReady: "AI tayyor",
-        question: "Nega daromad grafigi avval ko‘tarilib, keyin pasayadi?",
-        placeholder: "O‘quvchi javobni shu yerga yozadi...",
-        continue: "Darsni davom ettirish",
+        header: "Class A",
+        subject: "Algebra · Kvadratik",
+        checkpoint: "Mahorat tekshiruvi",
+        aiReady: "AI repetitor",
+        question: "Nega daromad avval cho‘qqiga ko‘tarilib, keyin tushadi?",
+        placeholder: "O‘quvchi shu yerda yechadi…",
+        continue: "Davom etish",
       },
       lessonPanels: [
         {
-          eyebrow: "1-bosqich · Tushuntirish",
-          title: "Avval mavzuni o‘qing.",
-          body: "O‘quvchi javob berishdan oldin mavzuni qisqa va tartibli kartochkalardan ko‘radi. Ortiqcha matn va shovqin yo‘q.",
-          tag: "Tushuntirish",
+          eyebrow: "Mahorat yo‘li",
+          title: "Har bir mavzu varaqa emas, yo‘lga aylanadi.",
+          body: "O‘quvchilar qisqa, tartibli mahorat bosqichlaridan o‘tadi — ko‘rinadigan taraqqiyot, o‘z sur’atida.",
+          tag: "Mahorat",
+          progress: 35,
+          xp: "+40 XP",
         },
         {
-          eyebrow: "2-bosqich · Mashq",
-          title: "Javob aralash bo‘lsa ham, AI ma’noni tushunadi.",
-          body: "Tizim o‘quvchining javobini kutilgan javob bilan solishtiradi va kichik xatolar uchun darrov jazolamaydi.",
-          tag: "Aralash baholash",
+          eyebrow: "O‘sgan sari yutib boring",
+          title: "XP, kvestlar va streaklar — haqiqiy tushunish uchun mukofot.",
+          body: "Tasodifiy ochkolar emas, o‘rganishga bog‘langan motivatsiya. Mavzuni o‘zlashtiring — daraja oshiring.",
+          tag: "Geympley",
+          progress: 70,
+          xp: "+120 XP",
         },
         {
-          eyebrow: "3-bosqich · Yordam",
-          title: "Har bir savol yonida tutor bor.",
-          body: "O‘quvchi darsdan chiqmasdan tushuntirish, ishora yoki til bo‘yicha yordam so‘rashi mumkin.",
-          tag: "AI yordam",
+          eyebrow: "Boss Arena",
+          title: "Yodlashni emas, mahoratni isbotlang.",
+          body: "O‘quvchi keyingi bosqichga o‘tishdan oldin haqiqiy tushunishni tekshiradigan sinovga duch keladi.",
+          tag: "Boss",
+          progress: 95,
+          xp: "Boss +250 XP",
         },
       ],
       features: [
         {
-          icon: "wand",
-          title: "Uy vazifasini tez yaratish",
-          body: "O‘qituvchi mavzu, sinf va tilni tanlaydi. Platforma tushuntirish, mashq va tekshiruv bosqichlarini tartibli ko‘rinishda tayyorlashga yordam beradi.",
+          icon: "book",
+          title: "Darsliklaringiz asosida",
+          body: "Siz o‘qitayotgan o‘quv dasturini almashtirmaymiz — kuchaytiramiz. AI har bir mavzuni o‘yinlashtirilgan, mahorat sari yo‘naltirilgan yo‘lga aylantiradi.",
+        },
+        {
+          icon: "cap",
+          title: "Davlat talab qilayotgan natijalar",
+          body: "IELTS, SAT, TOEFL va AP’ga moslangan imtihon tayyorgarligi yo‘nalishlari — har bir 10–11-sinf o‘quvchisiga bitirish uchun zarur sertifikatlar.",
         },
         {
           icon: "layers",
-          title: "Bosqichma-bosqich tushuntirish",
-          body: "O‘quvchi avval mavzuni tushunadi, keyin mashq qiladi. Har bir qism alohida va o‘qilishi oson ko‘rinadi.",
+          title: "Yagona operator tizimi",
+          body: "Davomat, baholar, natijalar, ota-onalarga bildirishnomalar va uy vazifalari bir joyda — Kundalik’ga mos, ichida AI bilan.",
         },
         {
-          icon: "brain",
-          title: "AI yordam va feedback",
-          body: "AI tutor o‘quvchining savolini tushunadi, javobni tahlil qiladi va keyingi qadamni ko‘rsatadi.",
-        },
-        {
-          icon: "message",
-          title: "Savol berish imkoniyati",
-          body: "O‘quvchi darsdan chiqmasdan yordam so‘rashi mumkin. Tutor javobni tayyor aytib bermaydi, tushunishga yo‘naltiradi.",
+          icon: "zap",
+          title: "O‘qituvchiga kamroq yuk",
+          body: "AI maktabdagi mashq blokini nazorat qiladi, shu bois o‘qituvchilaringiz baholash va nazoratga kamroq vaqt sarflaydi.",
         },
       ],
       workflow: [
-        ["01", "Mavzuni tanlash", "Algebra, fizika, biologiya, ingliz tili, tarix, kimyo yoki geometriya — kerakli mavzuni tanlang."],
-        ["02", "Bosqichlarni sozlash", "Tushuntirish kartalari, savollar, tekshiruv va izohlarni o‘zingizga moslang."],
-        ["03", "Havolani ulashish", "O‘quvchi uchun bitta turg‘un havola yarating va sinfga yuboring."],
-        ["04", "Natijani ko‘rish", "AI yordamida tekshirish va feedback orqali har bir o‘quvchining javobini tezroq tushunasiz."],
+        ["01", "O‘quv dasturingizni moslaymiz", "Darsliklar va standartlaringizni asosiy manba sifatida yuklaymiz — odatda 2–3 kunda ishga tushadi."],
+        ["02", "Yo‘nalishlarni sozlang", "Maktabingizga kerakli natija yo‘nalishlarini yoqing — IELTS, SAT, AP — va har bir sinf uchun mahorat chegaralarini belgilang."],
+        ["03", "O‘quvchilar o‘ynab o‘rganadi", "O‘quvchilar mobil ilovada AI repetitor va ularni harakatda ushlab turadigan mahorat yo‘li bilan mashq qiladi."],
+        ["04", "Natijalarni ko‘rasiz", "O‘qituvchilar va ota-onalar har bir o‘quvchi aslida nimani o‘zlashtirganini aniq ko‘radi — taxminlarsiz."],
       ],
     },
 
     ru: {
-      brand: "Homeworks",
-      footerNote: "Бета-проект для интерактивных уроков.",
+      brand: "Class A Education",
+      footerNote: "© 2026 Class-A-Technologies MCHJ",
+      footer: { privacy: "Политика конфиденциальности", terms: "Условия использования" },
       nav: {
-        overview: "Обзор",
-        preview: "Превью",
-        tutor: "AI-тьютор",
-        workflow: "Процесс",
-        launch: "Запуск",
+        overview: "Что это",
+        preview: "Внутри приложения",
+        tutor: "AI-репетитор",
+        workflow: "Как это работает",
+        launch: "Запросить демо",
       },
-      tryBeta: "Подать заявку",
-      requestBetaAccess: "Подать заявку на бета-доступ",
-      heroBadge: "Бета-проект для умных домашних заданий",
-      heroTitle: "Домашка, которая не ощущается как наказание.",
+      tryBeta: "Запросить демо",
+      requestBetaAccess: "Запросить демо для школы",
+      heroBadge: "AI-система обучения для школ K–11",
+      heroTitle: "Учите чему угодно. Докажите результат.",
       heroText:
-        "Homeworks помогает учителю заменить обычное задание интерактивным уроком: объяснение, практика, AI-тьютор и обратная связь на одной странице.",
-      watchPreview: "Посмотреть превью",
-      seeWorkflow: "Посмотреть процесс",
+        "Class A Education превращает учебники вашей школы в геймифицированный путь к мастерству под управлением ИИ — и показывает учителям и родителям, что именно усвоил каждый ученик. Для школ Узбекистана: на узбекском, русском и английском.",
       stats: [
-        ["1 ссылка", "урок, практика и помощь на одной странице"],
-        ["AI-тьютор", "ведёт ученика к пониманию, не выдавая готовый ответ"],
-        ["Просто", "учитель делится, ученик сразу начинает"],
+        ["Ваши учебники", "не заменяем, а усиливаем — на основе программы, которую вы уже преподаёте"],
+        ["IELTS · SAT · AP", "треки результатов, привязанные к сертификатам, нужным ученику для выпуска"],
+        ["2–3 дня", "на подключение школы — а не месяцы"],
       ],
-      floating: { panels: "Этапы", tutor: "AI-тьютор", grade: "Оценка" },
-      overviewEyebrow: "Обзор",
-      overviewTitle: "Полный урок внутри одной аккуратной ссылки.",
+      floating: { panels: "Мастерство", tutor: "AI-репетитор", grade: "Без слежки" },
+      overviewEyebrow: "Что это",
+      overviewTitle: "Одна система, которая ведёт вашу школу к результатам.",
       overviewText:
-        "Вместо обычной формы каждая домашка становится мини-уроком: чтение, практика, обратная связь и помощь тьютора в одном месте.",
-      previewEyebrow: "Превью",
-      previewTitle: "Сначала объясняет. Потом проверяет.",
+        "Не приложение для домашки сбоку — единая AI-система обучения, к которой подключаются учителя, ученики и родители.",
+      previewEyebrow: "Внутри приложения",
+      previewTitle: "Обучение, которое ученики действительно хотят открыть.",
       previewText:
-        "В новой версии каждый этап разведён чётко: ученик сначала читает тему, затем переходит к проверке и в конце видит результат. Никакой путаницы в порядке.",
-      tutorEyebrow: "AI-тьютор",
-      tutorTitle: "Работает, даже когда ученик пишет вопрос неаккуратно.",
+        "Ученики получают геймифицированный путь к мастерству в телефоне — понятный прогресс, следующий правильный вызов и репетитор, который помогает понять, а не выдаёт ответ.",
+      tutorEyebrow: "AI-репетитор",
+      tutorTitle: "Настоящий репетитор, который направляет — и никогда не следит.",
       studentLabel: "Ученик",
-      studentMessage: "бро почему цена растёт а деньги потом падают?",
-      tutorLabel: "AI-тьютор",
+      studentMessage: "бро почему выручка сначала растёт, а потом падает?",
+      tutorLabel: "AI-репетитор",
       tutorMessage:
-        "Потому что при слишком высокой цене меньше людей покупают. Для выручки важны и цена, и количество покупателей.",
-      usefulTitle: "Меньше робота. Больше пользы.",
+        "Потому что при слишком высокой цене покупает меньше людей. Для выручки нужны и рабочая цена, и достаточно покупателей — давайте найдём, где они уравновешиваются.",
+      usefulTitle: "Без слежки. На уровне дизайна.",
       usefulText:
-        "Тьютор понимает обычную живую речь, объясняет тему простыми словами и направляет ученика к более точному академическому ответу.",
-      workflowEyebrow: "Процесс",
-      workflowTitle: "От идеи учителя до страницы ученика.",
-      quickCardTitle: "Быстро для учителя.",
+        "Class A читает работу ученика, чтобы помочь ему учиться, а не следить за ним. Репетитор не выдаёт ответ, а объясняет — и каждый результат можно проверить по критериям Cambridge, AP и IB.",
+      workflowEyebrow: "Как это работает",
+      workflowTitle: "От вашей программы к измеримым результатам.",
+      quickCardTitle: "Запуск за дни, а не за четверти.",
       quickCardText:
-        "Не нужно каждый раз собирать домашку с нуля. Начните с готового образца, настройте урок под себя и поделитесь с учеником.",
-      safeCardTitle: "Безопаснее по дизайну.",
+        "Мы строим на программе, которую вы уже преподаёте, поэтому ничего не нужно собирать с нуля — а так как ИИ контролирует блок практики, учителя тратят меньше часов на проверку и контроль.",
+      safeCardTitle: "Прежде всего — приватность.",
       safeCardText:
-        "В следующей бета-волне появятся длинные случайные ссылки, ограничения на запросы и защита приватности на страницах учеников.",
-      launchTitle: "Превратите домашку в понятный урок.",
+        "Никакой слежки за детьми — без веб-камер, отслеживания взгляда и логирования нажатий клавиш. Совместимо с Kundalik, данные учеников защищены с первого дня.",
+      launchTitle: "Приведите Class A Education в вашу школу.",
       launchText:
-        "Вместо обычного задания создайте интерактивную страницу, на которой ученик понимает, тренируется и получает обратную связь.",
-      openBuilder: "Начать создание",
-      viewApi: "Открыть библиотеку",
+        "Запросите демо — мы настроим пилот: ваши учебники, ваши ученики, реальные результаты за недели.",
       phone: {
-        header: "Домашка",
-        subject: "Квадратичная выручка",
-        checkpoint: "Проверка",
-        aiReady: "AI готов",
-        question: "Почему график выручки сначала растёт, достигает пика, а потом падает?",
-        placeholder: "Ученик пишет ответ здесь...",
-        continue: "Продолжить урок",
+        header: "Class A",
+        subject: "Алгебра · Квадратичная",
+        checkpoint: "Проверка мастерства",
+        aiReady: "AI-репетитор",
+        question: "Почему выручка растёт до пика, а затем падает?",
+        placeholder: "Ученик решает здесь…",
+        continue: "Продолжить",
       },
       lessonPanels: [
         {
-          eyebrow: "Шаг 1 · Объяснение",
-          title: "Сначала разбираем тему.",
-          body: "Перед ответом ученик проходит короткие и аккуратные карточки темы. Без шума и стены текста.",
-          tag: "Объяснение",
+          eyebrow: "Путь к мастерству",
+          title: "Каждая тема — это путь, а не рабочий лист.",
+          body: "Ученики проходят короткие аккуратные шаги мастерства — видимый прогресс, в своём темпе.",
+          tag: "Мастерство",
+          progress: 35,
+          xp: "+40 XP",
         },
         {
-          eyebrow: "Шаг 2 · Практика",
-          title: "Ответ может быть неаккуратным — AI всё равно поймёт смысл.",
-          body: "Система сравнивает ответ ученика с ожидаемым и не наказывает сразу за мелкие неточности в формулировке.",
-          tag: "Смешанная оценка",
+          eyebrow: "Растёшь — получаешь",
+          title: "XP, квесты и стрики, которые вознаграждают реальное понимание.",
+          body: "Мотивация, привязанная к учёбе, а не случайные очки. Освоил тему — поднял уровень.",
+          tag: "Геймификация",
+          progress: 70,
+          xp: "+120 XP",
         },
         {
-          eyebrow: "Шаг 3 · Помощь",
-          title: "Тьютор рядом с каждым вопросом.",
-          body: "Ученик может попросить подсказку, объяснение или языковую помощь, не выходя из урока.",
-          tag: "AI-помощь",
+          eyebrow: "Boss Arena",
+          title: "Докажите мастерство, а не зубрёжку.",
+          body: "Перед переходом дальше ученик встречает вызов, проверяющий реальное понимание.",
+          tag: "Босс",
+          progress: 95,
+          xp: "Boss +250 XP",
         },
       ],
       features: [
         {
-          icon: "wand",
-          title: "Быстрая сборка для учителя",
-          body: "Учитель выбирает тему, класс и язык. Платформа помогает собрать урок с этапами объяснения, практики и проверки в аккуратном виде.",
+          icon: "book",
+          title: "На основе ваших учебников",
+          body: "Мы усиливаем программу, которую вы уже преподаёте, а не заменяем её. ИИ превращает каждую тему в геймифицированный путь к мастерству.",
+        },
+        {
+          icon: "cap",
+          title: "Результаты, которых теперь требует государство",
+          body: "Треки подготовки к IELTS, SAT, TOEFL и AP — сертификаты, нужные каждому ученику 10–11 классов для выпуска.",
         },
         {
           icon: "layers",
-          title: "Пошаговое объяснение",
-          body: "Сначала ученик понимает тему, затем тренируется. Каждая часть стоит отдельно и легко читается.",
+          title: "Единая операторская система",
+          body: "Посещаемость, оценки, успеваемость, уведомления родителям и домашка в одном месте — совместимо с Kundalik, с ИИ внутри.",
         },
         {
-          icon: "brain",
-          title: "AI-помощь и обратная связь",
-          body: "AI-тьютор понимает вопрос ученика, разбирает ответ и подсказывает следующий шаг.",
-        },
-        {
-          icon: "message",
-          title: "Можно задавать вопросы",
-          body: "Ученик может попросить помощь, не выходя из урока. Тьютор не выдаёт готовый ответ, а ведёт к пониманию.",
+          icon: "zap",
+          title: "Меньше нагрузки на учителя",
+          body: "ИИ контролирует школьный блок практики, поэтому учителя тратят меньше часов на проверку и надзор.",
         },
       ],
       workflow: [
-        ["01", "Выбрать тему", "Алгебра, физика, биология, английский, история, химия или геометрия — выберите нужную тему."],
-        ["02", "Настроить этапы", "Подкорректируйте карточки объяснения, вопросы, проверку и пояснения под себя."],
-        ["03", "Поделиться ссылкой", "Создайте одну стабильную ссылку для ученика и отправьте её классу."],
-        ["04", "Посмотреть результат", "AI-помощь в проверке и обратная связь помогают быстрее понять ответ каждого ученика."],
+        ["01", "Подключаем вашу программу", "Загружаем ваши учебники и стандарты как источник истины — обычно запуск за 2–3 дня."],
+        ["02", "Настраиваете треки", "Включите нужные школе треки результатов — IELTS, SAT, AP — и задайте пороги мастерства по классам."],
+        ["03", "Ученики учатся в игре", "Ученики занимаются в мобильном приложении с AI-репетитором и путём к мастерству, который держит их в движении."],
+        ["04", "Вы видите результаты", "Учителя и родители ясно видят, что каждый ученик действительно освоил — без догадок."],
       ],
     },
 
     en: {
-      brand: "Homeworks",
-      footerNote: "A beta project for interactive lessons.",
+      brand: "Class A Education",
+      footerNote: "© 2026 Class-A-Technologies MCHJ",
+      footer: { privacy: "Privacy Policy", terms: "Terms of Service" },
       nav: {
-        overview: "Overview",
-        preview: "Preview",
+        overview: "What it is",
+        preview: "Inside the app",
         tutor: "AI tutor",
         workflow: "How it works",
-        launch: "Get started",
+        launch: "Request a demo",
       },
-      tryBeta: "Request access",
-      requestBetaAccess: "Request access to beta",
-      heroBadge: "A beta project for smarter homework",
-      heroTitle: "Homework that doesn’t feel like a chore.",
+      tryBeta: "Request a demo",
+      requestBetaAccess: "Request a school demo",
+      heroBadge: "AI learning system for K–11 schools",
+      heroTitle: "Teach Anything. Prove it.",
       heroText:
-        "Homeworks helps teachers turn a plain assignment into an interactive lesson — explanation, practice, an AI tutor and feedback, all on one page.",
-      watchPreview: "Watch the preview",
-      seeWorkflow: "See how it works",
+        "Class A Education turns your school’s own textbooks into a gamified, AI-guided mastery journey — and shows teachers and parents exactly what each student has learned. Built for Uzbekistan’s schools, in Uzbek, Russian and English.",
       stats: [
-        ["One link", "lesson, practice and help on one page"],
-        ["AI tutor", "guides the student to understand, without giving away the answer"],
-        ["Easy", "the teacher shares, the student starts right away"],
+        ["Your textbooks", "enhanced, never replaced — we build on the curriculum you already teach"],
+        ["IELTS · SAT · AP-aligned", "outcome tracks mapped to the certificates students need to graduate"],
+        ["2–3 days", "to onboard a school — not months"],
       ],
-      floating: { panels: "Steps", tutor: "AI tutor", grade: "Feedback" },
-      overviewEyebrow: "Overview",
-      overviewTitle: "A full lesson, inside one tidy link.",
+      floating: { panels: "Mastery", tutor: "AI tutor", grade: "No surveillance" },
+      overviewEyebrow: "What it is",
+      overviewTitle: "One system that runs your school toward outcomes.",
       overviewText:
-        "Instead of a plain form, every assignment becomes a small lesson: read, practice, feedback and tutor help — all in one place.",
-      previewEyebrow: "Preview",
-      previewTitle: "Explain first. Then check.",
+        "Not a homework app bolted on — a single AI learning system your teachers, students and parents all plug into.",
+      previewEyebrow: "Inside the app",
+      previewTitle: "Learning students actually want to open.",
       previewText:
-        "Each step now sits cleanly on its own: the student reads the topic, moves to the check, and sees the result at the end. The order is easy to follow, not jumbled together.",
+        "Students get a gamified mastery journey on their phone — clear progress, the next right challenge, and a tutor that helps them understand instead of handing over the answer.",
       tutorEyebrow: "AI tutor",
-      tutorTitle: "Works even when the student types like, well, a student.",
+      tutorTitle: "A real tutor that guides — and never spies.",
       studentLabel: "Student",
-      studentMessage: "yo why does revenue go up first then drop later",
+      studentMessage: "wait why does revenue go up first then drop later",
       tutorLabel: "AI tutor",
       tutorMessage:
-        "Because if the price is too high, fewer people buy. Revenue needs both a workable price and enough buyers.",
-      usefulTitle: "Less robot. More signal.",
+        "Because if the price climbs too high, fewer people buy. Revenue needs both a workable price and enough buyers — let’s find where they balance.",
+      usefulTitle: "No surveillance. By design.",
       usefulText:
-        "The tutor reads everyday phrasing, explains the topic in plain language, and gently nudges the student toward a sharper academic answer.",
+        "Class A reads a student’s work to help them learn — never to watch them. The tutor explains instead of handing over answers, and every result is auditable against Cambridge, AP and IB benchmarks.",
       workflowEyebrow: "How it works",
-      workflowTitle: "From a teacher’s idea to a student-ready page.",
-      quickCardTitle: "Fast for the teacher.",
+      workflowTitle: "From your curriculum to measurable outcomes.",
+      quickCardTitle: "Set up in days, not terms.",
       quickCardText:
-        "You don’t rebuild an assignment from scratch every time. Start from a ready example, tune the lesson, and share it with your class.",
-      safeCardTitle: "Safer by design.",
+        "We build on the curriculum you already teach, so there’s nothing to rebuild from scratch — and because the AI supervises the practice block, your teachers spend fewer hours grading and chasing.",
+      safeCardTitle: "Privacy-first, by design.",
       safeCardText:
-        "Long random links, request limits and privacy-aware student pages are coming in the next beta wave — on by default.",
-      launchTitle: "Turn homework into a lesson students actually understand.",
+        "No surveillance of children — no webcams, no eye-tracking, no keystroke logging. Kundalik-compliant, with student data protected from day one.",
+      launchTitle: "Bring Class A Education to your school.",
       launchText:
-        "Instead of a plain assignment, build an interactive page where the student understands the topic, practices it, and gets feedback.",
-      openBuilder: "Start building",
-      viewApi: "Browse the library",
+        "Request a demo and we’ll set up a pilot — your textbooks, your students, real outcomes in weeks.",
       phone: {
-        header: "Homework",
-        subject: "Quadratic revenue",
-        checkpoint: "Check",
-        aiReady: "AI ready",
-        question: "Why does the revenue curve rise to a peak and then fall?",
-        placeholder: "Student types their answer here...",
-        continue: "Continue the lesson",
+        header: "Class A",
+        subject: "Algebra · Quadratics",
+        checkpoint: "Mastery check",
+        aiReady: "AI tutor",
+        question: "Why does revenue rise to a peak, then fall?",
+        placeholder: "The student works it through here…",
+        continue: "Continue",
       },
       lessonPanels: [
         {
-          eyebrow: "Step 1 · Explain",
-          title: "Read the topic first.",
-          body: "Before answering, the student walks through short, tidy topic cards. No walls of text, no noise.",
-          tag: "Explanation",
+          eyebrow: "Mastery journey",
+          title: "Every topic becomes a path, not a worksheet.",
+          body: "Students move through short, tidy mastery steps — progress they can see, at their own pace.",
+          tag: "Mastery",
+          progress: 35,
+          xp: "+40 XP",
         },
         {
-          eyebrow: "Step 2 · Practice",
-          title: "The answer can be messy — the AI still gets the meaning.",
-          body: "The system compares the student’s answer to the expected one and doesn’t punish them for small wording slips.",
-          tag: "Smart grading",
+          eyebrow: "Earn as you grow",
+          title: "XP, quests and streaks that reward real understanding.",
+          body: "Motivation that’s tied to learning — not random points. Master a topic, level up.",
+          tag: "Gamified",
+          progress: 70,
+          xp: "+120 XP",
         },
         {
-          eyebrow: "Step 3 · Help",
-          title: "A tutor sits next to every question.",
-          body: "The student can ask for a hint, an explanation or a quick language nudge — without leaving the lesson.",
-          tag: "AI help",
+          eyebrow: "Boss Arena",
+          title: "Prove mastery, not memorization.",
+          body: "Students face a challenge that checks real understanding before they advance.",
+          tag: "Boss",
+          progress: 95,
+          xp: "Boss +250 XP",
         },
       ],
       features: [
         {
-          icon: "wand",
-          title: "Quick to build, for teachers",
-          body: "The teacher picks a topic, grade and language. The platform helps you lay out the explanation, practice and check stages in a clean order.",
+          icon: "book",
+          title: "Built on your textbooks",
+          body: "We enhance the curriculum you already teach — never replace it. The AI turns each topic into a guided, gamified path to mastery.",
+        },
+        {
+          icon: "cap",
+          title: "Outcomes the state now requires",
+          body: "Exam-prep tracks aligned to IELTS, SAT, TOEFL and AP — the certificates every grade 10–11 student needs to graduate.",
         },
         {
           icon: "layers",
-          title: "Step-by-step explanation",
-          body: "The student understands the topic first, then practices it. Every part stands on its own and is easy to read.",
+          title: "One operator system",
+          body: "Attendance, grades, performance, parent notifications and homework in one place — Kundalik-compliant, with AI inside.",
         },
         {
-          icon: "brain",
-          title: "AI help and feedback",
-          body: "The AI tutor understands the student’s question, analyses the answer, and points to the next step.",
-        },
-        {
-          icon: "message",
-          title: "Students can ask questions",
-          body: "The student can ask for help without leaving the lesson. The tutor doesn’t hand over the answer — it guides them to understand.",
+          icon: "zap",
+          title: "Less teacher labor",
+          body: "AI supervises the at-school practice block, so your teachers spend fewer hours grading and supervising.",
         },
       ],
       workflow: [
-        ["01", "Pick a topic", "Algebra, physics, biology, English, history, chemistry or geometry — pick the topic you need."],
-        ["02", "Tune the steps", "Adjust the explanation cards, questions, the check stage and the notes until it reads the way you want."],
-        ["03", "Share the link", "Generate one stable link for the student and send it to the class."],
-        ["04", "Review results", "AI-assisted checking and feedback help you read each student’s answer faster."],
+        ["01", "We map your curriculum", "We load your textbooks and standards as the source of truth — usually live in 2–3 days."],
+        ["02", "Configure tracks", "Switch on the outcome tracks your school needs — IELTS, SAT, AP — and set mastery thresholds per grade."],
+        ["03", "Students learn, gamified", "Students practice on the mobile app with an AI tutor and a mastery journey that keeps them moving."],
+        ["04", "You see outcomes", "Teachers and parents get a clear view of what each student has actually mastered — no guesswork."],
       ],
     },
   };
@@ -531,6 +542,14 @@
       if (bodyEl) bodyEl.textContent = panel.body;
       if (tagEl) tagEl.textContent = panel.tag;
 
+      // Gamified widgets: mastery progress bar + XP pill (per-panel)
+      const progressEl = document.getElementById("phone-progress");
+      const xpEl = document.getElementById("phone-xp");
+      if (progressEl && typeof panel.progress === "number") {
+        progressEl.style.width = Math.max(0, Math.min(100, panel.progress)) + "%";
+      }
+      if (xpEl && panel.xp) xpEl.textContent = panel.xp;
+
       // Update dots
       const dots = document.querySelectorAll("#phone-dots .phone-dot");
       dots.forEach(function (dot, i) {
@@ -595,7 +614,7 @@
   function bindRevealObserver() {
     if (!("IntersectionObserver" in window)) {
       // Fallback: just show everything.
-      document.querySelectorAll("[data-reveal], .stagger-parent").forEach(function (el) {
+      document.querySelectorAll("[data-reveal], [data-reveal-wipe], .stagger-parent").forEach(function (el) {
         el.classList.add("is-visible");
       });
       return;
@@ -613,7 +632,7 @@
       { threshold: 0.18, rootMargin: "0px 0px -8% 0px" }
     );
 
-    document.querySelectorAll("[data-reveal], .stagger-parent").forEach(function (el) {
+    document.querySelectorAll("[data-reveal], [data-reveal-wipe], .stagger-parent").forEach(function (el) {
       // The hero content is already marked .is-visible in the HTML — skip those.
       if (el.classList.contains("is-visible")) return;
       observer.observe(el);
@@ -661,6 +680,49 @@
     window.addEventListener("resize", onScroll, { passive: true });
   }
 
+  // ── Preview parallax (continuous scroll-progress; decorative depth only) ──
+  // Gently drifts the dark preview section's glow blobs as it travels through
+  // the viewport. Targets only absolutely-positioned, animation-free decorations
+  // so it never fights the phone's reveal transform or its float keyframes.
+  function bindPreviewParallax() {
+    const section = document.getElementById("preview");
+    if (!section) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const blue = section.querySelector(".preview-glow--blue");
+    const fuchsia = section.querySelector(".preview-glow--fuchsia");
+    const phoneGlow = section.querySelector(".phone-glow");
+    if (!blue && !fuchsia && !phoneGlow) return;
+
+    let ticking = false;
+
+    function update() {
+      ticking = false;
+      const rect = section.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      // 0..1 as the section crosses the viewport (enters bottom → exits top)
+      const total = rect.height + vh;
+      const seen = vh - rect.top;
+      const progress = Math.max(0, Math.min(1, seen / total));
+      const centered = progress - 0.5; // -0.5..0.5
+
+      if (blue) blue.style.transform = "translate3d(0," + (centered * -60).toFixed(1) + "px,0)";
+      if (fuchsia) fuchsia.style.transform = "translate3d(0," + (centered * 60).toFixed(1) + "px,0)";
+      if (phoneGlow) phoneGlow.style.transform = "translate3d(0," + (centered * -28).toFixed(1) + "px,0)";
+    }
+
+    function onScroll() {
+      if (!ticking) {
+        window.requestAnimationFrame(update);
+        ticking = true;
+      }
+    }
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+  }
+
   // ── Smooth scroll for in-page anchors ───────────────────────────────────
   function bindSmoothAnchors() {
     document.querySelectorAll('a[href^="#"]').forEach(function (a) {
@@ -688,6 +750,7 @@
     bindLessonPanels();
     bindRevealObserver();
     bindHeroParallax();
+    bindPreviewParallax();
     bindSmoothAnchors();
   }
 
