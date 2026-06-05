@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title data-i18n-title="apply.title">Homeworks · Platformaga ariza</title>
-  <meta name="description" content="Apply to join the Homeworks pilot — teachers, students, parents and admins." />
+  <title data-i18n-title="apply.title">Class A Education · Maktab uchun demo so‘rovi</title>
+  <meta name="description" content="Request a demo for your school — set up a Class A Education pilot." />
   <meta name="robots" content="index, follow" />
   <link rel="icon" type="image/png" sizes="32x32" href="/img/favicon-32.png?v=__VERSION__" />
   <link rel="apple-touch-icon" href="/img/classa-logo.png?v=__VERSION__" />
@@ -18,11 +18,11 @@
 
   <header class="landing-header" role="banner">
     <nav class="landing-nav" aria-label="Primary">
-      <a href="/" class="brand-link" aria-label="Homeworks home">
+      <a href="/" class="brand-link" aria-label="Class A Education home">
         <span class="brand-mark" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-5 9 5-9 5Zm5 5v4c2.5 2 5.5 2 8 0v-4M19 10v6"></path></svg>
         </span>
-        <span class="brand-text" data-i18n="brand">Homeworks</span>
+        <span class="brand-text" data-i18n="brand">Class A Education</span>
       </a>
 
       <div class="nav-links" role="navigation" aria-label="Sections">
@@ -43,8 +43,8 @@
   <main id="apply-main" class="apply-wrap">
     <section class="apply-card" aria-labelledby="apply-title">
       <header class="apply-card__head">
-        <h1 id="apply-title" data-i18n="apply.title">Platformaga ariza</h1>
-        <p class="apply-card__lead" data-i18n="apply.subtitle">Bizga oz narsani ayting — biz tez orada javob beramiz.</p>
+        <h1 id="apply-title" data-i18n="apply.title">Maktabingiz uchun demo so‘rang</h1>
+        <p class="apply-card__lead" data-i18n="apply.subtitle">Maktabingiz haqida ayting — biz sinov (pilot) loyihasini sozlaymiz.</p>
       </header>
 
       <form id="apply-form" class="apply-form" method="post" action="/api/applications" novalidate>
@@ -98,17 +98,20 @@
             aria-required="true"
           >
             <option value="" data-i18n="apply.role.placeholder">Tanlang…</option>
+            <option value="admin" data-i18n="apply.role.admin" selected>Maktab ma’muri / Direktor</option>
             <option value="teacher" data-i18n="apply.role.teacher">O‘qituvchi</option>
             <option value="student" data-i18n="apply.role.student">O‘quvchi</option>
             <option value="parent" data-i18n="apply.role.parent">Ota-ona</option>
-            <option value="admin" data-i18n="apply.role.admin">Maktab rahbari</option>
             <option value="other" data-i18n="apply.role.other">Boshqa</option>
           </select>
           <p class="field-error" data-error-for="role" hidden></p>
         </div>
 
         <div class="field">
-          <label for="apply-school" data-i18n="apply.label.school">Maktab / tashkilot</label>
+          <label for="apply-school">
+            <span data-i18n="apply.label.school">Maktab / tashkilot</span>
+            <span class="req" aria-hidden="true">*</span>
+          </label>
           <input
             id="apply-school"
             name="school"
@@ -121,7 +124,10 @@
         </div>
 
         <div class="field">
-          <label for="apply-city" data-i18n="apply.label.city">Shahar</label>
+          <label for="apply-city">
+            <span data-i18n="apply.label.city">Shahar</span>
+            <span class="req" aria-hidden="true">*</span>
+          </label>
           <input
             id="apply-city"
             name="city"
@@ -134,7 +140,10 @@
         </div>
 
         <div class="field">
-          <label for="apply-grades" data-i18n="apply.label.grades">Sinflar</label>
+          <label for="apply-grades">
+            <span data-i18n="apply.label.grades">Sinflar</span>
+            <span class="req" aria-hidden="true">*</span>
+          </label>
           <input
             id="apply-grades"
             name="grades"
@@ -210,9 +219,9 @@
 
   <footer class="landing-footer" role="contentinfo">
     <div class="apply-footer__inner">
-      <span data-i18n="brand">Homeworks</span>
+      <span data-i18n="brand">Class A Education</span>
       <span class="landing-footer__sep" aria-hidden="true">·</span>
-      <span data-i18n="apply.footer">© 2026 — beta loyiha.</span>
+      <span data-i18n="apply.footer">© 2026 Class-A-Technologies MCHJ.</span>
       <span class="landing-footer__sep" aria-hidden="true">·</span>
       <a href="/" class="apply-footer__link" data-i18n="apply.back">← Bosh sahifa</a>
     </div>

@@ -1,5 +1,5 @@
 /* ============================================================
-   Homeworks — Apple-Inspired Landing Page
+   Class A Education — Apple-Inspired Landing Page
    Vanilla CSS · light-first · supports prefers-color-scheme dark
    Spring curve: cubic-bezier(.16, 1, .3, 1) — Apple no-overshoot
    ============================================================ */
@@ -1597,3 +1597,82 @@ img, svg { display: block; max-width: 100%; }
 [data-theme="dark"] .tutor-card-dark,
 [data-theme="dark"] .safe-card,
 [data-theme="dark"] .launch-shell { box-shadow: 0 25px 70px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(63, 63, 70, 0.4); }
+
+/* ============================================================
+   Landing reframe — ADDITIVE ONLY (Class A Education)
+   Gamified phone interior widgets + clip-path title wipe.
+   Nothing above this block is modified.
+   ============================================================ */
+
+/* -- Gamified phone interior: top row, XP pill, mastery progress bar -- */
+.phone-lesson-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.phone-lesson-card__top .phone-lesson-card__eyebrow { margin: 0; }
+
+.phone-xp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.phone-xp svg { color: var(--landing-cyan-300); }
+
+.phone-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+  margin: 18px 0 0;
+}
+.phone-progress__fill {
+  height: 100%;
+  width: 35%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--landing-cyan-300), var(--landing-blue-400));
+  transition: width var(--landing-dur-lg) var(--landing-spring);
+}
+
+/* -- Footer link (reuses the muted footer tone) -- */
+.landing-footer__link { transition: color 200ms var(--landing-spring); }
+.landing-footer__link:hover { color: var(--landing-zinc-950); }
+[data-theme="dark"] .landing-footer__link:hover { color: rgba(244, 244, 245, 0.96); }
+
+/* -- Clip-path title wipe — revealed via the existing IO `.is-visible` flag.
+   The big display headings wipe down into view instead of a plain fade.
+   IMPORTANT: pre-reveal we hide with OPACITY only (no clip-path). A fully-clipped
+   element reports IntersectionObserver ratio 0 and would never trigger the reveal
+   (deadlock). The clip-path wipe lives in a keyframe that only plays once .is-visible
+   is added, so no clip ever blocks the observer. */
+[data-reveal-wipe] {
+  opacity: 0;
+  transition: opacity var(--landing-dur-lg) var(--landing-spring);
+  will-change: opacity, clip-path;
+}
+[data-reveal-wipe].is-visible {
+  opacity: 1;
+  animation: title-wipe var(--landing-dur-lg) var(--landing-spring) both;
+}
+@keyframes title-wipe {
+  from { clip-path: inset(0 0 100% 0); }
+  to   { clip-path: inset(0 0 -10% 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal-wipe] {
+    opacity: 1 !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
