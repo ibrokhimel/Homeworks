@@ -6,77 +6,59 @@ You are building the Game Breaks (Phase 3) for a Biology homework session. Real 
 
 - Textbook page + all previous phase outputs
 - Grade: G5-11 (Biologiya)
-- Mode: Easy → **2 games** | Hard → **3 games**
+- Mode: Easy | Hard
 
 ## Output
 
-2 or 3 games. Each game has 5-8 items. Every item tagged with `[Bloom: LX | PISA: LX]`.
+Both games, every session: Tile Match + Sentence Fill.
+
+Mode changes the load, not the game count:
+- **Easy** — Tile Match at its grade-banded board size, Sentence Fill 5-6 items, mostly 1-blank passages.
+- **Hard** — Tile Match at its grade-banded board size, Sentence Fill 7-8 items, with 2-3 blank passages carrying the multi-step processes.
+
+Every item tagged with `[Bloom: LX | PISA: LX]`. Bloom levels must span L1 (recall) → L3 (application) across the whole phase.
 
 ---
 
 ## Supported Games Only
 
-Only three games exist in the practice arc. Use these and nothing else:
+Only two games exist in the practice arc. Use these and nothing else:
 
 | Display name | Contract key | How it works |
 |---|---|---|
-| **Adaptive Quiz** | `adaptive_quiz` | Progressive-difficulty question flow. Each item carries its own `tier`; set `capture: true` on an item that asks the student to photograph written work. |
 | **Sentence Fill** | `sentence_fill` | Cloze passage. `___` marks each blank; the student fills every blank from a word bank or from free recall. |
 | **Tile Match** | `tile_match` | Left/right concept pairs the student matches on a grade-banded board. |
 
 **Do not reference any game outside this list.** Any unlisted, legacy, or newly
 invented game is unsupported: it does not render, and its array is dropped on
-import.
+import. This includes Adaptive Quiz — it is no longer offered, so never author
+an `adaptive_quiz` array and never name it to the student.
+
+**Both games run in every session.** There is no third slot to fill and no game
+to choose between; Easy and Hard differ by item count and difficulty mix, not by
+how many games appear. Do not invent a game to pad the arc.
 
 ### What each game is for in Biology
 
 | Game | Biology use |
 |---|---|
-| **Adaptive Quiz** | Organism identification, process recall, structure-function reasoning. **Mandatory for Biology.** |
-| **Sentence Fill** | Process descriptions with a missing step, reactant, product, or organism. |
 | **Tile Match** | Structure ↔ function, organism ↔ classification, process ↔ result, cause ↔ effect, term ↔ diagram description. |
+| **Sentence Fill** | Process descriptions with a missing step, reactant, product, or organism. Also carries the identification and structure-function recall that used to sit in a quiz. |
 
-## Game Selection
+## What goes in which game
 
-**Mandatory:** Adaptive Quiz in one slot. No calculation capture anywhere in Biology — Biology has no calculation steps, so always author `capture: false`.
+Both games always appear, so the decision is what each one carries:
 
-**Easy (2 games):** Adaptive Quiz + pick 1.
+- **Taxonomy/classification chapter** → the Tile Match board is organism ↔ kingdom/phylum; Sentence Fill checks the defining trait of each group
+- **Process chapter** (photosynthesis, digestion, mitosis, respiration) → Sentence Fill carries the process as multi-blank passages; Tile Match carries process ↔ result
+- **Structure chapter** (cell organelles, organ systems, tissue types) → Tile Match is structure ↔ function; Sentence Fill checks where each structure sits in the larger system
+- **Mixed chapter** → split the Tile Match board into two `concept_family` groups and let Sentence Fill cover the process arc
 
-**Hard (3 games):** Adaptive Quiz + both of the others.
-
-Pick based on chapter type:
-- **Taxonomy/classification chapter** → Tile Match, organism ↔ kingdom/phylum pairs
-- **Process chapter** (photosynthesis, digestion, mitosis, respiration) → Sentence Fill, missing step or product in the process
-- **Structure chapter** (cell organelles, organ systems, tissue types) → Tile Match, structure ↔ function
-- **Mixed chapter** → Tile Match + Sentence Fill, so terminology, classification and process are all covered
-
-Never build two games that test the same item the same way. When a chapter needs both terminology and classification coverage, use ONE Tile Match board and separate the two families with `concept_family` rather than duplicating the game.
+Never test the same item the same way in both games. If a term is a Tile Match pair, Sentence Fill should ask what it *does*, not what it *is*.
 
 ---
 
 ## Construction per game
-
-### Adaptive Quiz
-- 5-8 questions from THIS chapter
-- Difficulty scales: first 2 EASY (name recognition), next 2-3 MEDIUM (structure-function), last 1-2 HARD (process reasoning or a classification edge case)
-- `capture: false` on every item — Biology does not require calculation steps
-- G5-7: MC allowed for all question types
-- G8-11: open-ended identification for HARD-tier questions (student types the organism/process name)
-- Bloom levels must span L1 (recall) → L3 (application) across the set
-- HARD-tier items should sit on a real misconception family (e.g. "mitoz vs meyoz", "hujayra devori vs membrana", "nafas olish vs fotosintez"), not on an obscure fact
-
-### Sentence Fill
-- 5-7 items
-- `mode`: `word_bank` for G5-G7, `free_recall` for G8-11
-- Each `passage` carries 1-3 `___` markers; a process with three linked steps is a good 3-blank passage
-- The gap must test biological understanding, not random word removal
-- Biology-specific gaps:
-  - `"Fotosintez jarayonida o'simlik ___ ni yutadi va ___ ajratadi"` → answers `["CO₂", "O₂"]`
-  - `"Mitoz natijasida ___ ta qiz hujayra hosil bo'ladi"` → answers `["2"]`
-  - `"Xloroplastdagi yashil pigment ___ deb ataladi"` → answers `["xlorofill"]`
-  - `"Odam teri epiteliysi ___ to'qima turiga kiradi"` → answers `["epiteliy"]`
-  - `"Zamburug'lar ___ yo'l bilan oziqlanadi"` → answers `["heterotrof"]`
-- In `word_bank` mode the bank must hold every answer plus at least one distractor, and the distractor should be the misconception partner (`"O₂"` against `"CO₂"`, `"meyoz"` against `"mitoz"`), never a random word
 
 ### Tile Match
 **Board size by grade** — the builder recommends by grade, and 8 is a hard cap:
@@ -97,15 +79,31 @@ Never author more than 8 pairs at any grade; a 9th pair is rejected.
   - Cause ↔ effect: `"Xlorofill quyosh nurini yutadi"` ↔ `"Fotosintez boshlanadi"`
   - Term ↔ diagram description: `"Yadro"` ↔ `"Dumaloq, membranali, DNAni saqlaydi"`
 - Group pairs that belong to one misconception family under a shared `concept_family` (e.g. `"hujayra organoidlari"`, `"to'qima turlari"`) so the board reads as a branch, not a list
+- Difficulty ladder across the board: `easy` name ↔ definition → `medium` structure ↔ function → `hard` organism ↔ classification edge case, where the pair only resolves if the student knows the defining trait
 - If a structure needs a diagram to be recognisable, put a small inline SVG (under 200×150px) on that side of the pair
 - Every `left` and every `right` must be unique across the board
+
+### Sentence Fill
+- Easy 5-6 items, Hard 7-8 items
+- `mode`: `word_bank` for G5-G7, `free_recall` for G8-11
+- Each `passage` carries 1-3 `___` markers; a process with three linked steps is a good 3-blank passage
+- The gap must test biological understanding, not random word removal
+- G5-7 stay at recognition and single-step recall; G8-11 carry the process-reasoning and classification-edge-case load that the harder items used to hold, as multi-blank passages the student must reason through in order
+- Biology-specific gaps:
+  - `"Fotosintez jarayonida o'simlik ___ ni yutadi va ___ ajratadi"` → answers `["CO₂", "O₂"]`
+  - `"Mitoz natijasida ___ ta qiz hujayra hosil bo'ladi"` → answers `["2"]`
+  - `"Xloroplastdagi yashil pigment ___ deb ataladi"` → answers `["xlorofill"]`
+  - `"Odam teri epiteliysi ___ to'qima turiga kiradi"` → answers `["epiteliy"]`
+  - `"Zamburug'lar ___ yo'l bilan oziqlanadi"` → answers `["heterotrof"]`
+- In `word_bank` mode the bank must hold every answer plus at least one distractor, and the distractor should be the misconception partner (`"O₂"` against `"CO₂"`, `"meyoz"` against `"mitoz"`), never a random word
+- Use `explanations` to name the misconception the distractor represents — this is where the "why the other one is wrong" teaching lives
 
 ---
 
 ## Rules
 
 - Every item tagged: `[Bloom: LX | PISA: LX]`
-- `capture` is always `false` in Biology — no calculations, so nothing to photograph
+- Biology has no calculations, so nothing in this phase asks the student to photograph written work
 - Do not reference any game outside the Supported Games table
 - Current chapter content only
 - Language: Uzbek, "Siz" formal
@@ -121,15 +119,6 @@ key for a game you did not build.
 
 ```json
 {
-  "adaptive_quiz": [
-    {
-      "q": "string",
-      "tags": "[Bloom: LX | PISA: LX]",
-      "tier": "EASY|MEDIUM|HARD",
-      "ans": ["string"],
-      "capture": false
-    }
-  ],
   "sentence_fill": [
     {
       "id": "sf_001",
