@@ -7,156 +7,156 @@ You are building the Game Breaks (Phase 3) for a Geometry homework session. This
 - Textbook page (image or text)
 - Preview + Flash Cards + Sprint outputs (from previous steps)
 - Grade: G7-9 (Geometriya)
-- Mode: Easy → **2 games** | Hard → **3 games**
+- Mode: Easy | Hard
 
 ## Output
 
-> **SVG Rule:** Every diagram in every game (tile images, Notebook Capture reference figure, Puzzle Lock fragments) must be actual SVG code — not a bracket description alone. Use `instruction.md` → SVG Output Rule for templates, color hex codes, and mark syntax.
+Both games, every session: Tile Match + Sentence Fill.
+
+Mode changes the load, not the game count:
+- **Easy** — Tile Match at its grade-banded board size, Sentence Fill 5-6 items, mostly 1-blank passages.
+- **Hard** — Tile Match at its grade-banded board size, Sentence Fill 7-8 items, including at least one 4-6 blank proof passage.
+
+Every item tagged with `[Bloom: LX | PISA: LX]`.
+
+> **SVG Rule:** Every diagram in every game must be actual SVG code — not a bracket description alone. Use `instruction.md` → SVG Output Rule for templates, color hex codes, and mark syntax. Every question involving a shape references a diagram.
 
 ---
 
-## Dual-Catalog Rule (mandatory)
+## Supported Games Only
 
-- Easy (2 games): ≥1 from Interactive Catalog + ≥1 from Default Pool
-- Hard (3 games): ≥1 from Interactive Catalog + ≥2 from Default Pool
+Only two games exist in the practice arc. Use these and nothing else:
 
----
+| Display name | Contract key | How it works |
+|---|---|---|
+| **Sentence Fill** | `sentence_fill` | Cloze passage. `___` marks each blank; the student fills every blank from a word bank or from free recall. |
+| **Tile Match** | `tile_match` | Left/right concept pairs the student matches on a grade-banded board. |
 
-## Game Slots — Geometry
+**Do not reference any game outside this list.** Any unlisted, legacy, or newly
+invented game is unsupported: it does not render, and its array is dropped on
+import. This includes Adaptive Quiz — it is no longer offered, so never author
+an `adaptive_quiz` array and never name it to the student.
 
-| Slot | Role | Primary | Backup |
-|------|------|---------|--------|
-| **Slot 1** | Spatial reasoning warmup | **Puzzle Lock** — reconstruct a labeled diagram, order proof steps, assemble a shape from parts | **Mystery Box** — identify shape or theorem from property clues |
-| **Slot 2** | Theorem application | **Tile Match** — theorem name ↔ diagram, angle type ↔ degree range, congruence criterion ↔ marked figure | **Sentence Fill** — fill missing reason in a proof step or missing condition in a theorem |
-| **Slot 3** | Proof and kinesthetic | **Notebook Capture** — student draws the figure, labels all elements, solves or proves, uploads photo | **Reaction Chain** — sequential proof steps, each correct answer unlocks the next node |
+**Both games run in every session.** There is no third slot to fill and no game
+to choose between; Easy and Hard differ by item count and difficulty mix, not by
+how many games appear. Do not invent a game to pad the arc.
 
-**Notebook Capture is the highest priority mechanic for Geometry.** It must appear in at least 1 of every 2 Hard sessions.
+### What each game is for in Geometry
 
-**Adaptive Quiz** may replace any Default Pool slot when the chapter is calculation-heavy (angle sums, measurement problems).
+| Game | Geometry use |
+|---|---|
+| **Tile Match** | Theorem name ↔ diagram, angle type ↔ degree range, congruence criterion ↔ marked figure, notation ↔ diagram, mark ↔ meaning, property clue ↔ shape or theorem. |
+| **Sentence Fill** | Missing reason in a proof step, missing condition in a theorem, missing value in an angle chain. Carries the ordered proof and construction work. |
 
----
+## What goes in which game
 
-## Games to AVOID for Geometry
+Both games always appear, so the decision is what each one carries:
+- **Theorem chapter** → Tile Match is theorem name ↔ fully marked diagram; Sentence Fill asks for the missing condition
+- **Proof chapter** → Sentence Fill carries the proof as an ordered multi-blank passage; Tile Match carries mark ↔ meaning so the student can read the figure at all
+- **Angle/measurement chapter** → Sentence Fill carries the angle chain as ordered blanks; Tile Match is angle type ↔ degree range
+- **Review chapter covering several theorems** (§4, §7, §13, §17, §22, §24, §26) → give the Tile Match board one `concept_family` per theorem, so identifying which theorem a marked figure belongs to is the task
 
-- Word Ladder — linguistic, no geometric value
-- Why Chain — Socratic text dialogue without diagrams does not work for geometry
-- Speed Match with numbers only — no geometric reasoning
-- Connect Four, Tic Tac Toe — low value for proof-based content
-- Worked Examples without diagrams — text-only worked examples do not work in geometry
+Never test the same item the same way in both games. If a theorem is a Tile Match pair, Sentence Fill should require citing it in a step, not naming it again.
 
 ---
 
 ## Construction per game
 
-### Puzzle Lock (Linear Solve-Stepper) — Interactive Catalog
-- 4-8 ordered steps of a single proof or construction
-- Student solves them **in order**, one slot active at a time. Correct answer unlocks the next step; wrong answer surfaces the authored hint and keeps the same step active.
-- Each item is `{content, q, a, hint?}`:
-  - `content` — the step description shown on the card (e.g. `"<b>Qadam 1.</b> ABC — to'g'ri burchakli uchburchak; ∠C = 90°, ∠A = α (berilgan)."`); `<b>` markup welcome
-  - `q` — the question the student must answer to advance from this step
-  - `a` — the expected answer (matched via mathNormalize: α/alfa/alpha, tg/tan, °/gradus, U+2212/-, decimal comma/dot are all equivalent)
-  - `hint` — optional one-line nudge shown on a wrong attempt
-- Step types:
-  - **Proof chain:** each step = one line of a 4-8 step formal argument; the question tests the student's grasp of THAT step's reasoning
-  - **Construction sequence:** sequential moves that build a labeled diagram; each question identifies the element/value introduced at that step
-- **Every step that references a figure should include a Visual Layer diagram description** in `content` (tick marks, arcs, square corners, color codes) — runtime renders inline SVG when present.
-- Good: `Qadam 1: "<b>Qadam 1.</b> ABC — to'g'ri burchakli uchburchak; ∠C = 90°, ∠A = α." q: "To'g'ri burchakning qiymati nechi gradus?" a: "90"` … then Qadam 2 builds on Qadam 1 with `∠A + ∠B + ∠C = 180°`.
-- Bad: questions out of order or steps that don't depend on each other (use Mystery Box for unrelated practice).
+### Tile Match
+**Board size by grade** — the builder recommends by grade, and 8 is a hard cap:
 
-### Mystery Box — Default Pool
-- 3-5 closed boxes, each containing a geometry problem from a different topic of the current chapter
-- Student first names the theorem or shape type (identifies the box's content), then solves
-- Use only for practice/review sessions (§4, §7, §13, §17, §22, §24, §26) or when chapter covers multiple theorems
+| Grade | Pairs |
+|---|---|
+| G1-G2 | 4 |
+| G3-G4 | 5 |
+| G5-G7 | 6 |
+| G8 and above | 8 |
 
-### Tile Match — Default Pool
-- 6-8 pairs. Left tile = theorem name, angle type, or congruence criterion. Right tile = labeled diagram.
-- Every right tile must be a diagram description using Visual Layer notation — no text-only pairs
+Never author more than 8 pairs at any grade; a 9th pair is rejected.
+
+- Left tile = theorem name, angle type, congruence criterion, notation, or a property clue. Right tile = the labeled diagram.
+- Every right tile must be a diagram using Visual Layer notation — no text-only pairs.
 - Pair types:
   - Theorem name ↔ diagram: `"SAS belgisi"` ↔ `[Diagram: triangles ABC and DEF, one tick on AB=DE (blue), one tick on BC=EF (blue), single arc at ∠B=∠E (blue)]`
   - Angle type ↔ diagram: `"O'tmas burchak"` ↔ `[Diagram: rays BA and BC, wide arc inside showing angle > 90°, label "90° < α < 180°"]`
   - Notation ↔ diagram: `"AB ∥ CD"` ↔ `[Diagram: two horizontal lines with single arrows, gap between them, symbol ∥ labeled]`
   - Mark ↔ meaning: `[Diagram: single tick mark on segment]` ↔ `"Bu tomon boshqa bir tomon bilan teng"`
-- Difficulty: L1 name ↔ symbol → L2 theorem ↔ fully marked diagram → L3 criterion ↔ real-scenario diagram with partial marks (student identifies which criterion fits)
-- **Include at least 1 pair where the diagram has a deliberate wrong mark** — student must identify it as a non-match (builds error-detection instinct)
+  - Property clue ↔ shape or theorem: `"Ikki tomoni teng, asos burchaklari teng"` ↔ `[Diagram: isosceles triangle with two ticks and two equal base arcs]`
+- Difficulty ladder: `easy` name ↔ symbol → `medium` theorem ↔ fully marked diagram → `hard` criterion ↔ real-scenario diagram with partial marks, where the student must work out which criterion fits.
+- **Include at least 1 pair whose diagram carries a deliberate wrong mark** so it does not match anything on the board — the student must identify it as a non-match. This builds error-detection instinct and is the strongest single rule in this file. Put the reason in that pair's `explanation`.
+- Group the board with `concept_family` — one family per theorem or per figure type.
+- Keep each side within 300 characters; a long Visual Layer description must be trimmed to its load-bearing marks.
+- Every `left` and every `right` must be unique across the board.
 
-### Sentence Fill — Default Pool
-- 5-7 items. Proof step or theorem statement with one piece missing.
-- Gap must test geometric understanding — not random word removal
-- Good: `"∠ABC va ∠BCD — ___ burchaklar (AB ∥ CD bo'lganda)"` → almashma ichki
-- Good: `"△ABC = △DEF, chunki AB=DE, ∠B=∠E, BC=EF → ___ belgisi asosida"` → SAS
-- Good: `"Uchburchak ichki burchaklari yig'indisi ___ ga teng"` → 180°
-
-### Adaptive Quiz — Default Pool
-- 5-8 questions from THIS chapter only
-- Difficulty scales: first 2 easy, middle 2-3 medium, last 1-2 hard
-- G7-9: no MC — open-ended answers only
-- Every proof or construction step triggers Notebook Capture (student photographs work)
-- Every question involving a shape MUST include a diagram described in brackets
-
-### Notebook Capture — Default Pool
-- Student draws a labeled geometric figure on paper, solves or proves, photographs and uploads
-- Must specify: figure type, all given measurements (cm or °), what to find or prove
-- The prompt includes a **reference diagram in brackets** — student must replicate this diagram on paper, then add their own marks as they solve
-
-**Student drawing requirements (must be stated explicitly in the prompt):**
-- Label ALL vertices (A, B, C), all sides (AB, BC, CA), all angles (∠A, ∠B, ∠C)
-- Mark equal sides with tick marks, equal angles with arc marks, right angles with a square corner symbol
-- Color code if possible: blue for given, orange for found/proved
-- Write the theorem name next to the step where it is used
-- Write the final answer with units and circle it
-
-**Prompt structure for Notebook Capture:**
-1. Reference diagram in brackets (using Visual Layer notation) — student recreates this on paper
-2. What to add: marks that are given (blue)
-3. What to find or prove (orange)
-4. Theorem to name and cite at each step
-
-- Good: `"[Reference diagram: triangle ABC, right angle square at ∠B, BC = 4 sm, AB = 3 sm — copy this to your notebook] ∠B ni □ bilan belgilang. O'tkir burchaklarini arc bilan belgilang. ∠A + ∠C yig'indisini toping. Ishlatingan teoremani yozing."`
-- Bad: `"Uchburchak ta'rifini yozing."` — definition copy, not construction or proof
-
-### Reaction Chain — Interactive Catalog
-- 6-10 nodes in logical sequence. Each correct answer lights the next node. 3 wrong = chain breaks.
-- Chain types:
-  - **Proof chain:** each node = one step of a formal proof (identify given → cite theorem → first deduction → second deduction → conclusion)
-  - **Angle calculation chain:** find angle 1 → use it to find angle 2 → use that to find angle 3
-- Good: Node 1: `"△ABC da ∠A = 50°, ∠B = 70°. Barcha burchaklar yig'indisi?"` → 180° → Node 2: `"∠C ni toping"` → 60° → Node 3: `"Bu uchburchak qaysi turga kiradi?"` → o'tkir burchakli
-- Bad: Unrelated questions with no logical dependency between nodes
+### Sentence Fill
+- Easy 5-6 items, Hard 7-8 items
+- `mode`: `word_bank` for G7, `free_recall` for G8-9
+- Proof step, theorem statement, or angle chain with one piece missing per `___`
+- The gap must test geometric understanding — not random word removal
+- Single-blank items:
+  - `"∠ABC va ∠BCD — ___ burchaklar (AB ∥ CD bo'lganda)"` → answers `["almashma ichki"]`
+  - `"△ABC = △DEF, chunki AB=DE, ∠B=∠E, BC=EF → ___ belgisi asosida"` → answers `["SAS"]`
+  - `"Uchburchak ichki burchaklari yig'indisi ___ ga teng"` → answers `["180°"]`
+- **Ordered proof passages carry the step-by-step work.** A proof or construction of 4-6 steps becomes ONE passage with 4-6 `___` markers, and `answers` must be in step order so the student reconstructs the argument in sequence — each blank only answerable once the previous one is settled. This is where the linear solve-stepper pedagogy now lives.
+  - `"ABC — to'g'ri burchakli uchburchak, ∠C = ___°. Barcha burchaklar yig'indisi ___°. Demak ∠A + ∠B = ___°. ∠A = 30° bo'lsa, ∠B = ___°."` → answers `["90", "180", "90", "60"]`
+- Every step that references a figure must include its Visual Layer diagram in the passage; the runtime renders inline SVG when present.
+- In `word_bank` mode the distractor is the confusable criterion or the wrong angle relation (`"SSS"` against `"SAS"`, `"mos"` against `"almashma ichki"`), never a random word.
+- Use `explanations` to name the theorem being applied at that blank — this is where "cite the theorem at every step" survives.
 
 ---
 
 ## Rules
 
-- Every question involving a shape references a diagram in brackets
-- Dual-Catalog Rule enforced every session
-- Notebook Capture mandatory in Hard mode — at minimum every 2 sessions
+- Every question involving a shape references a diagram, and every diagram is real SVG
+- Every item tagged: `[Bloom: LX | PISA: LX]`
+- Do not reference any game outside the Supported Games table
 - Current chapter content only — no questions from other chapters
 - Language: Uzbek, "Siz" formal
-
+- Diagram labelling standard, applied to every diagram you author: label all vertices (A, B, C), all sides (AB, BC, CA) and all angles (∠A, ∠B, ∠C); mark equal sides with tick marks, equal angles with arc marks, right angles with a square corner; blue for given, orange for found or proved
+- Name the theorem at the step where it is used — in the Sentence Fill `explanations` array, or in the Tile Match pair's `explanation`
 
 ---
 
 ## OUTPUT REQUIREMENT
-Return valid JSON matching this exact schema:
+
+Return valid JSON matching this exact schema. **Omit optional game arrays only
+when that game is not selected** — never emit an empty array, and never emit a
+key for a game you did not build.
+
 ```json
 {
-  "adaptive_quiz": [
+  "sentence_fill": [
     {
-      "q": "string",
+      "id": "sf_001",
+      "mode": "word_bank|free_recall",
+      "passage": "Text with ___ marking each blank.",
+      "answers": ["one entry per ___, in blank order"],
+      "word_bank": ["every answer", "plus at least one distractor"],
+      "explanations": ["one per answer, or omit the key"],
       "tags": "[Bloom: LX | PISA: LX]",
-      "tier": "EASY|MEDIUM|HARD",
-      "ans": ["string"],
-      "capture": false
+      "difficulty": "easy|medium|hard",
+      "pisa_level": "L1|L2|L3|L4|L5"
     }
   ],
-  "why_chain": [
+  "tile_match": [
     {
-      "q": "string",
-      "inv": "string",
-      "reprompts": ["string", "string"]
+      "id": "tm_001",
+      "left": "concept side, 300 chars max",
+      "right": "definition side, 300 chars max",
+      "concept_family": "grouping label",
+      "subject_family": "math|biology|history|literature|physics|chemistry|language|geography|general",
+      "difficulty": "easy|medium|hard",
+      "pisa_level": "L1|L2|L3|L4|L5|L6"
     }
-  ],
-  "memory_match": [
-    ["string", "string"]
   ]
 }
 ```
+
+The server validates every one of these (`server/schemas/content.py`):
+
+- `sentence_fill.passage` must contain 1-6 `___` markers. `answers` length must equal the marker count, in blank order.
+- `sentence_fill.mode` is `word_bank` (G2-G7) or `free_recall` (G8+). When `word_bank`, the `word_bank` key is required, must contain every answer, and must carry at least one extra distractor.
+- `sentence_fill.explanations`, when present, must be exactly as long as `answers`.
+- `tile_match` holds 0-8 pairs. `left` and `right` must each be non-empty and 300 characters or fewer.
+- Every `tile_match.id` is unique, every `left` is unique, and every `right` is unique — a repeated side breaks the distractor logic and the whole board is rejected.
+- `tile_match.subject_family` is always `"math"` in this file.
