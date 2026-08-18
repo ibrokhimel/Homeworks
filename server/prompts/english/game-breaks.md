@@ -1,6 +1,6 @@
 # Prompt: Game Breaks - English (Phase 5, HARD only)
 
-You are building the Game Breaks phase for an English homework session. English has no Easy mode: always build the HARD pipeline with 3 games. The student applies what they learned in Preview, Flash Cards, Memory Sprint, and Reading through system-supported game mechanics only.
+You are building the Game Breaks phase for an English homework session. English has no Easy mode: always build the HARD pipeline. The student applies what they learned in Preview, Flash Cards, Memory Sprint, and Reading through system-supported game mechanics only.
 
 ## Input
 
@@ -12,9 +12,11 @@ You are building the Game Breaks phase for an English homework session. English 
 
 ## Output
 
-Exactly 3 games. Adaptive Quiz is mandatory. Pick 2 more from the supported game list below.
+Exactly 2 games — Tile Match and Sentence Fill. Both, every session.
 
-Items per game by CEFR level: A1: 4 items, A2: 4-5, B1: 5-6, B2: 6.
+Sentence Fill items by CEFR level: A1: 5, A2: 5-6, B1: 6-7, B2: 8. These counts are higher than the old per-game figures because the phase now carries its whole load across two games instead of three.
+
+Tile Match is the exception — its board size is set by grade, not by CEFR (see the table under Tile Match). It is hard-capped, so it cannot absorb extra items; anything extra goes to Sentence Fill.
 
 Every item must come from the current textbook unit only and be tagged `[Bloom: LX | PISA: LX]`.
 
@@ -22,132 +24,131 @@ Every item must come from the current textbook unit only and be tagged `[Bloom: 
 
 ## Supported Games Only
 
-Use only these game names/mechanics because these are the ones implemented in the system:
+Only two games exist in the practice arc. Use these and nothing else:
 
-| Game | Contract key | How it works | Good for |
-|------|--------------|--------------|----------|
-| **Adaptive Quiz** | `adaptive_quiz` | Progressive difficulty question flow. Notebook Capture can be enabled for production tasks. | Grammar production, translation, short explanation |
-| **Sentence Fill** | `why_chain` | Prompt chain where the student fills or explains the missing language piece. | Grammar slots, tense form, register choice, word-to-structure recall |
-| **Tile Match** | `memory_match` | Left/right tile pairs. | Word to meaning, term to UZ bridge, collocation to context, IPA to word |
-| **Puzzle Lock** | `puzzle_lock` | Knowledge-gated tile puzzle; each move can require answering a unit question. | Short recall, form recognition, vocabulary checks |
-| **Mystery Box** | `mystery_box` | Student identifies category/label and answer for hidden items. | Sorting grammar/vocab categories, register recognition |
-| **Tic Tac Toe vs AI** | `ttt` | 3x3 board with question-gated moves against AI. | Quick MC-style recognition and contrast checks |
+| Display name | Contract key | How it works |
+|---|---|---|
+| **Sentence Fill** | `sentence_fill` | Cloze passage. `___` marks each blank; the student fills every blank from a word bank or from free recall. |
+| **Tile Match** | `tile_match` | Left/right concept pairs the student matches on a grade-banded board. |
 
-**Do not reference any game outside this list.** Any unlisted, legacy, or newly invented game is unsupported.
+**Do not reference any game outside this list.** Any unlisted, legacy, or newly
+invented game is unsupported: it does not render, and its array is dropped on
+import. This includes Adaptive Quiz — it is no longer offered, so never author
+an `adaptive_quiz` array and never name it to the student.
 
-## Game Selection
+**Both games run in every session.** There is no third slot to fill and no game
+to choose between; Easy and Hard differ by item count and difficulty mix, not by
+how many games appear. Do not invent a game to pad the arc.
 
-**Mandatory:** Adaptive Quiz must be one of the 3 games.
+### What each game is for in English
 
-Pick based on content:
-- Vocabulary-heavy unit -> Tile Match or Mystery Box
-- Grammar-pattern unit -> Sentence Fill or Adaptive Quiz
-- Mixed grammar + vocabulary -> Adaptive Quiz + Sentence Fill + Tile Match
-- Visual/spatial recall -> Puzzle Lock only when the unit has enough short, fair recall prompts
-- Quick contrast practice -> Tic Tac Toe vs AI only for closed-format recognition items
-- B2 level -> include at least 1 IELTS collocation, academic cloze, register, or rhetorical-analysis item inside Adaptive Quiz or Sentence Fill
+| Game | English use |
+|---|---|
+| **Tile Match** | Word ↔ meaning, term ↔ UZ bridge, collocation ↔ context, IPA ↔ word, form ↔ function. |
+| **Sentence Fill** | Grammar slots, tense form, register choice, collocation completion, academic cloze. Also carries short recall, form recognition, and the closed-format contrast checks that used to sit in a quiz. |
 
-Never pick two games that test the same item in the same way.
+## What goes in which game
+
+Both games always appear, so the decision is what each one carries:
+- Vocabulary-heavy unit → the weight goes on Tile Match; Sentence Fill puts those words back into use in context
+- Grammar-pattern unit → the weight goes on Sentence Fill; Tile Match carries form ↔ function pairs
+- Mixed grammar + vocabulary → split evenly, with the Tile Match board grouped into 2-4 `concept_family` labels
+- Contrast practice (the closed recognition drills that used to be a separate game) → `word_bank` Sentence Fill items where the single distractor IS the contrast form
+- Short recall and form recognition → 1-blank Sentence Fill items with a short, reliably checkable answer; keep long production out of them
+- B2 level → at least 1 IELTS collocation, academic cloze, register, or rhetorical-analysis item, in either game
+
+Never test the same item the same way in both games. If a word is a Tile Match pair, Sentence Fill should require it in production, not re-ask its meaning.
 
 ---
 
 ## Construction Per Game
 
-### Adaptive Quiz
-- Items per level from the table.
-- Difficulty tiers are item tiers, not homework mode: first 2 `EASY`, middle 2-3 `MEDIUM`, last 1-2 `HARD`.
-- G9+: no MC unless the textbook task itself is recognition-only.
-- G5-8: MC allowed for recognition items.
-- Open production answers must include accepted answers or an answer spec.
-
-### Sentence Fill
-- Sentence or short dialogue with one missing piece or one short explanation step.
-- Gap must test grammar understanding, not random word removal.
-- A1: one-word form. A2: tense choice between two forms. B1: modal/perfect/conditional slot. B2: inversion, cleft, register, or academic structure.
-- Use level-allowed tenses only in all model answers.
-
 ### Tile Match
 - Left tile: target word, phrase, grammar pattern, IPA cue, or example.
 - Right tile: UZ bridge, definition, form name, or real-world use.
-- A1: word to UZ meaning. A2: collocation to natural context. B1: form to function. B2: academic collocation to citation/register.
-- SVG or image is allowed inside a tile only when it directly represents textbook content.
+- A1: word ↔ UZ meaning. A2: collocation ↔ natural context. B1: form ↔ function. B2: academic collocation ↔ citation/register.
+- Set `concept_family` from the unit's own categories — `tense`, `register`, `word class`, `collocation type`, `false friend`, `function` are the labels that group an English board cleanly. Use 2-4 families per board.
+- Difficulty ladder across the board: `easy` word ↔ meaning → `medium` collocation ↔ context → `hard` form ↔ function, where the pair only resolves if the student reads the grammatical role.
+- SVG or an image is allowed inside a tile only when it directly represents textbook content.
+- Every `left` and every `right` must be unique across the board.
+**Board size by grade** — the builder recommends by grade, and 8 is a hard cap:
 
-### Puzzle Lock
-- Use only if the unit provides enough short checks.
-- Each tile prompt must have a short answer that can be checked reliably.
-- Avoid long production writing here; use Adaptive Quiz or Sentence Fill for that.
+| Grade | Pairs |
+|---|---|
+| G1-G2 | 4 |
+| G3-G4 | 5 |
+| G5-G7 | 6 |
+| G8 and above | 8 |
 
-### Mystery Box
-- Use 2-4 category labels from the unit.
-- Each box must have a category and a short answer.
-- Good labels: tense, register, word class, collocation type, false friend, function.
+Never author more than 8 pairs at any grade; a 9th pair is rejected.
 
-### Tic Tac Toe vs AI
-- Use only for closed recognition or contrast questions.
-- Each item needs one correct option and 2-3 distractors.
-- Do not use it for paragraph writing, translation paragraphs, or open production.
+### Sentence Fill
+- Items per CEFR level from the table above.
+- `mode`: `word_bank` for G2-G7, `free_recall` for G8+.
+- Sentence or short dialogue with one missing piece per `___`; 1-3 blanks per passage is the natural English range.
+- The gap must test grammar understanding, not random word removal.
+- A1: one-word form. A2: tense choice between two forms. B1: modal/perfect/conditional slot. B2: inversion, cleft, register, or academic structure.
+- Use level-allowed tenses only in all model answers.
+- In `word_bank` mode the distractor is the contrast form the level is actually being taught (`"has gone"` against `"went"`, `"few"` against `"a few"`), never a random word. This is where closed-format contrast practice now lives.
+- B2 academic cloze lives here: an authentic collocation slot inside a source-like sentence.
+- Use `explanations` to say why the distractor is wrong at this CEFR level — one per answer, or omit the key entirely.
 
 ---
 
 ## Rules
 
-- Exactly 3 games for English HARD mode; Adaptive Quiz is mandatory.
+- Exactly 2 games for English HARD mode — Tile Match and Sentence Fill, both every session.
 - Every item tagged `[Bloom: LX | PISA: LX]`.
 - B2 must include at least 1 IELTS collocation, academic cloze, register, or rhetorical-analysis item.
 - Full answer key for every game.
 - Current textbook unit content only. No items from other chapters and no outside facts.
 - Language: student-facing English; UZ appears only for an explicit UZ<->EN bridge.
 - Level-allowed tenses only in model answers.
-- No unsupported or invented game names.
+- Do not reference any game outside the Supported Games table.
 - Visuals: inline SVG where a visual speeds recognition. Under 200x150px. Use only textbook-supported visuals; no decorative media.
 
 ---
 
 ## OUTPUT REQUIREMENT
 
-Return valid JSON matching this exact schema. Omit optional game arrays only when that game is not selected.
+Return valid JSON matching this exact schema. **Omit optional game arrays only
+when that game is not selected** — never emit an empty array, and never emit a
+key for a game you did not build.
 
 ```json
 {
-  "adaptive_quiz": [
+  "sentence_fill": [
     {
-      "q": "string",
+      "id": "sf_001",
+      "mode": "word_bank|free_recall",
+      "passage": "Text with ___ marking each blank.",
+      "answers": ["one entry per ___, in blank order"],
+      "word_bank": ["every answer", "plus at least one distractor"],
+      "explanations": ["one per answer, or omit the key"],
       "tags": "[Bloom: LX | PISA: LX]",
-      "tier": "EASY|MEDIUM|HARD",
-      "ans": ["string"],
-      "capture": false
+      "difficulty": "easy|medium|hard",
+      "pisa_level": "L1|L2|L3|L4|L5"
     }
   ],
-  "why_chain": [
+  "tile_match": [
     {
-      "q": "string",
-      "inv": "string",
-      "reprompts": ["string", "string"]
-    }
-  ],
-  "memory_match": [
-    ["left tile", "right tile"]
-  ],
-  "puzzle_lock": [
-    {
-      "tile": "string",
-      "q": "string",
-      "ans": ["string"]
-    }
-  ],
-  "mystery_box": [
-    {
-      "category": "string",
-      "q": "string",
-      "a": "string"
-    }
-  ],
-  "ttt": [
-    {
-      "q": "string",
-      "correct": "string",
-      "distractors": ["string", "string", "string"]
+      "id": "tm_001",
+      "left": "concept side, 300 chars max",
+      "right": "definition side, 300 chars max",
+      "concept_family": "grouping label",
+      "subject_family": "math|biology|history|literature|physics|chemistry|language|geography|general",
+      "difficulty": "easy|medium|hard",
+      "pisa_level": "L1|L2|L3|L4|L5|L6"
     }
   ]
 }
 ```
+
+The server validates every one of these (`server/schemas/content.py`):
+
+- `sentence_fill.passage` must contain 1-6 `___` markers. `answers` length must equal the marker count, in blank order.
+- `sentence_fill.mode` is `word_bank` (G2-G7) or `free_recall` (G8+). When `word_bank`, the `word_bank` key is required, must contain every answer, and must carry at least one extra distractor.
+- `sentence_fill.explanations`, when present, must be exactly as long as `answers`.
+- `tile_match` holds 0-8 pairs. `left` and `right` must each be non-empty and 300 characters or fewer.
+- Every `tile_match.id` is unique, every `left` is unique, and every `right` is unique — a repeated side breaks the distractor logic and the whole board is rejected.
+- `tile_match.subject_family` is always `"language"` in this file.
