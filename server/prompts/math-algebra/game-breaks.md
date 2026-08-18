@@ -32,8 +32,7 @@ Only two games exist in the practice arc. Use these and nothing else:
 
 **Do not reference any game outside this list.** Any unlisted, legacy, or newly
 invented game is unsupported: it does not render, and its array is dropped on
-import. This includes Adaptive Quiz — it is no longer offered, so never author
-an `adaptive_quiz` array and never name it to the student.
+import.
 
 **Both games run in every session.** There is no third slot to fill and no game
 to choose between; Easy and Hard differ by item count and difficulty mix, not by
