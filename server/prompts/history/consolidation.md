@@ -130,7 +130,6 @@ Return valid JSON matching this exact schema:
 ```json
 {
   "mnemonic": "string",
-  "lock_code": "string",
   "explanation": "string"
 }
 ```

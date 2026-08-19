@@ -117,6 +117,8 @@ Never author more than 8 pairs at any grade; a 9th pair is rejected.
 
 ### Error Detection
 
+> **Authored ahead of the renderer — this is deliberate.** No MARK renderer ships yet, so Error Detection content is stored and validated but does not reach students today. Author it to the same standard as the other two games anyway, so it is correct the moment the renderer lands.
+
 Show the student a **complete, confident, WRONG** worked artifact. They tap the
 segment where it goes wrong, then — when you ask for it — name the error type and
 write the correction.
